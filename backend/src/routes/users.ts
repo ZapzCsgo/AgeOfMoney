@@ -247,6 +247,40 @@ router.post('/2fa/verify', requireAuth, async (req: Request, res: Response): Pro
   }
 });
 
+// POST /:id/tip — Send coins to another user
+router.post('/:id/tip', requireAuth, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const recipientId = req.params.id;
+    const senderId = req.user!.id;
+    if (recipientId === senderId) { res.status(400).json({ error: 'Cannot tip yourself' }); return; }
+
+    const { amount } = req.body as { amount?: number };
+    const amountInt = Math.floor(Number(amount));
+    if (!amountInt || amountInt < 10 || amountInt > 10000) {
+      res.status(400).json({ error: 'Tip amount must be between 10 and 10 000 ⚜' }); return;
+    }
+
+    const [sender, recipient] = await Promise.all([
+      prisma.user.findUnique({ where: { id: senderId }, select: { coins: true, username: true } }),
+      prisma.user.findUnique({ where: { id: recipientId }, select: { id: true, username: true, isBanned: true } }),
+    ]);
+    if (!sender) { res.status(404).json({ error: 'Sender not found' }); return; }
+    if (!recipient || recipient.isBanned) { res.status(404).json({ error: 'User not found' }); return; }
+    if (sender.coins < amountInt) { res.status(400).json({ error: 'Insufficient coins' }); return; }
+
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: senderId },    data: { coins: { decrement: amountInt } } }),
+      prisma.user.update({ where: { id: recipientId }, data: { coins: { increment: amountInt } } }),
+    ]);
+
+    logger.info(`[Tip] ${senderId} → ${recipientId} : ${amountInt} coins`);
+    res.json({ ok: true, amount: amountInt });
+  } catch (err) {
+    logger.error('POST /users/:id/tip error:', err);
+    res.status(500).json({ error: 'Tip failed' });
+  }
+});
+
 // GET /leaderboard - All-time top users by totalWagered
 router.get('/leaderboard', async (_req: Request, res: Response): Promise<void> => {
   try {

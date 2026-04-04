@@ -191,13 +191,18 @@ export default function RoulettePage() {
     if (tickIntervalRef.current) clearInterval(tickIntervalRef.current);
 
     const full = displayStrip;
-    const target = Math.floor(full.length * 0.72);
-    let landIdx = target;
-    for (let i = 0; i < 60; i++) {
-      if (full[(target + i) % full.length] === wz) { landIdx = target + i; break; }
+    const target = Math.floor(full.length * 0.68);
+    // Collect all occurrences of the winning zone in the look-ahead window
+    const occurrences: number[] = [];
+    for (let i = 0; i < 80; i++) {
+      if (full[(target + i) % full.length] === wz) occurrences.push(target + i);
     }
-
-    const finalX = -(landIdx * ITEM_SLOT - CENTER_OFFSET + ITEM_W / 2);
+    const landIdx = occurrences.length > 0
+      ? occurrences[Math.floor(Math.random() * occurrences.length)]
+      : target;
+    // Random sub-slot offset so the needle doesn't always land dead-center
+    const subOffset = (Math.random() - 0.5) * (ITEM_W * 0.6);
+    const finalX = -(landIdx * ITEM_SLOT - CENTER_OFFSET + ITEM_W / 2) + subOffset;
     const spinDuration = 5500;
     const startTime = Date.now();
     let lastTick = -1;

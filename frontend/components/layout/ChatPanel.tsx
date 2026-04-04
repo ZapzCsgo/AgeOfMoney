@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { Send, Users, Smile, Image as ImageIcon, BookOpen, VolumeX, ChevronDown } from 'lucide-react';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Send, Users, Smile, VolumeX, User, Coins } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { connectSocket, getSocket } from '@/lib/socket';
 import { useT } from '@/lib/i18n';
+import { apiClient } from '@/lib/api';
 
 // Custom image emojis — also used for rendering shortcodes in messages
 const CUSTOM_EMOJIS: { name: string; file: string }[] = [
@@ -109,21 +109,51 @@ export function ChatPanel() {
   const [muteTarget, setMuteTarget]   = useState<{ userId: string; username: string } | null>(null);
   const [muteDuration, setMuteDuration] = useState(15);
   const [showEmojis, setShowEmojis]   = useState(false);
+  const [userMenu, setUserMenu]       = useState<{ userId: string; username: string; avatar: string | null; isAdmin: boolean; x: number; y: number } | null>(null);
+  const [tipAmount, setTipAmount]     = useState('');
+  const [tipping, setTipping]         = useState(false);
+  const [tipMsg, setTipMsg]           = useState<string | null>(null);
   const bottomRef  = useRef<HTMLDivElement>(null);
   const inputRef   = useRef<HTMLInputElement>(null);
   const emojiRef   = useRef<HTMLDivElement>(null);
+  const menuRef    = useRef<HTMLDivElement>(null);
 
   // Close emoji picker when clicking outside
   useEffect(() => {
     if (!showEmojis) return;
     const handler = (e: MouseEvent) => {
-      if (emojiRef.current && !emojiRef.current.contains(e.target as Node)) {
-        setShowEmojis(false);
-      }
+      if (emojiRef.current && !emojiRef.current.contains(e.target as Node)) setShowEmojis(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [showEmojis]);
+
+  // Close user menu when clicking outside
+  useEffect(() => {
+    if (!userMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setUserMenu(null); setTipAmount(''); setTipMsg(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [userMenu]);
+
+  const iCanMod = session?.user?.isAdmin || Boolean((session?.user as Record<string,unknown>)?.isMod);
+
+  const handleTip = useCallback(async () => {
+    if (!userMenu || !tipAmount) return;
+    setTipping(true); setTipMsg(null);
+    try {
+      await apiClient.post(`/users/${userMenu.userId}/tip`, { amount: Number(tipAmount) });
+      setTipMsg(`✓ ${tipAmount} ⚜ envoyés à ${userMenu.username}`);
+      setTipAmount('');
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { error?: string } } };
+      setTipMsg(err?.response?.data?.error ?? 'Erreur');
+    } finally { setTipping(false); }
+  }, [userMenu, tipAmount]);
 
   const scrollToBottom = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -237,7 +267,6 @@ export function ChatPanel() {
             const isSystem = msg.userId === 'system';
             const bgColor = avatarColor(msg.username);
             const color   = levelColor(msg.tier);
-            const iCanMod = session?.user?.isAdmin || Boolean((session?.user as Record<string,unknown>)?.isMod);
 
             if (isSystem) return (
               <div key={msg.id} className="px-3 py-1.5 text-center">
@@ -253,7 +282,15 @@ export function ChatPanel() {
                   isMe ? 'bg-[#d4a017]/5' : 'hover:bg-[#0d0c18]'
                 )}
               >
-                <div className="shrink-0 relative">
+                <button
+                  className="shrink-0 relative cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={(e) => {
+                    if (isMe) return;
+                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                    setUserMenu({ userId: msg.userId, username: msg.username, avatar: msg.avatar, isAdmin: msg.isAdmin, x: rect.right + 4, y: rect.top });
+                    setTipAmount(''); setTipMsg(null);
+                  }}
+                >
                   <div
                     className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center text-[12px] font-bold text-white"
                     style={{ background: msg.avatar ? 'transparent' : bgColor, border: `2px solid ${color}55` }}
@@ -266,7 +303,7 @@ export function ChatPanel() {
                     style={{ background: color, color: '#07060f', width: 16, height: 16, lineHeight: 1 }}>
                     {msg.level}
                   </div>
-                </div>
+                </button>
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 mb-1 flex-wrap">
@@ -285,15 +322,6 @@ export function ChatPanel() {
                     <span className="text-[10px] text-[#3d3860] opacity-0 group-hover:opacity-100 transition-opacity ml-auto shrink-0">
                       {formatTime(msg.timestamp)}
                     </span>
-                    {/* Mute button — visible to mods/admins on hover */}
-                    {iCanMod && !isMe && !msg.isAdmin && (
-                      <button
-                        onClick={() => setMuteTarget({ userId: msg.userId, username: msg.username })}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity ml-1 p-0.5 rounded hover:bg-[#1e1a30]"
-                        title="Muter">
-                        <VolumeX size={11} style={{ color: '#6b6488' }} />
-                      </button>
-                    )}
                   </div>
                   <p className="text-[13px] text-[#9990b8] leading-snug break-words">{renderMessage(msg.message)}</p>
                 </div>
@@ -398,6 +426,72 @@ export function ChatPanel() {
       </div>
 
       {/* Mute duration picker (mod/admin — click on message) */}
+      {/* User context menu */}
+      {userMenu && (
+        <div
+          ref={menuRef}
+          className="fixed z-[400] rounded-xl shadow-2xl overflow-hidden"
+          style={{ left: Math.min(userMenu.x, window.innerWidth - 200), top: Math.min(userMenu.y, window.innerHeight - 250), width: 188, background: '#0d0b1a', border: '1px solid #1e1a30' }}
+        >
+          {/* User header */}
+          <div className="flex items-center gap-2 px-3 py-2.5 border-b" style={{ borderColor: '#1e1a30' }}>
+            <div className="w-7 h-7 rounded-full overflow-hidden shrink-0" style={{ background: '#1e1a30' }}>
+              {userMenu.avatar && <img src={userMenu.avatar} alt={userMenu.username} className="w-full h-full object-cover" />}
+            </div>
+            <span className="text-[12px] font-bold text-[#e8e2f5] truncate">{userMenu.username}</span>
+          </div>
+
+          {/* Profile */}
+          <a
+            href={`/profile?id=${userMenu.userId}`}
+            className="flex items-center gap-2.5 px-3 py-2 text-[12px] text-[#c8c0e0] hover:bg-[#13111f] transition-colors"
+            onClick={() => setUserMenu(null)}
+          >
+            <User size={13} className="text-[#6b6488]" /> Voir le profil
+          </a>
+
+          {/* Tip */}
+          {session && (
+            <div className="px-3 py-2 border-t" style={{ borderColor: '#1e1a30' }}>
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <span className="text-[11px] text-[#d4a017]">⚜</span>
+                <span className="text-[11px] text-[#c8c0e0]">Envoyer des coins</span>
+              </div>
+              <div className="flex gap-1.5">
+                <input
+                  type="number" min={10} max={10000}
+                  value={tipAmount}
+                  onChange={e => setTipAmount(e.target.value)}
+                  placeholder="10"
+                  className="flex-1 w-0 rounded px-2 py-1 text-[11px] text-[#e8e2f5] outline-none"
+                  style={{ background: '#13111f', border: '1px solid #1e1a30' }}
+                />
+                <button
+                  onClick={handleTip}
+                  disabled={tipping || !tipAmount}
+                  className="px-2 py-1 rounded text-[11px] font-bold disabled:opacity-40 transition-opacity"
+                  style={{ background: '#d4a017', color: '#07060f' }}
+                >
+                  {tipping ? '…' : 'Tip'}
+                </button>
+              </div>
+              {tipMsg && <p className={cn('text-[10px] mt-1', tipMsg.startsWith('✓') ? 'text-green-400' : 'text-red-400')}>{tipMsg}</p>}
+            </div>
+          )}
+
+          {/* Mute — mod/admin only */}
+          {iCanMod && !userMenu.isAdmin && (
+            <button
+              onClick={() => { setMuteTarget({ userId: userMenu.userId, username: userMenu.username }); setUserMenu(null); }}
+              className="flex w-full items-center gap-2.5 px-3 py-2 text-[12px] text-red-400 hover:bg-[#13111f] transition-colors border-t"
+              style={{ borderColor: '#1e1a30' }}
+            >
+              <VolumeX size={13} /> Muter
+            </button>
+          )}
+        </div>
+      )}
+
       {muteTarget && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 backdrop-blur-sm"
           onClick={() => setMuteTarget(null)}>
