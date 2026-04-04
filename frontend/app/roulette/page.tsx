@@ -132,8 +132,8 @@ export default function RoulettePage() {
       setPhase('betting'); wololoPlayedRef.current = false;
       setFairnessRound(prev => prev ? { ...prev, roundHash: d.roundHash, serverSeed: null, result: null, winZone: null } : null);
       resetWheel(); fetchAll();
-      // Schedule Wololo 500ms before spin
-      const msUntilSpin = new Date(d.endsAt).getTime() - Date.now() - 500;
+      // Schedule Wololo 150ms before spin
+      const msUntilSpin = new Date(d.endsAt).getTime() - Date.now() - 150;
       if (msUntilSpin > 0) {
         setTimeout(() => {
           if (!wololoPlayedRef.current) { wololoPlayedRef.current = true; playWololo(0.3); }
