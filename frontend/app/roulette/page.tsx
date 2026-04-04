@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { apiClient, setAuthToken } from '@/lib/api';
-import { Shield, Crown, Sword, RefreshCw, ShieldCheck, X, Copy, Check } from 'lucide-react';
+import { Shield, Crown, Sword, ShieldCheck, X, Copy, Check } from 'lucide-react';
 import { playWololo, playTick, playWin, playLose, playEmperorWin } from '@/lib/rouletteSounds';
 
 const ZONES = {
@@ -63,7 +63,6 @@ export default function RoulettePage() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [selectedZone, setSelectedZone] = useState<Zone | null>(null);
   const [betAmount, setBetAmount] = useState('');
-  const [placing, setPlacing] = useState(false);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [countdown, setCountdown] = useState(0);
   const [phase, setPhase] = useState<'idle' | 'betting' | 'spinning' | 'result'>('idle');
@@ -133,6 +132,13 @@ export default function RoulettePage() {
       setPhase('betting'); wololoPlayedRef.current = false;
       setFairnessRound(prev => prev ? { ...prev, roundHash: d.roundHash, serverSeed: null, result: null, winZone: null } : null);
       resetWheel(); fetchAll();
+      // Schedule Wololo 500ms before spin
+      const msUntilSpin = new Date(d.endsAt).getTime() - Date.now() - 500;
+      if (msUntilSpin > 0) {
+        setTimeout(() => {
+          if (!wololoPlayedRef.current) { wololoPlayedRef.current = true; playWololo(0.3); }
+        }, msUntilSpin);
+      }
     });
     s.on('roulette:betsUpdate', (d: { roundId: string; bets: RoundBet[] }) => {
       setRound(prev => prev?.id === d.roundId ? { ...prev, bets: d.bets } : prev);
@@ -141,7 +147,7 @@ export default function RoulettePage() {
       setPhase('spinning');
       setRound(prev => prev ? { ...prev, status: 'SPINNING' } : prev);
       animateSpin(d.winZone);
-      // Play WOLOLO once at spin start
+      // Fallback wololo if not already played
       if (!wololoPlayedRef.current) { wololoPlayedRef.current = true; playWololo(0.3); }
     });
     s.on('roulette:result', (d: { winZone: Zone; multiplier: number; serverSeed?: string; roundHash?: string; result?: number; roundId: string }) => {
@@ -253,13 +259,13 @@ export default function RoulettePage() {
     if (!selectedZone) { showMsg('error', t('bet_err_select')); return; }
     const amount = parseInt(betAmount);
     if (!amount || amount < 1) { showMsg('error', t('bet_err_min')); return; }
-    setPlacing(true);
-    try {
-      await apiClient.post('/roulette/bet', { zone: selectedZone, amount });
-      showMsg('success', `${t('bet_submit').replace('⚔ ', '')} ✓`);
-      setBetAmount('');
-    } catch (e) { showMsg('error', e instanceof Error ? e.message : t('common_error')); }
-    finally { setPlacing(false); }
+    setBetAmount(''); // instant feedback — fire-and-forget
+    apiClient.post('/roulette/bet', { zone: selectedZone, amount })
+      .catch((e: unknown) => {
+        const err = e as { response?: { data?: { error?: string } } };
+        showMsg('error', err?.response?.data?.error ?? t('common_error'));
+        setBetAmount(String(amount)); // restore amount on error
+      });
   }
 
   function showMsg(type: 'success' | 'error', text: string) {
@@ -498,11 +504,10 @@ export default function RoulettePage() {
               className="px-3 py-2 rounded-lg text-[11px] text-[#6b6488] hover:text-[#9990b8]"
               style={{ background:'#13111f',border:'1px solid #1e1a30' }}>CLR</button>
           </div>
-          <button onClick={placeBet} disabled={!isBetting||placing||!selectedZone||!betAmount}
+          <button onClick={placeBet} disabled={!isBetting||!selectedZone||!betAmount}
             className="w-full py-3 rounded-lg text-[13px] font-bold transition-all disabled:opacity-40"
             style={{ background:selectedZone ? ZONES[selectedZone].color : '#f5c842', color:'#07060f' }}>
-            {placing ? <RefreshCw size={14} className="animate-spin mx-auto" /> :
-              !isBetting ? t('bet_closed') :
+            {!isBetting ? t('bet_closed') :
               !selectedZone ? t('roulette_select_zone') :
               `${t('roulette_bet')} ${betAmount?parseInt(betAmount).toLocaleString('fr-FR'):'...'} ⚜ — ${selectedZone?zoneLabel(selectedZone):''}`}
           </button>
