@@ -200,9 +200,8 @@ export default function RoulettePage() {
     const landIdx = occurrences.length > 0
       ? occurrences[Math.floor(Math.random() * occurrences.length)]
       : target;
-    // Random sub-slot offset so the needle doesn't always land dead-center
-    const subOffset = (Math.random() - 0.5) * (ITEM_W * 0.6);
-    const finalX = -(landIdx * ITEM_SLOT - CENTER_OFFSET + ITEM_W / 2) + subOffset;
+    // No sub-pixel offset — keeps centerIdx tracking in sync with visual position
+    const finalX = -(landIdx * ITEM_SLOT - CENTER_OFFSET + ITEM_W / 2);
     const spinDuration = 5500;
     const startTime = Date.now();
     let lastTick = -1;
@@ -412,9 +411,9 @@ export default function RoulettePage() {
                 <div className="absolute -bottom-3 left-1/2 -translate-x-1/2" style={{ width:0,height:0,borderLeft:'8px solid transparent',borderRight:'8px solid transparent',borderBottom:`12px solid ${isSpinning ? '#f5c842':'#ffffff30'}` }} />
               </div>
 
-              {/* Fades */}
-              <div className="absolute inset-y-0 left-0 w-20 z-10 pointer-events-none" style={{ background:'linear-gradient(to right,#0d0b1a,transparent)' }} />
-              <div className="absolute inset-y-0 right-0 w-20 z-10 pointer-events-none" style={{ background:'linear-gradient(to left,#0d0b1a,transparent)' }} />
+              {/* Fades — narrow so items stay visible during spin */}
+              <div className="absolute inset-y-0 left-0 w-10 z-10 pointer-events-none" style={{ background:'linear-gradient(to right,rgba(13,11,26,0.85),transparent)' }} />
+              <div className="absolute inset-y-0 right-0 w-10 z-10 pointer-events-none" style={{ background:'linear-gradient(to left,rgba(13,11,26,0.85),transparent)' }} />
 
               {/* Strip — ALWAYS fully colored */}
               <div ref={wheelRef} className="flex" style={{ gap:ITEM_GAP }}>
