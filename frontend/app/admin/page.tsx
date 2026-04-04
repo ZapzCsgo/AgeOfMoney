@@ -949,14 +949,14 @@ export default function AdminPage() {
 
               {/* Key info */}
               <div className="grid grid-cols-2 gap-2 text-[12px]">
-                {[
+                {([
                   ['Page LP', lpDebug.page],
                   ['Score DB', lpDebug.dbScore],
                   ['Statut DB', lpDebug.dbStatus],
                   ['Matchs LP trouvés', lpDebug.lpMatchesFound],
-                ].map(([label, value]) => value !== undefined && (
-                  <div key={String(label)} className="rounded p-2" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
-                    <div className="text-[#6b6488] text-[10px] uppercase tracking-wider">{String(label)}</div>
+                ] as [string, unknown][]).map(([label, value]) => value !== undefined && (
+                  <div key={label} className="rounded p-2" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
+                    <div className="text-[#6b6488] text-[10px] uppercase tracking-wider">{label}</div>
                     <div className="text-[#e8e2f5] mt-0.5 font-mono">{String(value ?? '—')}</div>
                   </div>
                 ))}
