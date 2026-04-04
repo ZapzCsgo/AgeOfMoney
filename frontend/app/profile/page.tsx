@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useSession, signIn } from 'next-auth/react';
+import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Bet, UserStats, LeaderboardEntry } from '@/types';
@@ -457,9 +458,18 @@ function BetStatusBadge({ status }: { status: string }) {
   );
 }
 
+interface PublicProfile {
+  id: string; username: string; avatar: string | null; bio: string | null;
+  coins: number; totalWagered: number; isAdmin: boolean; isMod: boolean; isPartner: boolean;
+  createdAt: string; _count: { bets: number; rouletteBets: number };
+}
+
 export default function ProfilePage() {
   const { t } = useT();
   const { data: session, status } = useSession();
+  const searchParams = useSearchParams();
+  const viewId = searchParams.get('id');
+
   const [activeTab, setActiveTab] = useState<TabType>('profile');
   const [bets, setBets]           = useState<Bet[]>([]);
   const [betsTotal, setBetsTotal] = useState(0);
@@ -469,9 +479,24 @@ export default function ProfilePage() {
   const [historyFilter, setHistoryFilter] = useState<'all' | 'match' | 'roulette'>('all');
   const [loading, setLoading]     = useState(false);
   const [profileBio, setProfileBio] = useState('I love AgeOfMoney !');
+  const [publicProfile, setPublicProfile] = useState<PublicProfile | null>(null);
+  const [publicLoading, setPublicLoading] = useState(false);
+
+  // If ?id= is set and differs from own id, fetch public profile
+  const isViewingOther = viewId && viewId !== (session?.user as { id?: string })?.id;
+
+  useEffect(() => {
+    if (!isViewingOther || !viewId) return;
+    setPublicLoading(true);
+    apiClient.get(`/users/${viewId}`)
+      .then(res => setPublicProfile(res.data.data ?? null))
+      .catch(() => setPublicProfile(null))
+      .finally(() => setPublicLoading(false));
+  }, [viewId, isViewingOther]);
 
   useEffect(() => {
     if (!session) return;
+    if (isViewingOther) return; // don't load own data when viewing someone else
     setLoading(true);
     if (session.user.accessToken) setAuthToken(session.user.accessToken);
     Promise.all([
@@ -510,6 +535,90 @@ export default function ProfilePage() {
             style={{ background: 'linear-gradient(135deg, #8b6410, #d4a017)' }}>
             {t('auth_signin_steam')}
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Public profile view (viewing someone else) ────────────────────────────
+  if (isViewingOther) {
+    if (publicLoading) return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#07060f' }}>
+        <div className="w-8 h-8 border-2 border-[#d4a017] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+    if (!publicProfile) return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#07060f' }}>
+        <div className="text-center p-8 rounded-xl" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+          <div className="text-3xl mb-3">⚔</div>
+          <h2 className="font-bold text-lg text-[#d4a017] mb-2" style={{ fontFamily: 'Cinzel, serif' }}>Utilisateur introuvable</h2>
+          <Link href="/profile" className="text-[#6b6488] text-sm hover:text-[#d4a017]">← Retour à mon profil</Link>
+        </div>
+      </div>
+    );
+    const pubLvl = getLevel(publicProfile.totalWagered);
+    const pubColor = levelColor(pubLvl.level);
+    const pubJoined = new Date(publicProfile.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+    return (
+      <div className="min-h-screen" style={{ background: '#07060f' }}>
+        <div className="max-w-2xl mx-auto px-4 py-10 space-y-4">
+          <Link href="/profile" className="text-[11px] text-[#6b6488] hover:text-[#d4a017] transition-colors">← Retour à mon profil</Link>
+          <div className="rounded-xl p-6 relative overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+            <div className="absolute inset-0 opacity-10" style={{ background: `radial-gradient(ellipse at top right, ${pubColor}, transparent 60%)` }} />
+            <div className="relative flex items-center gap-5">
+              <div className="relative shrink-0">
+                <div className="w-20 h-20 rounded-full overflow-hidden" style={{ border: `2px solid ${pubColor}66` }}>
+                  {publicProfile.avatar ? (
+                    <Image src={publicProfile.avatar} alt="Avatar" width={80} height={80} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-xl font-bold" style={{ background: '#1a1630', color: pubColor }}>
+                      {publicProfile.username.slice(0, 2).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+                <div className="absolute -bottom-1 -right-1 text-[10px] font-bold px-1.5 rounded-full"
+                  style={{ background: pubColor, color: '#07060f', lineHeight: '18px' }}>
+                  {pubLvl.level}
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h1 className="text-2xl font-bold text-[#e8e2f5] truncate" style={{ fontFamily: 'Cinzel, serif' }}>{publicProfile.username}</h1>
+                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                  {publicProfile.isAdmin && <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: '#be123c33', color: '#f87171', border: '1px solid #be123c55' }}>ADMIN</span>}
+                  {publicProfile.isMod && <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: '#7c3aed33', color: '#a78bfa', border: '1px solid #7c3aed55' }}>MOD</span>}
+                  {publicProfile.isPartner && <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: 'rgba(212,160,23,0.1)', color: '#d4a017', border: '1px solid rgba(212,160,23,0.3)' }}>PARTENAIRE</span>}
+                  {!publicProfile.isAdmin && !publicProfile.isMod && !publicProfile.isPartner && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: 'rgba(212,160,23,0.1)', color: '#d4a017', border: '1px solid rgba(212,160,23,0.3)' }}>MEMBRE</span>
+                  )}
+                </div>
+                {publicProfile.bio && <p className="text-[13px] text-[#9990b8] mt-2 italic">"{publicProfile.bio}"</p>}
+              </div>
+            </div>
+            {/* XP bar */}
+            <div className="relative mt-5">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[12px] font-semibold" style={{ color: pubColor }}>Niveau {pubLvl.level}</span>
+                <span className="text-[11px] text-[#6b6488]">{pubLvl.pct.toFixed(1)}%</span>
+              </div>
+              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: '#1e1a30' }}>
+                <div className="h-full rounded-full transition-all" style={{ width: `${pubLvl.pct}%`, background: pubColor }} />
+              </div>
+            </div>
+          </div>
+          {/* Stats */}
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: 'Total misé', value: `${new Intl.NumberFormat('fr-FR').format(publicProfile.totalWagered)} ⚜` },
+              { label: 'Paris match', value: publicProfile._count.bets },
+              { label: 'Paris roulette', value: publicProfile._count.rouletteBets },
+            ].map(({ label, value }) => (
+              <div key={label} className="rounded-xl p-4 text-center" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+                <p className="text-[18px] font-bold text-[#d4a017]">{value}</p>
+                <p className="text-[11px] text-[#6b6488] mt-1">{label}</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-[11px] text-[#3d3860] text-center">Membre depuis le {pubJoined}</p>
         </div>
       </div>
     );

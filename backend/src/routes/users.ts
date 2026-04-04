@@ -357,4 +357,33 @@ router.get('/leaderboard/weekly', async (_req: Request, res: Response): Promise<
   }
 });
 
+// GET /:id - Public user profile (must be last to avoid catching named routes)
+router.get('/:id', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: {
+        id: true,
+        username: true,
+        avatar: true,
+        bio: true,
+        coins: true,
+        totalWagered: true,
+        isAdmin: true,
+        isMod: true,
+        isPartner: true,
+        isBanned: true,
+        createdAt: true,
+        _count: { select: { bets: true, rouletteBets: true } },
+      },
+    });
+    if (!user || user.isBanned) { res.status(404).json({ error: 'User not found' }); return; }
+    const { isBanned: _banned, ...pub } = user;
+    res.json({ data: pub });
+  } catch (error) {
+    logger.error('GET /users/:id error:', error);
+    res.status(500).json({ error: 'Failed to fetch user' });
+  }
+});
+
 export default router;
