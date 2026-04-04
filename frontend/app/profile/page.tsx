@@ -1,0 +1,786 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useSession, signIn } from 'next-auth/react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { Bet, UserStats, LeaderboardEntry } from '@/types';
+import { getMyBets, getLeaderboard, apiClient } from '@/lib/api';
+import { setAuthToken } from '@/lib/api';
+import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
+import {
+  Settings, Clock, Shield, UserX, BadgeCheck, Users,
+  BarChart2, Trophy, TrendingUp, TrendingDown, Coins,
+  ChevronRight, Swords, Dices, Copy, Check, CheckCircle2, Mail, User2
+} from 'lucide-react';
+
+type TabType = 'profile' | 'settings' | 'security' | 'history';
+
+interface RouletteBetHistory {
+  id: string; zone: string; amount: number; payout: number | null; won: boolean | null; createdAt: string;
+  round: { id: string; winZone: string | null; multiplier: number | null; status: string; completedAt: string | null; result: number | null };
+}
+
+// Level thresholds in coins wagered (1.69 coins = $1)
+// $5 / $10 / $25 / $50 / $100 / $200 / $500 / $1k / $2k / $5k /
+// $10k / $20k / $50k / $100k / $200k / $500k / $1M / $2M / $5M / max
+// 1 coin wagered = 420 XP
+const XP_THRESHOLDS = [
+  0, 420, 4_200, 21_000, 63_000, 168_000, 420_000,
+  1_050_000, 2_100_000, 4_200_000, 8_400_000, 21_000_000,
+  42_000_000, 84_000_000, 210_000_000, 420_000_000, 840_000_000,
+  1_680_000_000, 3_360_000_000, 8_400_000_000,
+];
+
+function getLevel(totalWagered: number): { level: number; pct: number } {
+  const xp = Math.max(0, totalWagered) * 420;
+  let level = 1;
+  for (let i = 1; i < XP_THRESHOLDS.length; i++) {
+    if (xp >= XP_THRESHOLDS[i]) level = i + 1;
+    else break;
+  }
+  level = Math.min(level, 20);
+  const xpForLevel = XP_THRESHOLDS[level - 1] ?? 0;
+  const xpForNext  = XP_THRESHOLDS[level]     ?? XP_THRESHOLDS[XP_THRESHOLDS.length - 1];
+  const pct = xpForNext > xpForLevel
+    ? Math.min(100, ((xp - xpForLevel) / (xpForNext - xpForLevel)) * 100)
+    : 100;
+  return { level, pct };
+}
+
+function levelColor(level: number): string {
+  if (level >= 50) return '#a855f7';
+  if (level >= 30) return '#06b6d4';
+  if (level >= 20) return '#d4a017';
+  if (level >= 10) return '#94a3b8';
+  return '#78716c';
+}
+
+function StatPeriodCard({ title, won, played, count }: { title: string; won: number; played: number; count: number }) {
+  const { t } = useT();
+  const profit = won - played;
+  return (
+    <div className="rounded-xl p-4 flex flex-col gap-4" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+      <p className="text-[12px] text-[#6b6488] font-medium">{title}</p>
+      <div className="space-y-3">
+        <div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[#d4a017]">⚜</span>
+            <span className={cn('text-[18px] font-bold', profit >= 0 ? 'text-[#d4a017]' : 'text-red-400')}>
+              {new Intl.NumberFormat('fr-FR').format(won)}
+            </span>
+          </div>
+          <p className="text-[11px] text-[#6b6488] mt-0.5">{t('profile_total_won')}</p>
+        </div>
+        <div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[#6b6488]">⚜</span>
+            <span className="text-[18px] font-bold text-[#c8c0e0]">
+              {new Intl.NumberFormat('fr-FR').format(played)}
+            </span>
+          </div>
+          <p className="text-[11px] text-[#6b6488] mt-0.5">{t('profile_total_wagered')}</p>
+        </div>
+        <div>
+          <div className="flex items-center gap-1.5">
+            <Swords size={12} className="text-[#6b6488]" />
+            <span className="text-[18px] font-bold text-[#c8c0e0]">{count}</span>
+          </div>
+          <p className="text-[11px] text-[#6b6488] mt-0.5">{t('profile_total_bets')}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Settings Tab (extracted to avoid hooks-in-IIFE error) ────────────────────
+function SettingsTab({ session, initialBio, onBioSaved }: { session: { user: { name?: string | null; email?: string | null; id?: string; coins: number; isAdmin: boolean; accessToken: string } }; initialBio: string; onBioSaved: (b: string) => void }) {
+  const { t } = useT();
+  const [settEmail, setSettEmail] = useState('');
+  const [settBio,   setSettBio]   = useState(initialBio || 'I love AgeOfMoney !');
+  const [saving,    setSaving]    = useState(false);
+  const [saved,     setSaved]     = useState(false);
+  const [copied,    setCopied]    = useState(false);
+  const username = session.user.name ?? '';
+
+  const handleCopyId = () => {
+    navigator.clipboard.writeText((session.user as { id?: string }).id ?? '');
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await apiClient.put('/users/me', { email: settEmail, bio: settBio });
+      onBioSaved(settBio);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch {/* ignore */}
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div className="rounded-xl overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+      <div className="px-6 py-4 border-b" style={{ borderColor: '#1e1a30', background: 'rgba(0,0,0,0.2)' }}>
+        <h3 className="text-[13px] font-bold text-[#c8c0e0] uppercase tracking-widest font-cinzel">{t('settings_general')}</h3>
+      </div>
+      <div className="p-6 space-y-6">
+
+        {/* Username */}
+        <div>
+          <label className="block text-[11px] font-semibold text-[#9990b8] uppercase tracking-widest mb-2">{t('settings_username')}</label>
+          <div className="relative">
+            <input readOnly value={username}
+              className="w-full px-4 py-3 rounded-lg text-[13px] text-[#c8c0e0] outline-none cursor-not-allowed"
+              style={{ background: '#13111f', border: '1px solid #1e1a30' }} />
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+              <span className="text-[11px] text-[#6b6488]">{username.length}/32</span>
+              <span className="text-[10px] text-[#6b6488] bg-[#1e1a30] px-2 py-0.5 rounded">Steam</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Email */}
+        <div>
+          <label className="block text-[11px] font-semibold text-[#9990b8] uppercase tracking-widest mb-2">{t('settings_email')}</label>
+          <div className="relative">
+            <input type="email" value={settEmail} onChange={e => setSettEmail(e.target.value)}
+              placeholder="votre@email.com"
+              className="w-full px-4 py-3 rounded-lg text-[13px] outline-none transition-colors placeholder-[#3d3860]"
+              style={{ background: '#13111f', border: `1px solid ${settEmail ? '#22c55e44' : '#1e1a30'}`, color: '#c8c0e0' }} />
+            {settEmail && <CheckCircle2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500" />}
+          </div>
+          <p className="text-[11px] text-[#6b6488] mt-1.5">
+            {t('settings_email_hint')}
+          </p>
+        </div>
+
+        {/* User ID */}
+        <div>
+          <label className="block text-[11px] font-semibold text-[#9990b8] uppercase tracking-widest mb-2">{t('settings_userid')}</label>
+          <div className="relative">
+            <input readOnly value={(session.user as { id?: string }).id ?? ''}
+              className="w-full px-4 py-3 rounded-lg text-[13px] text-[#6b6488] outline-none cursor-default font-mono"
+              style={{ background: '#13111f', border: '1px solid #1e1a30' }} />
+            <button onClick={handleCopyId}
+              className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors hover:text-[#d4a017]"
+              style={{ color: copied ? '#22c55e' : '#6b6488' }}
+              title={copied ? t('common_copied') : t('common_copy')}>
+              {copied ? <Check size={15} /> : <Copy size={15} />}
+            </button>
+          </div>
+        </div>
+
+        {/* Bio */}
+        <div>
+          <label className="block text-[11px] font-semibold text-[#9990b8] uppercase tracking-widest mb-2">{t('settings_bio')}</label>
+          <div className="relative">
+            <textarea value={settBio} onChange={e => setSettBio(e.target.value.slice(0, 200))}
+              placeholder={t('settings_bio_placeholder')} rows={4}
+              className="w-full px-4 py-3 rounded-lg text-[13px] text-[#c8c0e0] outline-none resize-none transition-colors placeholder-[#3d3860]"
+              style={{ background: '#13111f', border: '1px solid #1e1a30' }} />
+            <span className="absolute bottom-3 right-3 text-[10px] text-[#6b6488]">{settBio.length}/200</span>
+          </div>
+        </div>
+
+        {/* Update */}
+        <button onClick={handleSave} disabled={saving}
+          className="px-6 py-2.5 rounded-lg text-[13px] font-bold font-cinzel transition-all hover:opacity-90 disabled:opacity-50"
+          style={{ background: saved ? '#16a34a' : 'linear-gradient(135deg, #8b6410, #d4a017)', color: '#07060f' }}>
+          {saving ? t('settings_updating') : saved ? `✓ ${t('settings_updated')}` : t('settings_update')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Security Tab ─────────────────────────────────────────────────────────────
+function SecurityTab({ session }: { session: { user: { accessToken: string; id?: string } } }) {
+  const { t } = useT();
+  const [twofaEnabled, setTwofaEnabled] = useState(false);
+  const [showSetup, setShowSetup]       = useState(false);
+  const [otpauthUrl, setOtpauthUrl]     = useState('');
+  const [verifyCode, setVerifyCode]     = useState('');
+  const [verifyError, setVerifyError]   = useState('');
+  const [verifySuccess, setVerifySuccess] = useState(false);
+  const [loadingSetup, setLoadingSetup] = useState(false);
+  const [loadingDisable, setLoadingDisable] = useState(false);
+  const [disableCode, setDisableCode]   = useState('');
+  const [showDisable, setShowDisable]   = useState(false);
+  const [disableError, setDisableError] = useState('');
+
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+  const browser = ua.includes('Chrome') ? 'Chrome' : ua.includes('Firefox') ? 'Firefox' : ua.includes('Safari') ? 'Safari' : ua.includes('Edge') ? 'Edge' : 'Navigateur';
+  const os = ua.includes('Windows') ? 'Windows' : ua.includes('Mac') ? 'macOS' : ua.includes('Linux') ? 'Linux' : ua.includes('Android') ? 'Android' : ua.includes('iPhone') ? 'iOS' : 'OS inconnu';
+  const now = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+  // Load current 2FA status on mount
+  useEffect(() => {
+    if (!session?.user?.accessToken) return;
+    setAuthToken(session.user.accessToken);
+    apiClient.get('/users/me').then(res => {
+      if (res.data?.data?.totpEnabled) setTwofaEnabled(true);
+    }).catch(() => {});
+  }, [session]);
+
+  const handleToggle = async () => {
+    if (twofaEnabled) {
+      setShowDisable(true);
+    } else {
+      // Call backend to generate real TOTP secret
+      setLoadingSetup(true);
+      try {
+        setAuthToken(session.user.accessToken);
+        const res = await apiClient.get('/users/2fa/setup');
+        setOtpauthUrl(res.data.data.otpauthUrl);
+        setShowSetup(true);
+      } catch (err: unknown) {
+        const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+        setVerifyError(msg || 'Erreur lors de la configuration 2FA');
+      } finally {
+        setLoadingSetup(false);
+      }
+    }
+  };
+
+  const handleEnable = async () => {
+    if (verifyCode.length !== 6 || !/^\d{6}$/.test(verifyCode)) {
+      setVerifyError(t('sec_invalid_code'));
+      return;
+    }
+    try {
+      setAuthToken(session.user.accessToken);
+      await apiClient.post('/users/2fa/enable', { code: verifyCode });
+      setVerifyError('');
+      setVerifySuccess(true);
+      setTwofaEnabled(true);
+      setTimeout(() => { setShowSetup(false); setVerifySuccess(false); setVerifyCode(''); }, 1500);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setVerifyError(msg || 'Code incorrect');
+    }
+  };
+
+  const handleDisable = async () => {
+    if (disableCode.length !== 6 || !/^\d{6}$/.test(disableCode)) {
+      setDisableError(t('sec_invalid_code'));
+      return;
+    }
+    setLoadingDisable(true);
+    try {
+      setAuthToken(session.user.accessToken);
+      await apiClient.post('/users/2fa/disable', { code: disableCode });
+      setTwofaEnabled(false);
+      setShowDisable(false);
+      setDisableCode('');
+      setDisableError('');
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setDisableError(msg || 'Code incorrect');
+    } finally {
+      setLoadingDisable(false);
+    }
+  };
+
+  const qrUrl = otpauthUrl
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(otpauthUrl)}`
+    : '';
+
+  return (
+    <div className="space-y-4">
+      {/* Two-Factor */}
+      <div className="rounded-xl overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+        <div className="px-6 py-4 border-b" style={{ borderColor: '#1e1a30', background: 'rgba(0,0,0,0.2)' }}>
+          <h3 className="text-[11px] font-bold text-[#6b6488] uppercase tracking-widest font-cinzel">{t('sec_twofactor')}</h3>
+        </div>
+
+        {/* Toggle row */}
+        <div className="px-6 py-4 flex items-center justify-between gap-4" style={showSetup ? { borderBottom: '1px solid #1e1a30' } : {}}>
+          <div>
+            <p className="text-[13px] font-semibold text-[#c8c0e0]">{t('sec_2fa_title')}</p>
+            <p className="text-[11px] text-[#6b6488] mt-0.5">
+              {t('sec_2fa_desc')}
+            </p>
+          </div>
+          <button
+            onClick={handleToggle}
+            disabled={loadingSetup}
+            className="relative w-11 h-6 rounded-full transition-colors shrink-0 disabled:opacity-60"
+            style={{ background: twofaEnabled ? '#d4a017' : '#2a2640' }}
+          >
+            <span
+              className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform shadow"
+              style={{ transform: twofaEnabled ? 'translateX(20px)' : 'translateX(0)' }}
+            />
+          </button>
+        </div>
+
+        {/* Disable confirmation */}
+        {showDisable && (
+          <div className="px-6 py-5 space-y-3" style={{ borderTop: '1px solid #1e1a30' }}>
+            <p className="text-[12px] text-[#9990b8]">{t('sec_disable_prompt')}</p>
+            <input
+              type="text" inputMode="numeric" maxLength={6}
+              value={disableCode}
+              onChange={(e) => { setDisableCode(e.target.value.replace(/\D/g, '')); setDisableError(''); }}
+              placeholder="000000"
+              className="w-full rounded-lg px-4 py-3 text-center text-xl tracking-[0.4em] font-mono text-[#e8e2f5] placeholder-[#3d3860] outline-none"
+              style={{ background: '#07060f', border: `1px solid ${disableError ? '#ef4444' : '#1e1a30'}` }}
+            />
+            {disableError && <p className="text-red-400 text-[11px]">{disableError}</p>}
+            <div className="flex gap-2">
+              <button onClick={() => { setShowDisable(false); setDisableCode(''); setDisableError(''); }}
+                className="flex-1 py-2 rounded-lg text-[12px] font-semibold text-[#6b6488] hover:text-[#c8c0e0] border border-[#1e1a30] transition-colors">
+                {t('sec_cancel')}
+              </button>
+              <button onClick={handleDisable} disabled={loadingDisable}
+                className="flex-1 py-2 rounded-lg text-[12px] font-semibold transition-colors disabled:opacity-60"
+                style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171' }}>
+                {loadingDisable ? t('common_loading') : t('sec_disable')}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Setup panel — visible when toggle clicked and not yet confirmed */}
+        {showSetup && !twofaEnabled && (
+          <div className="px-6 py-5 space-y-4">
+            {/* QR code */}
+            <div
+              className="rounded-lg flex flex-col items-center justify-center py-6 gap-3"
+              style={{ background: '#07060f', border: '1px solid #1e1a30' }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={qrUrl}
+                alt="QR Code 2FA"
+                width={120}
+                height={120}
+                className="rounded"
+                style={{ imageRendering: 'pixelated' }}
+              />
+              <p className="text-[11px] text-center text-[#6b6488] max-w-xs leading-relaxed">
+                {t('sec_2fa_backup')}
+              </p>
+            </div>
+
+            {/* Verification code input */}
+            <div>
+              <label className="block text-[12px] font-semibold text-[#c8c0e0] mb-2">
+                {t('sec_verify_code')}
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                value={verifyCode}
+                onChange={(e) => { setVerifyCode(e.target.value.replace(/\D/g, '')); setVerifyError(''); }}
+                placeholder="Enter the authentication code from the app..."
+                className="w-full rounded-lg px-4 py-3 text-[13px] text-[#c8c0e0] placeholder-[#3d3860] outline-none transition-colors"
+                style={{ background: '#07060f', border: `1px solid ${verifyError ? '#ef4444' : '#1e1a30'}` }}
+              />
+              {verifyError && (
+                <p className="text-[11px] text-red-400 mt-1">{verifyError}</p>
+              )}
+              {verifySuccess && (
+                <p className="text-[11px] text-emerald-400 mt-1">{t('sec_success')}</p>
+              )}
+            </div>
+
+            <button
+              onClick={handleEnable}
+              className="px-5 py-2.5 rounded-lg text-[13px] font-bold transition-colors"
+              style={{ background: 'linear-gradient(135deg, #8b6410, #d4a017)', color: '#07060f' }}
+            >
+              {t('sec_enable')}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Sessions */}
+      <div className="rounded-xl overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+        <div className="px-6 py-4 border-b" style={{ borderColor: '#1e1a30', background: 'rgba(0,0,0,0.2)' }}>
+          <h3 className="text-[11px] font-bold text-[#6b6488] uppercase tracking-widest font-cinzel">{t('sec_sessions')}</h3>
+        </div>
+
+        <div className="px-6 py-4 flex items-center justify-between gap-4" style={{ borderBottom: '1px solid #13111f' }}>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-0.5">
+              <p className="text-[13px] font-semibold text-[#c8c0e0]">{browser}, {os}</p>
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(212,160,23,0.12)', color: '#d4a017', border: '1px solid rgba(212,160,23,0.25)' }}>
+                {t('sec_current_session')}
+              </span>
+            </div>
+            <p className="text-[11px] text-[#6b6488]">{now}</p>
+          </div>
+          <button
+            className="px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-colors shrink-0"
+            style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}
+            onClick={() => {}}
+          >
+            {t('sec_end_session')}
+          </button>
+        </div>
+
+        <div className="px-6 py-4 text-center">
+          <p className="text-[11px] text-[#3d3860]">{t('sec_no_other_sessions')}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const TAB_IDS: { id: TabType; icon: typeof BarChart2 | typeof Settings | typeof Shield | typeof Clock; key: string }[] = [
+  { id: 'profile',  icon: BarChart2, key: 'profile_tab_profile' },
+  { id: 'settings', icon: Settings,  key: 'profile_tab_settings' },
+  { id: 'security', icon: Shield,    key: 'profile_tab_security' },
+  { id: 'history',  icon: Clock,     key: 'profile_tab_history' },
+];
+
+function BetStatusBadge({ status }: { status: string }) {
+  const { t } = useT();
+  const cfg: Record<string, { label: string; bg: string; color: string }> = {
+    WON:      { label: t('profile_history_won'),     bg: '#04200f', color: '#22c55e' },
+    LOST:     { label: t('profile_history_lost'),    bg: '#200404', color: '#ef4444' },
+    PENDING:  { label: t('profile_history_pending'), bg: '#201a04', color: '#d4a017' },
+    REFUNDED: { label: t('common_pending'),          bg: '#131025', color: '#6b6488' },
+    CANCELLED:{ label: t('common_pending'),          bg: '#131025', color: '#6b6488' },
+  };
+  const c = cfg[status] ?? cfg.CANCELLED;
+  return (
+    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: c.bg, color: c.color, border: `1px solid ${c.color}33` }}>
+      {c.label}
+    </span>
+  );
+}
+
+export default function ProfilePage() {
+  const { t } = useT();
+  const { data: session, status } = useSession();
+  const [activeTab, setActiveTab] = useState<TabType>('profile');
+  const [bets, setBets]           = useState<Bet[]>([]);
+  const [betsTotal, setBetsTotal] = useState(0);
+  const [stats, setStats]         = useState<UserStats | null>(null);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [rouletteBets, setRouletteBets] = useState<RouletteBetHistory[]>([]);
+  const [historyFilter, setHistoryFilter] = useState<'all' | 'match' | 'roulette'>('all');
+  const [loading, setLoading]     = useState(false);
+  const [profileBio, setProfileBio] = useState('I love AgeOfMoney !');
+
+  useEffect(() => {
+    if (!session) return;
+    setLoading(true);
+    if (session.user.accessToken) setAuthToken(session.user.accessToken);
+    Promise.all([
+      getMyBets({ limit: 50 }).catch(() => null),
+      getLeaderboard().catch(() => null),
+      apiClient.get('/roulette/my').catch(() => null),
+      apiClient.get('/users/me').catch(() => null),
+    ]).then(([betsRes, lbRes, rouRes, meRes]) => {
+      if (meRes?.data?.data?.bio) setProfileBio(meRes.data.data.bio);
+      if (betsRes) {
+        setBets(betsRes.data);
+        setBetsTotal(betsRes.total);
+        if (betsRes.stats) setStats(betsRes.stats);
+      }
+      if (lbRes) setLeaderboard(lbRes.data);
+      if (rouRes) setRouletteBets(rouRes.data.data ?? []);
+    }).finally(() => setLoading(false));
+  }, [session]);
+
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#07060f' }}>
+        <div className="w-8 h-8 border-2 border-[#d4a017] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#07060f' }}>
+        <div className="text-center p-8 rounded-xl" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+          <div className="text-3xl mb-3">⚔</div>
+          <h2 className="font-bold text-lg text-[#d4a017] mb-2" style={{ fontFamily: 'Cinzel, serif' }}>{t('auth_required')}</h2>
+          <p className="text-[#6b6488] text-sm mb-5">{t('auth_required_desc')}</p>
+          <button onClick={() => signIn()} className="px-6 py-2.5 rounded-lg text-sm font-semibold text-[#07060f]"
+            style={{ background: 'linear-gradient(135deg, #8b6410, #d4a017)' }}>
+            {t('auth_signin_steam')}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const s = stats;
+  const lvl = getLevel(s?.totalWagered ?? 0);
+  const color = levelColor(lvl.level);
+  const joinedAt = session?.user?.createdAt
+    ? new Date(session.user.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+    : t('profile_recently');
+
+  // Compute period stats from bets
+  const now = Date.now();
+  const bets7d  = bets.filter(b => now - new Date(b.createdAt).getTime() < 7  * 86400000);
+  const bets30d = bets.filter(b => now - new Date(b.createdAt).getTime() < 30 * 86400000);
+
+  const sumWon   = (arr: Bet[]) => arr.filter(b => b.status === 'WON').reduce((a, b) => a + (b.payout ?? 0), 0);
+  const sumPlayed= (arr: Bet[]) => arr.reduce((a, b) => a + b.amount, 0);
+
+  return (
+    <div className="min-h-screen" style={{ background: '#07060f' }}>
+      <div className="max-w-5xl mx-auto px-4 py-6 space-y-4">
+
+        {/* ── Profile header card ────────────────────────────────────────── */}
+        <div className="rounded-xl p-5 relative overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+          {/* Subtle gradient background */}
+          <div className="absolute inset-0 opacity-10" style={{ background: `radial-gradient(ellipse at top right, ${color}, transparent 60%)` }} />
+
+          <div className="relative flex flex-col sm:flex-row items-start justify-between gap-4">
+            {/* Left: avatar + info */}
+            <div className="flex items-center gap-4">
+              <div className="relative shrink-0">
+                <div className="w-20 h-20 rounded-full overflow-hidden" style={{ border: `2px solid ${color}66` }}>
+                  {session.user.image ? (
+                    <Image src={session.user.image} alt="Avatar" width={80} height={80} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-xl font-bold" style={{ background: '#1a1630', color }}>
+                      {(session.user.name || 'U').slice(0, 2).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+                {/* Level badge on avatar */}
+                <div className="absolute -bottom-1 -right-1 text-[10px] font-bold px-1.5 rounded-full"
+                  style={{ background: color, color: '#07060f', lineHeight: '18px' }}>
+                  {lvl.level}
+                </div>
+              </div>
+
+              <div>
+                <h1 className="text-2xl font-bold text-[#e8e2f5]" style={{ fontFamily: 'Cinzel, serif' }}>
+                  {session.user.name}
+                </h1>
+                <div className="mt-1.5">
+                  {session.user.isAdmin ? (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: '#be123c33', color: '#f87171', border: '1px solid #be123c55' }}>ADMIN</span>
+                  ) : (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: 'rgba(212,160,23,0.1)', color: '#d4a017', border: '1px solid rgba(212,160,23,0.3)' }}>MEMBRE</span>
+                  )}
+                </div>
+                {profileBio && (
+                  <p className="text-[13px] text-[#9990b8] mt-2 max-w-xs italic">"{profileBio}"</p>
+                )}
+              </div>
+            </div>
+
+            {/* Right: joined date */}
+            <div className="text-right shrink-0">
+              <p className="text-[12px] text-[#6b6488]">{t('profile_member_since')} {joinedAt}</p>
+            </div>
+          </div>
+
+          {/* XP bar */}
+          <div className="relative mt-5">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[12px] font-semibold" style={{ color }}>
+                {t('profile_level')} {lvl.level}
+              </span>
+              <span className="text-[11px] text-[#6b6488]">{lvl.pct.toFixed(1)}%</span>
+            </div>
+            <div className="h-2 rounded-full overflow-hidden" style={{ background: '#1a1630' }}>
+              <div
+                className="h-full rounded-full transition-all duration-700"
+                style={{
+                  width: `${lvl.pct}%`,
+                  background: `linear-gradient(90deg, ${color}88, ${color})`,
+                  boxShadow: `0 0 8px ${color}66`,
+                }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* ── Tabs ─────────────────────────────────────────────────────────── */}
+        <div className="flex items-center gap-1 p-1 rounded-xl" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+          {TAB_IDS.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                'flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-medium transition-all',
+                activeTab === tab.id
+                  ? 'text-[#d4a017]'
+                  : 'text-[#6b6488] hover:text-[#c8c0e0]'
+              )}
+              style={activeTab === tab.id ? { background: '#1a1630' } : {}}
+            >
+              <tab.icon size={13} />
+              {t(tab.key)}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Profile tab content ───────────────────────────────────────────── */}
+        {activeTab === 'profile' && (
+          <div className="space-y-4">
+            {/* Period stats cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <StatPeriodCard
+                title={t('profile_last_7d')}
+                won={sumWon(bets7d)}
+                played={sumPlayed(bets7d)}
+                count={bets7d.length}
+              />
+              <StatPeriodCard
+                title={t('profile_last_30d')}
+                won={sumWon(bets30d)}
+                played={sumPlayed(bets30d)}
+                count={bets30d.length}
+              />
+              <StatPeriodCard
+                title="Total"
+                won={s?.totalPayout ?? 0}
+                played={s?.totalWagered ?? 0}
+                count={s?.totalBets ?? betsTotal}
+              />
+            </div>
+
+          </div>
+        )}
+
+        {/* ── History tab ───────────────────────────────────────────────────── */}
+        {activeTab === 'history' && (() => {
+          const ZONE_COLORS: Record<string, string> = { KNIGHTS: '#94a3b8', EMPEROR: '#f5c842', ARCHERS: '#fb923c' };
+          const ZONE_LABELS: Record<string, string> = { KNIGHTS: 'Chevaliers', EMPEROR: 'Emperor', ARCHERS: 'Archers' };
+
+          // Merge & sort all bets
+          type MergedItem = { type: 'match'; bet: Bet; ts: number } | { type: 'roulette'; bet: RouletteBetHistory; ts: number };
+          const matchItems: MergedItem[] = bets.map(b => ({ type: 'match' as const, bet: b, ts: new Date(b.createdAt).getTime() }));
+          const rouItems:   MergedItem[] = rouletteBets.map(b => ({ type: 'roulette' as const, bet: b, ts: new Date(b.createdAt).getTime() }));
+          const all = [...matchItems, ...rouItems].sort((a, b) => b.ts - a.ts);
+          const filtered = historyFilter === 'all' ? all : all.filter(i => i.type === historyFilter);
+          const totalCount = filtered.length;
+
+          return (
+            <div className="rounded-xl overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+              {/* Header + filters */}
+              <div className="px-4 py-3 border-b flex items-center justify-between gap-3 flex-wrap" style={{ borderColor: '#1e1a30' }}>
+                <span className="text-[13px] font-semibold text-[#c8c0e0]">{t('profile_tab_history')}</span>
+                <div className="flex items-center gap-2">
+                  {(['all', 'match', 'roulette'] as const).map(f => (
+                    <button key={f} onClick={() => setHistoryFilter(f)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all"
+                      style={{
+                        background: historyFilter === f ? '#1e1a30' : 'transparent',
+                        color: historyFilter === f ? '#e8e2f5' : '#6b6488',
+                        border: `1px solid ${historyFilter === f ? '#2a2640' : 'transparent'}`,
+                      }}>
+                      {f === 'all' && <><Swords size={11} /> Tout</>}
+                      {f === 'match' && <><Swords size={11} /> Match</>}
+                      {f === 'roulette' && <><Dices size={11} /> Roulette</>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {loading ? (
+                <div className="flex justify-center py-10">
+                  <div className="w-6 h-6 border-2 border-[#d4a017] border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : filtered.length === 0 ? (
+                <div className="text-center py-12">
+                  <Swords size={24} className="mx-auto mb-3 text-[#3d3860]" />
+                  <p className="text-[13px] text-[#6b6488]">{t('profile_no_history')}</p>
+                </div>
+              ) : (
+                <div className="divide-y" style={{ borderColor: '#1a1730' }}>
+                  {filtered.map(item => {
+                    if (item.type === 'match') {
+                      const bet = item.bet;
+                      const playerName = bet.selectedPlayer === 1 ? bet.match.player1.name : bet.match.player2.name;
+                      const payout = bet.payout ?? 0;
+                      const profit = payout - bet.amount;
+                      return (
+                        <div key={`m-${bet.id}`} className="flex items-center gap-4 px-4 py-3 hover:bg-[#13111f] transition-colors">
+                          <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
+                            style={{ background: '#1a1630', border: '1px solid #2a2640' }}>
+                            <Swords size={11} style={{ color: '#6b6488' }} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <Link href={`/matches/${bet.matchId}`} className="hover:text-[#d4a017] transition-colors">
+                              <p className="text-[13px] font-medium text-[#c8c0e0] truncate">
+                                {bet.match.player1.name} vs {bet.match.player2.name}
+                              </p>
+                              <p className="text-[11px] text-[#6b6488] mt-0.5 truncate">
+                                {t('bet_placed_on')} <span className="text-[#d4a017]">{playerName}</span>
+                                {bet.match.tournament && ` · ${bet.match.tournament.name}`}
+                              </p>
+                            </Link>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-[13px] font-bold text-[#d4a017]">{new Intl.NumberFormat('fr-FR').format(bet.amount)} ⚜</p>
+                            <p className="text-[10px] text-[#6b6488]">× {bet.oddsAtBet.toFixed(2)}</p>
+                          </div>
+                          <div className="text-right shrink-0 w-24">
+                            {bet.status === 'WON'  && <p className="text-[13px] font-bold text-emerald-400">+{new Intl.NumberFormat('fr-FR').format(profit)} ⚜</p>}
+                            {bet.status === 'LOST' && <p className="text-[13px] font-bold text-red-400">-{new Intl.NumberFormat('fr-FR').format(bet.amount)} ⚜</p>}
+                            {bet.status === 'PENDING' && <p className="text-[13px] text-[#d4a017]">{t('profile_history_pending')}</p>}
+                            {bet.status === 'REFUNDED' && <p className="text-[13px] text-[#6b6488]">{t('common_pending')}</p>}
+                          </div>
+                          <BetStatusBadge status={bet.status} />
+                        </div>
+                      );
+                    } else {
+                      const bet = item.bet;
+                      const zoneColor = ZONE_COLORS[bet.zone] ?? '#9990b8';
+                      const zoneLabel = ZONE_LABELS[bet.zone] ?? bet.zone;
+                      const payout = bet.payout ?? 0;
+                      const profit = payout - bet.amount;
+                      const statusKey = bet.won === true ? 'WON' : bet.won === false ? 'LOST' : 'PENDING';
+                      return (
+                        <div key={`r-${bet.id}`} className="flex items-center gap-4 px-4 py-3 hover:bg-[#13111f] transition-colors">
+                          <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
+                            style={{ background: '#1a1630', border: '1px solid #2a2640' }}>
+                            <Dices size={11} style={{ color: zoneColor }} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[13px] font-medium text-[#c8c0e0]">Roulette</p>
+                            <p className="text-[11px] mt-0.5">
+                              <span style={{ color: zoneColor }}>{t('bet_placed_on')} {zoneLabel}</span>
+                              {bet.round.winZone && (
+                                <span className="text-[#6b6488]"> · {t('roulette_result')} : <span style={{ color: ZONE_COLORS[bet.round.winZone] ?? '#9990b8' }}>{ZONE_LABELS[bet.round.winZone] ?? bet.round.winZone}</span></span>
+                              )}
+                            </p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-[13px] font-bold text-[#d4a017]">{new Intl.NumberFormat('fr-FR').format(bet.amount)} ⚜</p>
+                            <p className="text-[10px] text-[#6b6488]">× {bet.round.multiplier ?? '?'}</p>
+                          </div>
+                          <div className="text-right shrink-0 w-24">
+                            {bet.won === true  && <p className="text-[13px] font-bold text-emerald-400">+{new Intl.NumberFormat('fr-FR').format(profit)} ⚜</p>}
+                            {bet.won === false  && <p className="text-[13px] font-bold text-red-400">-{new Intl.NumberFormat('fr-FR').format(bet.amount)} ⚜</p>}
+                            {bet.won === null   && <p className="text-[13px] text-[#d4a017]">{t('profile_history_pending')}</p>}
+                          </div>
+                          <BetStatusBadge status={statusKey} />
+                        </div>
+                      );
+                    }
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* ── Settings tab ─────────────────────────────────────────────────── */}
+        {activeTab === 'settings' && <SettingsTab session={session} initialBio={profileBio} onBioSaved={setProfileBio} />}
+
+        {/* ── Security tab ─────────────────────────────────────────────────── */}
+        {activeTab === 'security' && <SecurityTab session={session} />}
+      </div>
+    </div>
+  );
+}

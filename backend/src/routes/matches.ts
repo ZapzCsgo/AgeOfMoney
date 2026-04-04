@@ -1,0 +1,300 @@
+import { Router, Request, Response } from 'express';
+import { prisma } from '../index';
+import { MatchStatus } from '@prisma/client';
+import { z } from 'zod';
+import { adjustOddsAdvanced, BetRecord } from '../services/oddsEngine';
+import logger from '../logger';
+
+const router = Router();
+
+const matchQuerySchema = z.object({
+  status: z.enum(['UPCOMING', 'LIVE', 'COMPLETED', 'CANCELLED', 'POSTPONED']).optional(),
+  tournamentId: z.string().optional(),
+  limit: z.coerce.number().min(1).max(100).default(20),
+  offset: z.coerce.number().min(0).default(0),
+  hours: z.coerce.number().min(1).max(720).default(168),
+});
+
+router.get('/', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const query = matchQuerySchema.safeParse(req.query);
+    if (!query.success) {
+      res.status(400).json({ error: 'Invalid query parameters', details: query.error.flatten() });
+      return;
+    }
+
+    const { status, tournamentId, limit, offset, hours } = query.data;
+
+    const whereClause: Record<string, unknown> = {};
+
+    if (status) {
+      whereClause.status = status as MatchStatus;
+    } else {
+      // Par défaut : LIVE + UPCOMING dans les X prochaines heures + récemment terminés
+      const futureCutoff = new Date();
+      futureCutoff.setHours(futureCutoff.getHours() + hours);
+      const pastCutoff = new Date();
+      pastCutoff.setHours(pastCutoff.getHours() - 24);
+
+      whereClause.OR = [
+        { status: 'LIVE' },
+        { status: 'UPCOMING', scheduledAt: { lte: futureCutoff } },
+        { status: 'COMPLETED', scheduledAt: { gte: pastCutoff } },
+      ];
+    }
+
+    if (tournamentId) {
+      whereClause.tournamentId = tournamentId;
+    }
+
+    const [matches, total] = await Promise.all([
+      prisma.match.findMany({
+        where: whereClause,
+        include: {
+          player1: {
+            select: {
+              id: true,
+              name: true,
+              elo: true,
+              winrate: true,
+              country: true,
+              avatarUrl: true,
+            },
+          },
+          player2: {
+            select: {
+              id: true,
+              name: true,
+              elo: true,
+              winrate: true,
+              country: true,
+              avatarUrl: true,
+            },
+          },
+          tournament: {
+            select: {
+              id: true,
+              name: true,
+              tier: true,
+              logoUrl: true,
+              twitchChannel: true,
+            },
+          },
+          boResults: {
+            orderBy: { boNumber: 'asc' },
+            select: { boNumber: true, winnerId: true, p1Civ: true, p2Civ: true, map: true, duration: true },
+          },
+          _count: {
+            select: { bets: true },
+          },
+        },
+        orderBy: { scheduledAt: 'asc' },
+        take: limit,
+        skip: offset,
+      }),
+      prisma.match.count({ where: whereClause }),
+    ]);
+
+    // Batch-fetch all bets for all matches in one query (efficient, no N+1)
+    const matchIds = matches.map((m) => m.id);
+    const allBets = await prisma.bet.findMany({
+      where: { matchId: { in: matchIds }, status: { notIn: ['CANCELLED', 'REFUNDED'] } },
+      select: { matchId: true, amount: true, oddsAtBet: true, selectedPlayer: true },
+    });
+
+    // Group bets by matchId
+    const betsByMatch = new Map<string, BetRecord[]>();
+    for (const bet of allBets) {
+      const list = betsByMatch.get(bet.matchId) ?? [];
+      list.push({ amount: bet.amount, oddsAtBet: bet.oddsAtBet, selectedPlayer: bet.selectedPlayer as 1 | 2 });
+      betsByMatch.set(bet.matchId, list);
+    }
+
+    // Compute volume stats and adjusted odds per match
+    const matchesWithVolume = matches.map((match) => {
+      const bets = betsByMatch.get(match.id) ?? [];
+      const vol1 = bets.filter((b) => b.selectedPlayer === 1).reduce((s, b) => s + b.amount, 0);
+      const vol2 = bets.filter((b) => b.selectedPlayer === 2).reduce((s, b) => s + b.amount, 0);
+      const total = vol1 + vol2;
+      const liveOdds = adjustOddsAdvanced(match.odds1, match.odds2, bets);
+
+      return {
+        ...match,
+        odds1: liveOdds.odds1,
+        odds2: liveOdds.odds2,
+        betVolume: {
+          player1: vol1,
+          player2: vol2,
+          total,
+          pct1: total > 0 ? Math.round((vol1 / total) * 100) : 50,
+          pct2: total > 0 ? Math.round((vol2 / total) * 100) : 50,
+        },
+      };
+    });
+
+    res.json({
+      data: matchesWithVolume,
+      total,
+      limit,
+      offset,
+    });
+  } catch (error) {
+    logger.error('GET /matches error:', error);
+    res.status(500).json({ error: 'Failed to fetch matches' });
+  }
+});
+
+router.get('/:id', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const match = await prisma.match.findUnique({
+      where: { id },
+      include: {
+        player1: true,
+        player2: true,
+        tournament: true,
+        boResults: { orderBy: { boNumber: 'asc' } },
+      },
+    });
+
+    if (!match) {
+      res.status(404).json({ error: 'Match not found' });
+      return;
+    }
+
+    // Fetch individual bets for liability + sharp/square adjustment
+    const matchBets = await prisma.bet.findMany({
+      where: { matchId: id, status: { notIn: ['CANCELLED', 'REFUNDED'] } },
+      select: { amount: true, oddsAtBet: true, selectedPlayer: true },
+    });
+
+    const betRecords = matchBets.map((b) => ({
+      amount: b.amount,
+      oddsAtBet: b.oddsAtBet,
+      selectedPlayer: b.selectedPlayer as 1 | 2,
+    })) satisfies BetRecord[];
+
+    const vol1 = betRecords.filter((b) => b.selectedPlayer === 1).reduce((s, b) => s + b.amount, 0);
+    const vol2 = betRecords.filter((b) => b.selectedPlayer === 2).reduce((s, b) => s + b.amount, 0);
+    const count1 = matchBets.filter((b) => b.selectedPlayer === 1).length;
+    const count2 = matchBets.filter((b) => b.selectedPlayer === 2).length;
+    const totalVol = vol1 + vol2;
+
+    const liveOdds = adjustOddsAdvanced(match.odds1, match.odds2, betRecords);
+
+    // Get recent matches for each player (form)
+    const [recentP1, recentP2] = await Promise.all([
+      prisma.match.findMany({
+        where: {
+          status: 'COMPLETED',
+          OR: [{ player1Id: match.player1Id }, { player2Id: match.player1Id }],
+        },
+        orderBy: { scheduledAt: 'desc' },
+        take: 5,
+        select: {
+          id: true,
+          player1Id: true,
+          player2Id: true,
+          winnerId: true,
+          resultScore: true,
+          scheduledAt: true,
+          player1: { select: { name: true } },
+          player2: { select: { name: true } },
+        },
+      }),
+      prisma.match.findMany({
+        where: {
+          status: 'COMPLETED',
+          OR: [{ player1Id: match.player2Id }, { player2Id: match.player2Id }],
+        },
+        orderBy: { scheduledAt: 'desc' },
+        take: 5,
+        select: {
+          id: true,
+          player1Id: true,
+          player2Id: true,
+          winnerId: true,
+          resultScore: true,
+          scheduledAt: true,
+          player1: { select: { name: true } },
+          player2: { select: { name: true } },
+        },
+      }),
+    ]);
+
+    res.json({
+      data: {
+        ...match,
+        odds1: liveOdds.odds1,
+        odds2: liveOdds.odds2,
+        betVolume: {
+          player1: vol1,
+          player2: vol2,
+          total: totalVol,
+          pct1: totalVol > 0 ? Math.round((vol1 / totalVol) * 100) : 50,
+          pct2: totalVol > 0 ? Math.round((vol2 / totalVol) * 100) : 50,
+          count1,
+          count2,
+        },
+        recentForm: {
+          player1: recentP1,
+          player2: recentP2,
+        },
+      },
+    });
+  } catch (error) {
+    logger.error('GET /matches/:id error:', error);
+    res.status(500).json({ error: 'Failed to fetch match' });
+  }
+});
+
+router.get('/:id/h2h', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const match = await prisma.match.findUnique({
+      where: { id: req.params.id },
+      select: { player1Id: true, player2Id: true },
+    });
+
+    if (!match) {
+      res.status(404).json({ error: 'Match not found' });
+      return;
+    }
+
+    const h2hMatches = await prisma.match.findMany({
+      where: {
+        status: 'COMPLETED',
+        OR: [
+          { player1Id: match.player1Id, player2Id: match.player2Id },
+          { player1Id: match.player2Id, player2Id: match.player1Id },
+        ],
+      },
+      orderBy: { scheduledAt: 'desc' },
+      take: 20,
+      include: {
+        player1: { select: { id: true, name: true } },
+        player2: { select: { id: true, name: true } },
+        tournament: { select: { name: true, tier: true } },
+      },
+    });
+
+    const p1Wins = h2hMatches.filter((m) => m.winnerId === match.player1Id).length;
+    const p2Wins = h2hMatches.filter((m) => m.winnerId === match.player2Id).length;
+
+    res.json({
+      data: {
+        matches: h2hMatches,
+        summary: {
+          total: h2hMatches.length,
+          player1Wins: p1Wins,
+          player2Wins: p2Wins,
+        },
+      },
+    });
+  } catch (error) {
+    logger.error('GET /matches/:id/h2h error:', error);
+    res.status(500).json({ error: 'Failed to fetch H2H data' });
+  }
+});
+
+export default router;

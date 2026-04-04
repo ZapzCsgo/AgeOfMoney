@@ -1,0 +1,278 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String        @id @default(cuid())
+  username      String        @unique
+  email         String?       @unique
+  steamId       String?       @unique
+  avatar        String?
+  coins         Int           @default(1000)
+  totalWagered  Int           @default(0)
+  provider      String
+  providerId    String
+  isAdmin       Boolean       @default(false)
+  isMod         Boolean       @default(false)
+  isPartner     Boolean       @default(false)
+  isBanned      Boolean       @default(false)
+  mutedUntil    DateTime?
+  totpSecret    String?                         // TOTP secret for 2FA (null = not set up)
+  totpEnabled   Boolean       @default(false)   // true = 2FA active
+  lastActiveAt  DateTime      @default(now())
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  bets          Bet[]
+  transactions  Transaction[]
+  rouletteBets  RouletteBet[]
+
+  @@unique([provider, providerId])
+}
+
+model Player {
+  id               String    @id @default(cuid())
+  name             String    @unique
+  liquipediaSlug   String    @unique
+  aoe4worldId      String?
+  elo              Int       @default(1000)
+  winrate          Float     @default(0.5)
+  country          String?
+  avatarUrl        String?
+  totalGames       Int       @default(0)
+  currentStreak    Int       @default(0)
+  peakElo          Int?
+  lastMatchAt      DateTime?
+  lastUpdatedAt    DateTime  @default(now())
+  createdAt        DateTime  @default(now())
+  matchesAsPlayer1 Match[]   @relation("Player1")
+  matchesAsPlayer2 Match[]   @relation("Player2")
+  matchHistory     PlayerMatchRecord[] @relation("PlayerHistory")
+  opponentHistory  PlayerMatchRecord[] @relation("OpponentHistory")
+}
+
+// Per-player tournament match history — AI-seeded or manually entered
+// One record per player per match (both players get their own record)
+model PlayerMatchRecord {
+  id             String    @id @default(cuid())
+  playerId       String
+  player         Player    @relation("PlayerHistory", fields: [playerId], references: [id])
+  opponentName   String
+  opponentId     String?
+  opponent       Player?   @relation("OpponentHistory", fields: [opponentId], references: [id])
+  won            Boolean
+  score          String?   // "3-1" from this player's perspective
+  tournamentName String
+  matchDate      DateTime?
+  format         String?   // "BO3", "BO5"
+  source         String    @default("ai") // "ai" | "manual" | "aoe4world"
+  sourceUrl      String?
+  confidence     Float     @default(0.8)
+  createdAt      DateTime  @default(now())
+
+  @@unique([playerId, opponentName, tournamentName, matchDate])
+  @@index([playerId])
+  @@index([opponentId])
+}
+
+model Tournament {
+  id            String    @id @default(cuid())
+  name          String
+  tier          String
+  prizePool     String?
+  startDate     DateTime
+  endDate       DateTime?
+  liquipediaUrl String    @unique
+  logoUrl       String?
+  twitchChannel String?   // e.g. "ageofempires" for twitch.tv/ageofempires
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  matches       Match[]
+}
+
+enum MatchStatus {
+  UPCOMING
+  LIVE
+  COMPLETED
+  CANCELLED
+  POSTPONED
+}
+
+model Match {
+  id               String      @id @default(cuid())
+  player1          Player      @relation("Player1", fields: [player1Id], references: [id])
+  player1Id        String
+  player2          Player      @relation("Player2", fields: [player2Id], references: [id])
+  player2Id        String
+  tournament       Tournament? @relation(fields: [tournamentId], references: [id])
+  tournamentId     String?
+  format           String      @default("BO3")   // BO1, BO3, BO5, BO7, BO9
+  scheduledAt      DateTime
+  status           MatchStatus @default(UPCOMING)
+  resultScore      String?     // "2-1", "3-0", etc.
+  winnerId         String?
+  odds1            Float       @default(2.0)
+  odds2            Float       @default(2.0)
+  betsClosedAt     DateTime?
+  betsOpen         Boolean     @default(true)    // dynamic — closed while a game is ongoing
+  currentBoNumber  Int         @default(0)       // 0 = not started, 1..n = current BO game
+  currentGameId    Int?        // aoe4world game_id of the game in progress
+  p1Score          Int         @default(0)       // wins in this match so far
+  p2Score          Int         @default(0)
+  p1Civ            String?     // civ of current/last game
+  p2Civ            String?
+  twitchChannel    String?     // specific stream for this match if available
+  liquipediaUrl    String?
+  verificationFlag Boolean     @default(false)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  bets             Bet[]
+  boResults        BoResult[]
+}
+
+model BoResult {
+  id         String   @id @default(cuid())
+  match      Match    @relation(fields: [matchId], references: [id])
+  matchId    String
+  boNumber   Int      // 1, 2, 3...
+  winnerId   String?  // player DB id
+  p1Civ      String?
+  p2Civ      String?
+  aoe4GameId Int?
+  duration   Int?     // seconds
+  map        String?
+  startedAt  DateTime?
+  endedAt    DateTime @default(now())
+  createdAt  DateTime @default(now())
+}
+
+enum BetStatus {
+  PENDING
+  WON
+  LOST
+  REFUNDED
+  CANCELLED
+}
+
+model Bet {
+  id             String    @id @default(cuid())
+  user           User      @relation(fields: [userId], references: [id])
+  userId         String
+  match          Match     @relation(fields: [matchId], references: [id])
+  matchId        String
+  betType        String    @default("MATCH")  // "MATCH" | "BO"
+  boNumber       Int?      // which BO this bet targets (null for MATCH bets)
+  amount         Int
+  oddsAtBet      Float
+  selectedPlayer Int
+  status         BetStatus @default(PENDING)
+  payout         Int?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model Transaction {
+  id              String   @id @default(cuid())
+  user            User     @relation(fields: [userId], references: [id])
+  userId          String
+  type            String   // "deposit" | "withdrawal" | "bet_win" | "bet_loss" | "refund" | "bonus"
+  amount          Int      // in cents for real money, in coins for virtual
+  realAmount      Int?     // in cents (€)
+  coins           Int      // coins credited/debited
+  stripeSessionId String?  @unique
+  status          String   // "pending" | "completed" | "failed"
+  affiliateCodeId String?  // affiliate code used at deposit time
+  createdAt       DateTime @default(now())
+}
+
+// Historical H2H records — AI-inferred or manually sourced
+// source: 'ai' | 'aoe4world' | 'manual'
+model H2HRecord {
+  id              String   @id @default(cuid())
+  player1Id       String
+  player2Id       String
+  winnerId        String   // player1Id or player2Id
+  score           String?  // "2-1", "3-0", etc.
+  tournamentName  String?
+  matchDate       DateTime?
+  format          String?  // "BO3", "BO5"
+  source          String   @default("ai")  // "ai" | "aoe4world" | "manual"
+  sourceUrl       String?  // Liquipedia URL if available
+  confidence      Float    @default(0.8)   // AI confidence 0-1
+  createdAt       DateTime @default(now())
+
+  @@unique([player1Id, player2Id, tournamentName, matchDate])
+  @@index([player1Id, player2Id])
+}
+
+model ScraperLog {
+  id            String   @id @default(cuid())
+  source        String
+  status        String
+  matchesFound  Int      @default(0)
+  error         String?
+  duration      Int?
+  createdAt     DateTime @default(now())
+}
+
+// ── Affiliate ─────────────────────────────────────────────────────────────────
+
+model AffiliateCode {
+  id             String              @id @default(cuid())
+  userId         String              @unique
+  code           String              @unique
+  commissionRate Float               @default(0.05)  // 5% of referral deposits
+  totalEarnings  Int                 @default(0)     // lifetime coins earned
+  available      Int                 @default(0)     // claimable coins
+  referrals      AffiliateReferral[]
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+}
+
+model AffiliateReferral {
+  id              String        @id @default(cuid())
+  affiliateCode   AffiliateCode @relation(fields: [affiliateCodeId], references: [id])
+  affiliateCodeId String
+  referredUserId  String        @unique  // one referral per user
+  totalDeposited  Int           @default(0)
+  totalWagered    Int           @default(0)
+  commission      Int           @default(0)
+  isActive        Boolean       @default(false)  // active = has wagered ≥ once
+  joinedAt        DateTime      @default(now())
+  lastActiveAt    DateTime?
+}
+
+// ── Roulette ──────────────────────────────────────────────────────────────────
+
+model RouletteRound {
+  id          String         @id @default(cuid())
+  status      String         @default("BETTING")  // BETTING | SPINNING | COMPLETED
+  result      Int?           // 1-15 slot number
+  winZone     String?        // "KNIGHTS" | "EMPEROR" | "ARCHERS"
+  multiplier  Float?         // 2 | 14
+  serverSeed  String?        // random hex seed — revealed after spin
+  roundHash   String?        // SHA256(serverSeed) — shown during betting for verification
+  startsAt    DateTime       @default(now())
+  endsAt      DateTime?      // when betting closes
+  spinAt      DateTime?      // when spin starts
+  completedAt DateTime?
+  bets        RouletteBet[]
+  createdAt   DateTime       @default(now())
+}
+
+model RouletteBet {
+  id        String        @id @default(cuid())
+  round     RouletteRound @relation(fields: [roundId], references: [id])
+  roundId   String
+  user      User          @relation(fields: [userId], references: [id])
+  userId    String
+  zone      String        // "KNIGHTS" | "EMPEROR" | "ARCHERS"
+  amount    Int           // in coins
+  payout    Int?          // coins won (null until completed)
+  won       Boolean?
+  createdAt DateTime      @default(now())
+}

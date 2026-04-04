@@ -1,0 +1,648 @@
+import { Router, Request, Response } from 'express';
+import { requireAdmin } from '../middleware/auth';
+import { prisma } from '../index';
+import { distributePayout, refundBets } from '../services/betService';
+import { getIo } from '../socket';
+import { z } from 'zod';
+import logger from '../logger';
+
+const router = Router();
+
+async function storeMatchInPlayerHistory(
+  matchId: string,
+  player1Id: string, player1Name: string,
+  player2Id: string, player2Name: string,
+  winnerId: string,
+  resultScore: string,
+  tournamentName: string,
+  scheduledAt: Date,
+  format: string,
+): Promise<void> {
+  const p1Won = winnerId === player1Id;
+  for (const [playerId, playerName, opponentId, opponentName, won] of [
+    [player1Id, player1Name, player2Id, player2Name, p1Won],
+    [player2Id, player2Name, player1Id, player1Name, !p1Won],
+  ] as [string, string, string, string, boolean][]) {
+    try {
+      await prisma.playerMatchRecord.upsert({
+        where: {
+          playerId_opponentName_tournamentName_matchDate: {
+            playerId,
+            opponentName,
+            tournamentName,
+            matchDate: scheduledAt,
+          },
+        },
+        create: {
+          playerId,
+          opponentName,
+          opponentId,
+          won,
+          score: won ? resultScore : resultScore.split('-').reverse().join('-'),
+          tournamentName,
+          matchDate: scheduledAt,
+          format,
+          source: 'manual',
+          confidence: 1.0,
+        },
+        update: { won, score: won ? resultScore : resultScore.split('-').reverse().join('-') },
+      });
+    } catch { /* ignore duplicates */ }
+  }
+}
+
+// All admin routes require admin role
+router.use(requireAdmin);
+
+// GET /matches/flagged - Flagged matches needing review
+router.get('/matches/flagged', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const flagged = await prisma.match.findMany({
+      where: { verificationFlag: true },
+      include: {
+        player1: { select: { id: true, name: true } },
+        player2: { select: { id: true, name: true } },
+        tournament: { select: { id: true, name: true } },
+        _count: { select: { bets: true } },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    res.json({ data: flagged });
+  } catch (error) {
+    logger.error('GET /admin/matches/flagged error:', error);
+    res.status(500).json({ error: 'Failed to fetch flagged matches' });
+  }
+});
+
+// POST /matches/:id/result - Override match result
+const resultSchema = z.object({
+  winnerId: z.string().min(1),
+  resultScore: z.string().min(1),
+  clearFlag: z.boolean().default(true),
+});
+
+router.post('/matches/:id/result', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const parsed = resultSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid result data', details: parsed.error.flatten() });
+      return;
+    }
+
+    const { winnerId, resultScore, clearFlag } = parsed.data;
+    const matchId = req.params.id;
+
+    const match = await prisma.match.findUnique({
+      where: { id: matchId },
+      select: { player1Id: true, player2Id: true, status: true },
+    });
+
+    if (!match) {
+      res.status(404).json({ error: 'Match not found' });
+      return;
+    }
+
+    if (winnerId !== match.player1Id && winnerId !== match.player2Id) {
+      res.status(400).json({ error: 'Winner must be one of the match players' });
+      return;
+    }
+
+    await prisma.match.update({
+      where: { id: matchId },
+      data: {
+        status: 'COMPLETED',
+        winnerId,
+        resultScore,
+        verificationFlag: clearFlag ? false : undefined,
+        updatedAt: new Date(),
+      },
+    });
+
+    // Distribute payouts
+    await distributePayout(matchId, winnerId);
+
+    // Store result in player match history for future odds calculation
+    const fullMatch = await prisma.match.findUnique({
+      where: { id: matchId },
+      include: {
+        player1: { select: { id: true, name: true } },
+        player2: { select: { id: true, name: true } },
+        tournament: { select: { name: true } },
+      },
+    });
+    if (fullMatch) {
+      storeMatchInPlayerHistory(
+        matchId,
+        fullMatch.player1.id, fullMatch.player1.name,
+        fullMatch.player2.id, fullMatch.player2.name,
+        winnerId,
+        resultScore,
+        fullMatch.tournament?.name ?? 'Tournament',
+        fullMatch.scheduledAt,
+        fullMatch.format,
+      ).catch(() => {});
+    }
+
+    logger.info(`Admin override: match ${matchId} result set to winner ${winnerId}`);
+
+    res.json({ message: 'Match result set and payouts distributed' });
+  } catch (error) {
+    logger.error('POST /admin/matches/:id/result error:', error);
+    res.status(500).json({ error: 'Failed to set match result' });
+  }
+});
+
+// POST /matches/:id/score — Manually set the BO score for a LIVE match
+router.post('/matches/:id/score', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { p1Score, p2Score } = req.body;
+
+    if (typeof p1Score !== 'number' || typeof p2Score !== 'number') {
+      res.status(400).json({ error: 'p1Score and p2Score required' }); return;
+    }
+
+    const match = await prisma.match.findUnique({
+      where: { id },
+      include: { player1: true, player2: true },
+    });
+    if (!match) { res.status(404).json({ error: 'Match not found' }); return; }
+
+    await prisma.match.update({
+      where: { id },
+      data: { p1Score, p2Score },
+    });
+
+    // Broadcast to connected clients
+    const { getIo } = await import('../socket');
+    const io = getIo();
+    if (io) {
+      io.to(`matchRoom:${id}`).emit('boEnded', { matchId: id, p1Score, p2Score });
+      io.emit('matchUpdate', { matchId: id, p1Score, p2Score });
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// POST /matches/:id/verify — Force an immediate aoe4world re-check for a LIVE match
+router.post('/matches/:id/verify', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { verifyMatch } = await import('../services/matchVerifier');
+    await verifyMatch(id);
+    res.json({ ok: true, message: 'Vérification aoe4world déclenchée' });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// POST /matches/:id/sync-liquipedia — Force immediate Liquipedia score sync
+router.post('/matches/:id/sync-liquipedia', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { syncMatchScore } = await import('../services/liquipediaLiveScorer');
+    await syncMatchScore(id);
+    res.json({ ok: true, message: 'Sync Liquipedia déclenché' });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// GET /matches/:id/lp-debug — Show exactly what the LP scorer sees for a match
+router.get('/matches/:id/lp-debug', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { debugLpMatch } = await import('../services/liquipediaLiveScorer');
+    const result = await debugLpMatch(id);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// POST /matches/:id/cancel - Cancel match and refund bets
+router.post('/matches/:id/cancel', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const match = await prisma.match.findUnique({ where: { id } });
+    if (!match) {
+      res.status(404).json({ error: 'Match not found' });
+      return;
+    }
+
+    await prisma.match.update({
+      where: { id },
+      data: { status: 'CANCELLED', verificationFlag: false },
+    });
+
+    await refundBets(id);
+
+    logger.info(`Admin cancelled match ${id} and refunded bets`);
+    res.json({ message: 'Match cancelled and bets refunded' });
+  } catch (error) {
+    logger.error('POST /admin/matches/:id/cancel error:', error);
+    res.status(500).json({ error: 'Failed to cancel match' });
+  }
+});
+
+// DELETE /matches/:id - Hard delete a match (refunds bets first)
+router.delete('/matches/:id', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const match = await prisma.match.findUnique({ where: { id } });
+    if (!match) { res.status(404).json({ error: 'Match not found' }); return; }
+    // Refund any bets first
+    await refundBets(id);
+    await prisma.match.delete({ where: { id } });
+    logger.info(`Admin deleted match ${id}`);
+    res.json({ message: 'Match deleted' });
+  } catch (error) {
+    logger.error('DELETE /admin/matches/:id error:', error);
+    res.status(500).json({ error: 'Failed to delete match' });
+  }
+});
+
+// GET /scrapers/logs - Recent scraper logs
+router.get('/scrapers/logs', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit as string || '50'), 200);
+    const source = req.query.source as string | undefined;
+
+    const whereClause: Record<string, unknown> = {};
+    if (source) whereClause.source = source;
+
+    const logs = await prisma.scraperLog.findMany({
+      where: whereClause,
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+
+    res.json({ data: logs });
+  } catch (error) {
+    logger.error('GET /admin/scrapers/logs error:', error);
+    res.status(500).json({ error: 'Failed to fetch scraper logs' });
+  }
+});
+
+// POST /scrapers/run - Manually trigger a scraper
+router.post('/scrapers/run', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { source } = req.body as { source: 'tournaments' | 'aoe4world' | 'enrich' };
+
+    if (!['tournaments', 'aoe4world', 'enrich'].includes(source)) {
+      res.status(400).json({ error: 'Invalid source. Must be "tournaments", "aoe4world", or "enrich"' });
+      return;
+    }
+
+    // For enrich: first do an instant recalc from DB, then full API enrich in background
+    if (source === 'enrich') {
+      // Instant pass: recalc odds from existing DB data, broadcast via socket NOW
+      const io = getIo();
+      const { calculateOddsFromPlayers } = await import('../services/oddsEngine');
+      const { getPlayerH2HFromHistory } = await import('../scrapers/aiPlayerHistoryScraper');
+      const activeMatches = await prisma.match.findMany({
+        where: { status: { in: ['UPCOMING', 'LIVE'] } },
+        include: {
+          player1: { select: { id: true, elo: true, winrate: true, totalGames: true, currentStreak: true, peakElo: true, lastMatchAt: true } },
+          player2: { select: { id: true, elo: true, winrate: true, totalGames: true, currentStreak: true, peakElo: true, lastMatchAt: true } },
+        },
+      });
+      for (const match of activeMatches) {
+        try {
+          const h2h = await getPlayerH2HFromHistory(match.player1.id, match.player2.id);
+          const newOdds = calculateOddsFromPlayers(match.player1, match.player2, h2h);
+          await prisma.match.update({ where: { id: match.id }, data: { odds1: newOdds.odds1, odds2: newOdds.odds2 } });
+          io?.to(`matchRoom:${match.id}`).emit('oddsUpdate', { matchId: match.id, odds1: newOdds.odds1, odds2: newOdds.odds2 });
+          io?.emit('matchUpdate', { matchId: match.id, odds1: newOdds.odds1, odds2: newOdds.odds2 });
+        } catch { /* skip */ }
+      }
+      res.json({ message: `Instant recalc done (${activeMatches.length} matches). Full enrich running in background.` });
+      // Full API enrich in background
+      const { enrichAllUpcomingMatches } = await import('../scrapers/aoe4worldScraper');
+      enrichAllUpcomingMatches().catch((err: Error) => logger.error('Manual enrichment error:', err));
+      return;
+    }
+
+    // Other scrapers run fully in background
+    res.json({ message: `Scraper ${source} triggered successfully` });
+
+    if (source === 'tournaments') {
+      const { scrapeAoe4WorldTournaments } = await import('../scrapers/aoe4worldTournamentScraper');
+      scrapeAoe4WorldTournaments().catch((err: Error) => logger.error('Manual tournament scrape error:', err));
+    } else {
+      const { updateAllPlayerStats } = await import('../scrapers/aoe4worldScraper');
+      updateAllPlayerStats().catch((err: Error) => logger.error('Manual aoe4world update error:', err));
+    }
+  } catch (error) {
+    logger.error('POST /admin/scrapers/run error:', error);
+    res.status(500).json({ error: 'Failed to trigger scraper' });
+  }
+});
+
+// GET /users - List all users
+router.get('/users', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit as string || '50'), 200);
+    const offset = parseInt(req.query.offset as string || '0');
+    const search = req.query.search as string | undefined;
+
+    const whereClause: Record<string, unknown> = {};
+    if (search) {
+      whereClause.OR = [
+        { username: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where: whereClause,
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: offset,
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          avatar: true,
+          coins: true,
+          isAdmin: true,
+          isBanned: true,
+          provider: true,
+          lastActiveAt: true,
+          createdAt: true,
+          _count: { select: { bets: true } },
+        },
+      }),
+      prisma.user.count({ where: whereClause }),
+    ]);
+
+    res.json({ data: users, total, limit, offset });
+  } catch (error) {
+    logger.error('GET /admin/users error:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// POST /users/:id/ban - Ban or unban user
+router.post('/users/:id/ban', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { banned = true, reason } = req.body as { banned?: boolean; reason?: string };
+
+    const user = await prisma.user.findUnique({ where: { id } });
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    if (user.isAdmin) {
+      res.status(403).json({ error: 'Cannot ban admin users' });
+      return;
+    }
+
+    await prisma.user.update({
+      where: { id },
+      data: { isBanned: banned },
+    });
+
+    logger.info(`Admin ${banned ? 'banned' : 'unbanned'} user ${id}. Reason: ${reason || 'none'}`);
+    res.json({ message: `User ${banned ? 'banned' : 'unbanned'} successfully` });
+  } catch (error) {
+    logger.error('POST /admin/users/:id/ban error:', error);
+    res.status(500).json({ error: 'Failed to update user ban status' });
+  }
+});
+
+// POST /users/:id/adjust-coins - Admin coin adjustment
+router.post('/users/:id/adjust-coins', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { amount, reason } = req.body as { amount: number; reason: string };
+
+    if (typeof amount !== 'number' || !Number.isInteger(amount) || Math.abs(amount) > 100000) {
+      res.status(400).json({ error: 'Invalid amount (must be integer, max ±100000)' });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({ where: { id } });
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    const newBalance = Math.max(0, user.coins + amount);
+
+    await prisma.user.update({
+      where: { id },
+      data: { coins: newBalance },
+    });
+
+    logger.info(`Admin adjusted coins for user ${id}: ${amount > 0 ? '+' : ''}${amount}. Reason: ${reason}`);
+    res.json({ message: 'Coins adjusted', newBalance });
+  } catch (error) {
+    logger.error('POST /admin/users/:id/adjust-coins error:', error);
+    res.status(500).json({ error: 'Failed to adjust coins' });
+  }
+});
+
+// POST /users/:id/role - Set isMod / isPartner / isAdmin role
+router.post('/users/:id/role', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { role, value } = req.body as { role: 'isMod' | 'isPartner' | 'isAdmin'; value: boolean };
+    if (!['isMod', 'isPartner', 'isAdmin'].includes(role)) {
+      res.status(400).json({ error: 'Invalid role' }); return;
+    }
+
+    await prisma.user.update({ where: { id }, data: { [role]: value } as Record<string, unknown> });
+
+    // Auto-create affiliate code when granting Partner role
+    if (role === 'isPartner' && value) {
+      const user = await prisma.user.findUnique({ where: { id }, select: { username: true } });
+      const existing = await prisma.affiliateCode.findUnique({ where: { userId: id } });
+      if (!existing && user) {
+        const base = user.username.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8).toUpperCase();
+        const suffix = require('crypto').randomBytes(2).toString('hex').toUpperCase();
+        await prisma.affiliateCode.create({ data: { userId: id, code: `${base}${suffix}` } });
+        logger.info(`[Admin] Affiliate code created for partner ${user.username}`);
+      }
+    }
+
+    logger.info(`[Admin] Set ${role}=${value} for user ${id}`);
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error('POST /admin/users/:id/role error:', err);
+    res.status(500).json({ error: 'Failed to set role' });
+  }
+});
+
+// POST /users/:id/mute - Mute a user from chat
+router.post('/users/:id/mute', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { durationMinutes } = req.body as { durationMinutes: number };
+    const mutedUntil = durationMinutes > 0 ? new Date(Date.now() + durationMinutes * 60000) : null;
+    await prisma.user.update({ where: { id }, data: { mutedUntil } as Record<string, unknown> });
+
+    // Push mute via socket if online
+    const { getIo } = require('../socket');
+    const io = getIo();
+    if (io && mutedUntil) {
+      io.to(`user:${id}`).emit('chatMuted', { until: mutedUntil.toISOString(), remainingMinutes: durationMinutes, by: 'Admin' });
+    }
+    res.json({ ok: true, mutedUntil });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to mute user' });
+  }
+});
+
+// POST /users/set-admin-by-steam - Set admin by Steam ID (one-time setup)
+router.post('/users/set-admin-by-steam', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { steamId } = req.body as { steamId: string };
+    if (!steamId) { res.status(400).json({ error: 'steamId required' }); return; }
+    const user = await prisma.user.updateMany({
+      where: { OR: [{ steamId }, { providerId: steamId }] },
+      data: { isAdmin: true },
+    });
+    res.json({ message: `Admin set for ${user.count} user(s) with steamId ${steamId}` });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// GET /players — list all players with their match record counts
+router.get('/players', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const players = await prisma.player.findMany({
+      orderBy: { name: 'asc' },
+      select: {
+        id: true, name: true, aoe4worldId: true, elo: true, winrate: true,
+        totalGames: true, country: true, lastUpdatedAt: true,
+        _count: { select: { matchHistory: true } },
+      },
+    });
+    res.json({ data: players });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// POST /players/:id/seed-history — seed a specific player's history
+router.post('/players/:id/seed-history', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const player = await prisma.player.findUnique({ where: { id: req.params.id }, select: { id: true, name: true, aoe4worldId: true } });
+    if (!player) { res.status(404).json({ error: 'Player not found' }); return; }
+    const force = req.body?.force === true;
+    res.json({ ok: true, message: `Seeding started for ${player.name}` });
+    (async () => {
+      if (player.aoe4worldId) {
+        const { seedPlayerHistoryFromAoe4World } = await import('../scrapers/aoe4worldPlayerHistorySeeder');
+        const { buildProPlayerSet } = await import('../scrapers/aoe4worldScraper');
+        const proIds = await buildProPlayerSet();
+        await seedPlayerHistoryFromAoe4World(player.id, player.name, player.aoe4worldId, proIds, force);
+      }
+      const count = await prisma.playerMatchRecord.count({ where: { playerId: player.id } });
+      if (count < 50 && process.env.ANTHROPIC_API_KEY) {
+        const { enrichPlayerWithAI } = await import('../scrapers/aiPlayerHistoryScraper');
+        await enrichPlayerWithAI(player.id, player.name, force);
+      }
+    })().catch(err => logger.error(`[Admin] Seed history failed for ${player.name}:`, err));
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// POST /players/seed-all — seed all players missing history
+router.post('/players/seed-all', async (_req: Request, res: Response): Promise<void> => {
+  const players = await prisma.player.findMany({ select: { id: true, name: true } });
+  res.json({ ok: true, message: `Seeding all ${players.length} players in background` });
+  (async () => {
+    const { seedAllPlayerHistories } = await import('../scrapers/aoe4worldPlayerHistorySeeder');
+    await seedAllPlayerHistories(false);
+    if (process.env.ANTHROPIC_API_KEY) {
+      const { enrichAllProPlayers } = await import('../scrapers/aiPlayerHistoryScraper');
+      await enrichAllProPlayers(false);
+    }
+  })().catch(err => logger.error('[Admin] seed-all error:', err));
+});
+
+// GET /matches — list all upcoming/live matches for admin management
+router.get('/matches', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const statusFilter = req.query.status as string | undefined;
+    const matches = await prisma.match.findMany({
+      where: statusFilter ? { status: statusFilter as 'UPCOMING' | 'LIVE' | 'COMPLETED' | 'CANCELLED' } : { status: { in: ['UPCOMING', 'LIVE'] } },
+      include: {
+        player1: { select: { id: true, name: true } },
+        player2: { select: { id: true, name: true } },
+        tournament: { select: { id: true, name: true, tier: true } },
+        _count: { select: { bets: true } },
+      },
+      orderBy: { scheduledAt: 'asc' },
+      take: 100,
+    });
+    res.json({ data: matches });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// GET /admin/matches/:id/inspect — full match info + all bets with user details
+router.get('/matches/:id/inspect', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const match = await prisma.match.findUnique({
+      where: { id },
+      include: {
+        player1:    { select: { id: true, name: true, avatarUrl: true, elo: true } },
+        player2:    { select: { id: true, name: true, avatarUrl: true, elo: true } },
+        tournament: { select: { id: true, name: true, tier: true } },
+        bets: {
+          include: {
+            user: { select: { id: true, username: true, avatar: true, coins: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+        boResults: { orderBy: { boNumber: 'asc' } },
+      },
+    });
+
+    if (!match) { res.status(404).json({ error: 'Match introuvable' }); return; }
+
+    // Split bets per player
+    const betsPlayer1 = match.bets.filter(b => b.selectedPlayer === 1);
+    const betsPlayer2 = match.bets.filter(b => b.selectedPlayer === 2);
+
+    const volume1 = betsPlayer1.reduce((s, b) => s + b.amount, 0);
+    const volume2 = betsPlayer2.reduce((s, b) => s + b.amount, 0);
+    const total   = volume1 + volume2;
+
+    res.json({
+      data: {
+        match,
+        betsPlayer1,
+        betsPlayer2,
+        stats: {
+          total,
+          volume1,
+          volume2,
+          count1: betsPlayer1.length,
+          count2: betsPlayer2.length,
+          pct1: total > 0 ? Math.round((volume1 / total) * 100) : 50,
+          pct2: total > 0 ? Math.round((volume2 / total) * 100) : 50,
+        },
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+export default router;
