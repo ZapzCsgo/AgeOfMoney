@@ -21,7 +21,7 @@ const securityHeaders = [
       "connect-src 'self' " + (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000') + ' ' + (process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:4000'),
       "frame-ancestors 'none'",
       "base-uri 'self'",
-      "form-action 'self'",
+      "form-action 'self' https://steamcommunity.com",
     ].join('; '),
   },
 ];
