@@ -26,11 +26,11 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: 'AgeOfMoney — #1 Age of Empires 4 Match Betting Platform',
   description:
-    'The premier Age of Empires 4 match betting platform. Predict pro match outcomes, follow live tournaments and compete in the AoE4 esports community. La première plateforme de match betting dédiée à la scène compétitive Age of Empires 4.',
+    'The premier Age of Empires 4 match betting platform. Bet pro match outcomes, follow live tournaments and compete in the AoE4 esports community. La première plateforme de match betting dédiée à la scène compétitive Age of Empires 4.',
   keywords: [
     // English
     'Age of Empires 4 betting', 'AoE4 betting', 'AoE4 esports betting', 'Age of Empires 4 esports',
-    'AoE4 match betting', 'AoE4 tournament betting', 'Age of Empires 4 predictions',
+    'AoE4 match betting', 'AoE4 tournament betting', 'Age of Empires 4 match betting',
     'AoE4 pro matches', 'AoE4 competitive', 'esports betting', 'AoE4 betting platform',
     // French
     'paris Age of Empires 4', 'paris AoE4', 'paris esports', 'paris matchs AoE4',
@@ -60,7 +60,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: 'AgeOfMoney — #1 Age of Empires 4 Match Betting Platform',
-    description: 'Predict AoE4 pro match outcomes & follow live tournaments. La première plateforme de match betting dédiée à la scène compétitive Age of Empires 4.',
+    description: 'Bet AoE4 pro match outcomes & follow live tournaments. La première plateforme de match betting dédiée à la scène compétitive Age of Empires 4.',
     type: 'website',
     url: 'https://ageof.money',
     siteName: 'AgeOfMoney',
@@ -77,7 +77,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'AgeOfMoney — #1 AoE4 Match Betting Platform',
-    description: 'Predict AoE4 pro match outcomes & follow live tournaments.',
+    description: 'Bet AoE4 pro match outcomes & follow live tournaments.',
     images: ['/og-image.png'],
   },
   category: 'esports betting',
