@@ -24,21 +24,68 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'AgeOfMoney | Paris sur Age of Empires 4',
+  title: 'AgeOfMoney — #1 Age of Empires 4 Match Betting Platform',
   description:
-    'Pariez sur les matchs compétitifs Age of Empires 4 avec des coins virtuels. Suivez les tournois, analysez les stats et affrontez la communauté.',
-  keywords: ['Age of Empires 4', 'AoE4', 'betting', 'esports', 'paris sportifs', 'tournoi', 'AgeOfMoney'],
-  themeColor: '#080604',
-  openGraph: {
-    title: 'AgeOfMoney | Paris sur Age of Empires 4',
-    description: 'La plateforme de paris virtuels dédiée à la scène compétitive AoE4',
-    type: 'website',
+    'The premier Age of Empires 4 match betting platform. Bet virtual coins on pro matches, live tournaments and competitive AoE4 events. La première plateforme de match betting dédiée à la scène compétitive Age of Empires 4.',
+  keywords: [
+    // English
+    'Age of Empires 4 betting', 'AoE4 betting', 'AoE4 esports betting', 'Age of Empires 4 esports',
+    'AoE4 match betting', 'AoE4 tournament betting', 'Age of Empires 4 gambling', 'AoE4 coins',
+    'AoE4 pro matches', 'AoE4 competitive', 'esports betting', 'virtual betting platform',
+    // French
+    'paris Age of Empires 4', 'paris AoE4', 'paris esports', 'paris matchs AoE4',
+    'plateforme paris virtuels', 'tournoi Age of Empires 4', 'paris compétitif AoE4',
+    // German
+    'Age of Empires 4 Wetten', 'AoE4 Wetten', 'AoE4 esports Wetten',
+    // Spanish
+    'apuestas Age of Empires 4', 'apuestas AoE4', 'apuestas esports',
+    // General
+    'AgeOfMoney', 'ageof.money', 'AoE4 world', 'aoe4world betting',
+  ],
+  applicationName: 'AgeOfMoney',
+  authors: [{ name: 'AgeOfMoney', url: 'https://ageof.money' }],
+  creator: 'AgeOfMoney',
+  metadataBase: new URL('https://ageof.money'),
+  alternates: {
+    canonical: 'https://ageof.money',
+    languages: {
+      'en': 'https://ageof.money',
+      'fr': 'https://ageof.money',
+    },
   },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, 'max-snippet': -1, 'max-image-preview': 'large' },
+  },
+  openGraph: {
+    title: 'AgeOfMoney — #1 Age of Empires 4 Match Betting Platform',
+    description: 'Bet virtual coins on AoE4 pro matches & live tournaments. La première plateforme de match betting dédiée à la scène compétitive Age of Empires 4.',
+    type: 'website',
+    url: 'https://ageof.money',
+    siteName: 'AgeOfMoney',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'AgeOfMoney — Age of Empires 4 Match Betting',
+      },
+    ],
+    locale: 'en_US',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'AgeOfMoney — #1 AoE4 Match Betting Platform',
+    description: 'Bet virtual coins on AoE4 pro matches & live tournaments.',
+    images: ['/og-image.png'],
+  },
+  category: 'esports betting',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fr" className={`${cinzel.variable} ${inter.variable} dark`} suppressHydrationWarning>
+    <html lang="en" className={`${cinzel.variable} ${inter.variable} dark`} suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
