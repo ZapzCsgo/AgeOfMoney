@@ -105,7 +105,7 @@ router.post('/auth/login', async (req: Request, res: Response): Promise<void> =>
             steamId,
             username: finalUsername,
             avatar,
-            coins: 1000,
+            coins: 0,
           },
         });
       }

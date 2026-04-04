@@ -126,4 +126,10 @@ export function onBetResult(callback: (data: BetResultPayload) => void): () => v
   return () => s.off('betResult', callback);
 }
 
+export function onCoinsUpdate(callback: (data: { coins: number }) => void): () => void {
+  const s = getSocket();
+  s.on('coinsUpdate', callback);
+  return () => s.off('coinsUpdate', callback);
+}
+
 export { socket };

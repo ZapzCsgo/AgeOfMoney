@@ -75,7 +75,7 @@ export function getAuthOptions(req?: NextRequest): NextAuthOptions {
           };
           token.accessToken = u.backendToken ?? '';
           token.userId = u.backendId ?? '';
-          token.coins = u.coins ?? 1000;
+          token.coins = u.coins ?? 0;
           token.isAdmin = u.isAdmin ?? false;
           token.steamId = u.steamId ?? '';
         } else if (token.accessToken) {

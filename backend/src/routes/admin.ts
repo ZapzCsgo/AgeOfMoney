@@ -372,6 +372,7 @@ router.get('/users', async (req: Request, res: Response): Promise<void> => {
           avatar: true,
           coins: true,
           isAdmin: true,
+          isMod: true,
           isBanned: true,
           provider: true,
           lastActiveAt: true,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
 import { ChevronDown, User, LogOut, Shield, Wallet, PlusCircle, Crown, Bell } from 'lucide-react';
@@ -11,6 +11,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { WalletModal } from '@/components/wallet/WalletModal';
 import { useT } from '@/lib/i18n';
 import { useNotifications } from '@/contexts/NotificationsContext';
+import { getSocket } from '@/lib/socket';
 
 async function handleSteamLogin() {
   try {
@@ -42,13 +43,32 @@ function SteamIcon() {
 }
 
 export function Navbar() {
-  const { data: session } = useSession();
+  const { data: session, update } = useSession();
   const pathname = usePathname();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [walletOpen, setWalletOpen]     = useState(false);
   const [notifOpen, setNotifOpen]       = useState(false);
+  const [localCoins, setLocalCoins]     = useState<number | null>(null);
+  const [coinFlash, setCoinFlash]       = useState(false);
+  const flashTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { t } = useT();
   const { notifications, unreadCount, markAllRead } = useNotifications();
+
+  useEffect(() => {
+    if (!session?.user?.accessToken) return;
+    const s = getSocket(session.user.accessToken);
+    const handler = ({ coins }: { coins: number }) => {
+      setLocalCoins(coins);
+      setCoinFlash(true);
+      if (flashTimeout.current) clearTimeout(flashTimeout.current);
+      flashTimeout.current = setTimeout(() => setCoinFlash(false), 1200);
+      update();
+    };
+    s.on('coinsUpdate', handler);
+    return () => { s.off('coinsUpdate', handler); };
+  }, [session?.user?.accessToken, update]);
+
+  const displayCoins = localCoins ?? session?.user?.coins ?? 0;
 
   const navLinks = [
     { href: '/', label: t('nav_home') },
@@ -181,8 +201,11 @@ export function Navbar() {
                   <div className="flex items-center gap-1.5 px-3 h-full border-r border-aoe-border"
                     style={{ background: 'rgba(212,160,23,0.08)' }}>
                     <Wallet size={12} className="text-aoe-gold" />
-                    <span className="text-aoe-gold font-bold font-cinzel text-sm tabular-nums">
-                      {new Intl.NumberFormat('fr-FR').format(session.user.coins)} ⚜
+                    <span className={cn(
+                      'font-bold font-cinzel text-sm tabular-nums transition-colors duration-300',
+                      coinFlash ? 'text-green-400 drop-shadow-[0_0_8px_rgba(74,222,128,0.9)]' : 'text-aoe-gold'
+                    )}>
+                      {new Intl.NumberFormat('fr-FR').format(displayCoins)} ⚜
                     </span>
                   </div>
                   {/* Avatar + name */}
@@ -214,10 +237,10 @@ export function Navbar() {
                           {session.user.name}
                         </p>
                         <p className="text-xs text-aoe-gold font-cinzel font-bold mt-0.5">
-                          ⚜ {new Intl.NumberFormat('fr-FR').format(session.user.coins)} coins
+                          ⚜ {new Intl.NumberFormat('fr-FR').format(displayCoins)} coins
                         </p>
                         <p className="text-[10px] text-[#6b6488] mt-0.5">
-                          ≈ ${(session.user.coins / 1.69).toFixed(2)}
+                          ≈ ${(displayCoins / 1.69).toFixed(2)}
                         </p>
                       </div>
                       <Link

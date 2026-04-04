@@ -128,10 +128,12 @@ async function resolveRound(roundId: string, winZone: string, multiplier: number
     });
 
     if (won && payout > 0) {
-      await prisma.user.update({
+      const updatedUser = await prisma.user.update({
         where: { id: bet.userId },
         data: { coins: { increment: payout } },
+        select: { coins: true },
       });
+      io?.to(`user:${bet.userId}`).emit('coinsUpdate', { coins: updatedUser.coins });
     }
   }
 
