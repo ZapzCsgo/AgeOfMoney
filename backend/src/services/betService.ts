@@ -288,28 +288,31 @@ export interface UserStats {
 }
 
 export async function getUserStats(userId: string): Promise<UserStats> {
-  const bets = await prisma.bet.findMany({
-    where: { userId },
-    select: {
-      amount: true,
-      oddsAtBet: true,
-      status: true,
-      payout: true,
-    },
-  });
+  const [bets, rouletteBets] = await Promise.all([
+    prisma.bet.findMany({
+      where: { userId },
+      select: { amount: true, oddsAtBet: true, status: true, payout: true },
+    }),
+    prisma.rouletteBet.findMany({
+      where: { userId },
+      select: { amount: true, payout: true, won: true },
+    }),
+  ]);
 
-  const totalBets = bets.length;
-  const wonBets = bets.filter((b) => b.status === 'WON').length;
-  const lostBets = bets.filter((b) => b.status === 'LOST').length;
-  const pendingBets = bets.filter((b) => b.status === 'PENDING').length;
+  const totalBets = bets.length + rouletteBets.length;
+  const wonBets = bets.filter((b) => b.status === 'WON').length + rouletteBets.filter(b => b.won === true).length;
+  const lostBets = bets.filter((b) => b.status === 'LOST').length + rouletteBets.filter(b => b.won === false).length;
+  const pendingBets = bets.filter((b) => b.status === 'PENDING').length + rouletteBets.filter(b => b.won === null).length;
 
   const totalWagered = bets
     .filter((b) => b.status !== 'REFUNDED' && b.status !== 'CANCELLED')
-    .reduce((sum, b) => sum + b.amount, 0);
+    .reduce((sum, b) => sum + b.amount, 0)
+    + rouletteBets.reduce((sum, b) => sum + b.amount, 0);
 
   const totalPayout = bets
     .filter((b) => b.status === 'WON')
-    .reduce((sum, b) => sum + (b.payout ?? 0), 0);
+    .reduce((sum, b) => sum + (b.payout ?? 0), 0)
+    + rouletteBets.filter(b => b.won === true).reduce((sum, b) => sum + (b.payout ?? 0), 0);
 
   const netProfit = totalPayout - totalWagered;
   const roi = totalWagered > 0 ? (netProfit / totalWagered) * 100 : 0;

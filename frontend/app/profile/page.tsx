@@ -480,7 +480,7 @@ export default function ProfilePage() {
       apiClient.get('/roulette/my').catch(() => null),
       apiClient.get('/users/me').catch(() => null),
     ]).then(([betsRes, lbRes, rouRes, meRes]) => {
-      if (meRes?.data?.data?.bio) setProfileBio(meRes.data.data.bio);
+      if (meRes?.data?.data?.bio != null) setProfileBio(meRes.data.data.bio ?? '');
       if (betsRes) {
         setBets(betsRes.data);
         setBetsTotal(betsRes.total);
@@ -522,13 +522,20 @@ export default function ProfilePage() {
     ? new Date(session.user.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
     : t('profile_recently');
 
-  // Compute period stats from bets
+  // Compute period stats from both match bets + roulette bets
   const now = Date.now();
-  const bets7d  = bets.filter(b => now - new Date(b.createdAt).getTime() < 7  * 86400000);
-  const bets30d = bets.filter(b => now - new Date(b.createdAt).getTime() < 30 * 86400000);
+  const bets7d   = bets.filter(b => now - new Date(b.createdAt).getTime() < 7  * 86400000);
+  const bets30d  = bets.filter(b => now - new Date(b.createdAt).getTime() < 30 * 86400000);
+  const rou7d    = rouletteBets.filter(b => now - new Date(b.createdAt).getTime() < 7  * 86400000);
+  const rou30d   = rouletteBets.filter(b => now - new Date(b.createdAt).getTime() < 30 * 86400000);
 
-  const sumWon   = (arr: Bet[]) => arr.filter(b => b.status === 'WON').reduce((a, b) => a + (b.payout ?? 0), 0);
-  const sumPlayed= (arr: Bet[]) => arr.reduce((a, b) => a + b.amount, 0);
+  const sumWon   = (arr: Bet[], rou: RouletteBetHistory[]) =>
+    arr.filter(b => b.status === 'WON').reduce((a, b) => a + (b.payout ?? 0), 0)
+    + rou.filter(b => b.won === true).reduce((a, b) => a + (b.payout ?? 0), 0);
+  const sumPlayed= (arr: Bet[], rou: RouletteBetHistory[]) =>
+    arr.reduce((a, b) => a + b.amount, 0)
+    + rou.reduce((a, b) => a + b.amount, 0);
+  const sumCount = (arr: Bet[], rou: RouletteBetHistory[]) => arr.length + rou.length;
 
   return (
     <div className="min-h-screen" style={{ background: '#07060f' }}>
@@ -630,15 +637,15 @@ export default function ProfilePage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <StatPeriodCard
                 title={t('profile_last_7d')}
-                won={sumWon(bets7d)}
-                played={sumPlayed(bets7d)}
-                count={bets7d.length}
+                won={sumWon(bets7d, rou7d)}
+                played={sumPlayed(bets7d, rou7d)}
+                count={sumCount(bets7d, rou7d)}
               />
               <StatPeriodCard
                 title={t('profile_last_30d')}
-                won={sumWon(bets30d)}
-                played={sumPlayed(bets30d)}
-                count={bets30d.length}
+                won={sumWon(bets30d, rou30d)}
+                played={sumPlayed(bets30d, rou30d)}
+                count={sumCount(bets30d, rou30d)}
               />
               <StatPeriodCard
                 title="Total"

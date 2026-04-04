@@ -13,7 +13,8 @@ model User {
   email         String?       @unique
   steamId       String?       @unique
   avatar        String?
-  coins         Int           @default(1000)
+  bio           String?       @db.VarChar(200)
+  coins         Int           @default(0)
   totalWagered  Int           @default(0)
   provider      String
   providerId    String
