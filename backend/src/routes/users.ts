@@ -3,7 +3,7 @@ import { requireAuth } from '../middleware/auth';
 import { generateToken } from '../middleware/auth';
 import { prisma } from '../index';
 import { z } from 'zod';
-import { generate as totpGenerate, verify as totpVerify, generateSecret as totpGenerateSecret, generateURI as totpGenerateURI } from 'otplib';
+import { authenticator } from 'otplib';
 import logger from '../logger';
 
 const router = Router();
@@ -151,8 +151,8 @@ router.get('/2fa/setup', requireAuth, async (req: Request, res: Response): Promi
     if (user.totpEnabled) { res.status(400).json({ error: '2FA is already enabled' }); return; }
 
     // Generate a fresh secret each time setup is initiated
-    const secret = totpGenerateSecret();
-    const otpauthUrl = totpGenerateURI({ label: `${user.username}@AgeOfMoney`, secret, issuer: 'AgeOfMoney' });
+    const secret = authenticator.generateSecret();
+    const otpauthUrl = authenticator.keyuri(`${user.username}`, 'AgeOfMoney', secret);
 
     // Persist the pending secret (not yet enabled — enabled only after verify)
     await prisma.user.update({ where: { id: userId }, data: { totpSecret: secret, totpEnabled: false } });
@@ -181,8 +181,8 @@ router.post('/2fa/enable', requireAuth, async (req: Request, res: Response): Pro
     if (user.totpEnabled) { res.status(400).json({ error: '2FA is already enabled' }); return; }
     if (!user.totpSecret) { res.status(400).json({ error: 'Run 2FA setup first' }); return; }
 
-    const result = await totpVerify({ token: code, secret: user.totpSecret });
-    if (!result.valid) { res.status(400).json({ error: 'Invalid code — check your authenticator app' }); return; }
+    const isValid = authenticator.verify({ token: code, secret: user.totpSecret });
+    if (!isValid) { res.status(400).json({ error: 'Invalid code — check your authenticator app' }); return; }
 
     await prisma.user.update({ where: { id: req.user!.id }, data: { totpEnabled: true } });
     res.json({ data: { enabled: true } });
@@ -207,8 +207,8 @@ router.post('/2fa/disable', requireAuth, async (req: Request, res: Response): Pr
     });
     if (!user?.totpEnabled || !user.totpSecret) { res.status(400).json({ error: '2FA is not enabled' }); return; }
 
-    const result = await totpVerify({ token: code, secret: user.totpSecret });
-    if (!result.valid) { res.status(400).json({ error: 'Invalid code' }); return; }
+    const isValid = authenticator.verify({ token: code, secret: user.totpSecret });
+    if (!isValid) { res.status(400).json({ error: 'Invalid code' }); return; }
 
     await prisma.user.update({ where: { id: req.user!.id }, data: { totpEnabled: false, totpSecret: null } });
     res.json({ data: { enabled: false } });
@@ -237,8 +237,8 @@ router.post('/2fa/verify', requireAuth, async (req: Request, res: Response): Pro
       return;
     }
 
-    const result = await totpVerify({ token: code, secret: user.totpSecret });
-    if (!result.valid) { res.status(400).json({ error: 'Invalid authentication code' }); return; }
+    const isValid = authenticator.verify({ token: code, secret: user.totpSecret });
+    if (!isValid) { res.status(400).json({ error: 'Invalid authentication code' }); return; }
 
     res.json({ data: { valid: true } });
   } catch (error) {
