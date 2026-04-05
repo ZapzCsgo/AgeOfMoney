@@ -463,7 +463,7 @@ export function ChatPanel() {
                   value={tipAmount}
                   onChange={e => setTipAmount(e.target.value)}
                   placeholder="10"
-                  className="flex-1 w-0 rounded px-2 py-1 text-[11px] text-[#e8e2f5] outline-none"
+                  className="flex-1 w-0 rounded px-2 py-1 text-[11px] text-[#e8e2f5] outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   style={{ background: '#13111f', border: '1px solid #1e1a30' }}
                 />
                 <button
