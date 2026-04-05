@@ -155,6 +155,9 @@ export async function scrapeUpcomingMatches(): Promise<void> {
         if (player1.toLowerCase() === 'tbd' || player2.toLowerCase() === 'tbd') return;
         // Skip team matches (multiple players on a side) — we only do 1v1
         if (leftEl.find('.block-player').length > 1 || rightEl.find('.block-player').length > 1) return;
+        // Skip entries that look like team org names, not individual players
+        const teamPattern = /^team\s+|esports?\s*[ab]?$|\s+esports?$|esports?\s+[ab]$/i;
+        if (teamPattern.test(player1) || teamPattern.test(player2)) return;
 
         // Countries
         const player1Country = leftEl.find('.flag img').first().attr('alt') || '';
