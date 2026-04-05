@@ -14,11 +14,21 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
     const whereClause: Record<string, unknown> = {};
     if (isActive !== undefined) whereClause.isActive = isActive;
     if (tier) whereClause.tier = tier;
+    // Exclude tournaments that ended in the past (keep ones with no endDate or endDate in the future)
+    if (isActive) {
+      whereClause.OR = [
+        { endDate: null },
+        { endDate: { gte: new Date() } },
+      ];
+    }
 
     const [tournaments, total] = await Promise.all([
       prisma.tournament.findMany({
         where: whereClause,
-        orderBy: [{ isActive: 'desc' }, { startDate: 'desc' }],
+        // For active tournaments: soonest upcoming first; otherwise most recent first
+        orderBy: isActive
+          ? [{ startDate: 'asc' }]
+          : [{ isActive: 'desc' }, { startDate: 'desc' }],
         take: limit,
         skip: offset,
         include: {

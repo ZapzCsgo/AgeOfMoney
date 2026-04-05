@@ -688,7 +688,15 @@ export default function HomePage() {
         getTournaments({ active: true, limit: 6 }),
       ]);
       if (matchRes.status === 'fulfilled') { setMatches(matchRes.value.data); setLastFetch(new Date()); }
-      if (tournRes.status === 'fulfilled') setUpcomingTourneys(tournRes.value.data ?? []);
+      if (tournRes.status === 'fulfilled') {
+        // Only show tournaments that haven't ended yet (or have no end date but started within 30 days)
+        const now = Date.now();
+        const future = (tournRes.value.data ?? []).filter((tourn: Tournament) => {
+          if (tourn.endDate && new Date(tourn.endDate).getTime() < now) return false;
+          return true;
+        });
+        setUpcomingTourneys(future);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common_error'));
     } finally {
@@ -852,48 +860,55 @@ export default function HomePage() {
             ))}
           </div>
         ) : (
-          /* Empty state — show upcoming tournaments from calendar */
-          <div className="flex flex-col items-center py-12">
+          /* Empty state */
+          <div className="flex flex-col items-center py-8">
             <Swords size={28} className="text-aoe-parchment-muted opacity-40 mb-4" />
             <p className="font-cinzel text-sm tracking-widest text-aoe-parchment-dim mb-2">
               {filter !== 'all' ? t('matches_empty_filter') : t('matches_empty')}
             </p>
             {filter !== 'all' && (
-              <button onClick={() => setFilter('all')} className="mb-8 text-xs text-aoe-gold font-cinzel hover:underline">
+              <button onClick={() => setFilter('all')} className="text-xs text-aoe-gold font-cinzel hover:underline">
                 {t('home_view_all')}
               </button>
             )}
-            {upcomingTourneys.length > 0 && filter === 'all' && (
-              <div className="w-full mt-6">
-                <p className="font-cinzel text-xs text-[#6b6488] uppercase tracking-widest mb-4 text-center">Tournois à venir</p>
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-                  {upcomingTourneys.map(t => (
-                    <Link key={t.id} href={`/tournaments/${t.id}`}
-                      className="flex items-center gap-4 px-5 py-4 rounded-xl border border-[#1e1a30] hover:border-[#d4a017]/30 transition-all group"
-                      style={{ background: '#0d0b1a' }}>
-                      <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
-                        style={{ background: 'rgba(212,160,23,0.08)', border: '1px solid rgba(212,160,23,0.15)' }}>
-                        <Trophy size={16} className="text-[#d4a017]" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-cinzel font-bold text-[13px] text-[#e8e2f5] truncate group-hover:text-[#d4a017] transition-colors">{t.name}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] text-[#6b6488]">{t.game ?? 'AoE4'}</span>
-                          {t.startDate && <span className="text-[10px] text-[#6b6488]">· {new Date(t.startDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>}
-                          {t.endDate && <span className="text-[10px] text-[#6b6488]">→ {new Date(t.endDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>}
-                        </div>
-                      </div>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded shrink-0"
-                        style={{ background: t.tier === 'S' ? '#d4a01720' : t.tier === 'A' ? '#a78bfa20' : '#60a5fa20',
-                                 color: t.tier === 'S' ? '#d4a017' : t.tier === 'A' ? '#a78bfa' : '#60a5fa' }}>
-                        {t.tier}
-                      </span>
-                      <ChevronRight size={14} className="text-[#3d3860] group-hover:text-[#d4a017] transition-colors shrink-0" />
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
+          </div>
+        )}
+
+        {/* Upcoming tournaments — always shown when no UPCOMING matches exist */}
+        {!loading && upcomingCount === 0 && upcomingTourneys.length > 0 && (
+          <div className="mt-8">
+            <div className="flex items-center gap-3 mb-4">
+              <h2 className="font-cinzel font-bold text-base tracking-[0.2em] text-aoe-gold uppercase">
+                Prochains Tournois
+              </h2>
+              <span className="text-[11px] text-aoe-parchment-muted font-cinzel">{upcomingTourneys.length} tournoi{upcomingTourneys.length > 1 ? 's' : ''}</span>
+            </div>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+              {upcomingTourneys.map(tourn => (
+                <Link key={tourn.id} href={`/tournaments/${tourn.id}`}
+                  className="flex items-center gap-4 px-5 py-4 rounded-xl border border-[#1e1a30] hover:border-[#d4a017]/30 transition-all group"
+                  style={{ background: '#0d0b1a' }}>
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                    style={{ background: 'rgba(212,160,23,0.08)', border: '1px solid rgba(212,160,23,0.15)' }}>
+                    <Trophy size={16} className="text-[#d4a017]" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-cinzel font-bold text-[13px] text-[#e8e2f5] truncate group-hover:text-[#d4a017] transition-colors">{tourn.name}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[10px] text-[#6b6488]">{tourn.game ?? 'AoE4'}</span>
+                      {tourn.startDate && <span className="text-[10px] text-[#6b6488]">· {new Date(tourn.startDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>}
+                      {tourn.endDate && <span className="text-[10px] text-[#6b6488]">→ {new Date(tourn.endDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>}
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded shrink-0"
+                    style={{ background: tourn.tier === 'S' ? '#d4a01720' : tourn.tier === 'A' ? '#a78bfa20' : '#60a5fa20',
+                             color: tourn.tier === 'S' ? '#d4a017' : tourn.tier === 'A' ? '#a78bfa' : '#60a5fa' }}>
+                    {tourn.tier}
+                  </span>
+                  <ChevronRight size={14} className="text-[#3d3860] group-hover:text-[#d4a017] transition-colors shrink-0" />
+                </Link>
+              ))}
+            </div>
           </div>
         )}
 
