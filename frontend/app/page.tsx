@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useT } from '@/lib/i18n';
 import { Match } from '@/types';
@@ -221,6 +222,7 @@ function formatCiv(civ?: string | null): string {
 // ── Match Card ────────────────────────────────────────────────────────────────
 function MatchCard({ match }: { match: Match }) {
   const { t } = useT();
+  const router = useRouter();
   const [selected, setSelected] = useState<1 | 2 | null>(null);
   const isLive      = match.status === 'LIVE';
   const isCompleted = match.status === 'COMPLETED';
@@ -233,19 +235,19 @@ function MatchCard({ match }: { match: Match }) {
 
   const handleOddsClick = (player: 1 | 2, e: React.MouseEvent) => {
     e.stopPropagation();
+    e.preventDefault();
     setSelected((s) => (s === player ? null : player));
   };
 
-  const Wrapper = isCompleted
-    ? ({ children }: { children: React.ReactNode }) => (
-        <div className={cn('match-card group block cursor-default', isLive && 'match-card-live')}>{children}</div>
-      )
-    : ({ children }: { children: React.ReactNode }) => (
-        <Link href={`/matches/${match.id}`} className={cn('match-card group cursor-pointer block', isLive && 'match-card-live')}>{children}</Link>
-      );
+  const handleCardClick = () => {
+    if (!isCompleted) router.push(`/matches/${match.id}`);
+  };
 
   return (
-    <Wrapper>
+    <div
+      onClick={handleCardClick}
+      className={cn('match-card group', isLive && 'match-card-live', !isCompleted && 'cursor-pointer')}
+    >
       {/* Top bar */}
       <div
         className="flex items-center justify-between px-4 py-2.5 border-b border-aoe-border/60"
@@ -468,7 +470,24 @@ function MatchCard({ match }: { match: Match }) {
         </div>
       )}
 
-    </Wrapper>
+      {/* Footer — more bets link */}
+      {!isCompleted && (
+        <div
+          className="flex justify-end px-4 py-2 border-t"
+          style={{ borderColor: '#1e1a30', background: 'rgba(0,0,0,0.2)' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Link
+            href={`/matches/${match.id}`}
+            className="flex items-center gap-1 text-[11px] font-cinzel text-[#6b6488] hover:text-[#d4a017] transition-colors"
+            onClick={(e) => e.stopPropagation()}
+          >
+            Afficher plus de paris <ChevronRight size={11} />
+          </Link>
+        </div>
+      )}
+
+    </div>
   );
 }
 
