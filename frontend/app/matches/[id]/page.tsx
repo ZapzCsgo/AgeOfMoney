@@ -270,9 +270,17 @@ function ExactScoreBets({ match, onBetPlaced }: { match: Match; onBetPlaced: () 
               {placing ? '…' : 'PARIER'}
             </button>
           </div>
-          {amount && parseInt(amount) >= 10 && (
-            <p className="text-[10px] text-aoe-parchment-muted">Gain potentiel : <span className="text-emerald-400 font-bold">{Math.floor(parseInt(amount) * selected.odds)} ⚜</span></p>
-          )}
+          {amount && parseInt(amount) >= 10 && (() => {
+            const a = parseInt(amount);
+            const total = Math.floor(a * selected.odds);
+            const profit = total - a;
+            return (
+              <div className="flex justify-between text-[10px] text-aoe-parchment-muted">
+                <span>Gain potentiel : <span className="text-emerald-400 font-bold">+{profit} ⚜</span></span>
+                <span>Total retour : <span className="text-[#f5c842] font-bold">{total} ⚜</span></span>
+              </div>
+            );
+          })()}
         </div>
       )}
       {msg && (
