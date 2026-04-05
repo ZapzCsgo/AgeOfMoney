@@ -283,6 +283,23 @@ export async function scrapeUpcomingMatches(): Promise<void> {
 
         matchesSaved++;
 
+        // Trigger AI enrichment for players with no history (non-blocking)
+        if (process.env.ANTHROPIC_API_KEY) {
+          (async () => {
+            const { enrichPlayerWithAI } = await import('./aiPlayerHistoryScraper');
+            const { enrichAllUpcomingMatches } = await import('./aoe4worldScraper');
+            for (const [pid, pname] of [[p1.id, p1.name], [p2.id, p2.name]] as [string, string][]) {
+              const count = await prisma.playerMatchRecord.count({ where: { playerId: pid } });
+              if (count < 10) {
+                await enrichPlayerWithAI(pid, pname, false);
+                await sleep(3000); // respect Claude rate limits
+              }
+            }
+            // Recalc odds with fresh AI data
+            await enrichAllUpcomingMatches().catch(() => {});
+          })().catch(err => logger.warn(`[Liquipedia] AI enrichment failed for new match: ${err}`));
+        }
+
         // Rate limit — be nice to Liquipedia's DB
         await sleep(200);
       } catch (err) {
