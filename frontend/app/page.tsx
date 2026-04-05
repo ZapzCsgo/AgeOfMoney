@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useT } from '@/lib/i18n';
-import { Match } from '@/types';
-import { getMatches, placeBet } from '@/lib/api';
+import { Match, Tournament } from '@/types';
+import { getMatches, placeBet, getTournaments } from '@/lib/api';
 import { Particles } from '@/components/magicui/particles';
 import { GridPattern } from '@/components/magicui/grid-pattern';
 import { Meteors } from '@/components/magicui/meteors';
@@ -671,20 +671,24 @@ const FILTER_IDS = [
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function HomePage() {
   const { t } = useT();
-  const [matches, setMatches]     = useState<Match[]>([]);
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState<string | null>(null);
-  const [filter, setFilter]       = useState('all');
-  const [lastFetch, setLastFetch] = useState<Date | null>(null);
+  const [matches, setMatches]         = useState<Match[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState<string | null>(null);
+  const [filter, setFilter]           = useState('all');
+  const [lastFetch, setLastFetch]     = useState<Date | null>(null);
+  const [upcomingTourneys, setUpcomingTourneys] = useState<Tournament[]>([]);
 
   const FILTERS = FILTER_IDS.map((f) => ({ ...f, label: t(f.key) }));
 
   const fetchMatches = useCallback(async () => {
     try {
       setError(null);
-      const res = await getMatches({ hours: 168 });
-      setMatches(res.data);
-      setLastFetch(new Date());
+      const [matchRes, tournRes] = await Promise.allSettled([
+        getMatches({ hours: 168 }),
+        getTournaments({ active: true, limit: 6 }),
+      ]);
+      if (matchRes.status === 'fulfilled') { setMatches(matchRes.value.data); setLastFetch(new Date()); }
+      if (tournRes.status === 'fulfilled') setUpcomingTourneys(tournRes.value.data ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common_error'));
     } finally {
@@ -848,27 +852,47 @@ export default function HomePage() {
             ))}
           </div>
         ) : (
-          /* Empty state */
-          <div className="flex flex-col items-center justify-center py-24 text-aoe-parchment-dim">
-            <div
-              className="w-20 h-20 rounded-full flex items-center justify-center mb-6 border border-aoe-border"
-              style={{ background: 'rgba(212,160,23,0.05)' }}
-            >
-              <Swords size={36} className="text-aoe-parchment-muted opacity-40" />
-            </div>
-            <p className="font-cinzel text-sm tracking-widest text-aoe-parchment-dim">
+          /* Empty state — show upcoming tournaments from calendar */
+          <div className="flex flex-col items-center py-12">
+            <Swords size={28} className="text-aoe-parchment-muted opacity-40 mb-4" />
+            <p className="font-cinzel text-sm tracking-widest text-aoe-parchment-dim mb-2">
               {filter !== 'all' ? t('matches_empty_filter') : t('matches_empty')}
             </p>
-            <p className="text-aoe-parchment-muted text-xs mt-2">
-              {t('home_no_matches')}
-            </p>
             {filter !== 'all' && (
-              <button
-                onClick={() => setFilter('all')}
-                className="mt-4 text-xs text-aoe-gold font-cinzel tracking-wider uppercase hover:underline"
-              >
+              <button onClick={() => setFilter('all')} className="mb-8 text-xs text-aoe-gold font-cinzel hover:underline">
                 {t('home_view_all')}
               </button>
+            )}
+            {upcomingTourneys.length > 0 && filter === 'all' && (
+              <div className="w-full mt-6">
+                <p className="font-cinzel text-xs text-[#6b6488] uppercase tracking-widest mb-4 text-center">Tournois à venir</p>
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+                  {upcomingTourneys.map(t => (
+                    <Link key={t.id} href={`/tournaments/${t.id}`}
+                      className="flex items-center gap-4 px-5 py-4 rounded-xl border border-[#1e1a30] hover:border-[#d4a017]/30 transition-all group"
+                      style={{ background: '#0d0b1a' }}>
+                      <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                        style={{ background: 'rgba(212,160,23,0.08)', border: '1px solid rgba(212,160,23,0.15)' }}>
+                        <Trophy size={16} className="text-[#d4a017]" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-cinzel font-bold text-[13px] text-[#e8e2f5] truncate group-hover:text-[#d4a017] transition-colors">{t.name}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[10px] text-[#6b6488]">{t.game ?? 'AoE4'}</span>
+                          {t.startDate && <span className="text-[10px] text-[#6b6488]">· {new Date(t.startDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>}
+                          {t.endDate && <span className="text-[10px] text-[#6b6488]">→ {new Date(t.endDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>}
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded shrink-0"
+                        style={{ background: t.tier === 'S' ? '#d4a01720' : t.tier === 'A' ? '#a78bfa20' : '#60a5fa20',
+                                 color: t.tier === 'S' ? '#d4a017' : t.tier === 'A' ? '#a78bfa' : '#60a5fa' }}>
+                        {t.tier}
+                      </span>
+                      <ChevronRight size={14} className="text-[#3d3860] group-hover:text-[#d4a017] transition-colors shrink-0" />
+                    </Link>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         )}
