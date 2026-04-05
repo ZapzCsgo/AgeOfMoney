@@ -113,8 +113,22 @@ interface LpMatch {
 function parseMatches(wikitext: string): LpMatch[] {
   const results: LpMatch[] = [];
 
-  // Split into Match blocks
-  const matchBlocks = wikitext.split('|R').filter(b => b.includes('={{Match'));
+  // Extract Match blocks by finding each {{Match start and its balanced closing }}
+  // This is more robust than splitting on |R which can appear inside nested templates
+  const matchBlocks: string[] = [];
+  const matchStart = /\{\{Match\b/g;
+  let ms: RegExpExecArray | null;
+  while ((ms = matchStart.exec(wikitext)) !== null) {
+    let depth = 0;
+    let i = ms.index;
+    let end = -1;
+    while (i < wikitext.length) {
+      if (wikitext[i] === '{' && wikitext[i + 1] === '{') { depth++; i += 2; }
+      else if (wikitext[i] === '}' && wikitext[i + 1] === '}') { depth--; if (depth === 0) { end = i + 2; break; } i += 2; }
+      else i++;
+    }
+    if (end > ms.index) matchBlocks.push(wikitext.slice(ms.index, end));
+  }
 
   for (const block of matchBlocks) {
     // Extract opponent names
@@ -215,7 +229,11 @@ async function syncMatchScore(matchId: string): Promise<void> {
   const p1Score = reversed ? lpMatch.p2Score : lpMatch.p1Score;
   const p2Score = reversed ? lpMatch.p1Score : lpMatch.p2Score;
 
-  const needed = Math.ceil(lpMatch.bestof / 2);
+  // Use DB format as authoritative source for wins needed (LP bestof can be missing/wrong)
+  const dbNeeded = Math.ceil((parseInt(match.format.replace(/\D/g, ''), 10) || 3) / 2);
+  const lpNeeded = lpMatch.bestof > 0 ? Math.ceil(lpMatch.bestof / 2) : dbNeeded;
+  // Take the higher of the two — be conservative, don't complete early
+  const needed = Math.max(dbNeeded, lpNeeded);
   const resolvedWinnerId = p1Score >= needed ? match.player1.id
     : p2Score >= needed ? match.player2.id
     : null;

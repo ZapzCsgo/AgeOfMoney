@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import { prisma } from '../index';
 import { enrichAllUpcomingMatches } from '../scrapers/aoe4worldScraper';
 import { scrapeAoe4WorldTournaments } from '../scrapers/aoe4worldTournamentScraper';
+import { scrapeUpcomingMatches } from '../scrapers/liquipediaScraper';
 import { enrichAllSparseH2H } from '../scrapers/aiH2HScraper';
 import { distributePayout, refundBets } from '../services/betService';
 import { getIo } from '../socket';
@@ -16,6 +17,15 @@ export function initCronJobs(): void {
       await scrapeAoe4WorldTournaments();
     } catch (err) {
       logger.error('[CRON] aoe4world tourn scrape failed:', err);
+    }
+  });
+
+  // ── Every 20 minutes: scrape Liquipedia for upcoming matches ─────────────
+  cron.schedule('*/20 * * * *', async () => {
+    try {
+      await scrapeUpcomingMatches();
+    } catch (err) {
+      logger.error('[CRON] Liquipedia upcoming scrape failed:', err);
     }
   });
 
@@ -74,6 +84,8 @@ export function initCronJobs(): void {
       await tickMatchStatuses();
       await distributePayouts();
       // Non-blocking startup tasks
+      scrapeUpcomingMatches()
+        .catch(err => logger.error('[Startup] Liquipedia scrape:', err));
       scrapeAoe4WorldTournaments()
         .then(() => enrichAllUpcomingMatches())
         .catch(err => logger.error('[Startup] aoe4world tourn + enrichOdds:', err));

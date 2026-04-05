@@ -593,7 +593,9 @@ export default function ProfilePage() {
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: 'rgba(212,160,23,0.1)', color: '#d4a017', border: '1px solid rgba(212,160,23,0.3)' }}>MEMBRE</span>
                   )}
                 </div>
-                {publicProfile.bio && <p className="text-[13px] text-[#9990b8] mt-2 italic">"{publicProfile.bio}"</p>}
+                <p className="text-[13px] mt-2 italic" style={{ color: publicProfile.bio ? '#9990b8' : '#3d3860' }}>
+                  {publicProfile.bio ? `"${publicProfile.bio}"` : 'Aucune bio renseignée'}
+                </p>
               </div>
             </div>
             {/* XP bar */}
