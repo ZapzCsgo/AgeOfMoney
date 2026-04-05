@@ -694,8 +694,8 @@ export default function HomePage() {
 
   useEffect(() => {
     fetchMatches();
-    // Fallback polling every 10s (socket handles real-time, this is safety net)
-    const interval = setInterval(fetchMatches, 10_000);
+    // Fallback polling every 30s (socket handles real-time, this is safety net)
+    const interval = setInterval(fetchMatches, 30_000);
     return () => clearInterval(interval);
   }, [fetchMatches]);
 

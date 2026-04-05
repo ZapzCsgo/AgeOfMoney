@@ -178,7 +178,7 @@ export default function MatchesPage() {
 
   useEffect(() => {
     fetchMatches();
-    const interval = setInterval(fetchMatches, 15_000);
+    const interval = setInterval(fetchMatches, 30_000);
     return () => clearInterval(interval);
   }, [fetchMatches]);
 

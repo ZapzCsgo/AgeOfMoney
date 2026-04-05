@@ -133,6 +133,12 @@ model Match {
   updatedAt        DateTime    @updatedAt
   bets             Bet[]
   boResults        BoResult[]
+
+  @@index([status, scheduledAt])
+  @@index([player1Id])
+  @@index([player2Id])
+  @@index([tournamentId])
+  @@index([winnerId])
 }
 
 model BoResult {
@@ -174,6 +180,10 @@ model Bet {
   payout         Int?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+
+  @@index([matchId, status])
+  @@index([userId, status])
+  @@index([userId, createdAt])
 }
 
 model Transaction {
@@ -276,4 +286,7 @@ model RouletteBet {
   payout    Int?          // coins won (null until completed)
   won       Boolean?
   createdAt DateTime      @default(now())
+
+  @@index([userId, createdAt])
+  @@index([roundId])
 }

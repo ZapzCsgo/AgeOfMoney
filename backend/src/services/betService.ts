@@ -267,23 +267,21 @@ export async function refundBets(matchId: string): Promise<void> {
     return;
   }
 
-  let refunded = 0;
-
-  for (const bet of pendingBets) {
-    await prisma.$transaction([
-      prisma.bet.update({
-        where: { id: bet.id },
-        data: { status: BetStatus.REFUNDED, payout: bet.amount },
-      }),
+  // Batch all refunds in a single transaction instead of N individual ones
+  await prisma.$transaction([
+    prisma.bet.updateMany({
+      where: { matchId, status: BetStatus.PENDING },
+      data: { status: BetStatus.REFUNDED },
+    }),
+    ...pendingBets.map(bet =>
       prisma.user.update({
         where: { id: bet.userId },
         data: { coins: { increment: bet.amount } },
-      }),
-    ]);
-    refunded++;
-  }
+      })
+    ),
+  ]);
 
-  logger.info(`refundBets: match=${matchId}, refunded ${refunded} bets`);
+  logger.info(`refundBets: match=${matchId}, refunded ${pendingBets.length} bets`);
 }
 
 export interface UserStats {

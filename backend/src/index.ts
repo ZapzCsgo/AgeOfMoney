@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import compression from 'compression';
 import { createServer } from 'http';
 import { PrismaClient } from '@prisma/client';
 import { initSocket } from './socket';
@@ -40,6 +41,12 @@ export const prisma = new PrismaClient();
 
 const app = express();
 const httpServer = createServer(app);
+
+// Trust Railway/Cloudflare proxy — needed for correct rate-limit IP detection
+app.set('trust proxy', 1);
+
+// Compress all responses (gzip) — reduces bandwidth 60-80%
+app.use(compression());
 
 // Middleware
 app.use(helmet({
