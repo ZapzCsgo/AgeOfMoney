@@ -458,10 +458,12 @@ function BetStatusBadge({ status }: { status: string }) {
   );
 }
 
+interface PeriodStat { wagered: number; won: number; count: number; }
 interface PublicProfile {
   id: string; username: string; avatar: string | null; bio: string | null;
   coins: number; totalWagered: number; isAdmin: boolean; isMod: boolean; isPartner: boolean;
   createdAt: string; _count: { bets: number; rouletteBets: number };
+  stats?: { d7: PeriodStat; d30: PeriodStat; total: PeriodStat };
 }
 
 export default function ProfilePage() {
@@ -605,19 +607,43 @@ export default function ProfilePage() {
               </div>
             </div>
           </div>
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { label: 'Total misé', value: `${new Intl.NumberFormat('fr-FR').format(publicProfile.totalWagered)} ⚜` },
-              { label: 'Paris match', value: publicProfile._count.bets },
-              { label: 'Paris roulette', value: publicProfile._count.rouletteBets },
-            ].map(({ label, value }) => (
-              <div key={label} className="rounded-xl p-4 text-center" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
-                <p className="text-[18px] font-bold text-[#d4a017]">{value}</p>
-                <p className="text-[11px] text-[#6b6488] mt-1">{label}</p>
+          {/* Period stats */}
+          {publicProfile.stats && (() => {
+            const fmt = (n: number) => new Intl.NumberFormat('fr-FR').format(n);
+            const periods = [
+              { label: '7 derniers jours', s: publicProfile.stats.d7 },
+              { label: '30 derniers jours', s: publicProfile.stats.d30 },
+              { label: 'Total', s: publicProfile.stats.total },
+            ];
+            return periods.map(({ label, s }) => (
+              <div key={label} className="rounded-xl p-4" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+                <p className="text-[11px] text-[#6b6488] font-medium mb-3">{label}</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[#d4a017] text-xs">⚜</span>
+                      <span className="text-[16px] font-bold text-[#d4a017]">{fmt(s.won)}</span>
+                    </div>
+                    <p className="text-[10px] text-[#6b6488] mt-0.5">Total gagné</p>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[#6b6488] text-xs">⚜</span>
+                      <span className="text-[16px] font-bold text-[#c8c0e0]">{fmt(s.wagered)}</span>
+                    </div>
+                    <p className="text-[10px] text-[#6b6488] mt-0.5">Total misé</p>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1">
+                      <Swords size={12} className="text-[#6b6488]" />
+                      <span className="text-[16px] font-bold text-[#c8c0e0]">{s.count}</span>
+                    </div>
+                    <p className="text-[10px] text-[#6b6488] mt-0.5">Paris</p>
+                  </div>
+                </div>
               </div>
-            ))}
-          </div>
+            ));
+          })()}
           <p className="text-[11px] text-[#3d3860] text-center">Membre depuis le {pubJoined}</p>
         </div>
       </div>

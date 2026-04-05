@@ -372,26 +372,51 @@ router.get('/leaderboard/weekly', async (_req: Request, res: Response): Promise<
 // GET /:id - Public user profile (must be last to avoid catching named routes)
 router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.params.id },
-      select: {
-        id: true,
-        username: true,
-        avatar: true,
-        bio: true,
-        coins: true,
-        totalWagered: true,
-        isAdmin: true,
-        isMod: true,
-        isPartner: true,
-        isBanned: true,
-        createdAt: true,
-        _count: { select: { bets: true, rouletteBets: true } },
-      },
-    });
+    const userId = req.params.id;
+    const [user, bets, rouletteBets] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true, username: true, avatar: true, bio: true, coins: true,
+          totalWagered: true, isAdmin: true, isMod: true, isPartner: true,
+          isBanned: true, createdAt: true,
+          _count: { select: { bets: true, rouletteBets: true } },
+        },
+      }),
+      prisma.bet.findMany({
+        where: { userId },
+        select: { amount: true, payout: true, status: true, createdAt: true },
+      }),
+      prisma.rouletteBet.findMany({
+        where: { userId },
+        select: { amount: true, payout: true, won: true, createdAt: true },
+      }),
+    ]);
+
     if (!user || user.isBanned) { res.status(404).json({ error: 'User not found' }); return; }
+
+    const now = Date.now();
+    const ago7  = now - 7  * 86400000;
+    const ago30 = now - 30 * 86400000;
+
+    function periodStats(bArr: typeof bets, rArr: typeof rouletteBets, since: number) {
+      const fb = bArr.filter(b => new Date(b.createdAt).getTime() >= since);
+      const fr = rArr.filter(b => new Date(b.createdAt).getTime() >= since);
+      const wagered = fb.reduce((s, b) => s + b.amount, 0) + fr.reduce((s, b) => s + b.amount, 0);
+      const won     = fb.filter(b => b.status === 'WON').reduce((s, b) => s + (b.payout ?? 0), 0)
+                    + fr.filter(b => b.won === true).reduce((s, b) => s + (b.payout ?? 0), 0);
+      const count   = fb.length + fr.length;
+      return { wagered, won, count };
+    }
+
+    const stats = {
+      d7:    periodStats(bets, rouletteBets, ago7),
+      d30:   periodStats(bets, rouletteBets, ago30),
+      total: periodStats(bets, rouletteBets, 0),
+    };
+
     const { isBanned: _banned, ...pub } = user;
-    res.json({ data: pub });
+    res.json({ data: { ...pub, stats } });
   } catch (error) {
     logger.error('GET /users/:id error:', error);
     res.status(500).json({ error: 'Failed to fetch user' });
