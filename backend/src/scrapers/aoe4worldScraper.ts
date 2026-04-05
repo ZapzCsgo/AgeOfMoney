@@ -106,8 +106,9 @@ export async function getH2H(
   player1Id: string,
   player2Id: string
 ): Promise<{ games: H2HGame[]; player1Wins: number; player2Wins: number; total: number } | null> {
+  // leaderboard=rm_custom → only custom/tournament games (not ranked ladder)
   const data = await fetchApi<{ games: H2HGame[] }>(
-    `/players/${player1Id}/games?opponent_profile_id=${player2Id}&limit=50`
+    `/players/${player1Id}/games?opponent_profile_id=${player2Id}&leaderboard=rm_custom&limit=50`
   );
 
   if (!data) return null;
@@ -468,21 +469,19 @@ export async function updatePlayerFromAoe4World(
   if (stats.country) updateData.country = stats.country;
   if (stats.avatars?.medium) updateData.avatarUrl = stats.avatars.medium;
 
-  // Use pro-vs-pro record as winrate — ladder stats are irrelevant (random opponents ≠ pros)
+  // Winrate from pro-vs-pro custom games (rm_custom, not ranked) — purely tournament context
   if (proRecord && proRecord.totalGames >= 3) {
     updateData.winrate = proRecord.winrate;
     updateData.totalGames = proRecord.totalGames;
-    logger.info(`[aoe4world] ${player.name}: pro record ${(proRecord.winrate * 100).toFixed(1)}% over ${proRecord.totalGames}g vs known pros`);
+    logger.info(`[aoe4world] ${player.name}: tournament pro record ${(proRecord.winrate * 100).toFixed(1)}% over ${proRecord.totalGames}g`);
   } else {
-    // Not enough pro matchup data — odds engine defaults to 50/50 for this player
-    logger.debug(`[aoe4world] ${player.name}: insufficient pro matchup data (<3 games vs known pros)`);
+    logger.debug(`[aoe4world] ${player.name}: insufficient tournament pro matchup data (<3 games vs known pros)`);
   }
 
-  // Store ELO/peak/lastMatch from ladder for reference (streak, inactivity penalty)
+  // Store avatar/lastMatch from aoe4world for display — ELO intentionally not used in odds
   const bestMode = getBestMode(stats.modes);
-  if (bestMode?.rating) updateData.elo = bestMode.rating;
-  if (bestMode?.max_rating) updateData.peakElo = bestMode.max_rating;
   if (bestMode?.last_game_at) updateData.lastMatchAt = new Date(bestMode.last_game_at);
+  // Do NOT store ranked elo/peakElo — ranked performance is irrelevant for tournament odds
 
   await prisma.player.update({
     where: { id: playerId },
@@ -618,25 +617,20 @@ export async function enrichMatchWithH2H(matchId: string): Promise<void> {
     }
   }
 
-  // ── 4. H2H history ────────────────────────────────────────────────────────
+  // ── 4. H2H history (tournament-only, ranked ignored) ────────────────────
   let h2hRecent: { winner: 1 | 2 }[] = [];
 
-  // Try aoe4world H2H (if both players have IDs)
-  if (match.player1.aoe4worldId && match.player2.aoe4worldId) {
-    const h2h = await getH2H(match.player1.aoe4worldId, match.player2.aoe4worldId);
-    if (h2h && h2h.games.length > 0) {
-      h2hRecent = h2h.games.slice(0, 20).map((g) => {
-        const p1Win = g.teams.some((team) =>
-          team.some(
-            (entry) => String(entry.player.profile_id) === match.player1.aoe4worldId && entry.player.result === 'win'
-          )
-        );
-        return { winner: p1Win ? (1 as const) : (2 as const) };
-      });
+  // Priority 1: AI-stored tournament match records (Liquipedia + esport history)
+  {
+    const { getPlayerH2HFromHistory } = await import('./aiPlayerHistoryScraper');
+    const aiH2H = await getPlayerH2HFromHistory(match.player1Id, match.player2Id);
+    if (aiH2H.length > 0) {
+      h2hRecent = aiH2H.slice(0, 20).map(r => ({ winner: r.winner }));
+      logger.debug(`[Odds] H2H from AI tournament records: ${aiH2H.length} games for ${match.player1.name} vs ${match.player2.name}`);
     }
   }
 
-  // Supplement or fallback with DB H2H
+  // Priority 2: platform match results (AgeOfMoney completed matches)
   if (h2hRecent.length < 20) {
     const dbH2H = await prisma.match.findMany({
       where: {
@@ -652,26 +646,25 @@ export async function enrichMatchWithH2H(matchId: string): Promise<void> {
       take: 20,
       select: { player1Id: true, winnerId: true },
     });
-
-    const dbH2HMapped = dbH2H.map((m) => ({
+    const needed = Math.max(0, 20 - h2hRecent.length);
+    const dbMapped = dbH2H.slice(0, needed).map((m) => ({
       winner: m.winnerId === match.player1Id ? (1 as const) : (2 as const),
     }));
-
-    // Merge: aoe4world H2H first (more complete), then DB as supplement
-    const existingCount = h2hRecent.length;
-    const needed = Math.max(0, 20 - existingCount);
-    h2hRecent = [...h2hRecent, ...dbH2HMapped.slice(0, needed)];
+    h2hRecent = [...h2hRecent, ...dbMapped];
   }
 
-  // Supplement H2H with AI-stored player history records
-  if (h2hRecent.length < 20) {
-    const { getPlayerH2HFromHistory } = await import('./aiPlayerHistoryScraper');
-    const aiH2H = await getPlayerH2HFromHistory(match.player1Id, match.player2Id);
-    if (aiH2H.length > 0) {
+  // Priority 3: aoe4world custom/tournament games only (rm_custom, not ranked)
+  if (h2hRecent.length < 20 && match.player1.aoe4worldId && match.player2.aoe4worldId) {
+    const h2h = await getH2H(match.player1.aoe4worldId, match.player2.aoe4worldId);
+    if (h2h && h2h.games.length > 0) {
       const needed = Math.max(0, 20 - h2hRecent.length);
-      const aiMapped = aiH2H.slice(0, needed).map(r => ({ winner: r.winner }));
-      h2hRecent = [...h2hRecent, ...aiMapped];
-      logger.debug(`[Odds] Supplemented H2H with ${aiMapped.length} AI records for ${match.player1.name} vs ${match.player2.name}`);
+      const aoe4Mapped = h2h.games.slice(0, needed).map((g) => {
+        const p1Win = g.teams.some((team) =>
+          team.some((entry) => String(entry.player.profile_id) === match.player1.aoe4worldId && entry.player.result === 'win')
+        );
+        return { winner: p1Win ? (1 as const) : (2 as const) };
+      });
+      h2hRecent = [...h2hRecent, ...aoe4Mapped];
     }
   }
 
