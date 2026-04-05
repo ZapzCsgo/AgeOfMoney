@@ -49,7 +49,7 @@ export function Navbar() {
   const [walletOpen, setWalletOpen]     = useState(false);
   const [notifOpen, setNotifOpen]       = useState(false);
   const [localCoins, setLocalCoins]     = useState<number | null>(null);
-  const [coinFlash, setCoinFlash]       = useState(false);
+  const [coinFlash, setCoinFlash]       = useState<'up' | 'down' | null>(null);
   const flashTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { t } = useT();
   const { notifications, unreadCount, markAllRead } = useNotifications();
@@ -57,11 +57,11 @@ export function Navbar() {
   useEffect(() => {
     if (!session?.user?.accessToken) return;
     const s = getSocket(session.user.accessToken);
-    const handler = ({ coins }: { coins: number }) => {
+    const handler = ({ coins, direction }: { coins: number; direction?: 'up' | 'down' }) => {
       setLocalCoins(coins);
-      setCoinFlash(true);
+      setCoinFlash(direction ?? 'up');
       if (flashTimeout.current) clearTimeout(flashTimeout.current);
-      flashTimeout.current = setTimeout(() => setCoinFlash(false), 1200);
+      flashTimeout.current = setTimeout(() => setCoinFlash(null), 1200);
       update();
     };
     s.on('coinsUpdate', handler);
@@ -164,26 +164,48 @@ export function Navbar() {
                         </div>
                       ) : (
                         <div className="max-h-[360px] overflow-y-auto divide-y divide-[#1a1830]">
-                          {notifications.map(n => (
-                            <div key={n.id} className={`px-4 py-3 flex items-start gap-3 ${n.read ? 'opacity-60' : ''}`}>
-                              <span className="text-lg mt-0.5 shrink-0">{n.won ? '🏆' : '💀'}</span>
-                              <div className="flex-1 min-w-0">
-                                <p className={`text-[13px] font-semibold ${n.won ? 'text-[#4ade80]' : 'text-[#f87171]'}`}>
-                                  {n.won ? 'Pari gagné !' : 'Pari perdu'}
-                                </p>
-                                {n.tournamentName && (
-                                  <p className="text-[11px] text-[#6b6488] truncate">{n.tournamentName}</p>
-                                )}
-                                <p className="text-[12px] text-[#9988bb] mt-0.5">
-                                  {n.playerBetOn} · Mise {n.amount.toFixed(2)} ⚜
-                                  {n.won && <span className="text-[#f5c842] font-bold"> → +{n.payout.toFixed(2)} ⚜</span>}
-                                </p>
-                                <p className="text-[10px] text-[#4a4468] mt-0.5">
-                                  {new Date(n.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                                </p>
+                          {notifications.map(n => {
+                            if (n.notifType === 'betResult') {
+                              return (
+                                <div key={n.id} className={`px-4 py-3 flex items-start gap-3 ${n.read ? 'opacity-60' : ''}`}>
+                                  <span className="text-lg mt-0.5 shrink-0">{n.won ? '🏆' : '💀'}</span>
+                                  <div className="flex-1 min-w-0">
+                                    <p className={`text-[13px] font-semibold ${n.won ? 'text-[#4ade80]' : 'text-[#f87171]'}`}>
+                                      {n.won ? 'Pari gagné !' : 'Pari perdu'}
+                                    </p>
+                                    {n.tournamentName && (
+                                      <p className="text-[11px] text-[#6b6488] truncate">{n.tournamentName}</p>
+                                    )}
+                                    <p className="text-[12px] text-[#9988bb] mt-0.5">
+                                      {n.playerBetOn} · Mise {n.amount} ⚜
+                                      {n.won && <span className="text-[#f5c842] font-bold"> → +{n.payout} ⚜</span>}
+                                    </p>
+                                    <p className="text-[10px] text-[#4a4468] mt-0.5">
+                                      {new Date(n.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                                    </p>
+                                  </div>
+                                </div>
+                              );
+                            }
+                            // system notifications: tip, deposit, withdrawal
+                            const icon = n.type === 'tip' ? '🎁' : n.type === 'deposit' ? '💰' : '💸';
+                            const title = n.type === 'tip'
+                              ? `Tip reçu de ${n.from ?? '?'}`
+                              : n.type === 'deposit' ? 'Dépôt confirmé' : 'Retrait traité';
+                            const color = n.type === 'withdrawal' ? 'text-[#f87171]' : 'text-[#4ade80]';
+                            return (
+                              <div key={n.id} className={`px-4 py-3 flex items-start gap-3 ${n.read ? 'opacity-60' : ''}`}>
+                                <span className="text-lg mt-0.5 shrink-0">{icon}</span>
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-[13px] font-semibold ${color}`}>{title}</p>
+                                  <p className="text-[12px] text-[#f5c842] font-bold mt-0.5">+{n.amount} ⚜</p>
+                                  <p className="text-[10px] text-[#4a4468] mt-0.5">
+                                    {new Date(n.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                                  </p>
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -203,7 +225,9 @@ export function Navbar() {
                     <Wallet size={12} className="text-aoe-gold" />
                     <span className={cn(
                       'font-bold font-cinzel text-sm tabular-nums transition-colors duration-300',
-                      coinFlash ? 'text-green-400 drop-shadow-[0_0_8px_rgba(74,222,128,0.9)]' : 'text-aoe-gold'
+                      coinFlash === 'up' ? 'text-green-400 drop-shadow-[0_0_8px_rgba(74,222,128,0.9)]' :
+                      coinFlash === 'down' ? 'text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.9)]' :
+                      'text-aoe-gold'
                     )}>
                       {new Intl.NumberFormat('fr-FR').format(displayCoins)} ⚜
                     </span>

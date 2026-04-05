@@ -2,13 +2,11 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { useSession } from 'next-auth/react';
-import { onBetResult, BetResultPayload } from '@/lib/socket';
+import { onBetResult, BetResultPayload, onNotification, AppNotificationPayload } from '@/lib/socket';
 
-export interface AppNotification extends BetResultPayload {
-  id: string;
-  at: number;
-  read: boolean;
-}
+export type AppNotification =
+  | (BetResultPayload & { id: string; at: number; read: boolean; notifType: 'betResult' })
+  | (AppNotificationPayload & { id: string; at: number; read: boolean; notifType: 'system' });
 
 interface NotificationsCtx {
   notifications: AppNotification[];
@@ -39,21 +37,27 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   }, []);
 
+  const addNotif = useCallback((notif: AppNotification) => {
+    setNotifications(prev => [notif, ...prev].slice(0, 20));
+    const timer = setTimeout(() => dismiss(notif.id), 7000);
+    timers.current.set(notif.id, timer);
+  }, [dismiss]);
+
   useEffect(() => {
     if (!session?.user) return;
 
-    const off = onBetResult((data) => {
-      const id = `${data.betId}_${Date.now()}`;
-      const notif: AppNotification = { ...data, id, at: Date.now(), read: false };
-      setNotifications(prev => [notif, ...prev].slice(0, 20)); // keep last 20
-
-      // Auto-dismiss toast after 7s
-      const timer = setTimeout(() => dismiss(id), 7000);
-      timers.current.set(id, timer);
+    const offBet = onBetResult((data) => {
+      const id = `bet_${data.betId}_${Date.now()}`;
+      addNotif({ ...data, id, at: Date.now(), read: false, notifType: 'betResult' });
     });
 
-    return off;
-  }, [session?.user, dismiss]);
+    const offNotif = onNotification((data) => {
+      const id = `notif_${data.type}_${Date.now()}`;
+      addNotif({ ...data, id, at: Date.now(), read: false, notifType: 'system' });
+    });
+
+    return () => { offBet(); offNotif(); };
+  }, [session?.user, addNotif]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 

@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import { prisma } from '../index';
 import { requireAuth } from '../middleware/auth';
 import logger from '../logger';
+import { getIo } from '../socket';
 
 const router = Router();
 
@@ -240,6 +241,13 @@ router.post('/crypto/webhook', async (req: Request, res: Response): Promise<void
         data:  { status: 'completed' },
       }),
     ]);
+
+    const updatedUser = await prisma.user.findUnique({ where: { id: transaction.userId }, select: { coins: true } });
+    const io = getIo();
+    if (io && updatedUser) {
+      io.to(`user:${transaction.userId}`).emit('coinsUpdate', { coins: updatedUser.coins, direction: 'up' });
+      io.to(`user:${transaction.userId}`).emit('notification', { type: 'deposit', amount: transaction.coins });
+    }
 
     logger.info(`Credited ${transaction.coins} coins to user ${transaction.userId}`);
 

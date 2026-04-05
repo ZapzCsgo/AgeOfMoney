@@ -133,7 +133,7 @@ async function resolveRound(roundId: string, winZone: string, multiplier: number
         data: { coins: { increment: payout } },
         select: { coins: true },
       });
-      io?.to(`user:${bet.userId}`).emit('coinsUpdate', { coins: updatedUser.coins });
+      io?.to(`user:${bet.userId}`).emit('coinsUpdate', { coins: updatedUser.coins, direction: 'up' });
     }
   }
 
@@ -190,13 +190,16 @@ export async function placeBet(userId: string, zone: Zone, amount: number): Prom
     });
   }
 
-  await prisma.user.update({
+  const updatedUser = await prisma.user.update({
     where: { id: userId },
     data: { coins: { decrement: amount }, totalWagered: { increment: amount } },
+    select: { coins: true },
   });
 
   // Broadcast updated bets
   const io = getIo();
+  // Notify user of coin deduction (red flash on frontend)
+  io?.to(`user:${userId}`).emit('coinsUpdate', { coins: updatedUser.coins, direction: 'down' });
   const updatedRound = await getCurrentRound();
   io?.emit('roulette:betsUpdate', { roundId: currentRoundId, bets: updatedRound?.bets ?? [] });
 

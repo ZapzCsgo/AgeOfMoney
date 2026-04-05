@@ -215,7 +215,7 @@ export async function distributePayout(matchId: string, winnerId: string): Promi
       totalPaid += payout;
       // Fetch updated coins and notify user
       const updatedUser = await prisma.user.findUnique({ where: { id: bet.userId }, select: { coins: true } });
-      if (io && updatedUser) io.to(`user:${bet.userId}`).emit('coinsUpdate', { coins: updatedUser.coins });
+      if (io && updatedUser) io.to(`user:${bet.userId}`).emit('coinsUpdate', { coins: updatedUser.coins, direction: 'up' });
     }
 
     // Notify user via their private socket room

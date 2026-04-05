@@ -5,6 +5,7 @@ import { prisma } from '../index';
 import { z } from 'zod';
 import { authenticator } from 'otplib';
 import logger from '../logger';
+import { getIo } from '../socket';
 
 const router = Router();
 
@@ -271,10 +272,21 @@ router.post('/:id/tip', requireAuth, async (req: Request, res: Response): Promis
     if (!recipient || recipient.isBanned) { res.status(404).json({ error: 'User not found' }); return; }
     if (sender.coins < amountInt) { res.status(400).json({ error: 'Insufficient coins' }); return; }
 
-    await prisma.$transaction([
-      prisma.user.update({ where: { id: senderId },    data: { coins: { decrement: amountInt } } }),
-      prisma.user.update({ where: { id: recipientId }, data: { coins: { increment: amountInt } } }),
+    const [updatedSender, updatedRecipient] = await prisma.$transaction([
+      prisma.user.update({ where: { id: senderId },    data: { coins: { decrement: amountInt } }, select: { coins: true } }),
+      prisma.user.update({ where: { id: recipientId }, data: { coins: { increment: amountInt } }, select: { coins: true } }),
     ]);
+
+    const io = getIo();
+    // Notify sender (coin deduction)
+    io?.to(`user:${senderId}`).emit('coinsUpdate', { coins: updatedSender.coins, direction: 'down' });
+    // Notify recipient (tip received)
+    io?.to(`user:${recipientId}`).emit('coinsUpdate', { coins: updatedRecipient.coins, direction: 'up' });
+    io?.to(`user:${recipientId}`).emit('notification', {
+      type: 'tip',
+      from: sender.username,
+      amount: amountInt,
+    });
 
     logger.info(`[Tip] ${senderId} → ${recipientId} : ${amountInt} coins`);
     res.json({ ok: true, amount: amountInt });

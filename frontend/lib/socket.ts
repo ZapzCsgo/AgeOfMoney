@@ -126,10 +126,22 @@ export function onBetResult(callback: (data: BetResultPayload) => void): () => v
   return () => s.off('betResult', callback);
 }
 
-export function onCoinsUpdate(callback: (data: { coins: number }) => void): () => void {
+export function onCoinsUpdate(callback: (data: { coins: number; direction?: 'up' | 'down' }) => void): () => void {
   const s = getSocket();
   s.on('coinsUpdate', callback);
   return () => s.off('coinsUpdate', callback);
+}
+
+export interface AppNotificationPayload {
+  type: 'tip' | 'deposit' | 'withdrawal';
+  from?: string;   // for tips
+  amount: number;
+}
+
+export function onNotification(callback: (data: AppNotificationPayload) => void): () => void {
+  const s = getSocket();
+  s.on('notification', callback);
+  return () => s.off('notification', callback);
 }
 
 export { socket };
