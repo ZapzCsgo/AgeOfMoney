@@ -429,7 +429,7 @@ export default function WithdrawPage() {
             type="number"
             value={coinsAmount}
             onChange={e => setCoinsAmount(e.target.value)}
-            placeholder="Ex: 1000"
+            placeholder="777"
             min={minCoins}
             max={userCoins}
             className="w-full border rounded-xl px-4 py-4 text-aoe-parchment text-xl font-cinzel font-bold placeholder-aoe-parchment-muted/40 outline-none transition-colors pr-16 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
