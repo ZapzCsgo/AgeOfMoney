@@ -99,7 +99,7 @@ export default function DepositPage() {
   const { data: session } = useSession();
   const { t } = useT();
 
-  const [customCoins, setCustomCoins]          = useState(String(Math.round(5 * 1.69)));
+  const [customCoins, setCustomCoins]          = useState('9');
   const [selectedCrypto, setCrypto]            = useState<typeof CRYPTOS[0]>(CRYPTOS[0]);
   const [promoCode, setPromoCode]              = useState('');
   const [promoApplied, setPromoApplied]        = useState(false);
@@ -320,9 +320,9 @@ export default function DepositPage() {
             <p className="text-[10px] font-cinzel tracking-widest text-aoe-parchment-dim uppercase mb-3">{t('deposit_amount_coins')}</p>
             <div className="relative">
               <input
-                type="number" min="9"
+                type="text" inputMode="numeric"
                 value={customCoins}
-                onChange={e => setCustomCoins(e.target.value)}
+                onChange={e => setCustomCoins(e.target.value.replace(/[^0-9]/g, ''))}
                 placeholder=""
                 className="w-full border rounded-xl px-4 py-4 text-aoe-parchment text-xl font-cinzel font-bold placeholder-aoe-parchment-muted/40 outline-none transition-colors pr-16"
                 style={{ background: 'rgba(255,255,255,0.04)', borderColor: customCoins ? '#d4a017' : '#1e1a30' }}
