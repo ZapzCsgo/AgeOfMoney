@@ -44,31 +44,36 @@ interface AIPlayerHistoryResponse {
  * Query Claude for a player's last 50 tournament matches.
  */
 async function queryPlayerHistory(playerName: string): Promise<AIPlayerHistoryResponse | null> {
-  const prompt = `You are an AoE4 esports data specialist. Your task is to retrieve the tournament match history for the player "${playerName}" from your knowledge of Liquipedia (liquipedia.net/ageofempires), aoe4world.com, and official tournament records.
+  const prompt = `You are an AoE4 esports data specialist. Your task is to retrieve the tournament match history for "${playerName}" from your knowledge of Liquipedia (liquipedia.net/ageofempires), aoe4world.com, and official tournament records.
 
-Search your knowledge of these sources to find up to 50 professional tournament matches for "${playerName}" in Age of Empires IV:
+**Important:** "${playerName}" may be:
+- An individual AoE4 pro player (most common)
+- A team competing in WTL (World Team League) — if so, list their individual 1v1 matches within WTL seasons
+- A player known by an alias or abbreviated tag — check common variations
+
+Search ALL your knowledge to find up to 50 professional tournament matches for "${playerName}" in Age of Empires IV:
 
 **Sources to reference:**
-- liquipedia.net/ageofempires — the primary wiki for all AoE4 tournament brackets, results, and scores
-- aoe4world.com — tracks custom/tournament games with exact scores
-- Official tournament pages: Red Bull Wololo, Quarterly Rumble, WTL, Golden League, Wololo Legacy, King of the Desert, Hidden Cup, Nations Cup
+- liquipedia.net/ageofempires — primary wiki for all brackets, results, scores
+- aoe4world.com — custom/tournament game tracking
+- WTL (World Team League) — team league with individual 1v1 matches per round
+- Red Bull Wololo, Quarterly Rumble, Golden League, Wololo Legacy, King of the Desert, Hidden Cup, Nations Cup, Over The Top, Holy Series
 
 **Include ALL match types:**
-- Group stage matches (including round-robin)
-- Bracket matches (quarters, semis, finals)
-- Qualifier matches
+- WTL season matches (round-robin and playoffs) — VERY IMPORTANT for team-league players
+- Group stage, bracket, qualifier matches
 - Bo1, Bo3, Bo5, Bo7 — all formats
 
 **Score format:** wins-losses from ${playerName}'s perspective.
-Example: if ${playerName} won 3-1 in a BO5, write "3-1" and "won": true
+Example: won 3-1 in BO5 → "score": "3-1", "won": true
 
 **Confidence guide:**
 - 0.9-1.0 = exact score and opponent confirmed on Liquipedia
-- 0.7-0.8 = match result known, score may be approximate
+- 0.7-0.8 = match result known, score approximate
 - 0.6 = match happened, details uncertain
 - Below 0.6 = omit
 
-**Goal: return as many of the 50 most recent matches as possible.** Be thorough — check your knowledge of all S-tier and A-tier events this player has competed in.
+**Goal: be as thorough as possible.** Even for less-known players, search WTL, regional cups, and qualifier brackets.
 
 Respond with ONLY valid JSON (no markdown, no text outside the JSON):
 {
@@ -77,19 +82,19 @@ Respond with ONLY valid JSON (no markdown, no text outside the JSON):
   "matches": [
     {
       "opponent": "exact opponent name as on Liquipedia",
-      "tournament": "full tournament name as on Liquipedia",
+      "tournament": "full tournament name",
       "date": "YYYY-MM",
       "won": true,
       "score": "3-1",
-      "format": "BO5",
+      "format": "BO3",
       "confidence": 0.85,
       "source_url": "https://liquipedia.net/ageofempires/... or null"
     }
   ],
-  "notes": "brief note on data completeness"
+  "notes": "brief note on data completeness or player identity"
 }
 
-If you have no data on this player's AoE4 tournament matches after checking all sources, return total_known: 0 with empty matches array.`;
+If you have no data after checking all sources, return total_known: 0 with empty matches array.`;
 
   try {
     const response = await client.messages.create({

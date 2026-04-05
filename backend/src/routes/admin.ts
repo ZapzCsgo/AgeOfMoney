@@ -561,6 +561,7 @@ router.post('/players/:id/seed-history', async (req: Request, res: Response): Pr
 });
 
 // POST /players/seed-all — seed all players missing history
+// Players with <5 records are force-reseeded (Claude is re-queried even if some data exists)
 router.post('/players/seed-all', async (_req: Request, res: Response): Promise<void> => {
   const players = await prisma.player.findMany({ select: { id: true, name: true } });
   res.json({ ok: true, message: `Seeding all ${players.length} players in background` });
@@ -568,8 +569,15 @@ router.post('/players/seed-all', async (_req: Request, res: Response): Promise<v
     const { seedAllPlayerHistories } = await import('../scrapers/aoe4worldPlayerHistorySeeder');
     await seedAllPlayerHistories(false);
     if (process.env.ANTHROPIC_API_KEY) {
+      const { enrichPlayerWithAI } = await import('../scrapers/aiPlayerHistoryScraper');
       const { enrichAllProPlayers } = await import('../scrapers/aiPlayerHistoryScraper');
-      await enrichAllProPlayers(false);
+      // Force-reseed players with very few records — Claude may have more data
+      for (const p of players) {
+        const count = await prisma.playerMatchRecord.count({ where: { playerId: p.id } });
+        const force = count < 5; // re-query even if some records exist
+        await enrichPlayerWithAI(p.id, p.name, force).catch(() => {});
+        await new Promise(r => setTimeout(r, 4000)); // rate limit
+      }
     }
   })().catch(err => logger.error('[Admin] seed-all error:', err));
 });
