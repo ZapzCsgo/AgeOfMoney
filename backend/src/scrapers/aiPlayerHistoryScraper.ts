@@ -43,8 +43,25 @@ interface AIPlayerHistoryResponse {
 /**
  * Query Claude for a player's last 50 tournament matches.
  */
-async function queryPlayerHistory(playerName: string): Promise<AIPlayerHistoryResponse | null> {
-  const prompt = `You are an AoE4 esports data specialist. Your task is to retrieve the tournament match history for "${playerName}" from your knowledge of Liquipedia (liquipedia.net/ageofempires), aoe4world.com, and official tournament records.
+const GAME_FULL_NAMES: Record<string, string> = {
+  'AoE4': 'Age of Empires IV',
+  'AoE2': 'Age of Empires II: Definitive Edition',
+  'AoE3': 'Age of Empires III: Definitive Edition',
+  'AoM':  'Age of Mythology: Retold',
+  'AoE1': 'Age of Empires I',
+};
+
+const GAME_LIQUIPEDIA_WIKI: Record<string, string> = {
+  'AoE4': 'liquipedia.net/ageofempires',
+  'AoE2': 'liquipedia.net/ageofempires2',
+  'AoE3': 'liquipedia.net/ageofempires3',
+  'AoM':  'liquipedia.net/ageofmythology',
+};
+
+async function queryPlayerHistory(playerName: string, game = 'AoE4'): Promise<AIPlayerHistoryResponse | null> {
+  const gameFull = GAME_FULL_NAMES[game] ?? 'Age of Empires IV';
+  const wiki = GAME_LIQUIPEDIA_WIKI[game] ?? 'liquipedia.net/ageofempires';
+  const prompt = `You are an ${game} esports data specialist. Your task is to retrieve the tournament match history for "${playerName}" in ${gameFull} from your knowledge of Liquipedia (${wiki}), aoe4world.com (if applicable), and official tournament records.
 
 **Important:** "${playerName}" may be:
 - An individual AoE4 pro player (most common)
@@ -54,15 +71,18 @@ async function queryPlayerHistory(playerName: string): Promise<AIPlayerHistoryRe
 Search ALL your knowledge to find up to 50 professional tournament matches for "${playerName}" in Age of Empires IV:
 
 **Sources to reference:**
-- liquipedia.net/ageofempires — primary wiki for all brackets, results, scores
-- aoe4world.com — custom/tournament game tracking
-- WTL (World Team League) — team league with individual 1v1 matches per round
-- Red Bull Wololo, Quarterly Rumble, Golden League, Wololo Legacy, King of the Desert, Hidden Cup, Nations Cup, Over The Top, Holy Series
+- ${wiki} — primary wiki for all brackets, results, scores
+- Official tournament pages for ${gameFull}
+- WTL (World Team League) if applicable — team league with individual 1v1 matches per round
+- Red Bull Wololo, Quarterly Rumble, Golden League, Wololo Legacy, King of the Desert, Hidden Cup, Nations Cup, Over The Top, Holy Series (for AoE4)
+- For AoE2: Red Bull Wololo, T90's Titans League, Brazilian Dynasty, Warlords, Homestead Cup, DauT Cup, etc.
+- For AoM: Pandora's Box, AoM community tournaments
 
 **Include ALL match types:**
-- WTL season matches (round-robin and playoffs) — VERY IMPORTANT for team-league players
+- WTL/team-league matches (round-robin and playoffs) — VERY IMPORTANT for team-league players
 - Group stage, bracket, qualifier matches
 - Bo1, Bo3, Bo5, Bo7 — all formats
+- ONLY include ${gameFull} matches — ignore other Age of Empires titles
 
 **Score format:** wins-losses from ${playerName}'s perspective.
 Example: won 3-1 in BO5 → "score": "3-1", "won": true
@@ -226,6 +246,7 @@ export async function enrichPlayerWithAI(
   playerId: string,
   playerName: string,
   force = false,
+  game = 'AoE4',
 ): Promise<number> {
   if (!process.env.ANTHROPIC_API_KEY) return 0;
 
@@ -239,8 +260,8 @@ export async function enrichPlayerWithAI(
     }
   }
 
-  logger.info(`[AI History] Querying Claude for ${playerName}'s tournament history…`);
-  const response = await queryPlayerHistory(playerName);
+  logger.info(`[AI History] Querying Claude for ${playerName}'s ${game} tournament history…`);
+  const response = await queryPlayerHistory(playerName, game);
 
   if (!response || !response.matches?.length) {
     logger.info(`[AI History] No data from Claude for ${playerName}`);

@@ -83,6 +83,7 @@ model PlayerMatchRecord {
 model Tournament {
   id            String    @id @default(cuid())
   name          String
+  game          String    @default("AoE4")  // "AoE4" | "AoE2" | "AoE3" | "AoM" | "AoE1"
   tier          String
   prizePool     String?
   startDate     DateTime
@@ -111,6 +112,7 @@ model Match {
   player2Id        String
   tournament       Tournament? @relation(fields: [tournamentId], references: [id])
   tournamentId     String?
+  game             String      @default("AoE4")  // "AoE4" | "AoE2" | "AoE3" | "AoM" | "AoE1"
   format           String      @default("BO3")   // BO1, BO3, BO5, BO7, BO9
   scheduledAt      DateTime
   status           MatchStatus @default(UPCOMING)

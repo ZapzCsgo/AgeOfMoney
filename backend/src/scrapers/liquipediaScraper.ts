@@ -267,11 +267,15 @@ export async function scrapeUpcomingMatches(): Promise<void> {
 
         const betsClosedAt = new Date(m.scheduledAt.getTime() - 5 * 60 * 1000);
 
+        // Inherit game from tournament (set by aoeEventCalendarScraper), default AoE4
+        const tournGame = (tournament as { game?: string }).game ?? 'AoE4';
+
         await prisma.match.create({
           data: {
             player1Id: p1.id,
             player2Id: p2.id,
             tournamentId: tournament.id,
+            game: tournGame,
             status: 'UPCOMING',
             format: m.format,
             scheduledAt: m.scheduledAt,
@@ -291,7 +295,7 @@ export async function scrapeUpcomingMatches(): Promise<void> {
             for (const [pid, pname] of [[p1.id, p1.name], [p2.id, p2.name]] as [string, string][]) {
               const count = await prisma.playerMatchRecord.count({ where: { playerId: pid } });
               if (count < 10) {
-                await enrichPlayerWithAI(pid, pname, false);
+                await enrichPlayerWithAI(pid, pname, false, tournGame);
                 await sleep(3000); // respect Claude rate limits
               }
             }

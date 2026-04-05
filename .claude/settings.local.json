@@ -2,7 +2,25 @@
   "permissions": {
     "allow": [
       "Bash(npm install:*)",
-      "Bash(npm show:*)"
+      "Bash(npm show:*)",
+      "Bash(git -C \"c:/Users/mmurr/Documents/aoe4\" push)",
+      "Bash(git -C \"c:/Users/mmurr/Documents/aoe4\" add backend/src/scrapers/liquipediaScraper.ts)",
+      "Bash(git -C c:/Users/mmurr/Documents/aoe4 commit -m 'fix: trigger AI enrichment for new players immediately after Liquipedia scrape:*)",
+      "Bash(git -C \"c:/Users/mmurr/Documents/aoe4\" add backend/src/scrapers/aoe4worldScraper.ts)",
+      "Bash(git -C c:/Users/mmurr/Documents/aoe4 commit -m 'fix: use only tournament/esport data for odds, ignore ranked ELO:*)",
+      "Bash(git -C \"c:/Users/mmurr/Documents/aoe4\" add frontend/app/admin/page.tsx backend/src/routes/admin.ts)",
+      "Bash(git -C c:/Users/mmurr/Documents/aoe4 commit -m 'feat: admin players panel — remove ELO column, auto-seed on tab open:*)",
+      "Bash(git -C \"c:/Users/mmurr/Documents/aoe4\" add backend/src/routes/admin.ts backend/src/scrapers/aiPlayerHistoryScraper.ts)",
+      "Bash(git -C c:/Users/mmurr/Documents/aoe4 commit -m 'fix: force-reseed low-record players + improve AI prompt for WTL/team players:*)",
+      "Bash(curl -s \"https://www.ageofempires.com/eventscalendar/\" -A \"Mozilla/5.0\" --max-time 10)",
+      "Bash(curl -s \"https://www.ageofempires.com/wp-json/tribe/events/v1/events?per_page=50&status=publish\" -A \"Mozilla/5.0\" --max-time 10)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(e.get\\('title',''\\), '|', e.get\\('start_date',''\\), '|', [t.get\\('name',''\\) for t in e.get\\('tags',[]\\)]\\) for e in d.get\\('events',[]\\)]\")",
+      "Bash(curl -s \"https://www.ageofempires.com/wp-json/tribe/events/v1/events?per_page=20\" -A \"Mozilla/5.0\" --max-time 10 -H \"Accept: application/json\")",
+      "Bash(curl -sv \"https://www.ageofempires.com/wp-json/tribe/events/v1/events?per_page=5\" -A \"Mozilla/5.0\" --max-time 15)",
+      "Bash(curl -s \"https://www.ageofempires.com/eventscalendar/\" --max-time 15)",
+      "Bash(curl -s \"https://www.ageofempires.com/wp-content/themes/ageOfEmpires/public/js/main.394e7e.js\" --max-time 15)",
+      "Bash(git -C \"c:/Users/mmurr/Documents/aoe4\" add -A)",
+      "Bash(git -C c:/Users/mmurr/Documents/aoe4 commit -m 'feat: AoE official events calendar as tournament source + game field per match:*)"
     ]
   }
 }

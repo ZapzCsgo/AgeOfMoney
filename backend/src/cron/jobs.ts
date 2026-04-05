@@ -3,6 +3,7 @@ import { prisma } from '../index';
 import { enrichAllUpcomingMatches } from '../scrapers/aoe4worldScraper';
 import { scrapeAoe4WorldTournaments } from '../scrapers/aoe4worldTournamentScraper';
 import { scrapeUpcomingMatches } from '../scrapers/liquipediaScraper';
+import { syncAoeEventCalendar } from '../scrapers/aoeEventCalendarScraper';
 import { enrichAllSparseH2H } from '../scrapers/aiH2HScraper';
 import { distributePayout, refundBets } from '../services/betService';
 import { getIo } from '../socket';
@@ -20,12 +21,13 @@ export function initCronJobs(): void {
     }
   });
 
-  // ── Every 20 minutes: scrape Liquipedia for upcoming matches ─────────────
-  cron.schedule('*/20 * * * *', async () => {
+  // ── Every 30 minutes: sync AoE event calendar + scrape Liquipedia matches ─
+  cron.schedule('*/30 * * * *', async () => {
     try {
-      await scrapeUpcomingMatches();
+      await syncAoeEventCalendar(); // tournament discovery with game tags
+      await scrapeUpcomingMatches(); // individual match scraping from Liquipedia
     } catch (err) {
-      logger.error('[CRON] Liquipedia upcoming scrape failed:', err);
+      logger.error('[CRON] Calendar + Liquipedia scrape failed:', err);
     }
   });
 
@@ -84,8 +86,9 @@ export function initCronJobs(): void {
       await tickMatchStatuses();
       await distributePayouts();
       // Non-blocking startup tasks
-      scrapeUpcomingMatches()
-        .catch(err => logger.error('[Startup] Liquipedia scrape:', err));
+      syncAoeEventCalendar()
+        .then(() => scrapeUpcomingMatches())
+        .catch(err => logger.error('[Startup] Calendar + Liquipedia scrape:', err));
       scrapeAoe4WorldTournaments()
         .then(() => enrichAllUpcomingMatches())
         .catch(err => logger.error('[Startup] aoe4world tourn + enrichOdds:', err));
