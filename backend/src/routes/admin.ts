@@ -524,7 +524,7 @@ router.get('/players', async (_req: Request, res: Response): Promise<void> => {
     const players = await prisma.player.findMany({
       orderBy: { name: 'asc' },
       select: {
-        id: true, name: true, aoe4worldId: true, elo: true, winrate: true,
+        id: true, name: true, aoe4worldId: true, winrate: true,
         totalGames: true, country: true, lastUpdatedAt: true,
         _count: { select: { matchHistory: true } },
       },

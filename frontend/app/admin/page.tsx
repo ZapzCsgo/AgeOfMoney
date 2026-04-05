@@ -23,7 +23,6 @@ interface AdminPlayer {
   id: string;
   name: string;
   aoe4worldId: string | null;
-  elo: number;
   winrate: number;
   totalGames: number;
   country: string | null;
@@ -107,6 +106,18 @@ export default function AdminPage() {
     if (session.user.accessToken) setAuthToken(session.user.accessToken);
     loadAll();
   }, [session, status]);
+
+  // Auto-seed players with < 10 records when players tab is opened
+  useEffect(() => {
+    if (tab !== 'players' || players.length === 0) return;
+    const needsSeed = players.some(p => p._count.matchHistory < 10);
+    if (needsSeed) {
+      apiClient.post('/admin/players/seed-all', {}).catch(() => {});
+      // Refresh player data after 15s to show progress
+      const t = setTimeout(() => apiClient.get('/admin/players').then(r => setPlayers(r.data.data ?? [])).catch(() => {}), 15000);
+      return () => clearTimeout(t);
+    }
+  }, [tab, players]);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -541,7 +552,7 @@ export default function AdminPage() {
         {tab === 'players' && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <p className="text-[12px] text-[#6b6488]">{players.length} joueurs — cliquer sur "Seed" pour alimenter l'historique via aoe4world + Claude AI</p>
+              <p className="text-[12px] text-[#6b6488]">{players.length} joueurs — historique mis à jour automatiquement via aoe4world + Claude AI</p>
               <button
                 onClick={handleSeedAll}
                 disabled={seeding === 'all'}
@@ -557,7 +568,7 @@ export default function AdminPage() {
               <table className="w-full text-[12px]">
                 <thead>
                   <tr style={{ borderBottom: '1px solid #1e1a30' }}>
-                    {['Joueur', 'ELO', 'Winrate', 'Pays', 'Records DB', 'Dernière MAJ', 'Action'].map(h => (
+                    {['Joueur', 'Winrate', 'Pays', 'Records DB', 'Dernière MAJ', 'Action'].map(h => (
                       <th key={h} className="text-left px-4 py-2.5 text-[11px] text-[#6b6488] uppercase tracking-wider font-medium">{h}</th>
                     ))}
                   </tr>
@@ -572,7 +583,6 @@ export default function AdminPage() {
                           <p className="font-semibold text-[#e8e2f5]">{p.name}</p>
                           <p className="text-[10px] text-[#6b6488]">{p.aoe4worldId ?? 'no aoe4world ID'}</p>
                         </td>
-                        <td className="px-4 py-3 font-mono text-[#9990b8]">{p.elo}</td>
                         <td className="px-4 py-3">
                           <span className={cn('font-bold', (p.winrate ?? 0) >= 0.55 ? 'text-emerald-400' : (p.winrate ?? 0) >= 0.45 ? 'text-[#d4a017]' : 'text-red-400')}>
                             {((p.winrate ?? 0) * 100).toFixed(0)}%
@@ -1139,7 +1149,7 @@ function ScrapersPanel({ showMsg }: { showMsg: (type: 'success' | 'error', text:
   const scrapers = [
     { id: 'tournaments', label: 'Tournois aoe4world', desc: 'Fetch matchs à venir depuis aoe4world API' },
     { id: 'enrich', label: 'Enrichir cotes', desc: 'Recalculer H2H + cotes de tous les matchs' },
-    { id: 'aoe4world', label: 'Stats joueurs', desc: 'MAJ ELO et winrate via aoe4world' },
+    { id: 'aoe4world', label: 'Stats joueurs', desc: 'MAJ winrate + historique tournoi via aoe4world' },
   ];
 
   return (
