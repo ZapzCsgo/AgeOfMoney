@@ -153,6 +153,7 @@ export async function distributePayout(matchId: string, winnerId: string): Promi
     where: { id: matchId },
     select: {
       player1Id: true, player2Id: true, odds1: true, odds2: true,
+      p1Score: true, p2Score: true, resultScore: true,
       player1: { select: { name: true } },
       player2: { select: { name: true } },
       tournament: { select: { name: true } },
@@ -173,8 +174,18 @@ export async function distributePayout(matchId: string, winnerId: string): Promi
 
   const pendingBets = await prisma.bet.findMany({
     where: { matchId, status: BetStatus.PENDING },
-    select: { id: true, userId: true, amount: true, oddsAtBet: true, selectedPlayer: true },
+    select: { id: true, userId: true, amount: true, oddsAtBet: true, selectedPlayer: true, betType: true, boNumber: true },
   });
+
+  // Determine loser's game count from resultScore (e.g. "2-1" → loserGames=1)
+  const loserGamesFromScore = (): number | null => {
+    if (!match.resultScore) return null;
+    const parts = match.resultScore.split('-').map(Number);
+    if (parts.length !== 2) return null;
+    const [s1, s2] = parts;
+    return winnerPosition === 1 ? s2 : s1;
+  };
+  const actualLoserGames = loserGamesFromScore();
 
   if (pendingBets.length === 0) {
     logger.info(`distributePayout: no pending bets for match ${matchId}`);
@@ -189,7 +200,13 @@ export async function distributePayout(matchId: string, winnerId: string): Promi
   const tournamentName = match.tournament?.name ?? 'Tournament';
 
   for (const bet of pendingBets) {
-    const won = bet.selectedPlayer === winnerPosition;
+    let won: boolean;
+    if (bet.betType === 'EXACT_SCORE') {
+      // Exact score bet: must match both winner and loser game count
+      won = bet.selectedPlayer === winnerPosition && actualLoserGames !== null && bet.boNumber === actualLoserGames;
+    } else {
+      won = bet.selectedPlayer === winnerPosition;
+    }
     const payout = won ? Math.floor(bet.amount * bet.oddsAtBet) : 0;
 
     await prisma.$transaction([

@@ -83,6 +83,140 @@ router.get('/my', requireAuth, async (req: Request, res: Response): Promise<void
   }
 });
 
+// ── Exact score odds helper ───────────────────────────────────────────────────
+// Given per-game win probability p for P1 and format, return all score probs
+function solvePerGameProb(pMatch: number, format: string): number {
+  // Binary search for per-game probability p such that P(P1 wins series) = pMatch
+  const seriesWin = (p: number): number => {
+    if (format === 'BO1') return p;
+    if (format === 'BO3') return p*p*(3 - 2*p);
+    if (format === 'BO5') return p*p*p*(1 + 3*(1-p) + 6*(1-p)*(1-p));
+    if (format === 'BO7') return p*p*p*p*(1 + 4*(1-p) + 10*(1-p)*(1-p) + 20*(1-p)*(1-p)*(1-p));
+    return p;
+  };
+  if (pMatch <= 0 || pMatch >= 1) return pMatch;
+  let lo = 0.001, hi = 0.999;
+  for (let i = 0; i < 60; i++) {
+    const mid = (lo + hi) / 2;
+    if (seriesWin(mid) < pMatch) lo = mid; else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
+function exactScoreOdds(odds1: number, odds2: number, format: string): { score: string; player: 1|2; loserGames: number; odds: number }[] {
+  const MARGIN = 0.10; // 10% house edge on exact scores
+  const raw1 = 1/odds1, raw2 = 1/odds2;
+  const norm = raw1 + raw2;
+  const pMatch1 = raw1 / norm; // normalized implied probability for P1
+
+  const p = solvePerGameProb(pMatch1, format);
+  const q = 1 - p;
+
+  type ScoreEntry = { score: string; player: 1|2; loserGames: number; prob: number };
+  const scores: ScoreEntry[] = [];
+
+  if (format === 'BO1') {
+    scores.push({ score: '1-0', player: 1, loserGames: 0, prob: p });
+    scores.push({ score: '0-1', player: 2, loserGames: 0, prob: q });
+  } else if (format === 'BO3') {
+    scores.push({ score: '2-0', player: 1, loserGames: 0, prob: p*p });
+    scores.push({ score: '2-1', player: 1, loserGames: 1, prob: 2*p*p*q });
+    scores.push({ score: '0-2', player: 2, loserGames: 0, prob: q*q });
+    scores.push({ score: '1-2', player: 2, loserGames: 1, prob: 2*q*q*p });
+  } else if (format === 'BO5') {
+    scores.push({ score: '3-0', player: 1, loserGames: 0, prob: p*p*p });
+    scores.push({ score: '3-1', player: 1, loserGames: 1, prob: 3*p*p*p*q });
+    scores.push({ score: '3-2', player: 1, loserGames: 2, prob: 6*p*p*p*q*q });
+    scores.push({ score: '0-3', player: 2, loserGames: 0, prob: q*q*q });
+    scores.push({ score: '1-3', player: 2, loserGames: 1, prob: 3*q*q*q*p });
+    scores.push({ score: '2-3', player: 2, loserGames: 2, prob: 6*q*q*q*p*p });
+  } else if (format === 'BO7') {
+    scores.push({ score: '4-0', player: 1, loserGames: 0, prob: p*p*p*p });
+    scores.push({ score: '4-1', player: 1, loserGames: 1, prob: 4*p*p*p*p*q });
+    scores.push({ score: '4-2', player: 1, loserGames: 2, prob: 10*p*p*p*p*q*q });
+    scores.push({ score: '4-3', player: 1, loserGames: 3, prob: 20*p*p*p*p*q*q*q });
+    scores.push({ score: '0-4', player: 2, loserGames: 0, prob: q*q*q*q });
+    scores.push({ score: '1-4', player: 2, loserGames: 1, prob: 4*q*q*q*q*p });
+    scores.push({ score: '2-4', player: 2, loserGames: 2, prob: 10*q*q*q*q*p*p });
+    scores.push({ score: '3-4', player: 2, loserGames: 3, prob: 20*q*q*q*q*p*p*p });
+  }
+
+  return scores.map(s => ({
+    score: s.score,
+    player: s.player,
+    loserGames: s.loserGames,
+    odds: s.prob > 0 ? parseFloat(((1/s.prob) * (1 - MARGIN)).toFixed(2)) : 99,
+  }));
+}
+
+// GET /exact-scores/:matchId — Compute exact score odds for a match
+router.get('/exact-scores/:matchId', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const match = await prisma.match.findUnique({
+      where: { id: req.params.matchId },
+      select: { id: true, format: true, odds1: true, odds2: true, status: true, betsOpen: true, scheduledAt: true },
+    });
+    if (!match) { res.status(404).json({ error: 'Match not found' }); return; }
+    if (match.format === 'BO1') { res.json({ data: [] }); return; } // no exact score for BO1
+    const scores = exactScoreOdds(match.odds1, match.odds2, match.format);
+    res.json({ data: scores });
+  } catch (error) {
+    logger.error('GET /bets/exact-scores/:matchId error:', error);
+    res.status(500).json({ error: 'Failed to compute exact score odds' });
+  }
+});
+
+// POST /exact — Place an exact score bet
+const exactBetSchema = z.object({
+  matchId: z.string().min(1),
+  amount: z.number().int().min(10).max(500),
+  score: z.string().min(3),         // e.g. "2-1"
+  player: z.union([z.literal(1), z.literal(2)]),
+  loserGames: z.number().int().min(0),
+  odds: z.number().positive(),
+});
+
+router.post('/exact', requireAuth, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const parsed = exactBetSchema.safeParse(req.body);
+    if (!parsed.success) { res.status(400).json({ error: 'Invalid bet data' }); return; }
+    const { matchId, amount, score, player, loserGames, odds } = parsed.data;
+    const userId = req.user!.id;
+
+    const [match, user] = await Promise.all([
+      prisma.match.findUnique({ where: { id: matchId }, select: { status: true, betsOpen: true, scheduledAt: true, odds1: true, odds2: true, format: true } }),
+      prisma.user.findUnique({ where: { id: userId }, select: { coins: true, isBanned: true } }),
+    ]);
+    if (!match) { res.status(404).json({ error: 'Match not found' }); return; }
+    if (!user || user.isBanned) { res.status(400).json({ error: 'Account banned' }); return; }
+    if (match.status !== 'UPCOMING') { res.status(400).json({ error: 'Betting is closed' }); return; }
+    if (!match.betsOpen) { res.status(400).json({ error: 'Bets temporarily closed' }); return; }
+    if (new Date() >= match.scheduledAt) { res.status(400).json({ error: 'Match has started' }); return; }
+    if (user.coins < amount) { res.status(400).json({ error: 'Insufficient coins' }); return; }
+
+    // Verify odds are still valid (recompute server-side)
+    const freshScores = exactScoreOdds(match.odds1, match.odds2, match.format);
+    const freshEntry = freshScores.find(s => s.score === score);
+    if (!freshEntry) { res.status(400).json({ error: 'Invalid score for this match format' }); return; }
+    const oddsAtBet = freshEntry.odds; // always use server-computed odds
+
+    const bet = await prisma.$transaction(async (tx) => {
+      const freshUser = await tx.user.findUnique({ where: { id: userId }, select: { coins: true } });
+      if (!freshUser || freshUser.coins < amount) throw new Error('Insufficient coins');
+      await tx.user.update({ where: { id: userId }, data: { coins: { decrement: amount }, totalWagered: { increment: amount } } });
+      return tx.bet.create({
+        data: { userId, matchId, betType: 'EXACT_SCORE', amount, oddsAtBet, selectedPlayer: player, boNumber: loserGames, status: 'PENDING' },
+      });
+    });
+
+    logger.info(`Exact score bet: user=${userId}, match=${matchId}, score=${score}, amount=${amount}, odds=${oddsAtBet}`);
+    res.status(201).json({ data: bet });
+  } catch (err) {
+    if (err instanceof Error) res.status(400).json({ error: err.message });
+    else res.status(500).json({ error: 'Failed to place exact score bet' });
+  }
+});
+
 // GET /match/:matchId - Get anonymized bet totals for a match
 router.get('/match/:matchId', async (req: Request, res: Response): Promise<void> => {
   try {
