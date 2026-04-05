@@ -207,6 +207,19 @@ router.post('/scrape', async (_req: Request, res: Response): Promise<void> => {
   }
 });
 
+// POST /api/v1/dev/scrape-liquipedia — trigger Liquipedia upcoming matches scraper
+router.post('/scrape-liquipedia', async (_req: Request, res: Response): Promise<void> => {
+  res.json({ ok: true, message: 'Liquipedia scrape started in background' });
+  try {
+    const { syncAoeEventCalendar } = await import('../scrapers/aoeEventCalendarScraper');
+    const { scrapeUpcomingMatches } = await import('../scrapers/liquipediaScraper');
+    await syncAoeEventCalendar();
+    await scrapeUpcomingMatches();
+  } catch (err) {
+    console.error('Liquipedia scrape error:', err);
+  }
+});
+
 // POST /api/v1/dev/enrich — trigger full enrichment (pro player set + odds recalc)
 router.post('/enrich', async (_req: Request, res: Response): Promise<void> => {
   res.json({ ok: true, message: 'Enrichment started in background — check backend logs' });

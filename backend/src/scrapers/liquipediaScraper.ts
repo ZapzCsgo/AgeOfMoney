@@ -10,8 +10,13 @@ import { prisma } from '../index';
 import logger from '../logger';
 import { enrichAllUpcomingMatches } from './aoe4worldScraper';
 
-const BASE_URL = 'https://liquipedia.net/ageofempires';
-const UPCOMING_URL = `${BASE_URL}/Liquipedia:Upcoming_and_ongoing_matches`;
+// All AoE game wikis to scrape
+const GAME_WIKIS: { game: string; wikiPath: string }[] = [
+  { game: 'AoE4', wikiPath: 'ageofempires' },
+  { game: 'AoE2', wikiPath: 'ageofempires2' },
+  { game: 'AoE3', wikiPath: 'ageofempires3' },
+  { game: 'AoM',  wikiPath: 'ageofmythology' },
+];
 
 function sleep(ms: number) {
   return new Promise(r => setTimeout(r, ms));
@@ -59,13 +64,25 @@ async function fetchHtml(url: string): Promise<string | null> {
 
 function guessTier(name: string): string {
   const n = name.toLowerCase();
-  if (n.includes('world championship') || n.includes('red bull') || n.includes('masters') || n.includes('wololo')) return 'S';
+  // Tier S — major international events
+  if (
+    n.includes('world championship') || n.includes('red bull') || n.includes('masters') ||
+    n.includes('wololo') || n.includes('hidden cup') || n.includes('nations cup') ||
+    n.includes('elite classic') || n.includes('epohers world') ||
+    n.includes('warlords') || n.includes('t90') || n.includes('titans league') ||
+    n.includes('pandora') || n.includes('brazilian dynasty') ||
+    n.includes('homestead') || n.includes('king of the desert') || n.includes('kotd')
+  ) return 'S';
+  // Tier A — major recurring events
   if (
     n.includes('quarterly') || n.includes('open cup') || n.includes('invitational') ||
     n.includes('world team league') || n.includes('wtl') || n.includes('golden league') ||
-    n.includes('king of the desert') || n.includes('over the top') || n.includes('holy series')
+    n.includes('over the top') || n.includes('holy series') || n.includes('daut cup') ||
+    n.includes('showcase') || n.includes('clash') || n.includes('rumble') ||
+    n.includes('over the top') || n.includes('king') || n.includes('super series') ||
+    n.includes('championship')
   ) return 'A';
-  if (n.includes('road to') || n.includes('league') || n.includes('cup')) return 'B';
+  if (n.includes('road to') || n.includes('league') || n.includes('cup') || n.includes('series')) return 'B';
   return 'C';
 }
 
@@ -96,108 +113,97 @@ async function fetchTournamentTwitchChannel(liquipediaUrl: string): Promise<stri
   return channel;
 }
 
+/** Parse match-info blocks from a Liquipedia upcoming page */
+function parseMatchBlocks(html: string, wikiPath: string, game: string): Array<{
+  player1: string; player1Slug: string; player1Country: string;
+  player2: string; player2Slug: string; player2Country: string;
+  tournamentName: string; tournamentUrl: string;
+  scheduledAt: Date; format: string; game: string;
+}> {
+  const $ = cheerio.load(html);
+  const results: ReturnType<typeof parseMatchBlocks> = [];
+  const slugPrefix = `/${wikiPath}/`;
+
+  $('.match-info').each((_i, el) => {
+    try {
+      const timestampStr = $(el).find('.timer-object[data-timestamp]').attr('data-timestamp');
+      const scheduledAt = timestampStr
+        ? new Date(parseInt(timestampStr, 10) * 1000)
+        : new Date(Date.now() + 24 * 3600 * 1000);
+      if (scheduledAt < new Date(Date.now() - 4 * 3600 * 1000)) return;
+
+      const leftEl  = $(el).find('.match-info-header-opponent-left');
+      const rightEl = $(el).find('.match-info-header-opponent:not(.match-info-header-opponent-left)');
+      const leftNameEl  = leftEl.find('.name a').first();
+      const rightNameEl = rightEl.find('.name a').first();
+
+      const leftHref  = leftNameEl.attr('href') || '';
+      const rightHref = rightNameEl.attr('href') || '';
+      if (leftHref.includes('action=edit') || rightHref.includes('action=edit')) return;
+      if (leftNameEl.hasClass('new') || rightNameEl.hasClass('new')) return;
+
+      const player1     = leftNameEl.attr('title')?.trim()  || leftNameEl.text().trim();
+      const player1Slug = decodeURIComponent(leftHref.replace(slugPrefix, '').split('?')[0]);
+      const player2     = rightNameEl.attr('title')?.trim() || rightNameEl.text().trim();
+      const player2Slug = decodeURIComponent(rightHref.replace(slugPrefix, '').split('?')[0]);
+
+      if (!player1 || !player2 || player1 === player2) return;
+      if (player1.toLowerCase() === 'tbd' || player2.toLowerCase() === 'tbd') return;
+      if (leftEl.find('.block-player').length > 1 || rightEl.find('.block-player').length > 1) return;
+      const teamPattern = /^team\s+|esports?\s*[ab]?$|\s+esports?$|esports?\s+[ab]$/i;
+      if (teamPattern.test(player1) || teamPattern.test(player2)) return;
+
+      const player1Country = leftEl.find('.flag img').first().attr('alt') || '';
+      const player2Country = rightEl.find('.flag img').first().attr('alt') || '';
+
+      const tournEl      = $(el).find('.match-info-tournament a').first();
+      const tournamentName = tournEl.text().trim() || 'Unknown Tournament';
+      const tournPath    = tournEl.attr('href') || '';
+      const tournamentUrl = tournPath.startsWith('http') ? tournPath : `https://liquipedia.net${tournPath}`;
+
+      const scoreLower = $(el).find('.match-info-header-scoreholder-lower').first().text().trim();
+      const boMatch = scoreLower.match(/Bo(\d+)/i);
+      const format = boMatch ? `BO${parseInt(boMatch[1], 10)}` : 'BO3';
+
+      const tier = guessTier(tournamentName);
+      if (!isTierAllowed(tier)) return;
+
+      results.push({ player1, player1Slug, player1Country, player2, player2Slug, player2Country, tournamentName, tournamentUrl, scheduledAt, format, game });
+    } catch { /* skip bad rows */ }
+  });
+
+  return results;
+}
+
 export async function scrapeUpcomingMatches(): Promise<void> {
   const startTime = Date.now();
   let matchesFound = 0;
   let matchesSaved = 0;
 
   try {
-    logger.info('[Liquipedia] Starting scrape of upcoming matches');
+    logger.info('[Liquipedia] Starting scrape of upcoming matches (all AoE wikis)');
 
-    const html = await fetchHtml(UPCOMING_URL);
-    if (!html) throw new Error('Failed to fetch Liquipedia upcoming matches page');
+    // Scrape all AoE wikis — 3s delay between requests to avoid rate limits
+    const allMatches: ReturnType<typeof parseMatchBlocks> = [];
+    for (const { game, wikiPath } of GAME_WIKIS) {
+      const url = `https://liquipedia.net/${wikiPath}/Liquipedia:Upcoming_and_ongoing_matches`;
+      const html = await fetchHtml(url);
+      if (!html) { logger.warn(`[Liquipedia] Failed to fetch ${game} upcoming page`); continue; }
+      const parsed = parseMatchBlocks(html, wikiPath, game);
+      logger.info(`[Liquipedia] ${game}: ${parsed.length} tier S/A matches found`);
+      allMatches.push(...parsed);
+      matchesFound += parsed.length;
+      await sleep(3000); // respect Liquipedia rate limit between pages
+    }
 
-    const $ = cheerio.load(html);
-    const matches: Array<{
-      player1: string;
-      player1Slug: string;
-      player1Country: string;
-      player2: string;
-      player2Slug: string;
-      player2Country: string;
-      tournamentName: string;
-      tournamentUrl: string;
-      scheduledAt: Date;
-      format: string;
-    }> = [];
-
-    // Each match is a .new-match-style > .match-info block
-    $('.match-info').each((_i, el) => {
-      try {
-        // Timestamp
-        const timestampStr = $(el).find('.timer-object[data-timestamp]').attr('data-timestamp');
-        const scheduledAt = timestampStr
-          ? new Date(parseInt(timestampStr, 10) * 1000)
-          : new Date(Date.now() + 24 * 3600 * 1000);
-
-        // Skip past matches (more than 4 hours ago)
-        if (scheduledAt < new Date(Date.now() - 4 * 3600 * 1000)) return;
-
-        // Players — left and right opponents
-        const leftEl = $(el).find('.match-info-header-opponent-left');
-        const rightEl = $(el).find('.match-info-header-opponent:not(.match-info-header-opponent-left)');
-
-        const leftNameEl  = leftEl.find('.name a').first();
-        const rightNameEl = rightEl.find('.name a').first();
-
-        // Use href title attr — skip redlinks (page does not exist)
-        const leftHref  = leftNameEl.attr('href') || '';
-        const rightHref = rightNameEl.attr('href') || '';
-        if (leftHref.includes('action=edit') || rightHref.includes('action=edit')) return; // TBD/unknown team
-        if (leftNameEl.hasClass('new') || rightNameEl.hasClass('new')) return;
-
-        const player1     = leftNameEl.attr('title')?.trim()  || leftNameEl.text().trim();
-        const player1Slug = leftHref.replace('/ageofempires/', '').split('?')[0];
-        const player2     = rightNameEl.attr('title')?.trim() || rightNameEl.text().trim();
-        const player2Slug = rightHref.replace('/ageofempires/', '').split('?')[0];
-
-        if (!player1 || !player2 || player1 === player2) return;
-        if (player1.toLowerCase() === 'tbd' || player2.toLowerCase() === 'tbd') return;
-        // Skip team matches (multiple players on a side) — we only do 1v1
-        if (leftEl.find('.block-player').length > 1 || rightEl.find('.block-player').length > 1) return;
-        // Skip entries that look like team org names, not individual players
-        const teamPattern = /^team\s+|esports?\s*[ab]?$|\s+esports?$|esports?\s+[ab]$/i;
-        if (teamPattern.test(player1) || teamPattern.test(player2)) return;
-
-        // Countries
-        const player1Country = leftEl.find('.flag img').first().attr('alt') || '';
-        const player2Country = rightEl.find('.flag img').first().attr('alt') || '';
-
-        // Tournament
-        const tournEl      = $(el).find('.match-info-tournament a').first();
-        const tournamentName = tournEl.text().trim() || 'Unknown Tournament';
-        const tournPath    = tournEl.attr('href') || '';
-        const tournamentUrl = tournPath.startsWith('http') ? tournPath : `https://liquipedia.net${tournPath}`;
-
-        // Format — the real BO number is in .match-info-header-scoreholder-lower as "(Bo7)"
-        const scoreLower = $(el).find('.match-info-header-scoreholder-lower').first().text().trim();
-        const boMatch = scoreLower.match(/Bo(\d+)/i);
-        const boNum = boMatch ? parseInt(boMatch[1], 10) : null;
-        const format = boNum ? `BO${boNum}` : 'BO3';  // exact value, not guessed
-
-        // Only include matches from top-tier tournaments
-        const tier = guessTier(tournamentName);
-        if (!isTierAllowed(tier)) {
-          logger.debug(`[Liquipedia] Skipping low-tier match: ${player1} vs ${player2} (${tournamentName} — tier ${tier})`);
-          return;
-        }
-
-        matchesFound++;
-        matches.push({ player1, player1Slug, player1Country, player2, player2Slug, player2Country, tournamentName, tournamentUrl, scheduledAt, format });
-      } catch {
-        // skip bad rows
-      }
-    });
-
-    logger.info(`[Liquipedia] Parsed ${matchesFound} upcoming matches`);
+    logger.info(`[Liquipedia] Total: ${matchesFound} upcoming matches across all wikis`);
 
     // ── Persist to DB ──────────────────────────────────────────────────────────
-    for (const m of matches) {
+    for (const m of allMatches) {
       try {
-        // Upsert tournament — fetch Twitch channel if we don't have it yet
         const existingTourn = await prisma.tournament.findUnique({
           where: { liquipediaUrl: m.tournamentUrl },
-          select: { id: true, twitchChannel: true },
+          select: { id: true, twitchChannel: true, game: true },
         });
         let twitchChannel = existingTourn?.twitchChannel ?? null;
         if (!twitchChannel && m.tournamentUrl.includes('liquipedia.net')) {
@@ -206,7 +212,6 @@ export async function scrapeUpcomingMatches(): Promise<void> {
 
         const tournament = await prisma.tournament.upsert({
           where: { liquipediaUrl: m.tournamentUrl },
-          // Only update name if we got a real name (don't overwrite good names with 'Unknown Tournament')
           update: {
             ...(m.tournamentName !== 'Unknown Tournament' ? { name: m.tournamentName } : {}),
             isActive: true,
@@ -214,6 +219,7 @@ export async function scrapeUpcomingMatches(): Promise<void> {
           },
           create: {
             name: m.tournamentName,
+            game: m.game,
             tier: guessTier(m.tournamentName),
             liquipediaUrl: m.tournamentUrl,
             startDate: m.scheduledAt,
@@ -222,75 +228,45 @@ export async function scrapeUpcomingMatches(): Promise<void> {
           },
         });
 
-        // Upsert player 1
         const p1 = await prisma.player.upsert({
-          where: { liquipediaSlug: decodeURIComponent(m.player1Slug) },
+          where: { liquipediaSlug: m.player1Slug },
           update: {},
-          create: {
-            name: m.player1,
-            liquipediaSlug: decodeURIComponent(m.player1Slug),
-            country: m.player1Country || null,
-            elo: 1500,
-          },
+          create: { name: m.player1, liquipediaSlug: m.player1Slug, country: m.player1Country || null, elo: 1500 },
         });
-
-        // Upsert player 2
         const p2 = await prisma.player.upsert({
-          where: { liquipediaSlug: decodeURIComponent(m.player2Slug) },
+          where: { liquipediaSlug: m.player2Slug },
           update: {},
-          create: {
-            name: m.player2,
-            liquipediaSlug: decodeURIComponent(m.player2Slug),
-            country: m.player2Country || null,
-            elo: 1500,
-          },
+          create: { name: m.player2, liquipediaSlug: m.player2Slug, country: m.player2Country || null, elo: 1500 },
         });
 
-        // Check if match already exists (same players in either order, same tournament, scheduled within 2h window)
         const windowStart = new Date(m.scheduledAt.getTime() - 2 * 3600 * 1000);
         const windowEnd   = new Date(m.scheduledAt.getTime() + 2 * 3600 * 1000);
         const existing = await prisma.match.findFirst({
           where: {
-            OR: [
-              { player1Id: p1.id, player2Id: p2.id },
-              { player1Id: p2.id, player2Id: p1.id },
-            ],
+            OR: [{ player1Id: p1.id, player2Id: p2.id }, { player1Id: p2.id, player2Id: p1.id }],
             tournamentId: tournament.id,
             scheduledAt: { gte: windowStart, lte: windowEnd },
           },
         });
-
         if (existing) continue;
 
-        // Compute basic odds from ELO
         const prob1 = 1 / (1 + Math.pow(10, (p2.elo - p1.elo) / 400));
         const margin = 0.05;
         const odds1 = parseFloat(Math.max(1.05, (1 / prob1) * (1 - margin)).toFixed(2));
         const odds2 = parseFloat(Math.max(1.05, (1 / (1 - prob1)) * (1 - margin)).toFixed(2));
 
-        const betsClosedAt = new Date(m.scheduledAt.getTime() - 5 * 60 * 1000);
-
-        // Inherit game from tournament (set by aoeEventCalendarScraper), default AoE4
-        const tournGame = (tournament as { game?: string }).game ?? 'AoE4';
-
+        const tournGame = (tournament as { game?: string }).game ?? m.game;
         await prisma.match.create({
           data: {
-            player1Id: p1.id,
-            player2Id: p2.id,
-            tournamentId: tournament.id,
-            game: tournGame,
-            status: 'UPCOMING',
-            format: m.format,
+            player1Id: p1.id, player2Id: p2.id, tournamentId: tournament.id,
+            game: tournGame, status: 'UPCOMING', format: m.format,
             scheduledAt: m.scheduledAt,
-            betsClosedAt,
-            odds1,
-            odds2,
+            betsClosedAt: new Date(m.scheduledAt.getTime() - 5 * 60 * 1000),
+            odds1, odds2,
           },
         });
-
         matchesSaved++;
 
-        // Trigger AI enrichment for players with no history (non-blocking)
         if (process.env.ANTHROPIC_API_KEY) {
           (async () => {
             const { enrichPlayerWithAI } = await import('./aiPlayerHistoryScraper');
@@ -299,15 +275,13 @@ export async function scrapeUpcomingMatches(): Promise<void> {
               const count = await prisma.playerMatchRecord.count({ where: { playerId: pid } });
               if (count < 10) {
                 await enrichPlayerWithAI(pid, pname, false, tournGame);
-                await sleep(3000); // respect Claude rate limits
+                await sleep(3000);
               }
             }
-            // Recalc odds with fresh AI data
             await enrichAllUpcomingMatches().catch(() => {});
           })().catch(err => logger.warn(`[Liquipedia] AI enrichment failed for new match: ${err}`));
         }
 
-        // Rate limit — be nice to Liquipedia's DB
         await sleep(200);
       } catch (err) {
         logger.error(`[Liquipedia] Failed to save match ${m.player1} vs ${m.player2}:`, err);
@@ -315,12 +289,7 @@ export async function scrapeUpcomingMatches(): Promise<void> {
     }
 
     await prisma.scraperLog.create({
-      data: {
-        source: 'liquipedia',
-        status: 'success',
-        matchesFound,
-        duration: Date.now() - startTime,
-      },
+      data: { source: 'liquipedia', status: 'success', matchesFound, duration: Date.now() - startTime },
     });
 
     logger.info(`[Liquipedia] Done: ${matchesFound} found, ${matchesSaved} new saved`);
@@ -380,7 +349,7 @@ export async function scrapeRecentResults(): Promise<void> {
   try {
     logger.info('[Liquipedia] Scanning for recent results...');
 
-    const html = await fetchHtml(UPCOMING_URL);
+    const html = await fetchHtml('https://liquipedia.net/ageofempires/Liquipedia:Upcoming_and_ongoing_matches');
     if (!html) return;
 
     const $ = cheerio.load(html);
