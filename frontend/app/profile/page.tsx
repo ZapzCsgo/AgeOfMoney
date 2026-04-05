@@ -587,7 +587,7 @@ export default function ProfilePage() {
                 <h1 className="text-2xl font-bold text-[#e8e2f5] truncate" style={{ fontFamily: 'Cinzel, serif' }}>{publicProfile.username}</h1>
                 <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                   {publicProfile.isAdmin && <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: '#be123c33', color: '#f87171', border: '1px solid #be123c55' }}>ADMIN</span>}
-                  {publicProfile.isMod && <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: '#7c3aed33', color: '#a78bfa', border: '1px solid #7c3aed55' }}>MOD</span>}
+                  {publicProfile.isMod && <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: '#1e3a5f', color: '#60a5fa', border: '1px solid #3b82f640' }}>MOD</span>}
                   {publicProfile.isPartner && <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: 'rgba(212,160,23,0.1)', color: '#d4a017', border: '1px solid rgba(212,160,23,0.3)' }}>PARTENAIRE</span>}
                   {!publicProfile.isAdmin && !publicProfile.isMod && !publicProfile.isPartner && (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: 'rgba(212,160,23,0.1)', color: '#d4a017', border: '1px solid rgba(212,160,23,0.3)' }}>MEMBRE</span>
