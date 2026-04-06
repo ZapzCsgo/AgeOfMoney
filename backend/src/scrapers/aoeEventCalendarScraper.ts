@@ -171,12 +171,19 @@ export async function syncAoeEventCalendar(): Promise<{ name: string; game: stri
   return synced;
 }
 
-function guessTier(name: string, game: string): string {
+/**
+ * Provisional tier from event name — used only until the Liquipedia scraper
+ * fetches the real tier from the tournament page infobox.
+ */
+function guessTier(name: string, _game: string): string {
   const n = name.toLowerCase();
-  if (n.includes('red bull') || n.includes('wololo') || n.includes('world championship') || n.includes('masters')) return 'S';
+  if (n.includes('red bull') || n.includes('wololo') || n.includes('world championship') ||
+      n.includes('masters') || n.includes('hidden cup') || n.includes('warlords') || n.includes('t90')) return 'S';
   if (n.includes('quarterly') || n.includes('invitational') || n.includes('wtl') ||
-      n.includes('golden league') || n.includes('king of the desert') || n.includes('holy series') ||
-      n.includes('over the top') || n.includes('titans')) return 'A';
-  if (n.includes('cup') || n.includes('league') || n.includes('road to') || n.includes('homestead')) return 'B';
+      n.includes('world team league') || n.includes('golden league') || n.includes('king of the desert') ||
+      n.includes('holy series') || n.includes('over the top') || n.includes('titans') ||
+      n.includes('mythic clan') || n.includes('nations cup') || n.includes('global series') ||
+      n.includes('pro league') || n.includes('championship')) return 'A';
+  if (n.includes('cup') || n.includes('league') || n.includes('road to') || n.includes('homestead') || n.includes('series')) return 'B';
   return 'C';
 }

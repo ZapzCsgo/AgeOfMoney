@@ -62,70 +62,91 @@ async function fetchHtml(url: string): Promise<string | null> {
   }
 }
 
-/** Detect game from tournament name when wiki URL is ambiguous (/ageofempires/ covers all games) */
-function detectGame(name: string, wikiGame: string): string {
+/**
+ * Game detection — URL is the authoritative source.
+ * The tournament URL always contains the wiki slug (ageofempires2, ageofmythology, etc.)
+ * which maps 1:1 to the game. Name-based keywords are only a last resort.
+ */
+function detectGame(tournamentUrl: string, name: string, wikiGame: string): string {
+  // Primary: tournament URL — definitive and never wrong
+  if (tournamentUrl.includes('/ageofempires2/')) return 'AoE2';
+  if (tournamentUrl.includes('/ageofempires3/')) return 'AoE3';
+  if (tournamentUrl.includes('/ageofmythology/')) return 'AoM';
+  if (tournamentUrl.includes('/ageofempires/'))   return 'AoE4';
+  // Fallback: broad name keywords (only reached if URL is external/unknown)
   const n = name.toLowerCase();
-  if (n.includes('age of empires iv') || n.includes('aoe4') || n.includes('age iv') ||
-      n.includes('world team league') || n.includes('wtl') || n.includes('quarterly')) return 'AoE4';
-  if (n.includes('homestead') || n.includes('epohers') || n.includes('king of the desert') ||
-      n.includes('kotd') || n.includes('age of empires ii') || n.includes('aoe ii') || n.includes('aoe2') ||
-      n.includes('elite classic') || n.includes('daut cup') || n.includes('over the top') ||
-      n.includes('holy series') || n.includes('golden league')) return 'AoE2';
-  if (n.includes('age of mythology') || n.includes('aom') || n.includes('mytholog')) return 'AoM';
+  if (n.includes('age of empires ii') || n.includes('aoe2') || n.includes('aoe ii')) return 'AoE2';
   if (n.includes('age of empires iii') || n.includes('aoe3') || n.includes('age iii')) return 'AoE3';
-  return wikiGame; // fallback: trust the wiki being scraped
+  if (n.includes('age of mythology') || n.includes('aom') || n.includes('mytholog')) return 'AoM';
+  if (n.includes('age of empires iv') || n.includes('aoe4') || n.includes('age iv')) return 'AoE4';
+  return wikiGame;
 }
 
-function guessTier(name: string): string {
-  const n = name.toLowerCase();
-  // Tier S — major international events
-  if (
-    n.includes('world championship') || n.includes('red bull') || n.includes('masters') ||
-    n.includes('wololo') || n.includes('hidden cup') || n.includes('nations cup') ||
-    n.includes('elite classic') || n.includes('epohers world') ||
-    n.includes('warlords') || n.includes('t90') || n.includes('titans league') ||
-    n.includes('pandora') || n.includes('brazilian dynasty') ||
-    n.includes('homestead') || n.includes('king of the desert') || n.includes('kotd')
-  ) return 'S';
-  // Tier A — major recurring events
-  if (
-    n.includes('quarterly') || n.includes('open cup') || n.includes('invitational') ||
-    n.includes('world team league') || n.includes('wtl') || n.includes('golden league') ||
-    n.includes('over the top') || n.includes('holy series') || n.includes('daut cup') ||
-    n.includes('showcase') || n.includes('clash') || n.includes('rumble') ||
-    n.includes('over the top') || n.includes('king') || n.includes('super series') ||
-    n.includes('championship') || n.includes('mythic clan') || n.includes('mythic league') ||
-    n.includes('nations cup') || n.includes('global series') || n.includes('pro league')
-  ) return 'A';
-  if (n.includes('road to') || n.includes('league') || n.includes('cup') || n.includes('series')) return 'B';
-  return 'C';
+/** Extract a Liquipedia tier letter (S/A/B/C/D) from a CSS class string. */
+function parseTierFromClass(cls: string): string | null {
+  const m = cls.match(/lp-([sabcd])-tier/i);
+  return m ? m[1].toUpperCase() : null;
 }
 
-/** Only scrape matches from top-tier tournaments (S and A) to ensure data quality and avoid match fixing */
+/** Only scrape matches from top-tier tournaments (S and A) */
 function isTierAllowed(tier: string): boolean {
   return tier === 'S' || tier === 'A';
 }
 
 /**
- * Scrape a Liquipedia tournament page to find its Twitch channel.
- * Returns the channel slug (e.g. "ageofempires"), not the full URL.
+ * Fallback tier guesser — used ONLY when Liquipedia page scrape fails.
+ * Prefer `fetchTournamentInfo` for the real value.
  */
-async function fetchTournamentTwitchChannel(liquipediaUrl: string): Promise<string | null> {
+function guessTierFallback(name: string): string {
+  const n = name.toLowerCase();
+  if (n.includes('world championship') || n.includes('red bull') || n.includes('masters') ||
+      n.includes('wololo') || n.includes('hidden cup') || n.includes('warlords') ||
+      n.includes('t90') || n.includes('pandora')) return 'S';
+  if (n.includes('quarterly') || n.includes('invitational') || n.includes('wtl') ||
+      n.includes('world team league') || n.includes('showcase') || n.includes('clash') ||
+      n.includes('championship') || n.includes('global series') || n.includes('pro league')) return 'A';
+  if (n.includes('league') || n.includes('cup') || n.includes('series') || n.includes('road to')) return 'B';
+  return 'C';
+}
+
+/**
+ * Fetch tier + Twitch channel from a Liquipedia tournament page.
+ * Tier is read from the infobox `lp-{s/a/b/c/d}-tier` CSS class or "X-Tier" text.
+ * Results are cached in the DB — only call for new/unknown tournaments.
+ */
+async function fetchTournamentInfo(liquipediaUrl: string): Promise<{ twitchChannel: string | null; tier: string | null }> {
   const html = await fetchHtml(liquipediaUrl);
-  if (!html) return null;
+  if (!html) return { twitchChannel: null, tier: null };
   await sleep(1500);
   const $ = cheerio.load(html);
-  // Twitch links appear as href="https://www.twitch.tv/channelname" in infobox
-  let channel: string | null = null;
+
+  // Twitch channel
+  let twitchChannel: string | null = null;
   $('a[href*="twitch.tv/"]').each((_i, el) => {
     const href = $(el).attr('href') || '';
     const m = href.match(/twitch\.tv\/([a-zA-Z0-9_]+)/);
     if (m && m[1].toLowerCase() !== 'liquipedia') {
-      channel = m[1];
-      return false; // break
+      twitchChannel = m[1];
+      return false;
     }
   });
-  return channel;
+
+  // Tier — Strategy 1: lp-{s/a/b/c/d}-tier CSS class (official Liquipedia tier badge)
+  let tier: string | null = null;
+  $('[class*="-tier"]').each((_i, el) => {
+    const t = parseTierFromClass($(el).attr('class') || '');
+    if (t) { tier = t; return false; }
+  });
+  // Tier — Strategy 2: "S-Tier" / "A-Tier" text in infobox cells
+  if (!tier) {
+    $('td, .infobox-cell-2, .wikitable td, .fo-nttax-infobox td').each((_i, el) => {
+      const text = $(el).text().trim();
+      const m = text.match(/^([SABCD])[- ]?Tier$/i);
+      if (m) { tier = m[1].toUpperCase(); return false; }
+    });
+  }
+
+  return { twitchChannel, tier };
 }
 
 /** Parse match-info blocks from a Liquipedia upcoming page */
@@ -134,6 +155,7 @@ function parseMatchBlocks(html: string, wikiPath: string, game: string): Array<{
   player2: string; player2Slug: string; player2Country: string;
   tournamentName: string; tournamentUrl: string;
   scheduledAt: Date; format: string; game: string;
+  blockTier: string | null; // tier read directly from match block HTML (null = unknown)
 }> {
   const $ = cheerio.load(html);
   const results: ReturnType<typeof parseMatchBlocks> = [];
@@ -171,19 +193,26 @@ function parseMatchBlocks(html: string, wikiPath: string, game: string): Array<{
       const player1Country = leftEl.find('.flag img').first().attr('alt') || '';
       const player2Country = rightEl.find('.flag img').first().attr('alt') || '';
 
-      const tournEl      = $(el).find('.match-info-tournament a').first();
+      const tournEl        = $(el).find('.match-info-tournament a').first();
       const tournamentName = tournEl.text().trim() || 'Unknown Tournament';
-      const tournPath    = tournEl.attr('href') || '';
-      const tournamentUrl = tournPath.startsWith('http') ? tournPath : `https://liquipedia.net${tournPath}`;
+      const tournPath      = tournEl.attr('href') || '';
+      const tournamentUrl  = tournPath.startsWith('http') ? tournPath : `https://liquipedia.net${tournPath}`;
 
       const scoreLower = $(el).find('.match-info-header-scoreholder-lower').first().text().trim();
       const boMatch = scoreLower.match(/Bo(\d+)/i);
       const format = boMatch ? `BO${parseInt(boMatch[1], 10)}` : 'BO3';
 
-      const tier = guessTier(tournamentName);
+      // Try to read tier badge directly from the match block HTML (lp-{s/a/b/c}-tier class)
+      let blockTier: string | null = null;
+      $(el).find('[class*="-tier"]').each((_i2, el2) => {
+        const t = parseTierFromClass($(el2).attr('class') || '');
+        if (t) { blockTier = t; return false; }
+      });
+      // If no tier badge in block, fall back to name-based guess
+      const tier = blockTier ?? guessTierFallback(tournamentName);
       if (!isTierAllowed(tier)) return;
 
-      results.push({ player1, player1Slug, player1Country, player2, player2Slug, player2Country, tournamentName, tournamentUrl, scheduledAt, format, game });
+      results.push({ player1, player1Slug, player1Country, player2, player2Slug, player2Country, tournamentName, tournamentUrl, scheduledAt, format, game, blockTier });
     } catch { /* skip bad rows */ }
   });
 
@@ -218,26 +247,39 @@ export async function scrapeUpcomingMatches(): Promise<void> {
       try {
         const existingTourn = await prisma.tournament.findUnique({
           where: { liquipediaUrl: m.tournamentUrl },
-          select: { id: true, twitchChannel: true, game: true },
+          select: { id: true, twitchChannel: true, game: true, tier: true },
         });
+
+        // Fetch tournament page when: new tournament, missing twitch channel, or tier never
+        // properly set (still at default 'C' from a previous guess). This caches result in DB
+        // so we only hit Liquipedia once per tournament.
         let twitchChannel = existingTourn?.twitchChannel ?? null;
-        if (!twitchChannel && m.tournamentUrl.includes('liquipedia.net')) {
-          twitchChannel = await fetchTournamentTwitchChannel(m.tournamentUrl);
+        let scrapedTier: string | null = m.blockTier; // use tier from match block if present
+        const needsPageFetch = m.tournamentUrl.includes('liquipedia.net') &&
+          (!existingTourn || !twitchChannel || !scrapedTier);
+        if (needsPageFetch) {
+          const info = await fetchTournamentInfo(m.tournamentUrl);
+          twitchChannel = info.twitchChannel ?? twitchChannel;
+          scrapedTier   = info.tier ?? scrapedTier;
         }
 
-        const correctGame = detectGame(m.tournamentName, m.game);
+        // Game from URL is definitive; tier from Liquipedia page is authoritative
+        const correctGame = detectGame(m.tournamentUrl, m.tournamentName, m.game);
+        const correctTier = scrapedTier ?? guessTierFallback(m.tournamentName);
+
         const tournament = await prisma.tournament.upsert({
           where: { liquipediaUrl: m.tournamentUrl },
           update: {
             ...(m.tournamentName !== 'Unknown Tournament' ? { name: m.tournamentName } : {}),
             game: correctGame,
+            tier: correctTier,
             isActive: true,
             ...(twitchChannel ? { twitchChannel } : {}),
           },
           create: {
             name: m.tournamentName,
             game: correctGame,
-            tier: guessTier(m.tournamentName),
+            tier: correctTier,
             liquipediaUrl: m.tournamentUrl,
             startDate: m.scheduledAt,
             isActive: true,
@@ -256,29 +298,28 @@ export async function scrapeUpcomingMatches(): Promise<void> {
           create: { name: m.player2, liquipediaSlug: m.player2Slug, country: m.player2Country || null, elo: 1500 },
         });
 
-        // Skip if a COMPLETED match already exists for these players in this tournament
-        // within 12h of the scheduled time (prevents duplicate on rescrape, but allows
-        // rematches in later rounds / playoff brackets)
-        const completedWindowStart = new Date(m.scheduledAt.getTime() - 12 * 3600 * 1000);
-        const completedWindowEnd   = new Date(m.scheduledAt.getTime() + 12 * 3600 * 1000);
+        const windowStart = new Date(m.scheduledAt.getTime() - 2 * 3600 * 1000);
+        const windowEnd   = new Date(m.scheduledAt.getTime() + 2 * 3600 * 1000);
+
+        // Skip if a COMPLETED match already exists within ±12h (prevents duplicate on rescrape,
+        // but allows rematches in later rounds / playoff brackets scheduled on different days)
         const completedMatch = await prisma.match.findFirst({
           where: {
             OR: [{ player1Id: p1.id, player2Id: p2.id }, { player1Id: p2.id, player2Id: p1.id }],
             tournamentId: tournament.id,
             status: 'COMPLETED',
-            scheduledAt: { gte: completedWindowStart, lte: completedWindowEnd },
+            scheduledAt: { gte: new Date(m.scheduledAt.getTime() - 12 * 3600 * 1000), lte: new Date(m.scheduledAt.getTime() + 12 * 3600 * 1000) },
           },
         });
         if (completedMatch) continue;
 
-        // Skip if an UPCOMING/LIVE match already exists within ±2h window
-        const windowStart = new Date(m.scheduledAt.getTime() - 2 * 3600 * 1000);
-        const windowEnd   = new Date(m.scheduledAt.getTime() + 2 * 3600 * 1000);
+        // Skip if any UPCOMING/LIVE match already exists for these players within ±2h
+        // (cross-tournament check handles the same match appearing on multiple wikis)
         const existing = await prisma.match.findFirst({
           where: {
             OR: [{ player1Id: p1.id, player2Id: p2.id }, { player1Id: p2.id, player2Id: p1.id }],
-            tournamentId: tournament.id,
             scheduledAt: { gte: windowStart, lte: windowEnd },
+            status: { in: ['UPCOMING', 'LIVE'] },
           },
         });
         if (existing) continue;

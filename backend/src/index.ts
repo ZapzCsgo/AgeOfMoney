@@ -168,7 +168,8 @@ startMatchVerifier();
 // Start Liquipedia live scorer (polls wikitext every 60s for tournament BO scores)
 startLiquipediaLiveScorer();
 
-// Trigger Liquipedia scrape on startup then fix game fields (chained, non-blocking)
+// Trigger Liquipedia scrape on startup (non-blocking)
+// Game + tier are now set dynamically by the scraper itself — no post-fix needed
 (async () => {
   try {
     logger.info('[Startup] Triggering Liquipedia scrape...');
@@ -179,36 +180,6 @@ startLiquipediaLiveScorer();
     logger.info('[Startup] Liquipedia scrape complete');
   } catch (err) {
     logger.error('[Startup] Liquipedia scrape failed:', err);
-  }
-
-  // Fix game fields AFTER scrape completes so scraper doesn't overwrite
-  try {
-    const nameToGame = (name: string): string | null => {
-      const n = name.toLowerCase();
-      if (n.includes('age of empires iv') || n.includes('aoe4') || n.includes('world team league') || n.includes('wtl') || n.includes('quarterly')) return 'AoE4';
-      if (n.includes('homestead') || n.includes('epohers') || n.includes('elite classic') || n.includes('king of the desert') || n.includes('daut cup') || n.includes('holy series') || n.includes('golden league') || n.includes('over the top') || n.includes('age of empires ii') || n.includes('aoe ii')) return 'AoE2';
-      if (n.includes('age of mythology') || n.includes('aom') || n.includes('mytholog')) return 'AoM';
-      if (n.includes('age of empires iii') || n.includes('aoe3')) return 'AoE3';
-      return null;
-    };
-    const urlToGame = (url: string): string | null => {
-      if (url.includes('/ageofempires2/')) return 'AoE2';
-      if (url.includes('/ageofempires3/')) return 'AoE3';
-      if (url.includes('/ageofmythology/')) return 'AoM';
-      return null;
-    };
-    const all = await prisma.tournament.findMany({ select: { id: true, name: true, liquipediaUrl: true, game: true } });
-    let fixed = 0;
-    for (const t of all) {
-      const correct = urlToGame(t.liquipediaUrl) ?? nameToGame(t.name);
-      if (correct && t.game !== correct) {
-        await prisma.tournament.update({ where: { id: t.id }, data: { game: correct } });
-        fixed++;
-      }
-    }
-    logger.info(`[Startup] Fixed game field for ${fixed} tournaments`);
-  } catch (err) {
-    logger.error('[Startup] Tournament game fix failed:', err);
   }
 })();
 
