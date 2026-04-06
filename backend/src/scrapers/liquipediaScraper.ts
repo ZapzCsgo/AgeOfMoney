@@ -62,6 +62,20 @@ async function fetchHtml(url: string): Promise<string | null> {
   }
 }
 
+/** Detect game from tournament name when wiki URL is ambiguous (/ageofempires/ covers all games) */
+function detectGame(name: string, wikiGame: string): string {
+  const n = name.toLowerCase();
+  if (n.includes('age of empires iv') || n.includes('aoe4') || n.includes('age iv') ||
+      n.includes('world team league') || n.includes('wtl') || n.includes('quarterly')) return 'AoE4';
+  if (n.includes('homestead') || n.includes('epohers') || n.includes('king of the desert') ||
+      n.includes('kotd') || n.includes('age of empires ii') || n.includes('aoe ii') ||
+      n.includes('elite classic') || n.includes('daut cup') || n.includes('over the top') ||
+      n.includes('holy series') || n.includes('golden league')) return 'AoE2';
+  if (n.includes('age of mythology') || n.includes('aom') || n.includes('mytholog')) return 'AoM';
+  if (n.includes('age of empires iii') || n.includes('aoe3') || n.includes('age iii')) return 'AoE3';
+  return wikiGame; // fallback: trust the wiki being scraped
+}
+
 function guessTier(name: string): string {
   const n = name.toLowerCase();
   // Tier S — major international events
@@ -210,17 +224,18 @@ export async function scrapeUpcomingMatches(): Promise<void> {
           twitchChannel = await fetchTournamentTwitchChannel(m.tournamentUrl);
         }
 
+        const correctGame = detectGame(m.tournamentName, m.game);
         const tournament = await prisma.tournament.upsert({
           where: { liquipediaUrl: m.tournamentUrl },
           update: {
             ...(m.tournamentName !== 'Unknown Tournament' ? { name: m.tournamentName } : {}),
-            game: m.game,
+            game: correctGame,
             isActive: true,
             ...(twitchChannel ? { twitchChannel } : {}),
           },
           create: {
             name: m.tournamentName,
-            game: m.game,
+            game: correctGame,
             tier: guessTier(m.tournamentName),
             liquipediaUrl: m.tournamentUrl,
             startDate: m.scheduledAt,

@@ -168,7 +168,7 @@ startMatchVerifier();
 // Start Liquipedia live scorer (polls wikitext every 60s for tournament BO scores)
 startLiquipediaLiveScorer();
 
-// Trigger Liquipedia scrape on startup (non-blocking) — populates upcoming matches immediately
+// Trigger Liquipedia scrape on startup then fix game fields (chained, non-blocking)
 (async () => {
   try {
     logger.info('[Startup] Triggering Liquipedia scrape...');
@@ -180,33 +180,22 @@ startLiquipediaLiveScorer();
   } catch (err) {
     logger.error('[Startup] Liquipedia scrape failed:', err);
   }
-})();
 
-// One-time startup fix: correct tournament game fields based on Liquipedia URL + name patterns
-(async () => {
+  // Fix game fields AFTER scrape completes so scraper doesn't overwrite
   try {
     const nameToGame = (name: string): string | null => {
       const n = name.toLowerCase();
-      // Clear AoE2 tournaments
-      if (n.includes('homestead') || n.includes('epohers') || n.includes('king of the desert') ||
-          n.includes('kotd') || n.includes('daut') || n.includes('mbl') || n.includes('viper') ||
-          n.includes('hera') || n.includes('t90') || n.includes('over the top') ||
-          n.includes('aoe ii') || n.includes('aoe2') || n.includes('age of empires ii') ||
-          n.includes('age ii') || n.includes('elite classic')) return 'AoE2';
-      // AoE4 with explicit label
-      if (n.includes('age of empires iv') || n.includes('aoe4') || n.includes('age iv') ||
-          n.includes('world team league') || n.includes('wtl') || n.includes('quarterly')) return 'AoE4';
-      // AoM
+      if (n.includes('age of empires iv') || n.includes('aoe4') || n.includes('world team league') || n.includes('wtl') || n.includes('quarterly')) return 'AoE4';
+      if (n.includes('homestead') || n.includes('epohers') || n.includes('elite classic') || n.includes('king of the desert') || n.includes('daut cup') || n.includes('holy series') || n.includes('golden league') || n.includes('over the top') || n.includes('age of empires ii') || n.includes('aoe ii')) return 'AoE2';
       if (n.includes('age of mythology') || n.includes('aom') || n.includes('mytholog')) return 'AoM';
-      // AoE3
-      if (n.includes('age of empires iii') || n.includes('aoe3') || n.includes('age iii')) return 'AoE3';
+      if (n.includes('age of empires iii') || n.includes('aoe3')) return 'AoE3';
       return null;
     };
     const urlToGame = (url: string): string | null => {
-      if (url.includes('/ageofempires2/'))  return 'AoE2';
-      if (url.includes('/ageofempires3/'))  return 'AoE3';
+      if (url.includes('/ageofempires2/')) return 'AoE2';
+      if (url.includes('/ageofempires3/')) return 'AoE3';
       if (url.includes('/ageofmythology/')) return 'AoM';
-      return null; // /ageofempires/ alone is ambiguous — use name instead
+      return null;
     };
     const all = await prisma.tournament.findMany({ select: { id: true, name: true, liquipediaUrl: true, game: true } });
     let fixed = 0;
@@ -217,11 +206,12 @@ startLiquipediaLiveScorer();
         fixed++;
       }
     }
-    if (fixed > 0) logger.info(`[Startup] Fixed game field for ${fixed} tournaments`);
+    logger.info(`[Startup] Fixed game field for ${fixed} tournaments`);
   } catch (err) {
     logger.error('[Startup] Tournament game fix failed:', err);
   }
 })();
+
 
 const PORT = parseInt(process.env.PORT || '4000', 10);
 
