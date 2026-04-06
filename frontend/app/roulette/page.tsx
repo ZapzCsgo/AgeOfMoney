@@ -402,8 +402,7 @@ export default function RoulettePage() {
           {/* Status bar */}
           <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom:'1px solid #1e1a30' }}>
             <div className="flex items-center gap-2">
-              <div className={cn('w-2 h-2 rounded-full',
-                isBetting ? 'bg-emerald-400 animate-pulse' : isSpinning ? 'bg-amber-400 animate-pulse' : 'bg-[#3d3860]')} />
+              {(isSpinning || isResult) && <div className={cn('w-2 h-2 rounded-full', isSpinning ? 'bg-amber-400 animate-pulse' : 'bg-[#3d3860]')} />}
               {(isSpinning || isResult) && (
                 <span className="text-[12px] font-medium"
                   style={{ color: isSpinning ? '#fbbf24' : winZone ? ZONES[winZone].color : '#9990b8' }}>
