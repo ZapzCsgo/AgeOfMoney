@@ -149,6 +149,25 @@ export async function syncAoeEventCalendar(): Promise<{ name: string; game: stri
   }
 
   logger.info(`[AoeCalendar] Synced ${synced.length} tournaments`);
+
+  // Self-healing: fix any tournaments whose game field doesn't match their Liquipedia URL
+  const urlToGame = (url: string): string => {
+    if (url.includes('/ageofempires2/'))  return 'AoE2';
+    if (url.includes('/ageofempires3/'))  return 'AoE3';
+    if (url.includes('/ageofmythology/')) return 'AoM';
+    return 'AoE4';
+  };
+  const allTournaments = await prisma.tournament.findMany({ select: { id: true, liquipediaUrl: true, game: true } });
+  let fixed = 0;
+  for (const t of allTournaments) {
+    const correct = urlToGame(t.liquipediaUrl);
+    if (t.game !== correct) {
+      await prisma.tournament.update({ where: { id: t.id }, data: { game: correct } });
+      fixed++;
+    }
+  }
+  if (fixed > 0) logger.info(`[AoeCalendar] Fixed game field for ${fixed} tournaments`);
+
   return synced;
 }
 
