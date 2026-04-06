@@ -685,14 +685,18 @@ export default function HomePage() {
       setError(null);
       const [matchRes, tournRes] = await Promise.allSettled([
         getMatches({ hours: 168 }),
-        getTournaments({ active: true, limit: 6 }),
+        getTournaments({ active: true, limit: 20 }),
       ]);
       if (matchRes.status === 'fulfilled') { setMatches(matchRes.value.data); setLastFetch(new Date()); }
       if (tournRes.status === 'fulfilled') {
-        // Only show tournaments that haven't ended yet (or have no end date but started within 30 days)
         const now = Date.now();
         const future = (tournRes.value.data ?? []).filter((tourn: Tournament) => {
+          // Only tier S and A
+          if (tourn.tier !== 'S' && tourn.tier !== 'A') return false;
+          // Must not have ended
           if (tourn.endDate && new Date(tourn.endDate).getTime() < now) return false;
+          // Must start in the future (or within last 7 days if ongoing)
+          if (new Date(tourn.startDate).getTime() < now - 7 * 24 * 3600 * 1000 && !tourn.endDate) return false;
           return true;
         });
         setUpcomingTourneys(future);
