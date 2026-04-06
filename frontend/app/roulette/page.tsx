@@ -404,10 +404,12 @@ export default function RoulettePage() {
             <div className="flex items-center gap-2">
               <div className={cn('w-2 h-2 rounded-full',
                 isBetting ? 'bg-emerald-400 animate-pulse' : isSpinning ? 'bg-amber-400 animate-pulse' : 'bg-[#3d3860]')} />
-              <span className="text-[12px] font-medium"
-                style={{ color: isBetting ? '#34d399' : isSpinning ? '#fbbf24' : winZone ? ZONES[winZone].color : '#9990b8' }}>
-                {isBetting ? t('roulette_pending') : isSpinning ? 'WOLOLO...' : isResult && winZone ? `${zoneLabel(winZone)} ×${ZONES[winZone].multiplier}` : '...'}
-              </span>
+              {(isSpinning || isResult) && (
+                <span className="text-[12px] font-medium"
+                  style={{ color: isSpinning ? '#fbbf24' : winZone ? ZONES[winZone].color : '#9990b8' }}>
+                  {isSpinning ? 'WOLOLO...' : isResult && winZone ? `${zoneLabel(winZone)} ×${ZONES[winZone].multiplier}` : ''}
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-3">
               <button onClick={() => setShowFairness(true)}
