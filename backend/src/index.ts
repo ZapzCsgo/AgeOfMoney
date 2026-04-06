@@ -168,6 +168,20 @@ startMatchVerifier();
 // Start Liquipedia live scorer (polls wikitext every 60s for tournament BO scores)
 startLiquipediaLiveScorer();
 
+// Trigger Liquipedia scrape on startup (non-blocking) — populates upcoming matches immediately
+(async () => {
+  try {
+    logger.info('[Startup] Triggering Liquipedia scrape...');
+    const { syncAoeEventCalendar } = await import('./scrapers/aoeEventCalendarScraper');
+    const { scrapeUpcomingMatches } = await import('./scrapers/liquipediaScraper');
+    await syncAoeEventCalendar();
+    await scrapeUpcomingMatches();
+    logger.info('[Startup] Liquipedia scrape complete');
+  } catch (err) {
+    logger.error('[Startup] Liquipedia scrape failed:', err);
+  }
+})();
+
 // One-time startup fix: correct tournament game fields based on Liquipedia URL + name patterns
 (async () => {
   try {
