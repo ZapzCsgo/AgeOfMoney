@@ -68,7 +68,7 @@ function detectGame(name: string, wikiGame: string): string {
   if (n.includes('age of empires iv') || n.includes('aoe4') || n.includes('age iv') ||
       n.includes('world team league') || n.includes('wtl') || n.includes('quarterly')) return 'AoE4';
   if (n.includes('homestead') || n.includes('epohers') || n.includes('king of the desert') ||
-      n.includes('kotd') || n.includes('age of empires ii') || n.includes('aoe ii') ||
+      n.includes('kotd') || n.includes('age of empires ii') || n.includes('aoe ii') || n.includes('aoe2') ||
       n.includes('elite classic') || n.includes('daut cup') || n.includes('over the top') ||
       n.includes('holy series') || n.includes('golden league')) return 'AoE2';
   if (n.includes('age of mythology') || n.includes('aom') || n.includes('mytholog')) return 'AoM';
@@ -94,7 +94,8 @@ function guessTier(name: string): string {
     n.includes('over the top') || n.includes('holy series') || n.includes('daut cup') ||
     n.includes('showcase') || n.includes('clash') || n.includes('rumble') ||
     n.includes('over the top') || n.includes('king') || n.includes('super series') ||
-    n.includes('championship')
+    n.includes('championship') || n.includes('mythic clan') || n.includes('mythic league') ||
+    n.includes('nations cup') || n.includes('global series') || n.includes('pro league')
   ) return 'A';
   if (n.includes('road to') || n.includes('league') || n.includes('cup') || n.includes('series')) return 'B';
   return 'C';
@@ -255,12 +256,17 @@ export async function scrapeUpcomingMatches(): Promise<void> {
           create: { name: m.player2, liquipediaSlug: m.player2Slug, country: m.player2Country || null, elo: 1500 },
         });
 
-        // Skip if a COMPLETED match already exists for these players in this tournament (any time)
+        // Skip if a COMPLETED match already exists for these players in this tournament
+        // within 12h of the scheduled time (prevents duplicate on rescrape, but allows
+        // rematches in later rounds / playoff brackets)
+        const completedWindowStart = new Date(m.scheduledAt.getTime() - 12 * 3600 * 1000);
+        const completedWindowEnd   = new Date(m.scheduledAt.getTime() + 12 * 3600 * 1000);
         const completedMatch = await prisma.match.findFirst({
           where: {
             OR: [{ player1Id: p1.id, player2Id: p2.id }, { player1Id: p2.id, player2Id: p1.id }],
             tournamentId: tournament.id,
             status: 'COMPLETED',
+            scheduledAt: { gte: completedWindowStart, lte: completedWindowEnd },
           },
         });
         if (completedMatch) continue;
