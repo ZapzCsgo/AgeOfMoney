@@ -519,7 +519,7 @@ export default function RoulettePage() {
             <div className="relative flex-1">
               <input type="number" value={betAmount} onChange={e=>setBetAmount(e.target.value)}
                 placeholder={t('deposit_amount_coins')}
-                className="w-full px-3 py-2.5 rounded-lg text-[13px] outline-none text-[#e8e2f5] placeholder:text-[#3d3860]"
+                className="w-full px-3 py-2.5 rounded-lg text-[13px] outline-none text-[#e8e2f5] placeholder:text-[#3d3860] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 style={{ background:'#13111f', border:'1px solid #1e1a30' }} />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#f5c842] text-[11px]">⚜</span>
             </div>
@@ -543,7 +543,7 @@ export default function RoulettePage() {
             style={{ background:selectedZone ? ZONES[selectedZone].color : '#f5c842', color:'#07060f' }}>
             {!isBetting ? t('bet_closed') :
               !selectedZone ? t('roulette_select_zone') :
-              `${t('roulette_bet')} ${betAmount?parseInt(betAmount).toLocaleString('fr-FR'):'...'} ⚜ — ${selectedZone?zoneLabel(selectedZone):''}`}
+              `${t('roulette_bet')} ${betAmount?parseInt(betAmount).toLocaleString('fr-FR'):'...'} ⚜ ${selectedZone?zoneLabel(selectedZone):''}`}
           </button>
           {myZoneBet && isBetting && (
             <p className="text-center text-[11px] mt-2" style={{ color:'#6b6488' }}>
