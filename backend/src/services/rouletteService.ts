@@ -10,9 +10,36 @@
  */
 
 import crypto from 'crypto';
+import axios from 'axios';
 import { prisma } from '../index';
 import { getIo } from '../socket';
 import logger from '../logger';
+
+/** Fetch a cryptographically verified random integer 1-15 from random.org.
+ *  Returns null if RANDOM_ORG_API_KEY is missing or the request fails (fallback to crypto). */
+async function getRandomOrgResult(): Promise<{ result: number; serialNumber: string; signature: string } | null> {
+  const apiKey = process.env.RANDOM_ORG_API_KEY;
+  if (!apiKey) return null;
+  try {
+    const res = await axios.post('https://api.random.org/json-rpc/4/invoke', {
+      jsonrpc: '2.0',
+      method: 'generateSignedIntegers',
+      params: { apiKey, n: 1, min: 1, max: 15, replacement: true },
+      id: Date.now(),
+    }, { timeout: 5000 });
+    const data = res.data?.result;
+    const value = data?.random?.data?.[0];
+    if (typeof value !== 'number') return null;
+    return {
+      result: value,
+      serialNumber: String(data.random.serialNumber),
+      signature: data.signature as string,
+    };
+  } catch (err) {
+    logger.warn('[Roulette] random.org unavailable, falling back to crypto:', err);
+    return null;
+  }
+}
 
 // 15-slot system (identical to CSGOEmpire):
 //   KNIGHTS  slots 1-7  → 7/15 = 46.67% → ×2   house edge 6.67%
@@ -66,47 +93,57 @@ export async function startRound(): Promise<void> {
   const io = getIo();
   const endsAt = new Date(Date.now() + BETTING_DURATION);
 
-  // Provably fair: generate seed before betting opens, store hash only
-  const serverSeed = crypto.randomBytes(32).toString('hex');
-  const roundHash  = crypto.createHash('sha256').update(serverSeed).digest('hex');
-
+  // With random.org: result is determined at spin time, no pre-commitment possible.
+  // roundHash and serverSeed are set in spinRound after calling random.org.
   const round = await prisma.rouletteRound.create({
-    data: { status: 'BETTING', endsAt, serverSeed, roundHash },
+    data: { status: 'BETTING', endsAt },
   });
   currentRoundId = round.id;
 
   logger.info(`[Roulette] Round ${round.id} started — betting until ${endsAt.toISOString()}`);
-  io?.emit('roulette:roundStart', { roundId: round.id, endsAt: endsAt.toISOString(), roundHash });
+  // roundHash is null: result will be determined by random.org at spin time
+  io?.emit('roulette:roundStart', { roundId: round.id, endsAt: endsAt.toISOString(), roundHash: null });
 
-  // Schedule spin
   roundTimer = setTimeout(() => spinRound(round.id), BETTING_DURATION);
 }
 
 async function spinRound(roundId: string): Promise<void> {
   const io = getIo();
 
-  // Provably fair: derive result from the pre-committed server seed
-  const roundData = await prisma.rouletteRound.findUnique({
-    where: { id: roundId },
-    select: { serverSeed: true, roundHash: true },
-  });
-  const serverSeed = roundData?.serverSeed ?? crypto.randomBytes(32).toString('hex');
-  const roundHash  = roundData?.roundHash  ?? crypto.createHash('sha256').update(serverSeed).digest('hex');
+  // Try random.org first — true atmospheric randomness with signed proof
+  const randomOrg = await getRandomOrgResult();
+  let result: number;
+  let serverSeed: string;
+  let roundHash: string;
+  let source: 'random.org' | 'crypto';
 
-  // Deterministic 1-15 result from first 8 hex chars of SHA256(seed)
-  const hash   = crypto.createHash('sha256').update(serverSeed).digest('hex');
-  const result = (parseInt(hash.slice(0, 8), 16) % 15) + 1; // 1-15
+  if (randomOrg) {
+    result     = randomOrg.result;
+    roundHash  = randomOrg.serialNumber;  // serial number shown as provably fair ID
+    serverSeed = randomOrg.signature;     // cryptographic signature for verification
+    source     = 'random.org';
+    logger.info(`[Roulette] Round ${roundId} — random.org serial #${roundHash}, result=${result}`);
+  } else {
+    // Fallback: crypto-based deterministic result
+    const seed = crypto.randomBytes(32).toString('hex');
+    const hash = crypto.createHash('sha256').update(seed).digest('hex');
+    result     = (parseInt(hash.slice(0, 8), 16) % 15) + 1;
+    serverSeed = seed;
+    roundHash  = hash;
+    source     = 'crypto';
+    logger.info(`[Roulette] Round ${roundId} — crypto fallback, result=${result}`);
+  }
+
   const winZone    = getZoneFromResult(result);
   const multiplier = ZONES[winZone].multiplier;
   const spinAt     = new Date();
 
   await prisma.rouletteRound.update({
     where: { id: roundId },
-    data: { status: 'SPINNING', result, winZone, multiplier, spinAt },
+    data: { status: 'SPINNING', result, winZone, multiplier, spinAt, serverSeed, roundHash },
   });
 
-  logger.info(`[Roulette] Round ${roundId} spinning → seed=${serverSeed.slice(0,8)}… result=${result} zone=${winZone}`);
-  io?.emit('roulette:spin', { roundId, result, winZone, multiplier, roundHash });
+  io?.emit('roulette:spin', { roundId, result, winZone, multiplier, roundHash, source });
 
   // Resolve after animation
   roundTimer = setTimeout(() => resolveRound(roundId, winZone, multiplier), SPIN_DURATION);
@@ -149,11 +186,13 @@ async function resolveRound(roundId: string, winZone: string, multiplier: number
   });
 
   logger.info(`[Roulette] Round ${roundId} completed — zone=${winZone} x${multiplier}, ${bets.filter(b => b.zone === winZone).length} winners`);
+  const isRandomOrg = completedRound?.roundHash != null && /^\d+$/.test(completedRound.roundHash);
   io?.emit('roulette:result', {
     roundId, winZone, multiplier,
-    serverSeed: completedRound?.serverSeed,  // reveal seed now
+    serverSeed: completedRound?.serverSeed,
     roundHash:  completedRound?.roundHash,
     result:     completedRound?.result,
+    source: isRandomOrg ? 'random.org' : 'crypto',
   });
 
   // Start next round after 4s

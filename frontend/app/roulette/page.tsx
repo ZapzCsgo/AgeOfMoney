@@ -73,7 +73,7 @@ export default function RoulettePage() {
   const [centerIdx, setCenterIdx] = useState(4);
   const [showFairness, setShowFairness] = useState(false);
   const [showFairnessGuide, setShowFairnessGuide] = useState(false);
-  const [fairnessRound, setFairnessRound] = useState<{ id: string; roundHash: string | null; serverSeed: string | null; result: number | null; winZone: Zone | null } | null>(null);
+  const [fairnessRound, setFairnessRound] = useState<{ id: string; roundHash: string | null; serverSeed: string | null; result: number | null; winZone: Zone | null; source?: 'random.org' | 'crypto' } | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
 
   const wheelRef = useRef<HTMLDivElement>(null);
@@ -81,6 +81,7 @@ export default function RoulettePage() {
   const tickIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastTickIdx = useRef(-1);
   const wololoPlayedRef = useRef(false);
+  const hasAnimatedRef = useRef(false); // true once animateSpin has been called this session
 
   const displayStrip = Array.from({ length: REPEATS }, () => BASE_PATTERN).flat();
 
@@ -105,7 +106,16 @@ export default function RoulettePage() {
       setRound(rd);
       if (rd) setFairnessRound({ id: rd.id, roundHash: rd.roundHash, serverSeed: rd.serverSeed, result: rd.result, winZone: rd.winZone });
       if (rd?.status === 'BETTING') setPhase('betting');
-      else if (rd?.status === 'SPINNING') setPhase('spinning');
+      else if (rd?.status === 'SPINNING') {
+        // Remounted during a spin — reset wheel so items are visible, result arrives via socket
+        setPhase('spinning');
+        setTimeout(() => {
+          if (wheelRef.current && !hasAnimatedRef.current) {
+            wheelRef.current.style.transition = 'none';
+            wheelRef.current.style.transform = 'translateX(0px)';
+          }
+        }, 50);
+      }
     }
     if (h.status === 'fulfilled') setHistory(h.value.data.data ?? []);
   }, []);
@@ -150,11 +160,11 @@ export default function RoulettePage() {
       // Fallback wololo if not already played
       if (!wololoPlayedRef.current) { wololoPlayedRef.current = true; playWololo(0.3); }
     });
-    s.on('roulette:result', (d: { winZone: Zone; multiplier: number; serverSeed?: string; roundHash?: string; result?: number; roundId: string }) => {
+    s.on('roulette:result', (d: { winZone: Zone; multiplier: number; serverSeed?: string; roundHash?: string; result?: number; roundId: string; source?: 'random.org' | 'crypto' }) => {
       if (tickIntervalRef.current) clearInterval(tickIntervalRef.current);
+      hasAnimatedRef.current = false; // reset for next round
       setPhase('result'); setWinZone(d.winZone);
-      // Reveal seed in fairness panel
-      setFairnessRound({ id: d.roundId, roundHash: d.roundHash ?? null, serverSeed: d.serverSeed ?? null, result: d.result ?? null, winZone: d.winZone });
+      setFairnessRound({ id: d.roundId, roundHash: d.roundHash ?? null, serverSeed: d.serverSeed ?? null, result: d.result ?? null, winZone: d.winZone, source: d.source });
       setRound(prev => prev ? { ...prev, status: 'COMPLETED', winZone: d.winZone } : prev);
 
       // Check if current user won
@@ -194,6 +204,7 @@ export default function RoulettePage() {
 
   function animateSpin(wz: Zone) {
     if (!wheelRef.current) return;
+    hasAnimatedRef.current = true;
     if (tickIntervalRef.current) clearInterval(tickIntervalRef.current);
 
     const full = displayStrip;
@@ -737,34 +748,41 @@ export default function RoulettePage() {
               </p>
             </div>
 
-            {/* Data rows — compact label: value */}
+            {/* Source badge */}
+            <div className="px-6 pt-4 pb-0 flex items-center gap-2">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold"
+                style={{ background: fairnessRound?.source === 'random.org' ? 'rgba(52,211,153,0.1)' : 'rgba(99,102,241,0.1)', border: `1px solid ${fairnessRound?.source === 'random.org' ? '#34d39940' : '#6366f140'}`, color: fairnessRound?.source === 'random.org' ? '#34d399' : '#818cf8' }}>
+                {fairnessRound?.source === 'random.org' ? '✓ random.org' : fairnessRound?.source === 'crypto' ? '✓ crypto fallback' : '⏳ result pending'}
+              </div>
+            </div>
+
+            {/* Data rows */}
             <div className="px-6 py-4 space-y-3">
               {(() => {
+                const isRandomOrg = fairnessRound?.source === 'random.org';
                 const roll = fairnessRound?.result;
-                const pct = roll != null ? ((roll / 15) * 100).toFixed(5) : null;
-                const rollDisplay = roll != null
-                  ? `${(roll / 15).toFixed(6)} (${pct}%)`
-                  : '';
-
-                return [
-                  { label: 'Game ID',     value: fairnessRound?.id ?? '',           key: 'id'   },
-                  { label: 'Round Hash',  value: fairnessRound?.roundHash ?? '',     key: 'hash' },
-                  { label: 'Round Seed',  value: fairnessRound?.serverSeed ?? '',    key: 'seed' },
-                  { label: 'Winning Roll',value: roll != null ? rollDisplay : '',     key: 'roll' },
-                ].map(({ label, value, key }) => (
+                const rows = isRandomOrg ? [
+                  { label: 'Game ID',      value: fairnessRound?.id ?? '',         key: 'id'   },
+                  { label: 'Serial N°',    value: fairnessRound?.roundHash ?? '',   key: 'hash' },
+                  { label: 'Result (1-15)',value: roll != null ? String(roll) : '', key: 'roll' },
+                  { label: 'Signature',    value: fairnessRound?.serverSeed ?? '',  key: 'seed' },
+                ] : [
+                  { label: 'Game ID',      value: fairnessRound?.id ?? '',          key: 'id'   },
+                  { label: 'Round Hash',   value: fairnessRound?.roundHash ?? '',   key: 'hash' },
+                  { label: 'Round Seed',   value: fairnessRound?.serverSeed ?? '',  key: 'seed' },
+                  { label: 'Result (1-15)',value: roll != null ? String(roll) : '', key: 'roll' },
+                ];
+                return rows.map(({ label, value, key }) => (
                   <div key={key} className="flex items-start justify-between gap-3">
                     <span className="text-[11px] shrink-0 mt-0.5" style={{ color:'#6b6488', minWidth: 90 }}>{label}:</span>
                     <div className="flex items-center gap-2 flex-1 min-w-0 px-3 py-2 rounded-lg"
                       style={{ background:'#13111f', border:'1px solid #1a1730' }}>
                       <span className="flex-1 text-[11px] font-mono break-all" style={{ color: '#c8c0e0' }}>
-                        {value}
+                        {value || <span style={{ color:'#3d3860' }}>—</span>}
                       </span>
                       {value !== '' && (
-                        <button onClick={() => copyToClipboard(value, key)}
-                          className="shrink-0 hover:opacity-70 transition-opacity">
-                          {copied === key
-                            ? <Check size={12} style={{ color:'#34d399' }} />
-                            : <Copy size={12} style={{ color:'#4a4468' }} />}
+                        <button onClick={() => copyToClipboard(value, key)} className="shrink-0 hover:opacity-70 transition-opacity">
+                          {copied === key ? <Check size={12} style={{ color:'#34d399' }} /> : <Copy size={12} style={{ color:'#4a4468' }} />}
                         </button>
                       )}
                     </div>
@@ -773,24 +791,23 @@ export default function RoulettePage() {
               })()}
             </div>
 
-            {/* Bottom repeat block for verification (like CSGOBig) */}
-            <div className="mx-6 mb-5 rounded-lg p-4 space-y-2" style={{ background:'#13111f', border:'1px solid #1a1730' }}>
-              {[
-                { label: 'Round Hash', value: fairnessRound?.roundHash ?? '', key: 'bh' },
-                { label: 'Round Seed', value: fairnessRound?.serverSeed ?? '', key: 'bs' },
-              ].map(({ label, value, key }) => (
-                <div key={key} className="flex items-center gap-2">
-                  <span className="text-[10px] shrink-0" style={{ color:'#6b6488', minWidth: 80 }}>{label}:</span>
-                  <span className="text-[10px] font-mono break-all flex-1" style={{ color: '#9990b8' }}>
-                    {value}
-                  </span>
-                  {value !== '' && (
-                    <button onClick={() => copyToClipboard(value, key)} className="shrink-0 hover:opacity-70">
-                      {copied === key ? <Check size={11} style={{ color:'#34d399' }} /> : <Copy size={11} style={{ color:'#4a4468' }} />}
-                    </button>
-                  )}
+            {/* Verify block */}
+            <div className="mx-6 mb-5 rounded-lg p-4" style={{ background:'#13111f', border:'1px solid #1a1730' }}>
+              {fairnessRound?.source === 'random.org' ? (
+                <div className="space-y-2">
+                  <p className="text-[10px]" style={{ color:'#6b6488' }}>Vérifiez ce résultat sur random.org :</p>
+                  <a href="https://api.random.org/signatures/form" target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-[11px] font-bold hover:opacity-80 transition-opacity"
+                    style={{ color:'#34d399' }}>
+                    <ShieldCheck size={12} /> api.random.org/signatures/form →
+                  </a>
+                  <p className="text-[10px]" style={{ color:'#4a4468' }}>Collez la Signature et le Serial N° pour vérifier l&apos;authenticité.</p>
                 </div>
-              ))}
+              ) : (
+                <div className="space-y-1">
+                  <p className="text-[10px] font-mono" style={{ color:'#6b6488' }}>SHA256(Seed) = Hash · slot = (parseInt(Hash[0..8], 16) % 15) + 1</p>
+                </div>
+              )}
             </div>
 
           </div>
