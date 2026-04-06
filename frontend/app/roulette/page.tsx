@@ -270,7 +270,7 @@ export default function RoulettePage() {
     if (!selectedZone) { showMsg('error', t('bet_err_select')); return; }
     const amount = parseInt(betAmount);
     if (!amount || amount < 1) { showMsg('error', t('bet_err_min')); return; }
-    setBetAmount('');
+    // Keep amount so user can chain bets without retyping
 
     // Optimistic update — show bet instantly before server confirms
     const userId = (session.user as { id?: string })?.id ?? '';
@@ -290,7 +290,6 @@ export default function RoulettePage() {
       .catch((e: unknown) => {
         const err = e as { response?: { data?: { error?: string } } };
         showMsg('error', err?.response?.data?.error ?? t('common_error'));
-        setBetAmount(String(amount));
         // Rollback optimistic update
         setRound(prev => {
           if (!prev) return prev;
