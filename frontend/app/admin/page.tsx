@@ -1147,6 +1147,7 @@ function ScrapersPanel({ showMsg }: { showMsg: (type: 'success' | 'error', text:
   };
 
   const scrapers = [
+    { id: 'liquipedia', label: 'Matchs Liquipedia', desc: 'Scrape les 4 wikis AoE pour les matchs à venir' },
     { id: 'tournaments', label: 'Tournois aoe4world', desc: 'Fetch matchs à venir depuis aoe4world API' },
     { id: 'enrich', label: 'Enrichir cotes', desc: 'Recalculer H2H + cotes de tous les matchs' },
     { id: 'aoe4world', label: 'Stats joueurs', desc: 'MAJ winrate + historique tournoi via aoe4world' },
