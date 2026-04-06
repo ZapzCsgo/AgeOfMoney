@@ -62,24 +62,58 @@ async function fetchLiquipediaPlayerAvatar(slug: string): Promise<string | null>
   return img.startsWith('http') ? img : `https://liquipedia.net${img}`;
 }
 
-async function fetchHtml(url: string): Promise<string | null> {
-  try {
-    const res = await axios.get<string>(url, {
-      headers: {
-        'User-Agent': 'AgeOfMoney/1.0 (contact@ageofmoney.com)',
-        'Accept-Encoding': 'gzip',
-        'Accept': 'text/html,application/xhtml+xml',
-      },
-      decompress: true,
-      timeout: 20000,
-    });
-    return res.data;
-  } catch (err) {
-    if (axios.isAxiosError(err)) {
-      logger.error(`Liquipedia fetch failed: ${err.message} (${err.response?.status})`);
+async function fetchHtml(url: string, retries = 3): Promise<string | null> {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const res = await axios.get<string>(url, {
+        headers: {
+          // Realistic browser headers — reduces chance of being flagged as a bot
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Cache-Control': 'no-cache',
+          'Referer': 'https://liquipedia.net/',
+        },
+        decompress: true,
+        timeout: 25000,
+      });
+
+      // Detect CAPTCHA / block page (Liquipedia returns 200 with a token page)
+      if (typeof res.data === 'string' && (
+        res.data.includes('captcha') ||
+        res.data.includes('token/generate') ||
+        res.data.includes('cf-browser-verification')
+      )) {
+        logger.warn(`[Liquipedia] Blocked/CAPTCHA on ${url} (attempt ${attempt}/${retries})`);
+        if (attempt < retries) {
+          const delay = attempt * 30000; // 30s, 60s
+          logger.info(`[Liquipedia] Waiting ${delay / 1000}s before retry...`);
+          await sleep(delay);
+          continue;
+        }
+        return null;
+      }
+
+      return res.data;
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        const status = err.response?.status;
+        logger.warn(`[Liquipedia] Fetch failed (attempt ${attempt}/${retries}): ${err.message} (HTTP ${status ?? 'timeout'})`);
+        if (status === 429 || status === 503) {
+          // Rate limited — wait longer before retry
+          const delay = attempt * 60000; // 60s, 120s, 180s
+          logger.info(`[Liquipedia] Rate limited, waiting ${delay / 1000}s...`);
+          if (attempt < retries) { await sleep(delay); continue; }
+        } else if (attempt < retries) {
+          await sleep(attempt * 5000); // 5s, 10s
+          continue;
+        }
+      }
+      return null;
     }
-    return null;
   }
+  return null;
 }
 
 /**
@@ -257,7 +291,7 @@ export async function scrapeUpcomingMatches(): Promise<void> {
       logger.info(`[Liquipedia] ${game}: ${parsed.length} tier S/A matches found`);
       allMatches.push(...parsed);
       matchesFound += parsed.length;
-      await sleep(3000); // respect Liquipedia rate limit between pages
+      await sleep(5000); // 5s between wikis — safe margin against rate limiting
     }
 
     logger.info(`[Liquipedia] Total: ${matchesFound} upcoming matches across all wikis`);
