@@ -21,8 +21,8 @@ export function initCronJobs(): void {
     }
   });
 
-  // ── Every 30 minutes: sync AoE event calendar + scrape Liquipedia matches ─
-  cron.schedule('*/30 * * * *', async () => {
+  // ── Every 15 minutes: sync AoE event calendar + scrape Liquipedia matches ─
+  cron.schedule('*/15 * * * *', async () => {
     try {
       await syncAoeEventCalendar(); // tournament discovery with game tags
       await scrapeUpcomingMatches(); // individual match scraping from Liquipedia

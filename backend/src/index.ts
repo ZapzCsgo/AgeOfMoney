@@ -168,20 +168,7 @@ startMatchVerifier();
 // Start Liquipedia live scorer (polls wikitext every 60s for tournament BO scores)
 startLiquipediaLiveScorer();
 
-// Trigger Liquipedia scrape on startup (non-blocking)
-// Game + tier are now set dynamically by the scraper itself — no post-fix needed
-(async () => {
-  try {
-    logger.info('[Startup] Triggering Liquipedia scrape...');
-    const { syncAoeEventCalendar } = await import('./scrapers/aoeEventCalendarScraper');
-    const { scrapeUpcomingMatches } = await import('./scrapers/liquipediaScraper');
-    await syncAoeEventCalendar();
-    await scrapeUpcomingMatches();
-    logger.info('[Startup] Liquipedia scrape complete');
-  } catch (err) {
-    logger.error('[Startup] Liquipedia scrape failed:', err);
-  }
-})();
+// Startup scrape is handled by jobs.ts setImmediate — no duplicate needed here
 
 
 const PORT = parseInt(process.env.PORT || '4000', 10);
