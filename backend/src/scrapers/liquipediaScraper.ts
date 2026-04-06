@@ -267,25 +267,76 @@ export async function scrapeUpcomingMatches(): Promise<void> {
         const correctGame = detectGame(m.tournamentUrl, m.tournamentName, m.game);
         const correctTier = scrapedTier ?? guessTierFallback(m.tournamentName);
 
-        const tournament = await prisma.tournament.upsert({
-          where: { liquipediaUrl: m.tournamentUrl },
-          update: {
-            ...(m.tournamentName !== 'Unknown Tournament' ? { name: m.tournamentName } : {}),
-            game: correctGame,
-            tier: correctTier,
-            isActive: true,
-            ...(twitchChannel ? { twitchChannel } : {}),
-          },
-          create: {
-            name: m.tournamentName,
-            game: correctGame,
-            tier: correctTier,
-            liquipediaUrl: m.tournamentUrl,
-            startDate: m.scheduledAt,
-            isActive: true,
-            twitchChannel,
-          },
-        });
+        // ── Tournament deduplication ───────────────────────────────────────────
+        // The AoE event calendar creates tournaments with guessed URLs before the
+        // Liquipedia scraper finds the real URL. We detect this case by looking for
+        // a same-game tournament whose name is a substring of (or contains) ours.
+        // When found, we fix its URL to the real one rather than creating a duplicate.
+        let tournament = existingTourn
+          ? await prisma.tournament.findUnique({ where: { liquipediaUrl: m.tournamentUrl } })
+          : null;
+
+        if (!tournament) {
+          const normalizeName = (n: string) =>
+            n.toLowerCase()
+              .replace(/\s*(age of empires|aoe)\s*(iv|ii|iii|[1-4]|mythology|retold)[\s:]*/gi, ' ')
+              .replace(/\s*-\s*(playoffs?|group\s*[a-z]?|qualifiers?|round\s*\d+|season\s*\d+).*$/i, '')
+              .replace(/\s+/g, ' ').trim();
+
+          const myNorm = normalizeName(m.tournamentName);
+          const candidates = await prisma.tournament.findMany({
+            where: {
+              game: correctGame,
+              startDate: { gte: new Date(Date.now() - 90 * 24 * 3600 * 1000) },
+              NOT: { liquipediaUrl: m.tournamentUrl },
+            },
+            select: { id: true, name: true, liquipediaUrl: true },
+          });
+
+          const duplicate = candidates.find(c => {
+            const cNorm = normalizeName(c.name);
+            return myNorm === cNorm || myNorm.startsWith(cNorm) || cNorm.startsWith(myNorm);
+          });
+
+          if (duplicate) {
+            // Merge: update the stale record with the real Liquipedia URL + authoritative data
+            logger.info(`[Liquipedia] Merging duplicate tournament "${duplicate.name}" → "${m.tournamentName}"`);
+            tournament = await prisma.tournament.update({
+              where: { id: duplicate.id },
+              data: {
+                liquipediaUrl: m.tournamentUrl,
+                name: m.tournamentName,
+                game: correctGame,
+                tier: correctTier,
+                isActive: true,
+                ...(twitchChannel ? { twitchChannel } : {}),
+              },
+            });
+          } else {
+            tournament = await prisma.tournament.create({
+              data: {
+                name: m.tournamentName,
+                game: correctGame,
+                tier: correctTier,
+                liquipediaUrl: m.tournamentUrl,
+                startDate: m.scheduledAt,
+                isActive: true,
+                twitchChannel,
+              },
+            });
+          }
+        } else {
+          tournament = await prisma.tournament.update({
+            where: { liquipediaUrl: m.tournamentUrl },
+            data: {
+              ...(m.tournamentName !== 'Unknown Tournament' ? { name: m.tournamentName } : {}),
+              game: correctGame,
+              tier: correctTier,
+              isActive: true,
+              ...(twitchChannel ? { twitchChannel } : {}),
+            },
+          });
+        }
 
         const p1 = await prisma.player.upsert({
           where: { liquipediaSlug: m.player1Slug },
