@@ -168,6 +168,47 @@ startMatchVerifier();
 // Start Liquipedia live scorer (polls wikitext every 60s for tournament BO scores)
 startLiquipediaLiveScorer();
 
+// One-time startup fix: correct tournament game fields based on Liquipedia URL + name patterns
+(async () => {
+  try {
+    const nameToGame = (name: string): string | null => {
+      const n = name.toLowerCase();
+      // Clear AoE2 tournaments
+      if (n.includes('homestead') || n.includes('epohers') || n.includes('king of the desert') ||
+          n.includes('kotd') || n.includes('daut') || n.includes('mbl') || n.includes('viper') ||
+          n.includes('hera') || n.includes('t90') || n.includes('over the top') ||
+          n.includes('aoe ii') || n.includes('aoe2') || n.includes('age of empires ii') ||
+          n.includes('age ii') || n.includes('elite classic')) return 'AoE2';
+      // AoE4 with explicit label
+      if (n.includes('age of empires iv') || n.includes('aoe4') || n.includes('age iv') ||
+          n.includes('world team league') || n.includes('wtl') || n.includes('quarterly')) return 'AoE4';
+      // AoM
+      if (n.includes('age of mythology') || n.includes('aom') || n.includes('mytholog')) return 'AoM';
+      // AoE3
+      if (n.includes('age of empires iii') || n.includes('aoe3') || n.includes('age iii')) return 'AoE3';
+      return null;
+    };
+    const urlToGame = (url: string): string | null => {
+      if (url.includes('/ageofempires2/'))  return 'AoE2';
+      if (url.includes('/ageofempires3/'))  return 'AoE3';
+      if (url.includes('/ageofmythology/')) return 'AoM';
+      return null; // /ageofempires/ alone is ambiguous — use name instead
+    };
+    const all = await prisma.tournament.findMany({ select: { id: true, name: true, liquipediaUrl: true, game: true } });
+    let fixed = 0;
+    for (const t of all) {
+      const correct = urlToGame(t.liquipediaUrl) ?? nameToGame(t.name);
+      if (correct && t.game !== correct) {
+        await prisma.tournament.update({ where: { id: t.id }, data: { game: correct } });
+        fixed++;
+      }
+    }
+    if (fixed > 0) logger.info(`[Startup] Fixed game field for ${fixed} tournaments`);
+  } catch (err) {
+    logger.error('[Startup] Tournament game fix failed:', err);
+  }
+})();
+
 const PORT = parseInt(process.env.PORT || '4000', 10);
 
 httpServer.listen(PORT, () => {
