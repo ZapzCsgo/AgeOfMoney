@@ -328,7 +328,7 @@ router.post('/scrapers/run', async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // Other scrapers run fully in background
+    // Other scrapers run fully in background — also fix game fields while we're at it
     res.json({ message: `Scraper ${source} triggered successfully` });
 
     if (source === 'tournaments') {
@@ -347,6 +347,30 @@ router.post('/scrapers/run', async (req: Request, res: Response): Promise<void> 
   } catch (error) {
     logger.error('POST /admin/scrapers/run error:', error);
     res.status(500).json({ error: 'Failed to trigger scraper' });
+  }
+});
+
+// POST /admin/fix-tournament-games — one-time fix: derive game from liquipediaUrl
+router.post('/fix-tournament-games', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const tournaments = await prisma.tournament.findMany({ select: { id: true, liquipediaUrl: true, game: true } });
+    const urlToGame = (url: string): string => {
+      if (url.includes('/ageofempires2/'))  return 'AoE2';
+      if (url.includes('/ageofempires3/'))  return 'AoE3';
+      if (url.includes('/ageofmythology/')) return 'AoM';
+      return 'AoE4';
+    };
+    let fixed = 0;
+    for (const t of tournaments) {
+      const correct = urlToGame(t.liquipediaUrl);
+      if (t.game !== correct) {
+        await prisma.tournament.update({ where: { id: t.id }, data: { game: correct } });
+        fixed++;
+      }
+    }
+    res.json({ ok: true, total: tournaments.length, fixed });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
   }
 });
 
