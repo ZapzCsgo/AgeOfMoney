@@ -35,8 +35,8 @@ export default function MaintenancePage() {
         </h1>
 
         <p style={{ color: '#6b6488', fontSize: '0.95rem', lineHeight: 1.6 }}>
-          Le site est en cours de construction.<br />
-          Revenez bientôt.
+          The site is currently under maintenance.<br />
+          We'll be back soon.
         </p>
 
         <div
