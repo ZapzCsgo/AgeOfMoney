@@ -751,7 +751,7 @@ export default function RoulettePage() {
             <div className="px-6 pt-4 pb-0 flex items-center gap-2">
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold"
                 style={{ background: fairnessRound?.source === 'random.org' ? 'rgba(52,211,153,0.1)' : 'rgba(99,102,241,0.1)', border: `1px solid ${fairnessRound?.source === 'random.org' ? '#34d39940' : '#6366f140'}`, color: fairnessRound?.source === 'random.org' ? '#34d399' : '#818cf8' }}>
-                {fairnessRound?.source === 'random.org' ? '✓ random.org' : fairnessRound?.source === 'crypto' ? '✓ crypto fallback' : '⏳ result pending'}
+                {fairnessRound?.source === 'random.org' ? '✓ random.org' : fairnessRound?.source === 'crypto' ? '✓ crypto fallback' : 'result pending'}
               </div>
             </div>
 
