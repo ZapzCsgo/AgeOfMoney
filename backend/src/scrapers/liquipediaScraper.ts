@@ -214,6 +214,7 @@ export async function scrapeUpcomingMatches(): Promise<void> {
           where: { liquipediaUrl: m.tournamentUrl },
           update: {
             ...(m.tournamentName !== 'Unknown Tournament' ? { name: m.tournamentName } : {}),
+            game: m.game,
             isActive: true,
             ...(twitchChannel ? { twitchChannel } : {}),
           },
