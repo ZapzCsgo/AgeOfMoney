@@ -401,15 +401,7 @@ export default function RoulettePage() {
 
           {/* Status bar */}
           <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom:'1px solid #1e1a30' }}>
-            <div className="flex items-center gap-2">
-              {(isSpinning || isResult) && <div className={cn('w-2 h-2 rounded-full', isSpinning ? 'bg-amber-400 animate-pulse' : 'bg-[#3d3860]')} />}
-              {(isSpinning || isResult) && (
-                <span className="text-[12px] font-medium"
-                  style={{ color: isSpinning ? '#fbbf24' : winZone ? ZONES[winZone].color : '#9990b8' }}>
-                  {isSpinning ? 'WOLOLO...' : isResult && winZone ? `${zoneLabel(winZone)} ×${ZONES[winZone].multiplier}` : ''}
-                </span>
-              )}
-            </div>
+            <div />
             <div className="flex items-center gap-3">
               <button onClick={() => setShowFairness(true)}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium hover:opacity-80 transition-opacity"
