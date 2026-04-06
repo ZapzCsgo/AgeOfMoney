@@ -49,6 +49,17 @@ export function initCronJobs(): void {
     }
   });
 
+  // ── Once a day at 3am: fetch missing player avatars from Liquipedia ─────────
+  // Kept separate so avatar fetching never risks blocking the main scrape IP.
+  cron.schedule('0 3 * * *', async () => {
+    try {
+      const { fetchPlayersAvatars } = await import('../scrapers/liquipediaScraper');
+      await fetchPlayersAvatars();
+    } catch (err) {
+      logger.error('[CRON] avatar fetch failed:', err);
+    }
+  });
+
   // ── Every 6 hours: AI H2H enrichment for sparse pairs ────────────────────
   cron.schedule('0 */6 * * *', async () => {
     try {

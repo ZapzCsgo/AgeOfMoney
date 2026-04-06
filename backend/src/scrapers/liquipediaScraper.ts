@@ -23,6 +23,26 @@ function sleep(ms: number) {
 }
 
 /**
+ * Fetch missing player avatars from Liquipedia — run once a day, not during main scrape.
+ * Processes max 20 players per run to stay well under rate limits.
+ */
+export async function fetchPlayersAvatars(): Promise<void> {
+  const players = await prisma.player.findMany({
+    where: { avatarUrl: null },
+    select: { id: true, liquipediaSlug: true },
+    take: 20,
+  });
+  for (const player of players) {
+    const avatarUrl = await fetchLiquipediaPlayerAvatar(player.liquipediaSlug);
+    if (avatarUrl) {
+      await prisma.player.update({ where: { id: player.id }, data: { avatarUrl } });
+      logger.info(`[Liquipedia] Avatar saved for ${player.liquipediaSlug}`);
+    }
+    await sleep(2000);
+  }
+}
+
+/**
  * Scrape a player's Liquipedia page to get their profile photo.
  * Rate-limited — only call if avatarUrl is null.
  */
@@ -250,16 +270,15 @@ export async function scrapeUpcomingMatches(): Promise<void> {
           select: { id: true, twitchChannel: true, game: true, tier: true },
         });
 
-        // Fetch tournament page when: new tournament, missing twitch channel, or tier never
-        // properly set (still at default 'C' from a previous guess). This caches result in DB
-        // so we only hit Liquipedia once per tournament.
+        // Only fetch the tournament page when it's brand new (never seen before).
+        // blockTier from the match block HTML is sufficient for tier on known tournaments.
+        // This keeps Liquipedia request count minimal — 4 main pages + 1 per new tournament.
         let twitchChannel = existingTourn?.twitchChannel ?? null;
-        let scrapedTier: string | null = m.blockTier; // use tier from match block if present
-        const needsPageFetch = m.tournamentUrl.includes('liquipedia.net') &&
-          (!existingTourn || !twitchChannel || !scrapedTier);
-        if (needsPageFetch) {
+        let scrapedTier: string | null = m.blockTier;
+        const isNewTournament = !existingTourn && m.tournamentUrl.includes('liquipedia.net');
+        if (isNewTournament) {
           const info = await fetchTournamentInfo(m.tournamentUrl);
-          twitchChannel = info.twitchChannel ?? twitchChannel;
+          twitchChannel = info.twitchChannel ?? null;
           scrapedTier   = info.tier ?? scrapedTier;
         }
 
@@ -418,20 +437,6 @@ export async function scrapeUpcomingMatches(): Promise<void> {
     });
 
     logger.info(`[Liquipedia] Done: ${matchesFound} found, ${matchesSaved} new saved`);
-
-    // ── Fetch Liquipedia avatars for players without one ──────────────────────
-    const playersWithoutAvatar = await prisma.player.findMany({
-      where: { avatarUrl: null },
-      select: { id: true, liquipediaSlug: true },
-      take: 10, // process max 10 per scrape cycle to avoid hammering Liquipedia
-    });
-    for (const player of playersWithoutAvatar) {
-      const avatarUrl = await fetchLiquipediaPlayerAvatar(player.liquipediaSlug);
-      if (avatarUrl) {
-        await prisma.player.update({ where: { id: player.id }, data: { avatarUrl } });
-        logger.info(`[Liquipedia] Avatar saved for ${player.liquipediaSlug}`);
-      }
-    }
 
     // ── Trigger aoe4world enrichment in background (stats + H2H odds) ────────
     enrichAllUpcomingMatches().catch(err =>
