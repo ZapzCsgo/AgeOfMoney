@@ -240,6 +240,17 @@ export async function scrapeUpcomingMatches(): Promise<void> {
           create: { name: m.player2, liquipediaSlug: m.player2Slug, country: m.player2Country || null, elo: 1500 },
         });
 
+        // Skip if a COMPLETED match already exists for these players in this tournament (any time)
+        const completedMatch = await prisma.match.findFirst({
+          where: {
+            OR: [{ player1Id: p1.id, player2Id: p2.id }, { player1Id: p2.id, player2Id: p1.id }],
+            tournamentId: tournament.id,
+            status: 'COMPLETED',
+          },
+        });
+        if (completedMatch) continue;
+
+        // Skip if an UPCOMING/LIVE match already exists within ±2h window
         const windowStart = new Date(m.scheduledAt.getTime() - 2 * 3600 * 1000);
         const windowEnd   = new Date(m.scheduledAt.getTime() + 2 * 3600 * 1000);
         const existing = await prisma.match.findFirst({

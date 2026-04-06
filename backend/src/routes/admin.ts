@@ -350,6 +350,40 @@ router.post('/scrapers/run', async (req: Request, res: Response): Promise<void> 
   }
 });
 
+// POST /admin/fix-duplicate-matches — remove UPCOMING duplicates when a COMPLETED match exists
+router.post('/fix-duplicate-matches', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const completed = await prisma.match.findMany({
+      where: { status: 'COMPLETED' },
+      select: { id: true, player1Id: true, player2Id: true, tournamentId: true },
+    });
+    let deleted = 0;
+    for (const c of completed) {
+      const dupes = await prisma.match.findMany({
+        where: {
+          id: { not: c.id },
+          OR: [
+            { player1Id: c.player1Id, player2Id: c.player2Id },
+            { player1Id: c.player2Id, player2Id: c.player1Id },
+          ],
+          tournamentId: c.tournamentId,
+          status: { in: ['UPCOMING', 'LIVE'] },
+        },
+        select: { id: true },
+      });
+      if (dupes.length > 0) {
+        const ids = dupes.map(d => d.id);
+        await prisma.bet.deleteMany({ where: { matchId: { in: ids } } });
+        await prisma.match.deleteMany({ where: { id: { in: ids } } });
+        deleted += dupes.length;
+      }
+    }
+    res.json({ ok: true, deletedDuplicates: deleted });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 // POST /admin/fix-tournament-games — one-time fix: derive game from liquipediaUrl
 router.post('/fix-tournament-games', async (_req: Request, res: Response): Promise<void> => {
   try {
