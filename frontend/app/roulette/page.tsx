@@ -259,12 +259,36 @@ export default function RoulettePage() {
     if (!selectedZone) { showMsg('error', t('bet_err_select')); return; }
     const amount = parseInt(betAmount);
     if (!amount || amount < 1) { showMsg('error', t('bet_err_min')); return; }
-    setBetAmount(''); // instant feedback — fire-and-forget
+    setBetAmount('');
+
+    // Optimistic update — show bet instantly before server confirms
+    const userId = (session.user as { id?: string })?.id ?? '';
+    const username = session.user?.name ?? '';
+    const avatar = session.user?.image ?? null;
+    setRound(prev => {
+      if (!prev) return prev;
+      const existing = prev.bets.find(b => b.user.id === userId && b.zone === selectedZone);
+      if (existing) {
+        return { ...prev, bets: prev.bets.map(b => b.user.id === userId && b.zone === selectedZone ? { ...b, amount: b.amount + amount } : b) };
+      }
+      const optimisticBet: RoundBet = { id: `optimistic-${Date.now()}`, zone: selectedZone, amount, user: { id: userId, username, avatar } };
+      return { ...prev, bets: [optimisticBet, ...prev.bets] };
+    });
+
     apiClient.post('/roulette/bet', { zone: selectedZone, amount })
       .catch((e: unknown) => {
         const err = e as { response?: { data?: { error?: string } } };
         showMsg('error', err?.response?.data?.error ?? t('common_error'));
-        setBetAmount(String(amount)); // restore amount on error
+        setBetAmount(String(amount));
+        // Rollback optimistic update
+        setRound(prev => {
+          if (!prev) return prev;
+          const existing = prev.bets.find(b => b.user.id === userId && b.zone === selectedZone && !b.id.startsWith('optimistic'));
+          if (existing) {
+            return { ...prev, bets: prev.bets.map(b => b.user.id === userId && b.zone === selectedZone ? { ...b, amount: b.amount - amount } : b) };
+          }
+          return { ...prev, bets: prev.bets.filter(b => b.id !== `optimistic-${Date.now()}`) };
+        });
       });
   }
 

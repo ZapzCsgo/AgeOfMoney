@@ -164,37 +164,29 @@ async function resolveRound(roundId: string, winZone: string, multiplier: number
 export async function placeBet(userId: string, zone: Zone, amount: number): Promise<{ ok: boolean; error?: string }> {
   if (!currentRoundId) return { ok: false, error: 'No active round' };
 
-  const round = await prisma.rouletteRound.findUnique({ where: { id: currentRoundId } });
-  if (!round || round.status !== 'BETTING') return { ok: false, error: 'Betting is closed' };
-
   if (amount < 1 || amount > 100_000) return { ok: false, error: 'Invalid amount' };
 
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { coins: true, isBanned: true } });
+  // Run all 3 validation queries in parallel
+  const [round, user, existing] = await Promise.all([
+    prisma.rouletteRound.findUnique({ where: { id: currentRoundId } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { coins: true, isBanned: true } }),
+    prisma.rouletteBet.findFirst({ where: { roundId: currentRoundId, userId, zone } }),
+  ]);
+
+  if (!round || round.status !== 'BETTING') return { ok: false, error: 'Betting is closed' };
   if (!user) return { ok: false, error: 'User not found' };
   if (user.isBanned) return { ok: false, error: 'Account banned' };
   if (user.coins < amount) return { ok: false, error: 'Insufficient coins' };
-
-  // Check if already bet on this zone this round
-  const existing = await prisma.rouletteBet.findFirst({
-    where: { roundId: currentRoundId, userId, zone },
-  });
-  if (existing) {
-    // Add to existing bet
-    await prisma.rouletteBet.update({
-      where: { id: existing.id },
-      data: { amount: { increment: amount } },
-    });
-  } else {
-    await prisma.rouletteBet.create({
-      data: { roundId: currentRoundId, userId, zone, amount },
-    });
-  }
-
-  const updatedUser = await prisma.user.update({
-    where: { id: userId },
-    data: { coins: { decrement: amount }, totalWagered: { increment: amount } },
-    select: { coins: true },
-  });
+  const [, updatedUser] = await Promise.all([
+    existing
+      ? prisma.rouletteBet.update({ where: { id: existing.id }, data: { amount: { increment: amount } } })
+      : prisma.rouletteBet.create({ data: { roundId: currentRoundId, userId, zone, amount } }),
+    prisma.user.update({
+      where: { id: userId },
+      data: { coins: { decrement: amount }, totalWagered: { increment: amount } },
+      select: { coins: true },
+    }),
+  ]);
 
   // Broadcast updated bets
   const io = getIo();
