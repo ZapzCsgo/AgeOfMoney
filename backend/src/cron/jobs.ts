@@ -205,7 +205,7 @@ async function recalcActiveMatchOdds(): Promise<void> {
 
   for (const match of activeMatches) {
     try {
-      const h2h = await getPlayerH2HFromHistory(match.player1.id, match.player2.id);
+      const h2h = await getPlayerH2HFromHistory(match.player1.id, match.player2.id, match.game);
       const modelOdds = calculateOddsFromPlayers(match.player1, match.player2, h2h);
 
       const modelChanged = Math.abs(modelOdds.odds1 - match.odds1) > 0.005 || Math.abs(modelOdds.odds2 - match.odds2) > 0.005;

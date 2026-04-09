@@ -595,25 +595,39 @@ export async function enrichMatchWithH2H(matchId: string): Promise<void> {
   const profile1 = buildProfile(dbStats1, match.player1);
   const profile2 = buildProfile(dbStats2, match.player2);
 
-  // ── 3. Ensure both players have aoe4world history seeded ────────────────────
-  // For new players (0 records), seed their pro match history from aoe4world H2H data
-  // before computing odds so we have real data to work with.
+  // ── 3. Ensure both players have history seeded ─────────────────────────────
+  // For AoE4 matches: seed from aoe4world (only AoE4 data exists there).
+  // For non-AoE4 matches (AoE2/AoM/AoE3): seed from Claude AI — aoe4world has no data.
   {
     const [p1Count, p2Count] = await Promise.all([
-      prisma.playerMatchRecord.count({ where: { playerId: match.player1Id } }),
-      prisma.playerMatchRecord.count({ where: { playerId: match.player2Id } }),
+      prisma.playerMatchRecord.count({ where: { playerId: match.player1Id, game: match.game } }),
+      prisma.playerMatchRecord.count({ where: { playerId: match.player2Id, game: match.game } }),
     ]);
-    if (p1Count === 0 && match.player1.aoe4worldId) {
-      logger.info(`[Enrich] New player ${match.player1.name} — seeding match history`);
-      const { seedPlayerHistoryFromAoe4World } = await import('./aoe4worldPlayerHistorySeeder');
-      const proIds = await buildProPlayerSet();
-      await seedPlayerHistoryFromAoe4World(match.player1Id, match.player1.name, match.player1.aoe4worldId, proIds).catch(() => {});
-    }
-    if (p2Count === 0 && match.player2.aoe4worldId) {
-      logger.info(`[Enrich] New player ${match.player2.name} — seeding match history`);
-      const { seedPlayerHistoryFromAoe4World } = await import('./aoe4worldPlayerHistorySeeder');
-      const proIds = await buildProPlayerSet();
-      await seedPlayerHistoryFromAoe4World(match.player2Id, match.player2.name, match.player2.aoe4worldId, proIds).catch(() => {});
+
+    if (match.game === 'AoE4') {
+      if (p1Count === 0 && match.player1.aoe4worldId) {
+        logger.info(`[Enrich] New AoE4 player ${match.player1.name} — seeding from aoe4world`);
+        const { seedPlayerHistoryFromAoe4World } = await import('./aoe4worldPlayerHistorySeeder');
+        const proIds = await buildProPlayerSet();
+        await seedPlayerHistoryFromAoe4World(match.player1Id, match.player1.name, match.player1.aoe4worldId, proIds).catch(() => {});
+      }
+      if (p2Count === 0 && match.player2.aoe4worldId) {
+        logger.info(`[Enrich] New AoE4 player ${match.player2.name} — seeding from aoe4world`);
+        const { seedPlayerHistoryFromAoe4World } = await import('./aoe4worldPlayerHistorySeeder');
+        const proIds = await buildProPlayerSet();
+        await seedPlayerHistoryFromAoe4World(match.player2Id, match.player2.name, match.player2.aoe4worldId, proIds).catch(() => {});
+      }
+    } else {
+      // Non-AoE4 → use Claude AI history scraper (aoe4world has no AoE2/AoM/AoE3 data)
+      const { enrichPlayerWithAI } = await import('./aiPlayerHistoryScraper');
+      if (p1Count === 0) {
+        logger.info(`[Enrich] New ${match.game} player ${match.player1.name} — seeding from Claude AI`);
+        await enrichPlayerWithAI(match.player1Id, match.player1.name, false, match.game).catch(() => {});
+      }
+      if (p2Count === 0) {
+        logger.info(`[Enrich] New ${match.game} player ${match.player2.name} — seeding from Claude AI`);
+        await enrichPlayerWithAI(match.player2Id, match.player2.name, false, match.game).catch(() => {});
+      }
     }
   }
 
@@ -623,7 +637,7 @@ export async function enrichMatchWithH2H(matchId: string): Promise<void> {
   // Priority 1: AI-stored tournament match records (Liquipedia + esport history)
   {
     const { getPlayerH2HFromHistory } = await import('./aiPlayerHistoryScraper');
-    const aiH2H = await getPlayerH2HFromHistory(match.player1Id, match.player2Id);
+    const aiH2H = await getPlayerH2HFromHistory(match.player1Id, match.player2Id, match.game);
     if (aiH2H.length > 0) {
       h2hRecent = aiH2H.slice(0, 20).map(r => ({ winner: r.winner }));
       logger.debug(`[Odds] H2H from AI tournament records: ${aiH2H.length} games for ${match.player1.name} vs ${match.player2.name}`);

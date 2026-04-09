@@ -40,6 +40,7 @@ model Player {
   name             String    @unique
   liquipediaSlug   String    @unique
   aoe4worldId      String?
+  game             String    @default("AoE4") // "AoE4" | "AoE2" | "AoE3" | "AoM" | "AoE1"
   elo              Int       @default(1000)
   winrate          Float     @default(0.5)
   country          String?
@@ -65,6 +66,7 @@ model PlayerMatchRecord {
   opponentName   String
   opponentId     String?
   opponent       Player?   @relation("OpponentHistory", fields: [opponentId], references: [id])
+  game           String    @default("AoE4") // "AoE4" | "AoE2" | "AoE3" | "AoM" | "AoE1"
   won            Boolean
   score          String?   // "3-1" from this player's perspective
   tournamentName String
@@ -78,6 +80,7 @@ model PlayerMatchRecord {
   @@unique([playerId, opponentName, tournamentName, matchDate])
   @@index([playerId])
   @@index([opponentId])
+  @@index([playerId, game])
 }
 
 model Tournament {

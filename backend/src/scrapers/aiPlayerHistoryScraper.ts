@@ -183,6 +183,7 @@ async function storePlayerHistory(
   playerName: string,
   matches: AIPlayerMatch[],
   nameMap: Map<string, string>,
+  game = 'AoE4',
 ): Promise<number> {
   let stored = 0;
 
@@ -213,6 +214,7 @@ async function storePlayerHistory(
           playerId,
           opponentName: match.opponent,
           opponentId: opponentId ?? undefined,
+          game,
           won: match.won,
           score: match.score ?? null,
           tournamentName: match.tournament,
@@ -223,6 +225,7 @@ async function storePlayerHistory(
           confidence: match.confidence,
         },
         update: {
+          game,
           won: match.won,
           score: match.score ?? null,
           opponentId: opponentId ?? undefined,
@@ -252,10 +255,10 @@ export async function enrichPlayerWithAI(
 
   if (!force) {
     const existing = await prisma.playerMatchRecord.count({
-      where: { playerId },
+      where: { playerId, game },
     });
     if (existing >= MIN_RECORDS_BEFORE_SKIP) {
-      logger.debug(`[AI History] Skipping ${playerName} — already has ${existing} total records`);
+      logger.debug(`[AI History] Skipping ${playerName} — already has ${existing} ${game} records`);
       return existing;
     }
   }
@@ -264,12 +267,17 @@ export async function enrichPlayerWithAI(
   const response = await queryPlayerHistory(playerName, game);
 
   if (!response || !response.matches?.length) {
-    logger.info(`[AI History] No data from Claude for ${playerName}`);
+    logger.info(`[AI History] No ${game} data from Claude for ${playerName}`);
     return 0;
   }
 
   const nameMap = await buildPlayerNameMap();
-  const stored = await storePlayerHistory(playerId, playerName, response.matches, nameMap);
+  const stored = await storePlayerHistory(playerId, playerName, response.matches, nameMap, game);
+
+  // Tag the player with the game we just successfully enriched them in
+  if (stored > 0) {
+    await prisma.player.update({ where: { id: playerId }, data: { game } }).catch(() => {});
+  }
 
   logger.info(
     `[AI History] ${playerName}: stored ${stored}/${response.matches.length} matches` +
@@ -322,6 +330,7 @@ export async function enrichAllProPlayers(force = false): Promise<void> {
 export async function getPlayerH2HFromHistory(
   player1Id: string,
   player2Id: string,
+  game?: string,
 ): Promise<{ winner: 1 | 2; confidence: number }[]> {
   // Get player names for cross-matching
   const [p1, p2] = await Promise.all([
@@ -330,9 +339,12 @@ export async function getPlayerH2HFromHistory(
   ]);
   if (!p1 || !p2) return [];
 
+  const gameFilter = game ? { game } : {};
+
   // Records where opponentId is resolved
   const byId = await prisma.playerMatchRecord.findMany({
     where: {
+      ...gameFilter,
       OR: [
         { playerId: player1Id, opponentId: player2Id },
         { playerId: player2Id, opponentId: player1Id },
@@ -349,6 +361,7 @@ export async function getPlayerH2HFromHistory(
 
   const byName = await prisma.playerMatchRecord.findMany({
     where: {
+      ...gameFilter,
       opponentId: null, // only unresolved ones
       OR: [
         {
