@@ -94,6 +94,11 @@ function MatchRow({ match }: { match: Match }) {
             <span className="text-[#4a4570] font-cinzel text-xs tracking-widest">VS</span>
           )}
           <div className="flex items-center gap-1 text-[10px] text-[#6b6488]">
+            {match.game && match.game !== 'AoE4' && (
+              <span className="text-[#d4a017]/70 font-cinzel border border-[#d4a017]/20 rounded px-1 py-px mr-1">
+                {match.game}
+              </span>
+            )}
             {isCompleted ? (
               <span className="font-cinzel">{t('matches_finished')}</span>
             ) : betClosed ? (

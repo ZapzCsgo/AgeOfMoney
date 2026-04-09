@@ -304,9 +304,12 @@ function parseMatchBlocks(html: string, wikiPath: string, game: string): Array<{
       const player1Country = leftEl.find('.flag img').first().attr('alt') || '';
       const player2Country = rightEl.find('.flag img').first().attr('alt') || '';
 
-      const tournEl        = $(el).find('.match-info-tournament a').first();
-      const tournamentName = tournEl.text().trim() || 'Unknown Tournament';
-      const tournPath      = tournEl.attr('href') || '';
+      // MediaWiki API HTML nests the name in .match-info-tournament-name a;
+      // the old selector .match-info-tournament a hit the icon link (empty text).
+      const tournEl        = $(el).find('.match-info-tournament-name a').first();
+      const tournElFallback = tournEl.length ? tournEl : $(el).find('.match-info-tournament a').first();
+      const tournamentName = tournElFallback.text().trim() || 'Unknown Tournament';
+      const tournPath      = tournElFallback.attr('href') || '';
       const tournamentUrl  = tournPath.startsWith('http') ? tournPath : `https://liquipedia.net${tournPath}`;
 
       const scoreLower = $(el).find('.match-info-header-scoreholder-lower').first().text().trim();

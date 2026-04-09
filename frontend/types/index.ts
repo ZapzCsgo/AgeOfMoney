@@ -78,6 +78,7 @@ export interface Match {
   player2: Player;
   tournamentId?: string | null;
   tournament?: (Tournament & { twitchChannel?: string | null }) | null;
+  game?: string;
   format: string;
   scheduledAt: string;
   status: MatchStatus;
