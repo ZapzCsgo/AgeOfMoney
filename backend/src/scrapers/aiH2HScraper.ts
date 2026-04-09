@@ -97,13 +97,68 @@ Respond ONLY with a JSON object in this exact format (no markdown, no explanatio
   }
 }
 
+// ─── Sentinel-based credit cache for H2H pairs ────────────────────────────
+// Same idea as the per-player sentinel in aiPlayerHistoryScraper: insert a
+// magic H2HRecord row to mark "we already called Claude for this pair", so
+// the next cron tick doesn't burn another credit when Claude returned 0.
+const H2H_SENTINEL_TOURN = '__claude_h2h_attempted__';
+const h2hSentinelDate = new Date('1970-01-01T00:00:00Z');
+
+async function hasH2HBeenAttempted(player1Id: string, player2Id: string): Promise<boolean> {
+  try {
+    const sentinel = await prisma.h2HRecord.findFirst({
+      where: {
+        tournamentName: H2H_SENTINEL_TOURN,
+        OR: [
+          { player1Id, player2Id },
+          { player1Id: player2Id, player2Id: player1Id },
+        ],
+      },
+      select: { id: true },
+    });
+    return !!sentinel;
+  } catch {
+    return false;
+  }
+}
+
+async function markH2HAttempted(player1Id: string, player2Id: string): Promise<void> {
+  // Always sort player IDs so we don't double-mark (a,b) and (b,a)
+  const [p1, p2] = [player1Id, player2Id].sort();
+  try {
+    await prisma.h2HRecord.upsert({
+      where: {
+        player1Id_player2Id_tournamentName_matchDate: {
+          player1Id: p1,
+          player2Id: p2,
+          tournamentName: H2H_SENTINEL_TOURN,
+          matchDate: h2hSentinelDate,
+        },
+      },
+      create: {
+        player1Id: p1,
+        player2Id: p2,
+        winnerId: p1, // arbitrary, the row is excluded from real queries
+        tournamentName: H2H_SENTINEL_TOURN,
+        matchDate: h2hSentinelDate,
+        confidence: 0,
+        source: 'cache',
+      },
+      update: { confidence: 0 },
+    });
+  } catch (err) {
+    logger.warn(`[AI H2H] Failed to mark sentinel for ${p1}/${p2}: ${(err as Error)?.message}`);
+  }
+}
+
 /**
- * Check if we already have enough AI records for this pair.
+ * Check if we already have real AI records for this pair (excludes sentinel).
  */
 async function existingAiRecordCount(player1Id: string, player2Id: string): Promise<number> {
   return prisma.h2HRecord.count({
     where: {
       source: 'ai',
+      NOT: { tournamentName: H2H_SENTINEL_TOURN },
       OR: [
         { player1Id, player2Id },
         { player1Id: player2Id, player2Id: player1Id },
@@ -198,18 +253,27 @@ export async function enrichH2HWithAI(
 
   if (currentH2HCount >= MIN_H2H_THRESHOLD) return result;
 
-  // Check if we already fetched AI data for this pair
+  // Sentinel check — never re-call Claude for the same pair, even if it
+  // returned zero matches the first time. The credit is already spent.
+  if (await hasH2HBeenAttempted(player1Id, player2Id)) {
+    return aggregateH2HRecords(player1Id, player2Id);
+  }
+
+  // Also: if we already have real AI records for this pair, no need to retry
   const existing = await existingAiRecordCount(player1Id, player2Id);
   if (existing > 0) {
-    // Already have AI data — just aggregate and return
     return aggregateH2HRecords(player1Id, player2Id);
   }
 
   logger.info(`[AI H2H] Querying Claude for ${player1Name} vs ${player2Name} (only ${currentH2HCount} games in aoe4world)`);
 
   const response = await queryClaudeH2H(player1Name, player2Name);
+
+  // Mark the attempt regardless of result — credit is already spent
+  await markH2HAttempted(player1Id, player2Id);
+
   if (!response || !response.matches?.length) {
-    logger.info(`[AI H2H] No data from Claude for ${player1Name} vs ${player2Name}`);
+    logger.info(`[AI H2H] No data from Claude for ${player1Name} vs ${player2Name} (sentinel set)`);
     return result;
   }
 
@@ -228,6 +292,7 @@ export async function getStoredH2HRecords(
 ): Promise<{ winner: 1 | 2; confidence: number }[]> {
   const records = await prisma.h2HRecord.findMany({
     where: {
+      NOT: { tournamentName: H2H_SENTINEL_TOURN },
       OR: [
         { player1Id, player2Id },
         { player1Id: player2Id, player2Id: player1Id },
@@ -248,6 +313,7 @@ async function aggregateH2HRecords(
 ): Promise<{ player1Wins: number; player2Wins: number; total: number }> {
   const records = await prisma.h2HRecord.findMany({
     where: {
+      NOT: { tournamentName: H2H_SENTINEL_TOURN },
       OR: [
         { player1Id, player2Id },
         { player1Id: player2Id, player2Id: player1Id },
@@ -281,8 +347,10 @@ export async function enrichAllSparseH2H(): Promise<void> {
   logger.info(`[AI H2H] Checking ${upcomingMatches.length} upcoming matches for sparse H2H`);
 
   for (const match of upcomingMatches) {
+    // Skip both: real records already there, OR sentinel set (Claude tried + got nothing)
+    if (await hasH2HBeenAttempted(match.player1Id, match.player2Id)) continue;
     const existing = await existingAiRecordCount(match.player1Id, match.player2Id);
-    if (existing > 0) continue; // already enriched
+    if (existing > 0) continue;
 
     await enrichH2HWithAI(
       match.player1Id,
