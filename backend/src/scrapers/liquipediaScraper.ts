@@ -262,9 +262,10 @@ function parseMatchBlocks(html: string, wikiPath: string, game: string): Array<{
         const t = parseTierFromClass($(el2).attr('class') || '');
         if (t) { blockTier = t; return false; }
       });
-      // If no tier badge in block, fall back to name-based guess
-      const tier = blockTier ?? guessTierFallback(tournamentName);
-      if (!isTierAllowed(tier)) return;
+      // Only filter here when we have a definitive tier from the HTML badge.
+      // When blockTier is null (no badge), let the match through — the real tier
+      // will be resolved from the tournament page during the persist step.
+      if (blockTier && !isTierAllowed(blockTier)) return;
 
       results.push({ player1, player1Slug, player1Country, player2, player2Slug, player2Country, tournamentName, tournamentUrl, scheduledAt, format, game, blockTier });
     } catch { /* skip bad rows */ }
@@ -304,21 +305,27 @@ export async function scrapeUpcomingMatches(): Promise<void> {
           select: { id: true, twitchChannel: true, game: true, tier: true },
         });
 
-        // Only fetch the tournament page when it's brand new (never seen before).
-        // blockTier from the match block HTML is sufficient for tier on known tournaments.
-        // This keeps Liquipedia request count minimal — 4 main pages + 1 per new tournament.
+        // Fetch the tournament page when brand new OR when we have no tier info
+        // (blockTier was null and the tournament isn't in DB yet or has no tier).
         let twitchChannel = existingTourn?.twitchChannel ?? null;
-        let scrapedTier: string | null = m.blockTier;
+        let scrapedTier: string | null = m.blockTier ?? existingTourn?.tier ?? null;
+        const needsTierFetch = !scrapedTier && m.tournamentUrl.includes('liquipedia.net');
         const isNewTournament = !existingTourn && m.tournamentUrl.includes('liquipedia.net');
-        if (isNewTournament) {
+        if (isNewTournament || needsTierFetch) {
           const info = await fetchTournamentInfo(m.tournamentUrl);
-          twitchChannel = info.twitchChannel ?? null;
+          twitchChannel = info.twitchChannel ?? twitchChannel;
           scrapedTier   = info.tier ?? scrapedTier;
         }
 
         // Game from URL is definitive; tier from Liquipedia page is authoritative
         const correctGame = detectGame(m.tournamentUrl, m.tournamentName, m.game);
         const correctTier = scrapedTier ?? guessTierFallback(m.tournamentName);
+
+        // Skip matches from low-tier tournaments (only S and A allowed)
+        if (!isTierAllowed(correctTier)) {
+          logger.debug(`[Liquipedia] Skipping ${m.player1} vs ${m.player2} — tier ${correctTier} (${m.tournamentName})`);
+          continue;
+        }
 
         // ── Tournament deduplication ───────────────────────────────────────────
         // The AoE event calendar creates tournaments with guessed URLs before the
