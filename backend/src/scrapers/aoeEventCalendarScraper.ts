@@ -200,6 +200,22 @@ export async function syncAoeEventCalendar(): Promise<{ name: string; game: stri
   }
   if (fixed > 0) logger.info(`[AoeCalendar] Fixed game field for ${fixed} tournaments`);
 
+  // Self-healing: align match.game with their tournament.game
+  // (old matches were created with the schema default 'AoE4')
+  const mismatched = await prisma.match.findMany({
+    where: { tournament: { isNot: null } },
+    select: { id: true, game: true, tournament: { select: { game: true } } },
+  });
+  let fixedMatches = 0;
+  for (const m of mismatched) {
+    const tg = m.tournament?.game;
+    if (tg && tg !== m.game) {
+      await prisma.match.update({ where: { id: m.id }, data: { game: tg } });
+      fixedMatches++;
+    }
+  }
+  if (fixedMatches > 0) logger.info(`[AoeCalendar] Fixed game field for ${fixedMatches} matches`);
+
   return synced;
 }
 
