@@ -10,12 +10,11 @@ import { prisma } from '../index';
 import logger from '../logger';
 import { enrichAllUpcomingMatches } from './aoe4worldScraper';
 
-// All AoE game wikis to scrape
+// All AoE games share a single Liquipedia upcoming matches page at /ageofempires/.
+// The individual wiki paths (ageofempires2, ageofempires3, ageofmythology) do NOT
+// have their own upcoming matches pages (404). Game detection uses detectGame().
 const GAME_WIKIS: { game: string; wikiPath: string }[] = [
   { game: 'AoE4', wikiPath: 'ageofempires' },
-  { game: 'AoE2', wikiPath: 'ageofempires2' },
-  { game: 'AoE3', wikiPath: 'ageofempires3' },
-  { game: 'AoM',  wikiPath: 'ageofmythology' },
 ];
 
 function sleep(ms: number) {
@@ -62,24 +61,33 @@ async function fetchLiquipediaPlayerAvatar(slug: string): Promise<string | null>
   return img.startsWith('http') ? img : `https://liquipedia.net${img}`;
 }
 
+// Honest User-Agent per Liquipedia policy — identifies the project + contact
+const LP_USER_AGENT = 'AgeOfMoneyBot/1.0 (https://ageof.money; contact@ageof.money)';
+
+/**
+ * Try the MediaWiki API first (action=parse) — this is the officially sanctioned
+ * free endpoint and is far less likely to 403 than raw HTML scraping.
+ * Falls back to direct HTML fetch if the API fails.
+ */
 async function fetchHtml(url: string, retries = 3): Promise<string | null> {
+  // Try MediaWiki API first for Liquipedia pages
+  const mwHtml = await fetchViaMediaWikiApi(url);
+  if (mwHtml) return mwHtml;
+
+  // Fallback: direct HTML fetch
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       const res = await axios.get<string>(url, {
         headers: {
-          // Realistic browser headers — reduces chance of being flagged as a bot
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'User-Agent': LP_USER_AGENT,
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
           'Accept-Language': 'en-US,en;q=0.9',
           'Accept-Encoding': 'gzip, deflate, br',
-          'Cache-Control': 'no-cache',
-          'Referer': 'https://liquipedia.net/',
         },
         decompress: true,
         timeout: 25000,
       });
 
-      // Detect CAPTCHA / block page (Liquipedia returns 200 with a token page)
       if (typeof res.data === 'string' && (
         res.data.includes('captcha') ||
         res.data.includes('token/generate') ||
@@ -87,9 +95,7 @@ async function fetchHtml(url: string, retries = 3): Promise<string | null> {
       )) {
         logger.warn(`[Liquipedia] Blocked/CAPTCHA on ${url} (attempt ${attempt}/${retries})`);
         if (attempt < retries) {
-          const delay = attempt * 30000; // 30s, 60s
-          logger.info(`[Liquipedia] Waiting ${delay / 1000}s before retry...`);
-          await sleep(delay);
+          await sleep(attempt * 30000);
           continue;
         }
         return null;
@@ -99,14 +105,12 @@ async function fetchHtml(url: string, retries = 3): Promise<string | null> {
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const status = err.response?.status;
-        logger.warn(`[Liquipedia] Fetch failed (attempt ${attempt}/${retries}): ${err.message} (HTTP ${status ?? 'timeout'})`);
-        if (status === 429 || status === 503) {
-          // Rate limited — wait longer before retry
-          const delay = attempt * 60000; // 60s, 120s, 180s
-          logger.info(`[Liquipedia] Rate limited, waiting ${delay / 1000}s...`);
-          if (attempt < retries) { await sleep(delay); continue; }
+        logger.warn(`[Liquipedia] Direct fetch failed (attempt ${attempt}/${retries}): ${err.message} (HTTP ${status ?? 'timeout'})`);
+        if ((status === 429 || status === 503) && attempt < retries) {
+          await sleep(attempt * 60000);
+          continue;
         } else if (attempt < retries) {
-          await sleep(attempt * 5000); // 5s, 10s
+          await sleep(attempt * 5000);
           continue;
         }
       }
@@ -114,6 +118,50 @@ async function fetchHtml(url: string, retries = 3): Promise<string | null> {
     }
   }
   return null;
+}
+
+/**
+ * Fetch a Liquipedia page via the MediaWiki API (action=parse).
+ * This is the official free access method — 1 req/30s rate limit but no IP bans.
+ * Returns the parsed HTML content, or null if it fails.
+ */
+async function fetchViaMediaWikiApi(url: string): Promise<string | null> {
+  // Only works for liquipedia.net URLs
+  const match = url.match(/liquipedia\.net\/([^/]+)\/(.+)/);
+  if (!match) return null;
+
+  const [, wiki, pagePath] = match;
+  const pageName = decodeURIComponent(pagePath.split('?')[0]);
+  const apiUrl = `https://liquipedia.net/${wiki}/api.php`;
+
+  try {
+    const res = await axios.get(apiUrl, {
+      params: {
+        action: 'parse',
+        page: pageName,
+        format: 'json',
+        prop: 'text',
+      },
+      headers: {
+        'User-Agent': LP_USER_AGENT,
+        'Accept-Encoding': 'gzip, deflate, br',
+      },
+      decompress: true,
+      timeout: 30000,
+    });
+
+    const html = res.data?.parse?.text?.['*'];
+    if (html && typeof html === 'string' && html.length > 100) {
+      logger.info(`[Liquipedia] Fetched via MediaWiki API: ${pageName}`);
+      return html;
+    }
+    return null;
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      logger.warn(`[Liquipedia] MediaWiki API failed for ${pageName}: ${err.message} (HTTP ${err.response?.status ?? 'timeout'})`);
+    }
+    return null;
+  }
 }
 
 /**
