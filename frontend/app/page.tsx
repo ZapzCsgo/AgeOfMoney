@@ -257,6 +257,16 @@ function MatchCard({ match }: { match: Match }) {
           <span className={getTierClass(match.tournament?.tier)}>
             {match.tournament?.tier ?? 'C'}
           </span>
+          <span className={cn(
+            'text-[10px] font-cinzel tracking-wider border rounded px-1.5 py-0.5',
+            match.game === 'AoE2' ? 'text-red-400 border-red-400/40 bg-red-400/10' :
+            match.game === 'AoM' ? 'text-emerald-400 border-emerald-400/40 bg-emerald-400/10' :
+            match.game === 'AoE3' ? 'text-blue-400 border-blue-400/40 bg-blue-400/10' :
+            match.game === 'AoE1' ? 'text-orange-400 border-orange-400/40 bg-orange-400/10' :
+            'text-aoe-gold border-aoe-gold/40 bg-aoe-gold/10'
+          )}>
+            {match.game || 'AoE4'}
+          </span>
           <span className="text-aoe-parchment-dim text-xs truncate max-w-[180px]">
             {match.tournament?.name ?? 'Tournoi'}
           </span>
