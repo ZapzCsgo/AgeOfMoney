@@ -229,9 +229,9 @@ function guessTierFallback(name: string): string {
  * Tier is read from the infobox `lp-{s/a/b/c/d}-tier` CSS class or "X-Tier" text.
  * Results are cached in the DB — only call for new/unknown tournaments.
  */
-async function fetchTournamentInfo(liquipediaUrl: string): Promise<{ twitchChannel: string | null; tier: string | null }> {
+async function fetchTournamentInfo(liquipediaUrl: string): Promise<{ twitchChannel: string | null; tier: string | null; gameFromInfobox: string | null }> {
   const html = await fetchHtml(liquipediaUrl);
-  if (!html) return { twitchChannel: null, tier: null };
+  if (!html) return { twitchChannel: null, tier: null, gameFromInfobox: null };
   await sleep(1500);
   const $ = cheerio.load(html);
 
@@ -270,7 +270,34 @@ async function fetchTournamentInfo(liquipediaUrl: string): Promise<{ twitchChann
     });
   }
 
-  return { twitchChannel, tier };
+  // Game from infobox — most reliable signal. Look for the "Game:" row
+  // in the league infobox. Liquipedia always sets this consistently.
+  let gameFromInfobox: string | null = null;
+  // Strategy A: structured infobox cell ("Game:" → value)
+  $('.fo-nttax-infobox-wrapper .infobox-cell-2, .infobox-cell-2').each((_i, el) => {
+    const label = $(el).text().trim().toLowerCase();
+    if (label === 'game:' || label === 'game') {
+      const value = $(el).next().text().trim().toLowerCase();
+      if (value.includes('mythology')) gameFromInfobox = 'AoM';
+      else if (value.includes('iv') || value.includes('4')) gameFromInfobox = 'AoE4';
+      else if (value.includes('iii') || value.includes('3')) gameFromInfobox = 'AoE3';
+      else if (value.includes('ii') || value.includes('2')) gameFromInfobox = 'AoE2';
+      else if (value.includes('i') || value.includes('1')) gameFromInfobox = 'AoE1';
+      if (gameFromInfobox) return false;
+    }
+  });
+  // Strategy B: any link to "/Age_of_Empires_*" within the infobox area
+  if (!gameFromInfobox) {
+    $('.fo-nttax-infobox a, .infobox a').each((_i, el) => {
+      const href = $(el).attr('href') || '';
+      if (/\/Age_of_Empires_II($|[^I])/i.test(href) || /\/Age_of_Empires_II:/i.test(href)) { gameFromInfobox = 'AoE2'; return false; }
+      if (/\/Age_of_Empires_III/i.test(href)) { gameFromInfobox = 'AoE3'; return false; }
+      if (/\/Age_of_Empires_IV/i.test(href))  { gameFromInfobox = 'AoE4'; return false; }
+      if (/\/Age_of_Mythology/i.test(href))   { gameFromInfobox = 'AoM';  return false; }
+    });
+  }
+
+  return { twitchChannel, tier, gameFromInfobox };
 }
 
 /** Parse match-info blocks from a Liquipedia upcoming page */
@@ -372,7 +399,7 @@ export async function scrapeUpcomingMatches(): Promise<void> {
 
     // ── Persist to DB ──────────────────────────────────────────────────────────
     // Cache tournament info fetches to avoid repeated requests for the same URL
-    const tournInfoCache = new Map<string, { twitchChannel: string | null; tier: string | null }>();
+    const tournInfoCache = new Map<string, { twitchChannel: string | null; tier: string | null; gameFromInfobox: string | null }>();
 
     for (const m of allMatches) {
       try {
@@ -381,13 +408,21 @@ export async function scrapeUpcomingMatches(): Promise<void> {
           select: { id: true, twitchChannel: true, game: true, tier: true },
         });
 
-        // Fetch the tournament page when brand new OR when we have no tier info
-        // (blockTier was null and the tournament isn't in DB yet or has no tier).
+        // Fetch the tournament page when:
+        //  - brand new tournament (we have nothing yet), OR
+        //  - we have no tier info, OR
+        //  - the tournament is on /ageofempires/ (AoE4 wiki) but we suspect it's
+        //    actually a cross-wiki match — fetching the infobox is the only way
+        //    to be 100% sure of the game.
         let twitchChannel = existingTourn?.twitchChannel ?? null;
         let scrapedTier: string | null = m.blockTier ?? existingTourn?.tier ?? null;
+        let gameFromInfobox: string | null = null;
         const needsTierFetch = !scrapedTier && m.tournamentUrl.includes('liquipedia.net');
         const isNewTournament = !existingTourn && m.tournamentUrl.includes('liquipedia.net');
-        if (isNewTournament || needsTierFetch) {
+        // Always re-probe game when tournament URL is on the AoE4 wiki — that's
+        // where cross-wiki matches sneak in via the federated upcoming widget.
+        const needsGameProbe = m.tournamentUrl.includes('/ageofempires/') && !m.tournamentUrl.includes('/ageofempires2/') && !m.tournamentUrl.includes('/ageofempires3/');
+        if (isNewTournament || needsTierFetch || needsGameProbe) {
           // Use cached result if we already fetched this tournament URL
           const cacheKey = m.tournamentUrl.split('#')[0]; // strip anchors
           let info = tournInfoCache.get(cacheKey);
@@ -398,10 +433,19 @@ export async function scrapeUpcomingMatches(): Promise<void> {
           }
           twitchChannel = info.twitchChannel ?? twitchChannel;
           scrapedTier   = info.tier ?? scrapedTier;
+          gameFromInfobox = info.gameFromInfobox ?? null;
         }
 
-        // Game from URL is definitive; tier from Liquipedia page is authoritative
-        const correctGame = detectGame(m.tournamentUrl, m.tournamentName, m.game, [m.player1Href, m.player2Href]);
+        // Game detection priority:
+        //  1. Infobox `Game:` field on the tournament page (most reliable)
+        //  2. Player interwiki hrefs (when both point to the same wiki)
+        //  3. Tournament URL prefix
+        //  4. Name keywords
+        const correctGame = gameFromInfobox
+          ?? detectGame(m.tournamentUrl, m.tournamentName, m.game, [m.player1Href, m.player2Href]);
+        if (gameFromInfobox && gameFromInfobox !== 'AoE4') {
+          logger.info(`[Liquipedia] Cross-wiki match detected: "${m.tournamentName}" → ${gameFromInfobox} (from infobox)`);
+        }
         const correctTier = scrapedTier ?? guessTierFallback(m.tournamentName);
 
         // Skip matches from low-tier tournaments (only S and A allowed)
