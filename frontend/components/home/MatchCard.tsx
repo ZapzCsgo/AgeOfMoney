@@ -37,11 +37,15 @@ export function MatchCard({ match }: MatchCardProps) {
                 {match.tournament.tier}
               </span>
             )}
-            {match.game && match.game !== 'AoE4' && (
-              <span className="text-[10px] text-aoe-gold/70 font-cinzel border border-aoe-gold/20 rounded px-1 py-0.5">
-                {match.game}
-              </span>
-            )}
+            <span className={`text-[10px] font-cinzel border rounded px-1.5 py-0.5 ${
+              match.game === 'AoE2' ? 'text-red-400 border-red-400/30 bg-red-400/10' :
+              match.game === 'AoM' ? 'text-emerald-400 border-emerald-400/30 bg-emerald-400/10' :
+              match.game === 'AoE3' ? 'text-blue-400 border-blue-400/30 bg-blue-400/10' :
+              match.game === 'AoE1' ? 'text-orange-400 border-orange-400/30 bg-orange-400/10' :
+              'text-aoe-gold border-aoe-gold/30 bg-aoe-gold/10'
+            }`}>
+              {match.game || 'AoE4'}
+            </span>
             <span className="text-aoe-parchment-dim text-xs truncate max-w-[180px]">
               {match.tournament?.name ?? 'Match'}
             </span>
