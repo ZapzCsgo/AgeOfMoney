@@ -224,13 +224,14 @@ export default function AdminPage() {
     }
   };
 
-  const handleSeedPlayer = async (playerId: string, playerName: string) => {
+  const handleSeedPlayer = async (playerId: string, playerName: string, game?: string) => {
     setSeeding(playerId);
     try {
       // Always force=true from this admin button — bypasses the
       // aiEnrichedGames cache so Claude is queried again on demand.
-      await apiClient.post(`/admin/players/${playerId}/seed-history`, { force: true });
-      showMsg('success', `Re-seeding démarré pour ${playerName}`);
+      // When `game` is provided, the player is also re-tagged with that game.
+      await apiClient.post(`/admin/players/${playerId}/seed-history`, { force: true, ...(game ? { game } : {}) });
+      showMsg('success', `Re-seeding démarré pour ${playerName}${game ? ` (${game})` : ''}`);
     } catch (err) {
       showMsg('error', err instanceof Error ? err.message : 'Erreur');
     } finally {
@@ -622,20 +623,42 @@ export default function AdminPage() {
                           {new Date(p.lastUpdatedAt).toLocaleDateString('fr-FR')}
                         </td>
                         <td className="px-4 py-3">
-                          <button
-                            onClick={() => handleSeedPlayer(p.id, p.name)}
-                            disabled={seeding === p.id}
-                            className="flex items-center gap-1 px-3 py-1.5 rounded text-[11px] font-medium transition-all disabled:opacity-40"
-                            style={{
-                              background: records >= 50 ? '#0891b210' : '#0891b220',
-                              border: `1px solid ${records >= 50 ? '#0891b230' : '#0891b240'}`,
-                              color: '#22d3ee',
-                            }}
-                            title={aiDone ? 'Force re-call Claude AI (cache bypass)' : 'Seed history'}
-                          >
-                            {seeding === p.id ? <RefreshCw size={11} className="animate-spin" /> : <Database size={11} />}
-                            {records >= 50 ? 'Re-seed' : 'Seed'}
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <select
+                              defaultValue=""
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  handleSeedPlayer(p.id, p.name, e.target.value);
+                                  e.target.value = '';
+                                }
+                              }}
+                              disabled={seeding === p.id}
+                              className="px-1.5 py-1.5 rounded text-[10px] font-medium outline-none disabled:opacity-40"
+                              style={{ background: '#13111f', border: '1px solid #1e1a30', color: '#9990b8' }}
+                              title="Force re-seed avec un jeu spécifique (corrige une mauvaise classification)"
+                            >
+                              <option value="">force…</option>
+                              <option value="AoE1">AoE1</option>
+                              <option value="AoE2">AoE2</option>
+                              <option value="AoE3">AoE3</option>
+                              <option value="AoE4">AoE4</option>
+                              <option value="AoM">AoM</option>
+                            </select>
+                            <button
+                              onClick={() => handleSeedPlayer(p.id, p.name)}
+                              disabled={seeding === p.id}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded text-[11px] font-medium transition-all disabled:opacity-40"
+                              style={{
+                                background: records >= 50 ? '#0891b210' : '#0891b220',
+                                border: `1px solid ${records >= 50 ? '#0891b230' : '#0891b240'}`,
+                                color: '#22d3ee',
+                              }}
+                              title={aiDone ? 'Force re-call Claude AI (auto-detect game)' : 'Seed history'}
+                            >
+                              {seeding === p.id ? <RefreshCw size={11} className="animate-spin" /> : <Database size={11} />}
+                              {records >= 50 ? 'Re-seed' : 'Seed'}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );

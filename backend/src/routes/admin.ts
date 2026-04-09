@@ -608,29 +608,45 @@ router.get('/players', async (_req: Request, res: Response): Promise<void> => {
 });
 
 // POST /players/:id/seed-history — seed a specific player's history
+// Body: { force?: boolean, game?: 'AoE1'|'AoE2'|'AoE3'|'AoE4'|'AoM' }
+// When `game` is provided, it overrides the auto-detection from recent matches
+// — used by the admin to fix mis-classifications (e.g. an AoE1 player tagged AoE4).
 router.post('/players/:id/seed-history', async (req: Request, res: Response): Promise<void> => {
   try {
     const player = await prisma.player.findUnique({ where: { id: req.params.id }, select: { id: true, name: true, aoe4worldId: true } });
     if (!player) { res.status(404).json({ error: 'Player not found' }); return; }
     const force = req.body?.force === true;
-    res.json({ ok: true, message: `Seeding started for ${player.name}` });
+    const overrideGame = typeof req.body?.game === 'string' ? req.body.game as string : null;
+    res.json({ ok: true, message: `Seeding started for ${player.name}${overrideGame ? ` (game: ${overrideGame})` : ''}` });
     (async () => {
-      if (player.aoe4worldId) {
+      // aoe4world only makes sense for AoE4 players
+      const isAoE4Path = (overrideGame ?? 'AoE4') === 'AoE4';
+      if (isAoE4Path && player.aoe4worldId) {
         const { seedPlayerHistoryFromAoe4World } = await import('../scrapers/aoe4worldPlayerHistorySeeder');
         const { buildProPlayerSet } = await import('../scrapers/aoe4worldScraper');
         const proIds = await buildProPlayerSet();
         await seedPlayerHistoryFromAoe4World(player.id, player.name, player.aoe4worldId, proIds, force);
       }
-      const count = await prisma.playerMatchRecord.count({ where: { playerId: player.id } });
-      if (count < 50 && process.env.ANTHROPIC_API_KEY) {
+      if (process.env.ANTHROPIC_API_KEY) {
         const { enrichPlayerWithAI } = await import('../scrapers/aiPlayerHistoryScraper');
-        // Detect game from the player's most recent match
-        const recentMatch = await prisma.match.findFirst({
-          where: { OR: [{ player1Id: player.id }, { player2Id: player.id }] },
-          orderBy: { scheduledAt: 'desc' },
-          select: { game: true },
-        });
-        const game = recentMatch?.game ?? 'AoE4';
+        let game = overrideGame;
+        if (!game) {
+          // Auto-detect from the player's most recent match
+          const recentMatch = await prisma.match.findFirst({
+            where: { OR: [{ player1Id: player.id }, { player2Id: player.id }] },
+            orderBy: { scheduledAt: 'desc' },
+            select: { game: true },
+          });
+          game = recentMatch?.game ?? 'AoE4';
+        }
+        // When admin provides an explicit game override, also tag the player
+        // with that game so all future H2H queries pick the right records.
+        if (overrideGame) {
+          await prisma.player.update({
+            where: { id: player.id },
+            data: { game: overrideGame },
+          }).catch(() => {});
+        }
         await enrichPlayerWithAI(player.id, player.name, force, game);
       }
     })().catch(err => logger.error(`[Admin] Seed history failed for ${player.name}:`, err));

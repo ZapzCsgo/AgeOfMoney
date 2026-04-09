@@ -272,29 +272,42 @@ async function fetchTournamentInfo(liquipediaUrl: string): Promise<{ twitchChann
 
   // Game from infobox — most reliable signal. Look for the "Game:" row
   // in the league infobox. Liquipedia always sets this consistently.
+  // Use word-boundary regex so "Empires" never accidentally matches "i".
   let gameFromInfobox: string | null = null;
+  const classify = (raw: string): string | null => {
+    const v = raw.trim();
+    if (/age of mythology/i.test(v)) return 'AoM';
+    if (/age of empires\s*(?:iv|4)\b/i.test(v)) return 'AoE4';
+    if (/age of empires\s*(?:iii|3)\b/i.test(v)) return 'AoE3';
+    if (/age of empires\s*(?:ii|2)\b/i.test(v)) return 'AoE2';
+    if (/age of empires(?:\s|$|:|\(|\.)/i.test(v) && !/\b(?:ii|iii|iv|2|3|4)\b/i.test(v)) return 'AoE1';
+    return null;
+  };
+
   // Strategy A: structured infobox cell ("Game:" → value)
   $('.fo-nttax-infobox-wrapper .infobox-cell-2, .infobox-cell-2').each((_i, el) => {
     const label = $(el).text().trim().toLowerCase();
     if (label === 'game:' || label === 'game') {
-      const value = $(el).next().text().trim().toLowerCase();
-      if (value.includes('mythology')) gameFromInfobox = 'AoM';
-      else if (value.includes('iv') || value.includes('4')) gameFromInfobox = 'AoE4';
-      else if (value.includes('iii') || value.includes('3')) gameFromInfobox = 'AoE3';
-      else if (value.includes('ii') || value.includes('2')) gameFromInfobox = 'AoE2';
-      else if (value.includes('i') || value.includes('1')) gameFromInfobox = 'AoE1';
+      gameFromInfobox = classify($(el).next().text());
       if (gameFromInfobox) return false;
     }
   });
-  // Strategy B: any link to "/Age_of_Empires_*" within the infobox area
+  // Strategy B: any link to "/Age_of_*" within the infobox area
   if (!gameFromInfobox) {
     $('.fo-nttax-infobox a, .infobox a').each((_i, el) => {
       const href = $(el).attr('href') || '';
+      if (/\/Age_of_Mythology/i.test(href))                            { gameFromInfobox = 'AoM';  return false; }
+      if (/\/Age_of_Empires_IV/i.test(href))                           { gameFromInfobox = 'AoE4'; return false; }
+      if (/\/Age_of_Empires_III/i.test(href))                          { gameFromInfobox = 'AoE3'; return false; }
       if (/\/Age_of_Empires_II($|[^I])/i.test(href) || /\/Age_of_Empires_II:/i.test(href)) { gameFromInfobox = 'AoE2'; return false; }
-      if (/\/Age_of_Empires_III/i.test(href)) { gameFromInfobox = 'AoE3'; return false; }
-      if (/\/Age_of_Empires_IV/i.test(href))  { gameFromInfobox = 'AoE4'; return false; }
-      if (/\/Age_of_Mythology/i.test(href))   { gameFromInfobox = 'AoM';  return false; }
+      // AoE1 is the bare "Age_of_Empires" page (no II/III/IV suffix)
+      if (/\/Age_of_Empires(?:_\(|$|:)/i.test(href) && !/_II|_III|_IV/i.test(href)) { gameFromInfobox = 'AoE1'; return false; }
     });
+  }
+  // Strategy C: page title h1 — fallback when infobox cell wasn't found
+  if (!gameFromInfobox) {
+    const title = $('#firstHeading, h1').first().text();
+    gameFromInfobox = classify(title);
   }
 
   return { twitchChannel, tier, gameFromInfobox };
