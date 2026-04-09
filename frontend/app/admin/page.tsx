@@ -569,6 +569,61 @@ export default function AdminPage() {
               </button>
             </div>
 
+            {/* Quick fix: manually set tournament game (cascades to matches) */}
+            <div className="rounded-lg p-3" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
+              <p className="text-[11px] text-[#6b6488] mb-2 uppercase tracking-wider">🔧 Forcer le jeu d&apos;un tournoi (override classification)</p>
+              <form
+                className="flex items-center gap-2"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  const form = e.currentTarget;
+                  const nameInput = form.elements.namedItem('tname') as HTMLInputElement;
+                  const gameSelect = form.elements.namedItem('tgame') as HTMLSelectElement;
+                  if (!nameInput.value || !gameSelect.value) return;
+                  try {
+                    const r = await apiClient.post('/admin/tournaments/set-game', {
+                      name: nameInput.value,
+                      game: gameSelect.value,
+                    });
+                    const data = r.data as { tournamentsUpdated: number; matchesUpdated: number };
+                    showMsg('success', `${data.tournamentsUpdated} tournoi(s) → ${gameSelect.value} (${data.matchesUpdated} matchs cascadés)`);
+                    nameInput.value = '';
+                    fetchAll();
+                  } catch (err) {
+                    showMsg('error', err instanceof Error ? err.message : 'Erreur');
+                  }
+                }}
+              >
+                <input
+                  name="tname"
+                  placeholder="Nom du tournoi (ex: Brazilian Dynasty)"
+                  className="flex-1 px-3 py-2 rounded text-[12px] outline-none text-[#e8e2f5] placeholder:text-[#3d3860]"
+                  style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}
+                />
+                <select
+                  name="tgame"
+                  defaultValue=""
+                  className="px-2 py-2 rounded text-[12px] outline-none text-[#e8e2f5]"
+                  style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}
+                  required
+                >
+                  <option value="" disabled>Jeu…</option>
+                  <option value="AoE1">AoE1</option>
+                  <option value="AoE2">AoE2</option>
+                  <option value="AoE3">AoE3</option>
+                  <option value="AoE4">AoE4</option>
+                  <option value="AoM">AoM</option>
+                </select>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded text-[12px] font-medium"
+                  style={{ background: '#d4a01720', border: '1px solid #d4a01740', color: '#d4a017' }}
+                >
+                  Appliquer
+                </button>
+              </form>
+            </div>
+
             <div className="rounded-lg overflow-hidden" style={{ border: '1px solid #1e1a30', background: '#0d0b1a' }}>
               <table className="w-full text-[12px]">
                 <thead>

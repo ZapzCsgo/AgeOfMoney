@@ -655,6 +655,54 @@ router.post('/players/:id/seed-history', async (req: Request, res: Response): Pr
   }
 });
 
+// POST /tournaments/set-game — manually fix a tournament's game classification
+// Body: { tournamentId?: string, name?: string, game: 'AoE1'|'AoE2'|'AoE3'|'AoE4'|'AoM' }
+// Updates Tournament.game AND cascades to every Match attached to it.
+// Use this when the auto-detector mis-classified a tournament.
+router.post('/tournaments/set-game', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tournamentId, name, game } = req.body as { tournamentId?: string; name?: string; game?: string };
+    if (!game || !['AoE1', 'AoE2', 'AoE3', 'AoE4', 'AoM'].includes(game)) {
+      res.status(400).json({ error: 'game must be one of AoE1, AoE2, AoE3, AoE4, AoM' });
+      return;
+    }
+    if (!tournamentId && !name) {
+      res.status(400).json({ error: 'Provide tournamentId or name' });
+      return;
+    }
+
+    // Find target tournament(s)
+    const tournaments = tournamentId
+      ? await prisma.tournament.findMany({ where: { id: tournamentId } })
+      : await prisma.tournament.findMany({ where: { name: { contains: name!, mode: 'insensitive' } } });
+
+    if (tournaments.length === 0) {
+      res.status(404).json({ error: 'No tournament found' });
+      return;
+    }
+
+    let totalMatchesUpdated = 0;
+    for (const t of tournaments) {
+      await prisma.tournament.update({ where: { id: t.id }, data: { game } });
+      const updated = await prisma.match.updateMany({
+        where: { tournamentId: t.id },
+        data: { game },
+      });
+      totalMatchesUpdated += updated.count;
+      logger.info(`[Admin] Set tournament "${t.name}" → ${game} (${updated.count} matches updated)`);
+    }
+
+    res.json({
+      ok: true,
+      tournamentsUpdated: tournaments.length,
+      matchesUpdated: totalMatchesUpdated,
+      tournaments: tournaments.map(t => ({ id: t.id, name: t.name })),
+    });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 // POST /players/seed-all — seed all players missing history
 // Players with <5 records are force-reseeded (Claude is re-queried even if some data exists)
 router.post('/players/seed-all', async (_req: Request, res: Response): Promise<void> => {
