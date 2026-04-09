@@ -260,6 +260,44 @@ async function syncMatchScore(matchId: string): Promise<void> {
 
     await distributePayout(matchId, resolvedWinnerId);
 
+    // Append result to PlayerMatchRecord — this is how non-AoE4 H2H grows
+    // organically once Claude has been called once per (player, game).
+    {
+      const p1Won = resolvedWinnerId === match.player1.id;
+      const tournamentName = match.tournament?.name ?? 'Tournament';
+      for (const [playerId, opponentId, opponentName, won] of [
+        [match.player1.id, match.player2.id, match.player2.name, p1Won],
+        [match.player2.id, match.player1.id, match.player1.name, !p1Won],
+      ] as [string, string, string, boolean][]) {
+        await prisma.playerMatchRecord.upsert({
+          where: {
+            playerId_opponentName_tournamentName_matchDate: {
+              playerId,
+              opponentName,
+              tournamentName,
+              matchDate: match.scheduledAt,
+            },
+          },
+          create: {
+            playerId, opponentName, opponentId,
+            game: match.game,
+            won,
+            score: won ? resultScore : resultScore.split('-').reverse().join('-'),
+            tournamentName,
+            matchDate: match.scheduledAt,
+            format: match.format,
+            source: 'platform',
+            confidence: 1.0,
+          },
+          update: {
+            game: match.game,
+            won,
+            score: won ? resultScore : resultScore.split('-').reverse().join('-'),
+          },
+        }).catch(() => {});
+      }
+    }
+
     if (io) {
       io.to(`matchRoom:${matchId}`).emit('matchResult', { matchId, winnerId: resolvedWinnerId, resultScore, verifiedBy: 'liquipedia' });
       io.emit('matchUpdate', { matchId, status: 'COMPLETED', winnerId: resolvedWinnerId, resultScore, p1Score, p2Score });

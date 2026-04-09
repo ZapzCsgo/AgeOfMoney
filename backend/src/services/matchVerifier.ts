@@ -20,6 +20,7 @@ async function storeMatchInPlayerHistory(
   tournamentName: string,
   scheduledAt: Date,
   format: string,
+  game: string,
 ): Promise<void> {
   const p1Won = winnerId === player1Id;
   for (const [playerId, playerName, opponentId, opponentName, won] of [
@@ -40,15 +41,20 @@ async function storeMatchInPlayerHistory(
           playerId,
           opponentName,
           opponentId,
+          game,
           won,
           score: won ? resultScore : resultScore.split('-').reverse().join('-'),
           tournamentName,
           matchDate: scheduledAt,
           format,
-          source: 'manual',
+          source: 'platform',
           confidence: 1.0,
         },
-        update: { won, score: won ? resultScore : resultScore.split('-').reverse().join('-') },
+        update: {
+          game,
+          won,
+          score: won ? resultScore : resultScore.split('-').reverse().join('-'),
+        },
       });
     } catch { /* ignore duplicates */ }
   }
@@ -227,6 +233,7 @@ export async function verifyMatch(matchId: string): Promise<void> {
       match.tournament?.name ?? 'Tournament',
       match.scheduledAt,
       match.format,
+      match.game,
     ).catch(() => {});
 
     if (io) {

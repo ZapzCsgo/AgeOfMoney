@@ -253,12 +253,33 @@ export async function enrichPlayerWithAI(
 ): Promise<number> {
   if (!process.env.ANTHROPIC_API_KEY) return 0;
 
+  // Credit-saving guard: never call Claude twice for the same (player, game).
+  // After the first attempt — successful or not — we add the game to
+  // player.aiEnrichedGames so future scrapes skip this player entirely for
+  // that game. New records grow organically from finished matches on the
+  // platform (storeMatchInPlayerHistory).
   if (!force) {
+    const player = await prisma.player.findUnique({
+      where: { id: playerId },
+      select: { aiEnrichedGames: true },
+    });
+    if (player?.aiEnrichedGames?.includes(game)) {
+      logger.debug(`[AI History] Skipping ${playerName} — already AI-enriched for ${game}`);
+      return await prisma.playerMatchRecord.count({ where: { playerId, game } });
+    }
+
+    // Hard cap: if for some reason the player already has >= 50 records for
+    // this game (e.g. seeded by another path), no need to call Claude either.
     const existing = await prisma.playerMatchRecord.count({
       where: { playerId, game },
     });
     if (existing >= MIN_RECORDS_BEFORE_SKIP) {
       logger.debug(`[AI History] Skipping ${playerName} — already has ${existing} ${game} records`);
+      // Still mark as enriched so future runs short-circuit faster
+      await prisma.player.update({
+        where: { id: playerId },
+        data: { aiEnrichedGames: { push: game } },
+      }).catch(() => {});
       return existing;
     }
   }
@@ -266,15 +287,22 @@ export async function enrichPlayerWithAI(
   logger.info(`[AI History] Querying Claude for ${playerName}'s ${game} tournament history…`);
   const response = await queryPlayerHistory(playerName, game);
 
+  // Mark the (player, game) as attempted regardless of result — the credit
+  // is already spent, no point retrying next cron tick.
+  await prisma.player.update({
+    where: { id: playerId },
+    data: { aiEnrichedGames: { push: game } },
+  }).catch(() => {});
+
   if (!response || !response.matches?.length) {
-    logger.info(`[AI History] No ${game} data from Claude for ${playerName}`);
+    logger.info(`[AI History] No ${game} data from Claude for ${playerName} (marked as attempted)`);
     return 0;
   }
 
   const nameMap = await buildPlayerNameMap();
   const stored = await storePlayerHistory(playerId, playerName, response.matches, nameMap, game);
 
-  // Tag the player with the game we just successfully enriched them in
+  // Tag the player's primary game when we get real data back
   if (stored > 0) {
     await prisma.player.update({ where: { id: playerId }, data: { game } }).catch(() => {});
   }
