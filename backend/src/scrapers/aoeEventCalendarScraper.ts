@@ -146,34 +146,45 @@ export async function syncAoeEventCalendar(): Promise<{ name: string; game: stri
       })();
 
       if (realRecord) {
-        // The Liquipedia scraper already has the real URL — just update dates/tier
+        // The Liquipedia scraper already has the real URL — just update dates/tier.
+        // NEVER touch `game` here: the Liquipedia infobox probe is the source of
+        // truth, and the calendar's game tag is unreliable for cross-game events.
         const tourn = await prisma.tournament.update({
           where: { id: realRecord.id },
           data: { tier, isActive: true, startDate: new Date(event.start), endDate: new Date(event.end) },
         });
         synced.push({ name: event.title, game, id: tourn.id });
       } else {
-        const tourn = await prisma.tournament.upsert({
-          where: { liquipediaUrl },
-          update: {
-            name: event.title,
-            game,
-            tier,
-            isActive: true,
-            startDate: new Date(event.start),
-            endDate: new Date(event.end),
-          },
-          create: {
-            name: event.title,
-            game,
-            tier,
-            liquipediaUrl,
-            startDate: new Date(event.start),
-            endDate: new Date(event.end),
-            isActive: true,
-          },
-        });
-        synced.push({ name: event.title, game, id: tourn.id });
+        // Upsert path: only set `game` on CREATE. On update, leave the existing
+        // value alone (it may have been corrected by the Liquipedia infobox probe
+        // or by the admin's manual override).
+        const existing = await prisma.tournament.findUnique({ where: { liquipediaUrl } });
+        if (existing) {
+          const tourn = await prisma.tournament.update({
+            where: { liquipediaUrl },
+            data: {
+              name: event.title,
+              tier,
+              isActive: true,
+              startDate: new Date(event.start),
+              endDate: new Date(event.end),
+            },
+          });
+          synced.push({ name: event.title, game: tourn.game, id: tourn.id });
+        } else {
+          const tourn = await prisma.tournament.create({
+            data: {
+              name: event.title,
+              game,
+              tier,
+              liquipediaUrl,
+              startDate: new Date(event.start),
+              endDate: new Date(event.end),
+              isActive: true,
+            },
+          });
+          synced.push({ name: event.title, game, id: tourn.id });
+        }
       }
     } catch (err) {
       logger.warn(`[AoeCalendar] Failed to upsert tournament "${event.title}": ${err}`);
@@ -182,26 +193,11 @@ export async function syncAoeEventCalendar(): Promise<{ name: string; game: stri
 
   logger.info(`[AoeCalendar] Synced ${synced.length} tournaments`);
 
-  // Self-healing: fix any tournaments whose game field doesn't match their Liquipedia URL
-  const urlToGame = (url: string): string => {
-    if (url.includes('/ageofempires2/'))  return 'AoE2';
-    if (url.includes('/ageofempires3/'))  return 'AoE3';
-    if (url.includes('/ageofmythology/')) return 'AoM';
-    return 'AoE4';
-  };
-  const allTournaments = await prisma.tournament.findMany({ select: { id: true, liquipediaUrl: true, game: true } });
-  let fixed = 0;
-  for (const t of allTournaments) {
-    const correct = urlToGame(t.liquipediaUrl);
-    if (t.game !== correct) {
-      await prisma.tournament.update({ where: { id: t.id }, data: { game: correct } });
-      fixed++;
-    }
-  }
-  if (fixed > 0) logger.info(`[AoeCalendar] Fixed game field for ${fixed} tournaments`);
-
-  // Self-healing: align match.game with their tournament.game
-  // (old matches were created with the schema default 'AoE4')
+  // ── Match-game self-healing ───────────────────────────────────────────────
+  // Align match.game with their tournament.game. This is safe — tournament.game
+  // is the source of truth, and the URL-based "self-healing" that used to
+  // overwrite tournament.game from the URL prefix has been removed (it was
+  // wrong for cross-wiki tournaments and undid every manual fix).
   const mismatched = await prisma.match.findMany({
     where: { tournament: { isNot: null } },
     select: { id: true, game: true, tournament: { select: { game: true } } },
@@ -214,7 +210,7 @@ export async function syncAoeEventCalendar(): Promise<{ name: string; game: stri
       fixedMatches++;
     }
   }
-  if (fixedMatches > 0) logger.info(`[AoeCalendar] Fixed game field for ${fixedMatches} matches`);
+  if (fixedMatches > 0) logger.info(`[AoeCalendar] Aligned ${fixedMatches} matches with their tournament.game`);
 
   return synced;
 }
