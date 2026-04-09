@@ -3,13 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  // Direct (non-pooled) connection used by `prisma db push` / migrations.
-  // Supabase poolers in session mode have a tiny pool_size and cause
-  // "MaxClientsInSessionMode" failures during schema engine work.
-  // Falls back to DATABASE_URL when DIRECT_URL is not set.
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
