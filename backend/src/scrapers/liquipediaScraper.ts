@@ -169,13 +169,26 @@ async function fetchViaMediaWikiApi(url: string): Promise<string | null> {
  * The tournament URL always contains the wiki slug (ageofempires2, ageofmythology, etc.)
  * which maps 1:1 to the game. Name-based keywords are only a last resort.
  */
-function detectGame(tournamentUrl: string, name: string, wikiGame: string): string {
-  // Primary: tournament URL — definitive and never wrong
+function detectGame(tournamentUrl: string, name: string, wikiGame: string, playerHrefs: string[] = []): string {
+  // Player hrefs are interwiki links — when both players link to the same game wiki,
+  // that's the strongest signal (stronger than tournament URL, which can be wrong
+  // if the tournament page lives on a different wiki than the players).
+  const hrefGames = playerHrefs.map(h => {
+    if (h.includes('/ageofempires2/'))  return 'AoE2';
+    if (h.includes('/ageofempires3/'))  return 'AoE3';
+    if (h.includes('/ageofmythology/')) return 'AoM';
+    if (h.includes('/ageofempires/'))   return 'AoE4';
+    return null;
+  }).filter(Boolean) as string[];
+  if (hrefGames.length > 0 && hrefGames.every(g => g === hrefGames[0])) return hrefGames[0];
+
+  // Tournament URL — usually correct
   if (tournamentUrl.includes('/ageofempires2/')) return 'AoE2';
   if (tournamentUrl.includes('/ageofempires3/')) return 'AoE3';
   if (tournamentUrl.includes('/ageofmythology/')) return 'AoM';
   if (tournamentUrl.includes('/ageofempires/'))   return 'AoE4';
-  // Fallback: broad name keywords (only reached if URL is external/unknown)
+
+  // Fallback: broad name keywords
   const n = name.toLowerCase();
   if (n.includes('age of empires ii') || n.includes('aoe2') || n.includes('aoe ii')) return 'AoE2';
   if (n.includes('age of empires iii') || n.includes('aoe3') || n.includes('age iii')) return 'AoE3';
@@ -262,8 +275,8 @@ async function fetchTournamentInfo(liquipediaUrl: string): Promise<{ twitchChann
 
 /** Parse match-info blocks from a Liquipedia upcoming page */
 function parseMatchBlocks(html: string, wikiPath: string, game: string): Array<{
-  player1: string; player1Slug: string; player1Country: string;
-  player2: string; player2Slug: string; player2Country: string;
+  player1: string; player1Slug: string; player1Country: string; player1Href: string;
+  player2: string; player2Slug: string; player2Country: string; player2Href: string;
   tournamentName: string; tournamentUrl: string;
   scheduledAt: Date; format: string; game: string;
   blockTier: string | null; // tier read directly from match block HTML (null = unknown)
@@ -327,7 +340,7 @@ function parseMatchBlocks(html: string, wikiPath: string, game: string): Array<{
       // will be resolved from the tournament page during the persist step.
       if (blockTier && !isTierAllowed(blockTier)) return;
 
-      results.push({ player1, player1Slug, player1Country, player2, player2Slug, player2Country, tournamentName, tournamentUrl, scheduledAt, format, game, blockTier });
+      results.push({ player1, player1Slug, player1Country, player1Href: leftHref, player2, player2Slug, player2Country, player2Href: rightHref, tournamentName, tournamentUrl, scheduledAt, format, game, blockTier });
     } catch { /* skip bad rows */ }
   });
 
@@ -388,7 +401,7 @@ export async function scrapeUpcomingMatches(): Promise<void> {
         }
 
         // Game from URL is definitive; tier from Liquipedia page is authoritative
-        const correctGame = detectGame(m.tournamentUrl, m.tournamentName, m.game);
+        const correctGame = detectGame(m.tournamentUrl, m.tournamentName, m.game, [m.player1Href, m.player2Href]);
         const correctTier = scrapedTier ?? guessTierFallback(m.tournamentName);
 
         // Skip matches from low-tier tournaments (only S and A allowed)
