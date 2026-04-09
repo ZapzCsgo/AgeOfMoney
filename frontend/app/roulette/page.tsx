@@ -50,10 +50,20 @@ const GLOBAL_CSS = `
 @keyframes rl-win-border { 0%,100%{box-shadow:0 0 12px var(--gz),inset 0 0 8px var(--gz)} 50%{box-shadow:0 0 40px var(--gz),inset 0 0 20px var(--gz)} }
 @keyframes rl-amount { 0%{opacity:0;transform:translateY(14px) scale(0.8)} 100%{opacity:1;transform:translateY(0) scale(1)} }
 @keyframes rl-item-pop { 0%{transform:scale(1)} 50%{transform:scale(1.15)} 100%{transform:scale(1)} }
-.rl-winning { animation:rl-win-border 0.65s ease-in-out infinite; }
-.rl-shaking { animation:rl-shake 0.55s ease-in-out; }
-.rl-urgent  { animation:rl-urgent 0.35s ease-in-out infinite; }
-.rl-glow-p  { animation:rl-glow-pulse 0.8s ease-in-out infinite; }
+@keyframes rl-anticipate { 0%,100%{box-shadow:0 0 24px var(--gz),inset 0 0 12px var(--gz)} 50%{box-shadow:0 0 70px var(--gz),0 0 110px var(--gz),inset 0 0 28px var(--gz)} }
+@keyframes rl-burst { 0%{opacity:0;transform:translate(-50%,-50%) scale(0.3)} 18%{opacity:1} 100%{opacity:0;transform:translate(-50%,-50%) scale(2.6)} }
+@keyframes rl-flash { 0%{opacity:0} 12%{opacity:1} 100%{opacity:0} }
+@keyframes rl-shimmer { 0%{transform:translateX(-100%);opacity:0} 30%{opacity:0.45} 100%{transform:translateX(100%);opacity:0} }
+@keyframes rl-page-shake { 0%,100%{transform:translate(0,0)} 25%{transform:translate(-3px,2px)} 50%{transform:translate(3px,-2px)} 75%{transform:translate(-2px,-2px)} }
+.rl-winning     { animation:rl-win-border 0.65s ease-in-out infinite; }
+.rl-shaking     { animation:rl-shake 0.55s ease-in-out; }
+.rl-urgent      { animation:rl-urgent 0.35s ease-in-out infinite; }
+.rl-glow-p      { animation:rl-glow-pulse 0.8s ease-in-out infinite; }
+.rl-anticipate  { animation:rl-anticipate 0.5s ease-in-out infinite; }
+.rl-burst       { animation:rl-burst 0.85s cubic-bezier(0.16,0.84,0.44,1) forwards; }
+.rl-flash       { animation:rl-flash 0.55s ease-out forwards; }
+.rl-shimmer     { animation:rl-shimmer 1.4s ease-in-out infinite; }
+.rl-page-shake  { animation:rl-page-shake 0.4s ease-in-out 2; }
 `;
 
 export default function RoulettePage() {
@@ -71,6 +81,8 @@ export default function RoulettePage() {
   const [payout, setPayout] = useState<number | null>(null);
   const [displayedPayout, setDisplayedPayout] = useState(0);
   const [centerIdx, setCenterIdx] = useState(4);
+  const [anticipation, setAnticipation] = useState(false);
+  const [burstKey, setBurstKey] = useState(0); // re-trigger burst on each new result
   const [showFairness, setShowFairness] = useState(false);
   const [showFairnessGuide, setShowFairnessGuide] = useState(false);
   const [fairnessRound, setFairnessRound] = useState<{ id: string; roundHash: string | null; serverSeed: string | null; result: number | null; winZone: Zone | null; source?: 'random.org' | 'crypto' } | null>(null);
@@ -206,6 +218,7 @@ export default function RoulettePage() {
     if (!wheelRef.current) return;
     hasAnimatedRef.current = true;
     if (tickIntervalRef.current) clearInterval(tickIntervalRef.current);
+    setAnticipation(false);
 
     const full = displayStrip;
     const target = Math.floor(full.length * 0.68);
@@ -219,37 +232,48 @@ export default function RoulettePage() {
       : target;
     // No sub-pixel offset — keeps centerIdx tracking in sync with visual position
     const finalX = -(landIdx * ITEM_SLOT - CENTER_OFFSET + ITEM_W / 2);
-    const spinDuration = 5500;
+    const spinDuration = 6500;
     const startTime = Date.now();
     let lastTick = -1;
+    let anticipationTriggered = false;
 
     tickIntervalRef.current = setInterval(() => {
       const elapsed = Date.now() - startTime;
       const progress = Math.min(1, elapsed / spinDuration);
-      const eased = 1 - Math.pow(1 - progress, 3);
+      // Stronger deceleration: power 3.4 → really long, slow tail
+      const eased = 1 - Math.pow(1 - progress, 3.4);
       const currentX = finalX * eased;
       const ci = Math.round((CENTER_OFFSET - currentX) / ITEM_SLOT);
       const wrapped = ((ci % full.length) + full.length) % full.length;
       setCenterIdx(wrapped);
 
-      // Play tick sound on each new slot
+      // Anticipation phase — last ~28% of the spin
+      if (!anticipationTriggered && progress > 0.72) {
+        anticipationTriggered = true;
+        setAnticipation(true);
+      }
+
+      // Play tick sound on each new slot — pitch + gain rise as we slow down
       if (wrapped !== lastTick) {
         lastTick = wrapped;
         const speedFactor = 1 - eased;
-        if (speedFactor > 0.05) playTick(); // stop ticking near the end
+        if (speedFactor > 0.04) playTick(progress);
       }
 
       if (progress >= 1) {
         clearInterval(tickIntervalRef.current!);
         setCenterIdx(landIdx % full.length);
+        setAnticipation(false);
+        setBurstKey(k => k + 1);
       }
-    }, 50);
+    }, 30);
 
     wheelRef.current.style.transition = 'none';
     wheelRef.current.style.transform = 'translateX(0px)';
     requestAnimationFrame(() => requestAnimationFrame(() => {
       if (!wheelRef.current) return;
-      wheelRef.current.style.transition = `transform ${spinDuration}ms cubic-bezier(0.03,0.92,0.32,1)`;
+      // More dramatic ease-out — lingers longer at the end
+      wheelRef.current.style.transition = `transform ${spinDuration}ms cubic-bezier(0.05,0.65,0.18,1)`;
       wheelRef.current.style.transform = `translateX(${finalX}px)`;
     }));
   }
@@ -430,19 +454,42 @@ export default function RoulettePage() {
               {/* Center frame */}
               <div className="absolute inset-y-0 pointer-events-none z-20"
                 style={{ left:'50%', transform:'translateX(-50%)', width:ITEM_W,
-                  '--gz': isResult && winZone ? ZONES[winZone].glow : 'rgba(245,200,66,0.5)' } as React.CSSProperties}>
+                  '--gz': isResult && winZone ? ZONES[winZone].glow : anticipation ? '#f5c842' : 'rgba(245,200,66,0.5)' } as React.CSSProperties}>
                 <div className={cn('h-full rounded-xl',
-                    isSpinning && 'rl-glow-p',
+                    isSpinning && !anticipation && 'rl-glow-p',
+                    isSpinning && anticipation && 'rl-anticipate',
                     isResult && winZone && 'rl-winning')}
                   style={{
                     border:`2.5px solid ${isResult && winZone ? ZONES[winZone].color : isSpinning ? '#f5c842' : '#ffffff20'}`,
-                    boxShadow: isSpinning ? '0 0 24px rgba(245,200,66,0.5)' : 'none',
-                    '--gz': isResult && winZone ? ZONES[winZone].glow : 'rgba(245,200,66,0.5)',
+                    boxShadow: isSpinning && !anticipation ? '0 0 24px rgba(245,200,66,0.5)' : 'none',
+                    '--gz': isResult && winZone ? ZONES[winZone].glow : anticipation ? 'rgba(245,200,66,0.85)' : 'rgba(245,200,66,0.5)',
                     transition:'border-color 0.3s',
                   } as React.CSSProperties} />
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2" style={{ width:0,height:0,borderLeft:'8px solid transparent',borderRight:'8px solid transparent',borderTop:`12px solid ${isSpinning ? '#f5c842':'#ffffff30'}` }} />
                 <div className="absolute -bottom-3 left-1/2 -translate-x-1/2" style={{ width:0,height:0,borderLeft:'8px solid transparent',borderRight:'8px solid transparent',borderBottom:`12px solid ${isSpinning ? '#f5c842':'#ffffff30'}` }} />
               </div>
+
+              {/* Burst — radial flash centered on the winning slot */}
+              {isResult && winZone && (
+                <div key={burstKey} className="rl-burst absolute z-30 pointer-events-none rounded-full"
+                  style={{
+                    left:'50%', top:'50%', width:ITEM_W * 1.6, height:ITEM_W * 1.6,
+                    background:`radial-gradient(circle, ${ZONES[winZone].glow} 0%, ${ZONES[winZone].glow.replace(/[\d.]+\)/, '0.2)')} 30%, transparent 70%)`,
+                  }} />
+              )}
+
+              {/* Top-edge flash overlay on result */}
+              {isResult && winZone && (
+                <div key={`f${burstKey}`} className="rl-flash absolute inset-0 z-25 pointer-events-none rounded-xl"
+                  style={{ background:`radial-gradient(ellipse at center, ${ZONES[winZone].glow} 0%, transparent 60%)` }} />
+              )}
+
+              {/* Speed-line shimmer during spin (subtle) */}
+              {isSpinning && (
+                <div className="absolute inset-y-0 left-0 right-0 z-15 pointer-events-none overflow-hidden">
+                  <div className="rl-shimmer absolute inset-y-0 w-32" style={{ background:'linear-gradient(90deg,transparent,rgba(245,200,66,0.18),transparent)' }} />
+                </div>
+              )}
 
               {/* Fades — narrow so items stay visible during spin */}
               <div className="absolute inset-y-0 left-0 w-10 z-10 pointer-events-none" style={{ background:'linear-gradient(to right,rgba(13,11,26,0.85),transparent)' }} />

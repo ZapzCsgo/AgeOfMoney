@@ -75,22 +75,30 @@ function wololoSynth(volume = 0.25) {
   } catch { /* */ }
 }
 
-/** Tick sound — played rapidly as wheel flies past each slot */
-export function playTick() {
+/** Tick sound — played rapidly as wheel flies past each slot.
+ *  `progress` (0..1) lowers the pitch and bumps the gain near the end —
+ *  so the last few ticks before landing feel fat and dramatic. */
+export function playTick(progress = 0) {
   try {
     const ac = getCtx();
     const t = ac.currentTime;
-    const buf = ac.createBuffer(1, ac.sampleRate * 0.04, ac.sampleRate);
+    // White-noise click with a sharper envelope at the end
+    const buf = ac.createBuffer(1, ac.sampleRate * 0.05, ac.sampleRate);
     const data = buf.getChannelData(0);
+    const decay = 0.15 + progress * 0.25; // longer body near the end
     for (let i = 0; i < data.length; i++) {
-      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (data.length * 0.15));
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (data.length * decay));
     }
     const src = ac.createBufferSource();
     src.buffer = buf;
+    // Lowpass that opens up at the start, closes at the end → "pop → thunk"
+    const lp = ac.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 8000 - progress * 6500; // 8000Hz → 1500Hz
     const g = ac.createGain();
-    g.gain.setValueAtTime(0.12, t);
-    g.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
-    src.connect(g); g.connect(ac.destination);
+    g.gain.setValueAtTime(0.12 + progress * 0.18, t); // 0.12 → 0.30
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+    src.connect(lp); lp.connect(g); g.connect(ac.destination);
     src.start(t);
   } catch { /* */ }
 }
