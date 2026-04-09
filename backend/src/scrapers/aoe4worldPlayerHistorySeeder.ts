@@ -281,12 +281,11 @@ export async function seedPlayerAllCustomGames(
 
 /**
  * Seed tournament match history for a single player from aoe4world H2H data
- * (games against all other known pro players).
+ * (1v1 tournament games against known pro players only, rm_custom leaderboard).
  *
- * If after H2H seeding the player still has fewer than 50 records, falls back
- * to seedPlayerAllCustomGames to catch additional tournament games.
+ * Skips players that already have 50+ records (unless force=true).
  *
- * Returns number of match records stored (H2H + fallback combined).
+ * Returns number of match records stored.
  */
 export async function seedPlayerHistoryFromAoe4World(
   playerId: string,
@@ -299,7 +298,7 @@ export async function seedPlayerHistoryFromAoe4World(
     const existing = await prisma.playerMatchRecord.count({
       where: { playerId, source: 'aoe4world' },
     });
-    if (existing >= 20) {
+    if (existing >= 50) {
       logger.debug(
         `[Seeder] ${playerName} already has ${existing} aoe4world records — skipping`,
       );
@@ -369,20 +368,9 @@ export async function seedPlayerHistoryFromAoe4World(
     );
   }
 
-  // Fallback: if still below 50 total records, run all-custom-games strategy
-  const totalAfterH2H = await prisma.playerMatchRecord.count({
-    where: { playerId, source: 'aoe4world' },
-  });
-
-  let customStored = 0;
-  if (totalAfterH2H < 50) {
-    logger.debug(
-      `[Seeder] ${playerName}: only ${totalAfterH2H} records after H2H — running all-custom-games fallback`,
-    );
-    customStored = await seedPlayerAllCustomGames(playerId, playerName, playerAoe4Id);
-  }
-
-  return h2hStored + customStored;
+  // Only H2H vs known pros — no fallback to all-custom-games (which included
+  // practice matches, random opponents, and non-tournament games).
+  return h2hStored;
 }
 
 // ---------------------------------------------------------------------------
@@ -390,8 +378,8 @@ export async function seedPlayerHistoryFromAoe4World(
 // ---------------------------------------------------------------------------
 
 /**
- * Seed all players in DB that have an aoe4worldId and fewer than 20 records.
- * Uses both H2H and all-custom-games strategies as described above.
+ * Seed all players in DB that have an aoe4worldId and fewer than 50 records.
+ * Uses H2H vs known pros strategy only (rm_custom leaderboard).
  */
 export async function seedAllPlayerHistories(force = false): Promise<void> {
   const players = await prisma.player.findMany({
