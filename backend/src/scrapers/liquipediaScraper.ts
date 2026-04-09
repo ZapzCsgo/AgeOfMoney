@@ -239,11 +239,20 @@ async function fetchTournamentInfo(liquipediaUrl: string): Promise<{ twitchChann
     const t = parseTierFromClass($(el).attr('class') || '');
     if (t) { tier = t; return false; }
   });
-  // Tier — Strategy 2: "S-Tier" / "A-Tier" text in infobox cells
+  // Tier — Strategy 2: look for "S-Tier" / "A-Tier" anywhere in text (not just exact match)
+  // Handles cases like "Qualifier (S-Tier Tournaments)" or "S-Tier" with surrounding content
   if (!tier) {
-    $('td, .infobox-cell-2, .wikitable td, .fo-nttax-infobox td').each((_i, el) => {
+    $('td, .infobox-cell-2, .wikitable td, .fo-nttax-infobox td, div, span, a').each((_i, el) => {
       const text = $(el).text().trim();
-      const m = text.match(/^([SABCD])[- ]?Tier$/i);
+      const m = text.match(/\b([SABCD])[- ]?Tier\b/i);
+      if (m) { tier = m[1].toUpperCase(); return false; }
+    });
+  }
+  // Tier — Strategy 3: look for tier in link hrefs (e.g. "/S-Tier_Tournaments")
+  if (!tier) {
+    $('a[href*="Tier_Tournaments"]').each((_i, el) => {
+      const href = $(el).attr('href') || '';
+      const m = href.match(/\/([SABCD])-Tier_Tournaments/i);
       if (m) { tier = m[1].toUpperCase(); return false; }
     });
   }
