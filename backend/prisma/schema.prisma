@@ -41,7 +41,7 @@ model Player {
   liquipediaSlug   String    @unique
   aoe4worldId      String?
   game             String    @default("AoE4") // "AoE4" | "AoE2" | "AoE3" | "AoM" | "AoE1"
-  aiEnrichedGames  String[]  @default([])      // games for which Claude AI has already been called (skip credit waste)
+  aiEnrichedGames  String[]                    // games for which Claude AI has already been called (skip credit waste)
   elo              Int       @default(1000)
   winrate          Float     @default(0.5)
   country          String?
