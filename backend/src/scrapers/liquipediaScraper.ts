@@ -526,11 +526,19 @@ export async function scrapeUpcomingMatches(): Promise<void> {
             });
           }
         } else {
+          // Only overwrite `game` when:
+          //  - the existing classification is the schema default 'AoE4', OR
+          //  - the new value comes from a HIGH-confidence source (infobox probe)
+          // This prevents auto-detection from undoing a manual admin fix on
+          // every cron tick.
+          const existingGame = existingTourn?.game;
+          const highConfidenceGame = !!gameFromInfobox; // infobox is the only definitive signal
+          const shouldUpdateGame = existingGame === 'AoE4' || highConfidenceGame;
           tournament = await prisma.tournament.update({
             where: { liquipediaUrl: m.tournamentUrl },
             data: {
               ...(m.tournamentName !== 'Unknown Tournament' ? { name: m.tournamentName } : {}),
-              game: correctGame,
+              ...(shouldUpdateGame ? { game: correctGame } : {}),
               tier: correctTier,
               isActive: true,
               ...(twitchChannel ? { twitchChannel } : {}),
