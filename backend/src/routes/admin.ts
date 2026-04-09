@@ -597,6 +597,7 @@ router.get('/players', async (_req: Request, res: Response): Promise<void> => {
       select: {
         id: true, name: true, aoe4worldId: true, winrate: true,
         totalGames: true, country: true, lastUpdatedAt: true,
+        game: true, aiEnrichedGames: true,
         _count: { select: { matchHistory: true } },
       },
     });

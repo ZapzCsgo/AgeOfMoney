@@ -507,16 +507,28 @@ export async function scrapeUpcomingMatches(): Promise<void> {
         });
         if (completedMatch) continue;
 
-        // Skip if any UPCOMING/LIVE match already exists for these players within ±2h
-        // (cross-tournament check handles the same match appearing on multiple wikis)
+        // If an UPCOMING/LIVE match already exists for these players within ±2h,
+        // make sure its game/tournament link reflects what we just (re-)detected
+        // — old matches from a wrong wiki classification get healed here.
         const existing = await prisma.match.findFirst({
           where: {
             OR: [{ player1Id: p1.id, player2Id: p2.id }, { player1Id: p2.id, player2Id: p1.id }],
             scheduledAt: { gte: windowStart, lte: windowEnd },
             status: { in: ['UPCOMING', 'LIVE'] },
           },
+          select: { id: true, game: true, tournamentId: true },
         });
-        if (existing) continue;
+        if (existing) {
+          const tournGameNow = (tournament as { game?: string }).game ?? correctGame;
+          if (existing.game !== tournGameNow || existing.tournamentId !== tournament.id) {
+            await prisma.match.update({
+              where: { id: existing.id },
+              data: { game: tournGameNow, tournamentId: tournament.id },
+            });
+            logger.info(`[Liquipedia] Healed match ${existing.id}: game ${existing.game}→${tournGameNow}`);
+          }
+          continue;
+        }
 
         const prob1 = 1 / (1 + Math.pow(10, (p2.elo - p1.elo) / 400));
         const margin = 0.05;

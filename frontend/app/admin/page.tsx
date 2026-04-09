@@ -27,6 +27,8 @@ interface AdminPlayer {
   totalGames: number;
   country: string | null;
   lastUpdatedAt: string;
+  game?: string;
+  aiEnrichedGames?: string[];
   _count: { matchHistory: number };
 }
 
@@ -225,8 +227,10 @@ export default function AdminPage() {
   const handleSeedPlayer = async (playerId: string, playerName: string) => {
     setSeeding(playerId);
     try {
-      await apiClient.post(`/admin/players/${playerId}/seed-history`, {});
-      showMsg('success', `Seeding démarré pour ${playerName}`);
+      // Always force=true from this admin button — bypasses the
+      // aiEnrichedGames cache so Claude is queried again on demand.
+      await apiClient.post(`/admin/players/${playerId}/seed-history`, { force: true });
+      showMsg('success', `Re-seeding démarré pour ${playerName}`);
     } catch (err) {
       showMsg('error', err instanceof Error ? err.message : 'Erreur');
     } finally {
@@ -577,10 +581,27 @@ export default function AdminPage() {
                   {players.map(p => {
                     const records = p._count.matchHistory;
                     const color = records >= 50 ? '#10b981' : records >= 20 ? '#d4a017' : records > 0 ? '#f87171' : '#6b6488';
+                    const enrichedGames = p.aiEnrichedGames ?? [];
+                    const aiDone = enrichedGames.length > 0;
                     return (
                       <tr key={p.id} className="hover:bg-[#13111f] transition-colors" style={{ borderBottom: '1px solid #1e1a3022' }}>
                         <td className="px-4 py-3">
-                          <p className="font-semibold text-[#e8e2f5]">{p.name}</p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-semibold text-[#e8e2f5]">{p.name}</p>
+                            {p.game && p.game !== 'AoE4' && (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded font-cinzel"
+                                style={{ background: '#1e1a30', border: '1px solid #2a2540', color: '#9990b8' }}>
+                                {p.game}
+                              </span>
+                            )}
+                            {aiDone && (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded font-cinzel inline-flex items-center gap-1"
+                                style={{ background: 'rgba(34,211,238,0.08)', border: '1px solid rgba(34,211,238,0.3)', color: '#22d3ee' }}
+                                title={`Claude AI a déjà été appelé pour: ${enrichedGames.join(', ')}`}>
+                                🤖 AI ✓ {enrichedGames.join('+')}
+                              </span>
+                            )}
+                          </div>
                           <p className="text-[10px] text-[#6b6488]">{p.aoe4worldId ?? 'no aoe4world ID'}</p>
                         </td>
                         <td className="px-4 py-3">
@@ -603,12 +624,17 @@ export default function AdminPage() {
                         <td className="px-4 py-3">
                           <button
                             onClick={() => handleSeedPlayer(p.id, p.name)}
-                            disabled={seeding === p.id || records >= 50}
+                            disabled={seeding === p.id}
                             className="flex items-center gap-1 px-3 py-1.5 rounded text-[11px] font-medium transition-all disabled:opacity-40"
-                            style={{ background: records >= 50 ? '#1e1a30' : '#0891b220', border: `1px solid ${records >= 50 ? '#1e1a30' : '#0891b240'}`, color: records >= 50 ? '#6b6488' : '#22d3ee' }}
+                            style={{
+                              background: records >= 50 ? '#0891b210' : '#0891b220',
+                              border: `1px solid ${records >= 50 ? '#0891b230' : '#0891b240'}`,
+                              color: '#22d3ee',
+                            }}
+                            title={aiDone ? 'Force re-call Claude AI (cache bypass)' : 'Seed history'}
                           >
                             {seeding === p.id ? <RefreshCw size={11} className="animate-spin" /> : <Database size={11} />}
-                            {records >= 50 ? 'Complet' : 'Seed'}
+                            {records >= 50 ? 'Re-seed' : 'Seed'}
                           </button>
                         </td>
                       </tr>

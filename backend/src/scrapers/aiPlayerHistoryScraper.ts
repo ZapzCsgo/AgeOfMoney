@@ -258,6 +258,19 @@ export async function enrichPlayerWithAI(
   // player.aiEnrichedGames so future scrapes skip this player entirely for
   // that game. New records grow organically from finished matches on the
   // platform (storeMatchInPlayerHistory).
+  // When `force=true` (admin "Re-seed" button), strip this game from the
+  // marker first so the call goes through and the marker is re-added below.
+  if (force) {
+    const existingPlayer = await prisma.player.findUnique({
+      where: { id: playerId },
+      select: { aiEnrichedGames: true },
+    });
+    const filtered = (existingPlayer?.aiEnrichedGames ?? []).filter(g => g !== game);
+    await prisma.player.update({
+      where: { id: playerId },
+      data: { aiEnrichedGames: { set: filtered } },
+    }).catch(() => {});
+  }
   if (!force) {
     const player = await prisma.player.findUnique({
       where: { id: playerId },

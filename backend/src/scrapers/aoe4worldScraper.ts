@@ -74,28 +74,39 @@ interface Aoe4WorldSearchResult {
   }>;
 }
 
-async function fetchApi<T>(path: string): Promise<T | null> {
-  try {
-    const res = await axios.get<T>(`${AOE4WORLD_BASE}${path}`, {
-      headers: {
-        'User-Agent': 'AoE4Bet/1.0 (educational; contact@aoe4bet.com)',
-        Accept: 'application/json',
-      },
-      timeout: 10000,
-    });
-    return res.data;
-  } catch (err) {
-    if (axios.isAxiosError(err)) {
-      if (err.response?.status === 404) return null;
-      if (err.response?.status === 429) {
-        logger.warn('aoe4world rate limit hit, backing off');
-        await new Promise((r) => setTimeout(r, 5000));
-        return null;
+async function fetchApi<T>(path: string, opts: { timeoutMs?: number; retries?: number } = {}): Promise<T | null> {
+  const timeoutMs = opts.timeoutMs ?? 15000;
+  const maxRetries = opts.retries ?? 1;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const res = await axios.get<T>(`${AOE4WORLD_BASE}${path}`, {
+        headers: {
+          'User-Agent': 'AoE4Bet/1.0 (educational; contact@aoe4bet.com)',
+          Accept: 'application/json',
+        },
+        timeout: timeoutMs,
+      });
+      return res.data;
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        if (err.response?.status === 404) return null;
+        if (err.response?.status === 429) {
+          logger.warn('aoe4world rate limit hit, backing off');
+          await new Promise((r) => setTimeout(r, 5000));
+          return null;
+        }
+        // Timeout or network error → retry once with a quick delay
+        if ((err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET') && attempt < maxRetries) {
+          logger.warn(`aoe4world ${path} attempt ${attempt + 1} failed (${err.code}), retrying in 2s`);
+          await new Promise((r) => setTimeout(r, 2000));
+          continue;
+        }
       }
+      logger.error(`aoe4world API error for ${path} (attempt ${attempt + 1}/${maxRetries + 1}): ${(err as Error)?.message ?? err}`);
+      return null;
     }
-    logger.error(`aoe4world API error for ${path}:`, err);
-    return null;
   }
+  return null;
 }
 
 export async function getPlayerStats(aoe4worldId: string): Promise<Aoe4WorldPlayer | null> {
@@ -298,7 +309,8 @@ export async function buildProPlayerSet(): Promise<Set<string>> {
       cancelled?: boolean;
       end_date?: string;
     }
-    const data = await fetchApi<{ tournaments: TournamentListItem[] }>('/tournaments?limit=200');
+    // Big payload — server response can be slow, give it 30s and one retry
+    const data = await fetchApi<{ tournaments: TournamentListItem[] }>('/tournaments?limit=200', { timeoutMs: 30000, retries: 2 });
     if (data?.tournaments) {
       const cutoff = new Date(Date.now() - 90 * 24 * 3600 * 1000); // last 90 days
       const relevant = data.tournaments.filter(t => {
