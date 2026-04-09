@@ -610,10 +610,24 @@ export async function enrichMatchWithH2H(matchId: string): Promise<void> {
   // ── 3. Ensure both players have history seeded ─────────────────────────────
   // For AoE4 matches: seed from aoe4world (only AoE4 data exists there).
   // For non-AoE4 matches (AoE2/AoM/AoE3): seed from Claude AI — aoe4world has no data.
+  // Count uses a defensive try/catch — `game` column may not exist on stale schemas.
+  // The downstream `enrichPlayerWithAI` has its OWN sentinel-based cache so it
+  // won't waste credits on (player, game) pairs we've already attempted.
   {
+    const safeCount = async (playerId: string): Promise<number> => {
+      try {
+        return await prisma.playerMatchRecord.count({
+          where: { playerId, game: match.game, NOT: { opponentName: '__claude_cache__' } },
+        });
+      } catch {
+        return await prisma.playerMatchRecord.count({
+          where: { playerId, NOT: { opponentName: '__claude_cache__' } },
+        }).catch(() => 0);
+      }
+    };
     const [p1Count, p2Count] = await Promise.all([
-      prisma.playerMatchRecord.count({ where: { playerId: match.player1Id, game: match.game } }),
-      prisma.playerMatchRecord.count({ where: { playerId: match.player2Id, game: match.game } }),
+      safeCount(match.player1Id),
+      safeCount(match.player2Id),
     ]);
 
     if (match.game === 'AoE4') {
@@ -631,13 +645,12 @@ export async function enrichMatchWithH2H(matchId: string): Promise<void> {
       }
     } else {
       // Non-AoE4 → use Claude AI history scraper (aoe4world has no AoE2/AoM/AoE3 data)
+      // The function itself checks the sentinel cache and bails if already attempted.
       const { enrichPlayerWithAI } = await import('./aiPlayerHistoryScraper');
       if (p1Count === 0) {
-        logger.info(`[Enrich] New ${match.game} player ${match.player1.name} — seeding from Claude AI`);
         await enrichPlayerWithAI(match.player1Id, match.player1.name, false, match.game).catch(() => {});
       }
       if (p2Count === 0) {
-        logger.info(`[Enrich] New ${match.game} player ${match.player2.name} — seeding from Claude AI`);
         await enrichPlayerWithAI(match.player2Id, match.player2.name, false, match.game).catch(() => {});
       }
     }

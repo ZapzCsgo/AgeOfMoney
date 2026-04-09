@@ -296,7 +296,7 @@ export async function seedPlayerHistoryFromAoe4World(
 ): Promise<number> {
   if (!force) {
     const existing = await prisma.playerMatchRecord.count({
-      where: { playerId, source: 'aoe4world' },
+      where: { playerId, source: 'aoe4world', NOT: { opponentName: '__claude_cache__' } },
     });
     if (existing >= 50) {
       logger.debug(

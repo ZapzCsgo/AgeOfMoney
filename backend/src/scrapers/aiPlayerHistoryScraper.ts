@@ -245,6 +245,73 @@ async function storePlayerHistory(
  * Enrich a single player's tournament history via Claude.
  * Skips if already has >= MIN_RECORDS_BEFORE_SKIP AI records (unless force=true).
  */
+// ─── Sentinel-based credit cache ──────────────────────────────────────────
+// We use a special PlayerMatchRecord row as a "we already called Claude
+// for this (player, game)" marker. This works on the existing schema, no
+// new column needed → survives broken migrations.
+//
+// The sentinel never appears in real H2H queries because they filter on
+// real opponentName / tournamentName values that don't match these magic
+// strings. confidence=0 also keeps it out of stat calculations.
+const SENTINEL_OPPONENT = '__claude_cache__';
+const sentinelDate = new Date('1970-01-01T00:00:00Z');
+const sentinelTournName = (game: string) => `__claude_attempted_${game}__`;
+
+async function hasClaudeBeenAttempted(playerId: string, game: string): Promise<boolean> {
+  try {
+    const sentinel = await prisma.playerMatchRecord.findFirst({
+      where: {
+        playerId,
+        opponentName: SENTINEL_OPPONENT,
+        tournamentName: sentinelTournName(game),
+      },
+      select: { id: true },
+    });
+    return !!sentinel;
+  } catch {
+    return false;
+  }
+}
+
+async function markClaudeAttempted(playerId: string, game: string): Promise<void> {
+  try {
+    await prisma.playerMatchRecord.upsert({
+      where: {
+        playerId_opponentName_tournamentName_matchDate: {
+          playerId,
+          opponentName: SENTINEL_OPPONENT,
+          tournamentName: sentinelTournName(game),
+          matchDate: sentinelDate,
+        },
+      },
+      create: {
+        playerId,
+        opponentName: SENTINEL_OPPONENT,
+        tournamentName: sentinelTournName(game),
+        matchDate: sentinelDate,
+        won: false,
+        confidence: 0,
+        source: 'cache',
+      },
+      update: { confidence: 0 },
+    });
+  } catch (err) {
+    logger.warn(`[AI History] Failed to mark Claude attempt for ${playerId}/${game}: ${(err as Error)?.message}`);
+  }
+}
+
+async function clearClaudeAttempt(playerId: string, game: string): Promise<void> {
+  try {
+    await prisma.playerMatchRecord.deleteMany({
+      where: {
+        playerId,
+        opponentName: SENTINEL_OPPONENT,
+        tournamentName: sentinelTournName(game),
+      },
+    });
+  } catch { /* no-op */ }
+}
+
 export async function enrichPlayerWithAI(
   playerId: string,
   playerName: string,
@@ -254,45 +321,27 @@ export async function enrichPlayerWithAI(
   if (!process.env.ANTHROPIC_API_KEY) return 0;
 
   // Credit-saving guard: never call Claude twice for the same (player, game).
-  // After the first attempt — successful or not — we add the game to
-  // player.aiEnrichedGames so future scrapes skip this player entirely for
-  // that game. New records grow organically from finished matches on the
-  // platform (storeMatchInPlayerHistory).
-  // When `force=true` (admin "Re-seed" button), strip this game from the
-  // marker first so the call goes through and the marker is re-added below.
+  // The sentinel is checked first — it's the source of truth for "we tried".
+  // When force=true (admin Re-seed), we wipe the sentinel so the call proceeds.
   if (force) {
-    const existingPlayer = await prisma.player.findUnique({
-      where: { id: playerId },
-      select: { aiEnrichedGames: true },
-    });
-    const filtered = (existingPlayer?.aiEnrichedGames ?? []).filter(g => g !== game);
-    await prisma.player.update({
-      where: { id: playerId },
-      data: { aiEnrichedGames: { set: filtered } },
-    }).catch(() => {});
-  }
-  if (!force) {
-    const player = await prisma.player.findUnique({
-      where: { id: playerId },
-      select: { aiEnrichedGames: true },
-    });
-    if (player?.aiEnrichedGames?.includes(game)) {
-      logger.debug(`[AI History] Skipping ${playerName} — already AI-enriched for ${game}`);
-      return await prisma.playerMatchRecord.count({ where: { playerId, game } });
+    await clearClaudeAttempt(playerId, game);
+  } else {
+    if (await hasClaudeBeenAttempted(playerId, game)) {
+      logger.debug(`[AI History] Skipping ${playerName} — Claude already called for ${game}`);
+      // Return real record count (excluding the sentinel)
+      const realCount = await prisma.playerMatchRecord.count({
+        where: { playerId, NOT: { opponentName: SENTINEL_OPPONENT } },
+      }).catch(() => 0);
+      return realCount;
     }
 
-    // Hard cap: if for some reason the player already has >= 50 records for
-    // this game (e.g. seeded by another path), no need to call Claude either.
+    // Hard cap: if the player already has >= 50 real records, no need to call Claude.
     const existing = await prisma.playerMatchRecord.count({
-      where: { playerId, game },
-    });
+      where: { playerId, NOT: { opponentName: SENTINEL_OPPONENT } },
+    }).catch(() => 0);
     if (existing >= MIN_RECORDS_BEFORE_SKIP) {
-      logger.debug(`[AI History] Skipping ${playerName} — already has ${existing} ${game} records`);
-      // Still mark as enriched so future runs short-circuit faster
-      await prisma.player.update({
-        where: { id: playerId },
-        data: { aiEnrichedGames: { push: game } },
-      }).catch(() => {});
+      logger.debug(`[AI History] Skipping ${playerName} — already has ${existing} records`);
+      await markClaudeAttempted(playerId, game);
       return existing;
     }
   }
@@ -300,22 +349,20 @@ export async function enrichPlayerWithAI(
   logger.info(`[AI History] Querying Claude for ${playerName}'s ${game} tournament history…`);
   const response = await queryPlayerHistory(playerName, game);
 
-  // Mark the (player, game) as attempted regardless of result — the credit
-  // is already spent, no point retrying next cron tick.
-  await prisma.player.update({
-    where: { id: playerId },
-    data: { aiEnrichedGames: { push: game } },
-  }).catch(() => {});
+  // Mark the attempt regardless of result — credit is already spent.
+  // This MUST happen before any early return so retries are blocked.
+  await markClaudeAttempted(playerId, game);
 
   if (!response || !response.matches?.length) {
-    logger.info(`[AI History] No ${game} data from Claude for ${playerName} (marked as attempted)`);
+    logger.info(`[AI History] No ${game} data from Claude for ${playerName} (sentinel set, won't retry)`);
     return 0;
   }
 
   const nameMap = await buildPlayerNameMap();
   const stored = await storePlayerHistory(playerId, playerName, response.matches, nameMap, game);
 
-  // Tag the player's primary game when we get real data back
+  // Tag the player's primary game when we get real data back.
+  // Wrapped in catch because Player.game column may not exist yet on stale schemas.
   if (stored > 0) {
     await prisma.player.update({ where: { id: playerId }, data: { game } }).catch(() => {});
   }
@@ -380,19 +427,32 @@ export async function getPlayerH2HFromHistory(
   ]);
   if (!p1 || !p2) return [];
 
+  // game column may not exist on stale schemas — skip the filter if it errors
   const gameFilter = game ? { game } : {};
+  // Always exclude the sentinel cache rows from H2H lookups
+  const notSentinel = { NOT: { opponentName: SENTINEL_OPPONENT } };
 
   // Records where opponentId is resolved
   const byId = await prisma.playerMatchRecord.findMany({
     where: {
       ...gameFilter,
+      ...notSentinel,
       OR: [
         { playerId: player1Id, opponentId: player2Id },
         { playerId: player2Id, opponentId: player1Id },
       ],
     },
     orderBy: { matchDate: 'desc' },
-  });
+  }).catch(() => prisma.playerMatchRecord.findMany({
+    where: {
+      ...notSentinel,
+      OR: [
+        { playerId: player1Id, opponentId: player2Id },
+        { playerId: player2Id, opponentId: player1Id },
+      ],
+    },
+    orderBy: { matchDate: 'desc' },
+  }));
 
   // Also try name-based matching for unresolved opponents
   const p1Name = p1.name.toLowerCase();
@@ -403,6 +463,7 @@ export async function getPlayerH2HFromHistory(
   const byName = await prisma.playerMatchRecord.findMany({
     where: {
       ...gameFilter,
+      ...notSentinel,
       opponentId: null, // only unresolved ones
       OR: [
         {
@@ -416,7 +477,7 @@ export async function getPlayerH2HFromHistory(
       ],
     },
     orderBy: { matchDate: 'desc' },
-  });
+  }).catch(() => []);
 
   // Merge and deduplicate (by tournament + date)
   const seen = new Set<string>();
@@ -445,7 +506,7 @@ export async function getPlayerHistoryStats(playerId: string): Promise<{
   aiRecords: number;
 }> {
   const records = await prisma.playerMatchRecord.findMany({
-    where: { playerId },
+    where: { playerId, NOT: { opponentName: SENTINEL_OPPONENT } },
     select: { won: true, source: true },
   });
 
