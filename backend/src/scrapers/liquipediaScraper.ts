@@ -346,6 +346,9 @@ export async function scrapeUpcomingMatches(): Promise<void> {
     logger.info(`[Liquipedia] Total: ${matchesFound} upcoming matches across all wikis`);
 
     // ── Persist to DB ──────────────────────────────────────────────────────────
+    // Cache tournament info fetches to avoid repeated requests for the same URL
+    const tournInfoCache = new Map<string, { twitchChannel: string | null; tier: string | null }>();
+
     for (const m of allMatches) {
       try {
         const existingTourn = await prisma.tournament.findUnique({
@@ -360,7 +363,14 @@ export async function scrapeUpcomingMatches(): Promise<void> {
         const needsTierFetch = !scrapedTier && m.tournamentUrl.includes('liquipedia.net');
         const isNewTournament = !existingTourn && m.tournamentUrl.includes('liquipedia.net');
         if (isNewTournament || needsTierFetch) {
-          const info = await fetchTournamentInfo(m.tournamentUrl);
+          // Use cached result if we already fetched this tournament URL
+          const cacheKey = m.tournamentUrl.split('#')[0]; // strip anchors
+          let info = tournInfoCache.get(cacheKey);
+          if (!info) {
+            await sleep(3000); // respect rate limit between tournament page fetches
+            info = await fetchTournamentInfo(m.tournamentUrl);
+            tournInfoCache.set(cacheKey, info);
+          }
           twitchChannel = info.twitchChannel ?? twitchChannel;
           scrapedTier   = info.tier ?? scrapedTier;
         }
