@@ -64,11 +64,11 @@ async function queryPlayerHistory(playerName: string, game = 'AoE4'): Promise<AI
   const prompt = `You are an ${game} esports data specialist. Your task is to retrieve the tournament match history for "${playerName}" in ${gameFull} from your knowledge of Liquipedia (${wiki}), aoe4world.com (if applicable), and official tournament records.
 
 **Important:** "${playerName}" may be:
-- An individual AoE4 pro player (most common)
+- An individual ${game} pro player (most common)
 - A team competing in WTL (World Team League) — if so, list their individual 1v1 matches within WTL seasons
 - A player known by an alias or abbreviated tag — check common variations
 
-Search ALL your knowledge to find up to 50 professional tournament matches for "${playerName}" in Age of Empires IV:
+Search ALL your knowledge to find up to 50 professional tournament matches for "${playerName}" in ${gameFull}:
 
 **Sources to reference:**
 - ${wiki} — primary wiki for all brackets, results, scores

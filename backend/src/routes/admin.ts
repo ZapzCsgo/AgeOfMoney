@@ -616,7 +616,14 @@ router.post('/players/:id/seed-history', async (req: Request, res: Response): Pr
       const count = await prisma.playerMatchRecord.count({ where: { playerId: player.id } });
       if (count < 50 && process.env.ANTHROPIC_API_KEY) {
         const { enrichPlayerWithAI } = await import('../scrapers/aiPlayerHistoryScraper');
-        await enrichPlayerWithAI(player.id, player.name, force);
+        // Detect game from the player's most recent match
+        const recentMatch = await prisma.match.findFirst({
+          where: { OR: [{ player1Id: player.id }, { player2Id: player.id }] },
+          orderBy: { scheduledAt: 'desc' },
+          select: { game: true },
+        });
+        const game = recentMatch?.game ?? 'AoE4';
+        await enrichPlayerWithAI(player.id, player.name, force, game);
       }
     })().catch(err => logger.error(`[Admin] Seed history failed for ${player.name}:`, err));
   } catch (err) {
@@ -639,7 +646,14 @@ router.post('/players/seed-all', async (_req: Request, res: Response): Promise<v
       for (const p of players) {
         const count = await prisma.playerMatchRecord.count({ where: { playerId: p.id } });
         const force = count < 5; // re-query even if some records exist
-        await enrichPlayerWithAI(p.id, p.name, force).catch(() => {});
+        // Detect game from the player's most recent match
+        const recentMatch = await prisma.match.findFirst({
+          where: { OR: [{ player1Id: p.id }, { player2Id: p.id }] },
+          orderBy: { scheduledAt: 'desc' },
+          select: { game: true },
+        });
+        const game = recentMatch?.game ?? 'AoE4';
+        await enrichPlayerWithAI(p.id, p.name, force, game).catch(() => {});
         await new Promise(r => setTimeout(r, 4000)); // rate limit
       }
     }
