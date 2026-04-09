@@ -481,15 +481,20 @@ export async function scrapeUpcomingMatches(): Promise<void> {
           });
         }
 
+        // Tag the player with the game we just detected so they're properly
+        // classified BEFORE any enrichment. We only set on create to avoid
+        // overwriting players who have been manually classified or who play
+        // multiple games (the AI enrichment path may update this later).
+        const tournGameForPlayer = (tournament as { game?: string }).game ?? correctGame;
         const p1 = await prisma.player.upsert({
           where: { liquipediaSlug: m.player1Slug },
           update: {},
-          create: { name: m.player1, liquipediaSlug: m.player1Slug, country: m.player1Country || null, elo: 1500 },
+          create: { name: m.player1, liquipediaSlug: m.player1Slug, country: m.player1Country || null, elo: 1500, game: tournGameForPlayer },
         });
         const p2 = await prisma.player.upsert({
           where: { liquipediaSlug: m.player2Slug },
           update: {},
-          create: { name: m.player2, liquipediaSlug: m.player2Slug, country: m.player2Country || null, elo: 1500 },
+          create: { name: m.player2, liquipediaSlug: m.player2Slug, country: m.player2Country || null, elo: 1500, game: tournGameForPlayer },
         });
 
         const windowStart = new Date(m.scheduledAt.getTime() - 2 * 3600 * 1000);
