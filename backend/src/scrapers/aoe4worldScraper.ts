@@ -669,12 +669,13 @@ export async function enrichMatchWithH2H(matchId: string): Promise<void> {
     }
   }
 
-  // Priority 2: platform match results (AgeOfMoney completed matches)
+  // Priority 2: platform match results (AgeOfMoney completed matches, same game only)
   if (h2hRecent.length < 20) {
     const dbH2H = await prisma.match.findMany({
       where: {
         status: 'COMPLETED',
         winnerId: { not: null },
+        game: match.game,
         OR: [
           { player1Id: match.player1Id, player2Id: match.player2Id },
           { player1Id: match.player2Id, player2Id: match.player1Id },
