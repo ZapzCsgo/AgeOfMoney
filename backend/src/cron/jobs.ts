@@ -61,13 +61,14 @@ export function initCronJobs(): void {
   });
 
   // ── Every 6 hours: AI H2H enrichment for sparse pairs ────────────────────
-  cron.schedule('0 */6 * * *', async () => {
-    try {
-      await enrichAllSparseH2H();
-    } catch (err) {
-      logger.error('[CRON] AI H2H enrichment failed:', err);
-    }
-  });
+  // PAUSED — using Liquipedia direct scraper instead of AI/aoe4world seeders
+  // cron.schedule('0 */6 * * *', async () => {
+  //   try {
+  //     await enrichAllSparseH2H();
+  //   } catch (err) {
+  //     logger.error('[CRON] AI H2H enrichment failed:', err);
+  //   }
+  // });
 
   // ── Every minute: transition match statuses + close bets ──────────────────
   cron.schedule('* * * * *', async () => {

@@ -630,28 +630,17 @@ export async function enrichMatchWithH2H(matchId: string): Promise<void> {
       safeCount(match.player2Id),
     ]);
 
-    if (match.game === 'AoE4') {
-      if (p1Count === 0 && match.player1.aoe4worldId) {
-        logger.info(`[Enrich] New AoE4 player ${match.player1.name} — seeding from aoe4world`);
-        const { seedPlayerHistoryFromAoe4World } = await import('./aoe4worldPlayerHistorySeeder');
-        const proIds = await buildProPlayerSet();
-        await seedPlayerHistoryFromAoe4World(match.player1Id, match.player1.name, match.player1.aoe4worldId, proIds).catch(() => {});
-      }
-      if (p2Count === 0 && match.player2.aoe4worldId) {
-        logger.info(`[Enrich] New AoE4 player ${match.player2.name} — seeding from aoe4world`);
-        const { seedPlayerHistoryFromAoe4World } = await import('./aoe4worldPlayerHistorySeeder');
-        const proIds = await buildProPlayerSet();
-        await seedPlayerHistoryFromAoe4World(match.player2Id, match.player2.name, match.player2.aoe4worldId, proIds).catch(() => {});
-      }
-    } else {
-      // Non-AoE4 → use Claude AI history scraper (aoe4world has no AoE2/AoM/AoE3 data)
-      // The function itself checks the sentinel cache and bails if already attempted.
-      const { enrichPlayerWithAI } = await import('./aiPlayerHistoryScraper');
+    // Auto-seed new players via Liquipedia direct scraper (all games)
+    // AI and aoe4world seeders are paused — LP is the primary source.
+    {
+      const { scrapePlayerHistoryFromLiquipedia } = await import('./liquipediaPlayerHistoryScraper');
       if (p1Count === 0) {
-        await enrichPlayerWithAI(match.player1Id, match.player1.name, false, match.game).catch(() => {});
+        logger.info(`[Enrich] New player ${match.player1.name} — seeding from Liquipedia`);
+        await scrapePlayerHistoryFromLiquipedia(match.player1Id, match.game).catch(() => {});
       }
       if (p2Count === 0) {
-        await enrichPlayerWithAI(match.player2Id, match.player2.name, false, match.game).catch(() => {});
+        logger.info(`[Enrich] New player ${match.player2.name} — seeding from Liquipedia`);
+        await scrapePlayerHistoryFromLiquipedia(match.player2Id, match.game).catch(() => {});
       }
     }
   }
