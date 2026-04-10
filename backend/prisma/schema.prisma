@@ -70,10 +70,11 @@ model PlayerMatchRecord {
   game           String    @default("AoE4") // "AoE4" | "AoE2" | "AoE3" | "AoM" | "AoE1"
   won            Boolean
   score          String?   // "3-1" from this player's perspective
+  tier           String    @default("B")   // "S" | "A" | "B" | "C" | "Qualifier" | "Misc"
   tournamentName String
   matchDate      DateTime?
   format         String?   // "BO3", "BO5"
-  source         String    @default("ai") // "ai" | "manual" | "aoe4world"
+  source         String    @default("ai") // "ai" | "manual" | "aoe4world" | "liquipedia"
   sourceUrl      String?
   confidence     Float     @default(0.8)
   createdAt      DateTime  @default(now())

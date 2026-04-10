@@ -19,7 +19,20 @@ import axios from 'axios';
 import { prisma } from '../index';
 import logger from '../logger';
 
-const ALLOWED_TIERS = new Set(['S-Tier', 'A-Tier']);
+// Accept all tiers — the tier is stored in DB and the odds engine weights
+// by tier importance (S > A > Qualifier > B > C > Misc).
+// Only skip completely empty/unknown tiers.
+const TIER_MAP: Record<string, string> = {
+  'S-Tier': 'S',
+  'A-Tier': 'A',
+  'B-Tier': 'B',
+  'C-Tier': 'C',
+  'Qualifier': 'Qualifier',
+  'Misc': 'Misc',
+  'Showmatch': 'Misc',
+  'Monthly': 'B',
+  'Weekly': 'C',
+};
 
 // Map wiki path → game code
 const WIKI_TO_GAME: Record<string, string> = {
@@ -77,8 +90,9 @@ function parseMatchesHtml(html: string): LpMatchRow[] {
 
     if (!playerName || !opponentName || !scoreRaw) continue;
 
-    // Only S/A tier
-    if (!ALLOWED_TIERS.has(tier)) continue;
+    // Map tier to our normalized format — skip unknown tiers
+    const normalizedTier = TIER_MAP[tier];
+    if (!normalizedTier) continue;
 
     // Parse score: "3 : 1" or "W : L" (W=win, L=loss, no numeric)
     const scoreMatch = scoreRaw.match(/(\d+)\s*:\s*(\d+)/);
@@ -108,7 +122,7 @@ function parseMatchesHtml(html: string): LpMatchRow[] {
 
     results.push({
       date,
-      tier,
+      tier: normalizedTier,
       tournament,
       playerName,
       opponentName,
@@ -232,7 +246,9 @@ export async function scrapePlayerHistoryFromLiquipedia(
   }
 
   const matches = parseMatchesHtml(result.html);
-  logger.info(`[LPHistory] ${player.name}: found ${matches.length} S/A-tier matches on LP`);
+  const tierCounts = matches.reduce((acc, m) => { acc[m.tier] = (acc[m.tier] ?? 0) + 1; return acc; }, {} as Record<string, number>);
+  const tierSummary = Object.entries(tierCounts).map(([t, n]) => `${t}:${n}`).join(' ');
+  logger.info(`[LPHistory] ${player.name}: found ${matches.length} tournament matches on LP (${tierSummary})`);
 
   let stored = 0;
   for (const m of matches) {
@@ -271,6 +287,7 @@ export async function scrapePlayerHistoryFromLiquipedia(
           game,
           won: m.playerWon,
           score: m.score,
+          tier: m.tier,
           tournamentName: m.tournament,
           matchDate: m.date,
           format,
@@ -281,6 +298,7 @@ export async function scrapePlayerHistoryFromLiquipedia(
           game,
           won: m.playerWon,
           score: m.score,
+          tier: m.tier,
           source: 'liquipedia',
           confidence: 0.95,
           ...(opponent?.id ? { opponentId: opponent.id } : {}),
