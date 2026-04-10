@@ -435,28 +435,21 @@ export default function DepositPage() {
             </div>
           )}
 
-          {/* CTA — corner-bracket esports CTA, no shiny gradient */}
+          {/* CTA — minimal solid button, no decoration */}
           <div className="pt-2 border-t" style={{ borderColor: '#1e1a30' }}>
             <button
               onClick={handleDeposit}
               disabled={loading}
-              className="group relative w-full py-[18px] rounded-sm font-cinzel font-black text-[13px] tracking-[0.2em] uppercase transition-colors flex items-center justify-center gap-3 disabled:opacity-50 border-y-2 border-[#d4a017] bg-[#13111f] text-[#d4a017] hover:bg-[#d4a017]/[0.08]"
+              className="w-full py-3.5 rounded-md font-medium text-sm flex items-center justify-center gap-2 transition-colors bg-[#d4a017] text-black hover:bg-[#e0ad1f] disabled:opacity-50 disabled:hover:bg-[#d4a017]"
             >
-              {/* Corner brackets — top-left, top-right, bottom-left, bottom-right */}
-              <span aria-hidden className="pointer-events-none absolute left-2 top-2 w-2.5 h-2.5 border-l-2 border-t-2 border-[#d4a017]" />
-              <span aria-hidden className="pointer-events-none absolute right-2 top-2 w-2.5 h-2.5 border-r-2 border-t-2 border-[#d4a017]" />
-              <span aria-hidden className="pointer-events-none absolute left-2 bottom-2 w-2.5 h-2.5 border-l-2 border-b-2 border-[#d4a017]" />
-              <span aria-hidden className="pointer-events-none absolute right-2 bottom-2 w-2.5 h-2.5 border-r-2 border-b-2 border-[#d4a017]" />
-              {/* Top accent line */}
-              <span aria-hidden className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[#f5c842]/60 to-transparent" />
               {loading
-                ? <><RefreshCw size={16} className="animate-spin" /> {t('common_processing')}</>
+                ? <><RefreshCw size={15} className="animate-spin" /> {t('common_processing')}</>
                 : !session
                   ? `${t('auth_signin_steam')} →`
                   : baseCoins < 1
                     ? t('deposit_select_crypto')
                     : <>
-                        <ArrowDownToLine size={15} />
+                        <ArrowDownToLine size={14} />
                         {t('deposit_get_coins', { coins: totalCoins.toLocaleString('fr-FR'), amount: usdCost.toFixed(2) })}
                       </>
               }

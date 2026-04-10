@@ -99,11 +99,16 @@ function StatPeriodCard({ title, won, played, count }: { title: string; won: num
 function SettingsTab({ session, initialBio, onBioSaved }: { session: { user: { name?: string | null; email?: string | null; id?: string; coins: number; isAdmin: boolean; accessToken: string } }; initialBio: string; onBioSaved: (b: string) => void }) {
   const { t } = useT();
   const [settEmail, setSettEmail] = useState('');
-  const [settBio,   setSettBio]   = useState(initialBio || 'I love AgeOfMoney !');
+  const [settBio,   setSettBio]   = useState(initialBio);
   const [saving,    setSaving]    = useState(false);
   const [saved,     setSaved]     = useState(false);
   const [copied,    setCopied]    = useState(false);
   const username = session.user.name ?? '';
+
+  // Sync the bio textarea when the parent finishes fetching /users/me — useState's
+  // initial value only fires once at mount, so without this the field stays empty
+  // (or shows a stale default) even after the real bio arrives.
+  useEffect(() => { setSettBio(initialBio); }, [initialBio]);
 
   const handleCopyId = () => {
     navigator.clipboard.writeText((session.user as { id?: string }).id ?? '');
@@ -480,7 +485,7 @@ export default function ProfilePage() {
   const [rouletteBets, setRouletteBets] = useState<RouletteBetHistory[]>([]);
   const [historyFilter, setHistoryFilter] = useState<'all' | 'match' | 'roulette'>('all');
   const [loading, setLoading]     = useState(false);
-  const [profileBio, setProfileBio] = useState('I love AgeOfMoney !');
+  const [profileBio, setProfileBio] = useState('');
   const [profileCreatedAt, setProfileCreatedAt] = useState<string | null>(null);
   const [publicProfile, setPublicProfile] = useState<PublicProfile | null>(null);
   const [publicLoading, setPublicLoading] = useState(false);

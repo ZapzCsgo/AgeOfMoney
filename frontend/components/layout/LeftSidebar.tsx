@@ -121,16 +121,6 @@ export function LeftSidebar() {
           </>
         )}
       </div>
-
-      {/* Bottom: online indicator */}
-      {expanded && (
-        <div className="border-t border-[#1e1a30] px-3 py-3">
-          <div className="flex items-center gap-2 text-[11px] text-[#3d3860]">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            <span>{t('nav_connected')}</span>
-          </div>
-        </div>
-      )}
     </aside>
   );
 }

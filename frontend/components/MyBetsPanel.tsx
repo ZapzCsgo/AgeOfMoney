@@ -28,15 +28,19 @@ export function MyBetsPanel() {
   const [bottomOffset, setBottomOffset] = useState(16);
   const { notifications } = useNotifications();
 
-  // Watch the page footer and lift the button above it when it scrolls into view.
+  // Lift the button only when the user is scrolled within ~140px of the very
+  // bottom of the document — that's where the footer's language switcher sits.
+  // Anywhere else on the page, the button stays at its default 16px offset.
   useEffect(() => {
+    const LIFT_ZONE = 140;
     const update = () => {
-      const footer = document.querySelector('footer');
-      if (!footer) { setBottomOffset(16); return; }
-      const rect = footer.getBoundingClientRect();
-      const overlap = window.innerHeight - rect.top;
-      // 16px gap between the button and whatever is just above it
-      setBottomOffset(overlap > 0 ? overlap + 16 : 16);
+      const docHeight = document.documentElement.scrollHeight;
+      const distanceFromBottom = docHeight - (window.scrollY + window.innerHeight);
+      if (distanceFromBottom < LIFT_ZONE) {
+        setBottomOffset(LIFT_ZONE - distanceFromBottom + 16);
+      } else {
+        setBottomOffset(16);
+      }
     };
     update();
     window.addEventListener('scroll', update, { passive: true });
