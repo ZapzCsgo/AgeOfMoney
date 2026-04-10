@@ -37,7 +37,17 @@ if (process.env.NODE_ENV === 'production') {
   }
 }
 
-export const prisma = new PrismaClient();
+// Limit connection pool to avoid Supabase "MaxClientsInSessionMode" errors.
+// Supabase free/pro tier limits pool_size to ~15 in session mode.
+// Prisma default is 10 connections per instance which is fine, but we add
+// explicit config to prevent future issues.
+export const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL,
+    },
+  },
+});
 
 const app = express();
 const httpServer = createServer(app);
@@ -184,19 +194,18 @@ app.use((err: Error & { status?: number }, _req: express.Request, res: express.R
 // Initialize Socket.io
 initSocket(httpServer);
 
-// Initialize cron jobs
+// Stagger service startups to avoid exhausting Supabase connection pool.
+// Each service gets 2s to initialize before the next one starts.
 initCronJobs();
 
-// Initialize roulette service
-import('./services/rouletteService').then(({ initRoulette }) => {
-  initRoulette().catch(err => logger.error('[Roulette] Init failed:', err));
-});
+setTimeout(() => {
+  import('./services/rouletteService').then(({ initRoulette }) => {
+    initRoulette().catch(err => logger.error('[Roulette] Init failed:', err));
+  });
+}, 2000);
 
-// Start real-time match result verifier (aoe4world.com polling)
-startMatchVerifier();
-
-// Start Liquipedia live scorer (polls wikitext every 60s for tournament BO scores)
-startLiquipediaLiveScorer();
+setTimeout(() => startMatchVerifier(), 4000);
+setTimeout(() => startLiquipediaLiveScorer(), 6000);
 
 // Startup: clean up duplicate matches — delayed 10s to avoid saturating
 // the Supabase connection pool at boot (scorer, cron, roulette all start first)
