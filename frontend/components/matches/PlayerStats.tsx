@@ -58,35 +58,32 @@ function StatRow({ label, value1, value2, highlight }: {
 
 export function PlayerStats({ player1, player2, recentForm1 = [], recentForm2 = [], h2h, p1Score, p2Score, matchStatus, winnerId }: PlayerStatsProps) {
   const { t } = useT();
-  const wrHighlight = player1.winrate > player2.winrate ? 'left' : player2.winrate > player1.winrate ? 'right' : 'none';
+  // Don't render anything if there's no H2H data to show
+  const showH2H = matchStatus !== 'LIVE' && matchStatus !== 'COMPLETED' && h2h && h2h.total > 0;
+  if (!showH2H) return null;
 
   return (
     <div className="aoe-card p-5 space-y-5">
-      {/* H2H — only shown when match is upcoming (no live score yet) */}
-      {matchStatus !== 'LIVE' && matchStatus !== 'COMPLETED' && h2h && h2h.total > 0 && (
-        <>
-          <div className="aoe-divider">
-            <span>{t('head_to_head')}</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="flex-1 text-center">
-              <div className="font-cinzel font-black text-3xl text-aoe-gold">{h2h.player1Wins}</div>
-              <div className="text-aoe-parchment-dim text-xs mt-1">{player1.name}</div>
-            </div>
-            <div className="text-center">
-              <div className="text-aoe-parchment-muted text-sm font-cinzel">{h2h.total} matchs</div>
-            </div>
-            <div className="flex-1 text-center">
-              <div className="font-cinzel font-black text-3xl text-aoe-parchment">{h2h.player2Wins}</div>
-              <div className="text-aoe-parchment-dim text-xs mt-1">{player2.name}</div>
-            </div>
-          </div>
-          <div className="flex h-3 rounded-full overflow-hidden">
-            <div className="bg-gradient-to-r from-aoe-gold-dark to-aoe-gold" style={{ width: `${(h2h.player1Wins / h2h.total) * 100}%` }} />
-            <div className="bg-gradient-to-r from-aoe-stone to-aoe-stone-light flex-1" />
-          </div>
-        </>
-      )}
+      <div className="aoe-divider">
+        <span>{t('head_to_head')}</span>
+      </div>
+      <div className="flex items-center gap-4">
+        <div className="flex-1 text-center">
+          <div className="font-cinzel font-black text-3xl text-aoe-gold">{h2h!.player1Wins}</div>
+          <div className="text-aoe-parchment-dim text-xs mt-1">{player1.name}</div>
+        </div>
+        <div className="text-center">
+          <div className="text-aoe-parchment-muted text-sm font-cinzel">{h2h!.total} matchs</div>
+        </div>
+        <div className="flex-1 text-center">
+          <div className="font-cinzel font-black text-3xl text-aoe-parchment">{h2h!.player2Wins}</div>
+          <div className="text-aoe-parchment-dim text-xs mt-1">{player2.name}</div>
+        </div>
+      </div>
+      <div className="flex h-3 rounded-full overflow-hidden">
+        <div className="bg-gradient-to-r from-aoe-gold-dark to-aoe-gold" style={{ width: `${(h2h!.player1Wins / h2h!.total) * 100}%` }} />
+        <div className="bg-gradient-to-r from-aoe-stone to-aoe-stone-light flex-1" />
+      </div>
     </div>
   );
 }
