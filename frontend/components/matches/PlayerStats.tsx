@@ -62,43 +62,6 @@ export function PlayerStats({ player1, player2, recentForm1 = [], recentForm2 = 
 
   return (
     <div className="aoe-card p-5 space-y-5">
-      {/* Player headers */}
-      <div className="flex items-center gap-4">
-        {/* Player 1 */}
-        <div className="flex-1 flex items-center gap-3">
-          <div className="w-14 h-14 rounded-full bg-aoe-stone border-2 border-aoe-border-gold flex items-center justify-center text-2xl flex-shrink-0">
-            {player1.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={player1.avatarUrl} alt={player1.name} className="w-full h-full rounded-full object-cover" />
-            ) : (
-              '🗡️'
-            )}
-          </div>
-          <div>
-            <p className="font-cinzel font-bold text-aoe-parchment text-lg">{player1.name}</p>
-          </div>
-        </div>
-
-        {/* VS */}
-        <div className="text-aoe-parchment-muted font-cinzel font-bold text-lg flex-shrink-0">VS</div>
-
-        {/* Player 2 */}
-        <div className="flex-1 flex items-center gap-3 justify-end">
-          <div className="text-right">
-            <p className="font-cinzel font-bold text-aoe-parchment text-lg">{player2.name}</p>
-          </div>
-          <div className="w-14 h-14 rounded-full bg-aoe-stone border-2 border-aoe-border-gold flex items-center justify-center text-2xl flex-shrink-0">
-            {player2.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={player2.avatarUrl} alt={player2.name} className="w-full h-full rounded-full object-cover" />
-            ) : (
-              '🗡️'
-            )}
-          </div>
-        </div>
-      </div>
-
-
       {/* H2H — only shown when match is upcoming (no live score yet) */}
       {matchStatus !== 'LIVE' && matchStatus !== 'COMPLETED' && h2h && h2h.total > 0 && (
         <>
