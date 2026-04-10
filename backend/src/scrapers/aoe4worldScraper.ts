@@ -631,16 +631,18 @@ export async function enrichMatchWithH2H(matchId: string): Promise<void> {
     ]);
 
     // Auto-seed new players via Liquipedia direct scraper (all games)
-    // AI and aoe4world seeders are paused — LP is the primary source.
+    // Sequential, respects circuit breaker — LP is the primary source.
     {
       const { scrapePlayerHistoryFromLiquipedia } = await import('./liquipediaPlayerHistoryScraper');
       if (p1Count === 0) {
         logger.info(`[Enrich] New player ${match.player1.name} — seeding from Liquipedia`);
         await scrapePlayerHistoryFromLiquipedia(match.player1Id, match.game).catch(() => {});
+        await new Promise(r => setTimeout(r, 3000)); // 3s delay before next LP request
       }
       if (p2Count === 0) {
         logger.info(`[Enrich] New player ${match.player2.name} — seeding from Liquipedia`);
         await scrapePlayerHistoryFromLiquipedia(match.player2Id, match.game).catch(() => {});
+        await new Promise(r => setTimeout(r, 3000));
       }
     }
   }

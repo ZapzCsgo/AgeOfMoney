@@ -758,14 +758,23 @@ router.post('/tournaments/recompute-tiers', async (req: Request, res: Response):
 });
 
 // POST /players/seed-all — seed all players via Liquipedia direct scraper
+// Sequential with 5s delay between each to avoid LP rate limiting.
 router.post('/players/seed-all', async (_req: Request, res: Response): Promise<void> => {
   const players = await prisma.player.findMany({ select: { id: true, name: true } });
-  res.json({ ok: true, message: `Seeding all ${players.length} players via Liquipedia in background` });
+  res.json({ ok: true, message: `Seeding all ${players.length} players via Liquipedia in background (sequential, ~5s/player)` });
   (async () => {
     const { scrapePlayerHistoryFromLiquipedia } = await import('../scrapers/liquipediaPlayerHistoryScraper');
+    const { isLpBlocked } = await import('../services/liquipediaLiveScorer');
+    let seeded = 0;
+    let skipped = 0;
     for (const p of players) {
+      // Wait if circuit breaker is active
+      while (isLpBlocked()) {
+        logger.info(`[Admin] seed-all: waiting for LP circuit breaker to reset...`);
+        await new Promise(r => setTimeout(r, 30_000));
+      }
       const count = await prisma.playerMatchRecord.count({ where: { playerId: p.id } });
-      if (count >= 10) continue; // already has enough data
+      if (count >= 10) { skipped++; continue; }
       const recentMatch = await prisma.match.findFirst({
         where: { OR: [{ player1Id: p.id }, { player2Id: p.id }] },
         orderBy: { scheduledAt: 'desc' },
@@ -773,8 +782,10 @@ router.post('/players/seed-all', async (_req: Request, res: Response): Promise<v
       });
       const game = recentMatch?.game ?? 'AoE4';
       await scrapePlayerHistoryFromLiquipedia(p.id, game, count < 5).catch(() => {});
-      await new Promise(r => setTimeout(r, 3000)); // LP rate limit
+      seeded++;
+      await new Promise(r => setTimeout(r, 5000)); // 5s between each player
     }
+    logger.info(`[Admin] seed-all done: ${seeded} seeded, ${skipped} skipped (already ≥10 records)`);
   })().catch(err => logger.error('[Admin] seed-all error:', err));
 });
 

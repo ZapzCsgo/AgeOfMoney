@@ -137,11 +137,16 @@ function getPlayerSlug(player: { name: string; liquipediaSlug?: string | null })
  * Tries multiple wiki paths if the game is ambiguous.
  */
 async function fetchMatchesPage(slug: string, game: string): Promise<{ html: string; wiki: string } | null> {
-  const wikiPrimary = game === 'AoE2' ? 'ageofempires' :
-                      game === 'AoE3' ? 'ageofempires' :
-                      game === 'AoM'  ? 'ageofempires' :
-                                        'ageofempires';
-  // All AoE games live on the main /ageofempires/ wiki now
+  // Respect the shared circuit breaker — don't hit LP if we're blocked
+  try {
+    const { isLpBlocked } = require('../services/liquipediaLiveScorer');
+    if (isLpBlocked()) {
+      logger.info(`[LPHistory] ${slug}: skipped (circuit breaker active)`);
+      return null;
+    }
+  } catch {}
+
+  const wikiPrimary = 'ageofempires'; // All AoE games live on the main wiki
 
   const pageName = `${slug}/Matches`;
 
