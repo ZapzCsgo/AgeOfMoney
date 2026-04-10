@@ -306,9 +306,9 @@ export async function scrapePlayerHistoryFromLiquipedia(
       });
       stored++;
     } catch (err: any) {
-      // Skip duplicates or errors
+      // Skip duplicates but warn on real errors
       if (!err.message?.includes('Unique constraint')) {
-        logger.debug(`[LPHistory] ${player.name}: failed to store match vs ${m.opponentName}: ${err.message}`);
+        logger.warn(`[LPHistory] ${player.name}: failed to store match vs ${m.opponentName}: ${err.message}`);
       }
     }
   }
