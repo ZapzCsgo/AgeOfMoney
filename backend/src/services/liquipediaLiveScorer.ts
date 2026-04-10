@@ -112,7 +112,10 @@ export function tripCircuitBreaker(): void {
  * Requires TWOCAPTCHA_API_KEY env var. Without it, logs the unblock URL
  * for the admin to visit manually in a browser.
  */
+let unblockRunning = false;
 export async function attemptAutoUnblock(): Promise<{ success: boolean; message: string }> {
+  if (unblockRunning) return { success: false, message: 'Auto-unblock already in progress' };
+  unblockRunning = true;
   const CAPTCHA_KEY = process.env.TWOCAPTCHA_API_KEY;
 
   try {
@@ -248,6 +251,8 @@ export async function attemptAutoUnblock(): Promise<{ success: boolean; message:
   } catch (err: any) {
     logger.warn(`[LPScorer] Auto-unblock error: ${err.message}`);
     return { success: false, message: err.message };
+  } finally {
+    unblockRunning = false;
   }
 }
 

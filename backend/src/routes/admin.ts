@@ -759,8 +759,14 @@ router.post('/tournaments/recompute-tiers', async (req: Request, res: Response):
 
 // POST /players/seed-all — seed all players via Liquipedia direct scraper
 // Sequential with 5s delay between each to avoid LP rate limiting.
+let seedAllRunning = false;
 router.post('/players/seed-all', async (_req: Request, res: Response): Promise<void> => {
+  if (seedAllRunning) {
+    res.json({ ok: false, message: 'Seed-all already running, please wait' });
+    return;
+  }
   const players = await prisma.player.findMany({ select: { id: true, name: true } });
+  seedAllRunning = true;
   res.json({ ok: true, message: `Seeding all ${players.length} players via Liquipedia in background (sequential, ~5s/player)` });
   (async () => {
     const { scrapePlayerHistoryFromLiquipedia } = await import('../scrapers/liquipediaPlayerHistoryScraper');
@@ -768,10 +774,11 @@ router.post('/players/seed-all', async (_req: Request, res: Response): Promise<v
     let seeded = 0;
     let skipped = 0;
     for (const p of players) {
-      // Wait if circuit breaker is active
-      while (isLpBlocked()) {
-        logger.info(`[Admin] seed-all: waiting for LP circuit breaker to reset...`);
-        await new Promise(r => setTimeout(r, 30_000));
+      // Wait if circuit breaker is active (log only once per wait)
+      if (isLpBlocked()) {
+        logger.info(`[Admin] seed-all: circuit breaker active, waiting...`);
+        while (isLpBlocked()) await new Promise(r => setTimeout(r, 30_000));
+        logger.info(`[Admin] seed-all: circuit breaker cleared, resuming`);
       }
       const count = await prisma.playerMatchRecord.count({ where: { playerId: p.id } });
       if (count >= 10) { skipped++; continue; }
@@ -786,7 +793,7 @@ router.post('/players/seed-all', async (_req: Request, res: Response): Promise<v
       await new Promise(r => setTimeout(r, 5000)); // 5s between each player
     }
     logger.info(`[Admin] seed-all done: ${seeded} seeded, ${skipped} skipped (already ≥10 records)`);
-  })().catch(err => logger.error('[Admin] seed-all error:', err));
+  })().catch(err => logger.error('[Admin] seed-all error:', err)).finally(() => { seedAllRunning = false; });
 });
 
 // GET /matches — list all upcoming/live matches for admin management
