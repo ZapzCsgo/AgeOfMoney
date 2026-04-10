@@ -25,16 +25,35 @@ const gunzip = promisify(zlib.gunzip);
 // All AoE wikis share the same MediaWiki API at /{wiki}/api.php.
 const LP_API_FOR = (wikiPath: string) => `https://liquipedia.net/${wikiPath}/api.php`;
 const LP_API_KEY = process.env.LIQUIPEDIA_API_KEY;
+const LP_PROXY_URL = process.env.LP_PROXY_URL; // e.g. http://user:pass@1.2.3.4:3128
+
 function buildHeaders(): Record<string, string> {
   const h: Record<string, string> = {
     'User-Agent': 'AgeOfMoney/1.0 (contact@ageofmoney.com)',
     'Accept-Encoding': 'gzip', // Liquipedia REQUIRES gzip (406 otherwise)
   };
-  // Authenticated requests bypass the public IP-based rate limit. If we have
-  // a key set in env, send it on every request — this is the only sustainable
-  // way to keep the live scorer working from a shared host like Railway.
   if (LP_API_KEY) h.Authorization = `Apikey ${LP_API_KEY}`;
   return h;
+}
+
+/**
+ * Build axios proxy config from LP_PROXY_URL env var.
+ * Supports http://user:pass@host:port and http://host:port formats.
+ * When set, ALL Liquipedia requests route through this proxy so we're
+ * not dependent on Railway's shared outbound IP.
+ */
+function buildProxyConfig(): object | undefined {
+  if (!LP_PROXY_URL) return undefined;
+  try {
+    const u = new URL(LP_PROXY_URL);
+    const cfg: Record<string, unknown> = {
+      host: u.hostname,
+      port: parseInt(u.port, 10) || 3128,
+      protocol: u.protocol.replace(':', ''),
+    };
+    if (u.username) cfg.auth = { username: decodeURIComponent(u.username), password: decodeURIComponent(u.password) };
+    return { proxy: cfg };
+  } catch { return undefined; }
 }
 
 // Cache wikitext per page — serves all concurrent match checks from same page
@@ -59,6 +78,157 @@ export function tripCircuitBreaker(): void {
   const minutes = BACKOFF_MIN[idx];
   lpBlockedUntil = Date.now() + minutes * 60_000;
   logger.warn(`[LPScorer] 429 from Liquipedia (${consecutive429s} consecutive) — circuit breaker open for ${minutes}min, no more LP requests until ${new Date(lpBlockedUntil).toISOString()}`);
+
+  // Auto-unblock: attempt to solve the LP rate-limit CAPTCHA automatically.
+  // Fire-and-forget — if it works, resetCircuitBreaker() is called and we resume.
+  if (consecutive429s >= 2) {
+    attemptAutoUnblock().catch(err =>
+      logger.warn(`[LPScorer] Auto-unblock failed: ${err.message}`)
+    );
+  }
+}
+
+/**
+ * Attempt to automatically unblock our IP from Liquipedia's rate limit.
+ *
+ * Flow:
+ *  1. GET /token/generate from our IP → returns an HTML page
+ *  2. If the page has a CAPTCHA (reCAPTCHA, hCaptcha, Turnstile), send it
+ *     to 2captcha.com for solving (requires TWOCAPTCHA_API_KEY env var)
+ *  3. Submit the solution back to Liquipedia
+ *  4. If no CAPTCHA (just a token link), visit the URL directly
+ *
+ * If TWOCAPTCHA_API_KEY is not set, logs the unblock URL so the admin
+ * can visit it manually.
+ */
+export async function attemptAutoUnblock(): Promise<{ success: boolean; message: string }> {
+  const CAPTCHA_KEY = process.env.TWOCAPTCHA_API_KEY;
+
+  try {
+    // Step 1: request the unblock page from our (blocked) IP
+    const tokenRes = await axios.get('https://liquipedia.net/token/generate', {
+      headers: { 'User-Agent': 'AgeOfMoney/1.0 (contact@ageofmoney.com)' },
+      timeout: 15000,
+      maxRedirects: 5,
+      ...buildProxyConfig(),
+    });
+
+    const html = typeof tokenRes.data === 'string' ? tokenRes.data : '';
+
+    // Case A: the page redirects or returns a simple token — just visiting was enough
+    if (tokenRes.status === 200 && !html.includes('captcha') && !html.includes('g-recaptcha') && !html.includes('h-captcha') && !html.includes('cf-turnstile')) {
+      logger.info('[LPScorer] Auto-unblock: token/generate returned no CAPTCHA — IP may already be unblocked');
+      resetCircuitBreaker();
+      return { success: true, message: 'No CAPTCHA detected, IP likely unblocked' };
+    }
+
+    // Case B: CAPTCHA detected — need 2captcha to solve it
+    if (!CAPTCHA_KEY) {
+      logger.warn('[LPScorer] Auto-unblock: CAPTCHA detected but TWOCAPTCHA_API_KEY not set. Visit https://liquipedia.net/token/generate manually to unblock.');
+      return { success: false, message: 'CAPTCHA detected, no 2captcha key configured' };
+    }
+
+    // Detect CAPTCHA type and sitekey
+    let captchaType: 'recaptcha' | 'hcaptcha' | 'turnstile' | null = null;
+    let sitekey = '';
+
+    const recapMatch = html.match(/data-sitekey=["']([^"']+)["']/);
+    if (html.includes('g-recaptcha') && recapMatch) {
+      captchaType = 'recaptcha';
+      sitekey = recapMatch[1];
+    }
+    const hcapMatch = html.match(/data-sitekey=["']([^"']+)["']/);
+    if (html.includes('h-captcha') && hcapMatch) {
+      captchaType = 'hcaptcha';
+      sitekey = hcapMatch[1];
+    }
+    const cfMatch = html.match(/data-sitekey=["']([^"']+)["']/);
+    if (html.includes('cf-turnstile') && cfMatch) {
+      captchaType = 'turnstile';
+      sitekey = cfMatch[1];
+    }
+
+    if (!captchaType || !sitekey) {
+      logger.warn('[LPScorer] Auto-unblock: unknown CAPTCHA type, cannot solve automatically');
+      return { success: false, message: 'Unknown CAPTCHA type' };
+    }
+
+    logger.info(`[LPScorer] Auto-unblock: detected ${captchaType} (sitekey=${sitekey.slice(0, 20)}...), sending to 2captcha...`);
+
+    // Step 2: submit CAPTCHA to 2captcha
+    const method = captchaType === 'recaptcha' ? 'userrecaptcha'
+      : captchaType === 'hcaptcha' ? 'hcaptcha'
+      : 'turnstile';
+
+    const submitRes = await axios.get('https://2captcha.com/in.php', {
+      params: {
+        key: CAPTCHA_KEY,
+        method,
+        sitekey,
+        pageurl: 'https://liquipedia.net/token/generate',
+        json: 1,
+      },
+      timeout: 15000,
+    });
+
+    if (submitRes.data?.status !== 1) {
+      return { success: false, message: `2captcha submit failed: ${JSON.stringify(submitRes.data)}` };
+    }
+
+    const taskId = submitRes.data.request;
+    logger.info(`[LPScorer] Auto-unblock: 2captcha task ${taskId} submitted, waiting for solution...`);
+
+    // Step 3: poll for solution (max ~120s)
+    let solution = '';
+    for (let i = 0; i < 24; i++) {
+      await new Promise(r => setTimeout(r, 5000));
+      const pollRes = await axios.get('https://2captcha.com/res.php', {
+        params: { key: CAPTCHA_KEY, action: 'get', id: taskId, json: 1 },
+        timeout: 10000,
+      });
+      if (pollRes.data?.status === 1) {
+        solution = pollRes.data.request;
+        break;
+      }
+      if (pollRes.data?.request !== 'CAPCHA_NOT_READY') {
+        return { success: false, message: `2captcha error: ${JSON.stringify(pollRes.data)}` };
+      }
+    }
+
+    if (!solution) {
+      return { success: false, message: '2captcha timeout (120s)' };
+    }
+
+    logger.info('[LPScorer] Auto-unblock: got CAPTCHA solution, submitting to Liquipedia...');
+
+    // Step 4: submit solution back to Liquipedia's token page
+    // The exact form submission depends on LP's page structure, but typically
+    // it's a POST with the CAPTCHA response token.
+    const formField = captchaType === 'recaptcha' ? 'g-recaptcha-response'
+      : captchaType === 'hcaptcha' ? 'h-captcha-response'
+      : 'cf-turnstile-response';
+
+    await axios.post('https://liquipedia.net/token/generate',
+      new URLSearchParams({ [formField]: solution }).toString(),
+      {
+        headers: {
+          'User-Agent': 'AgeOfMoney/1.0 (contact@ageofmoney.com)',
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        timeout: 15000,
+        maxRedirects: 5,
+        ...buildProxyConfig(),
+      }
+    );
+
+    logger.info('[LPScorer] Auto-unblock: CAPTCHA submitted successfully — resetting circuit breaker');
+    resetCircuitBreaker();
+    return { success: true, message: `CAPTCHA solved via 2captcha (${captchaType})` };
+
+  } catch (err: any) {
+    logger.warn(`[LPScorer] Auto-unblock error: ${err.message}`);
+    return { success: false, message: err.message };
+  }
 }
 
 export function resetCircuitBreaker(): void {

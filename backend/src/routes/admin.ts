@@ -848,4 +848,30 @@ router.get('/matches/:id/inspect', async (req: Request, res: Response): Promise<
   }
 });
 
+// POST /lp-unblock — attempt to automatically unblock our IP from Liquipedia
+router.post('/lp-unblock', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const { attemptAutoUnblock, isLpBlocked } = await import('../services/liquipediaLiveScorer');
+    const blocked = isLpBlocked();
+    if (!blocked) {
+      res.json({ ok: true, message: 'IP is not currently blocked by circuit breaker', blocked: false });
+      return;
+    }
+    const result = await attemptAutoUnblock();
+    res.json({ ok: result.success, ...result, blocked: !result.success });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// GET /lp-status — check if Liquipedia is currently blocked
+router.get('/lp-status', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const { isLpBlocked } = await import('../services/liquipediaLiveScorer');
+    res.json({ blocked: isLpBlocked() });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 export default router;
