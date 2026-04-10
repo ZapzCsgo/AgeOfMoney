@@ -541,7 +541,7 @@ async function syncMatchScore(matchId: string): Promise<void> {
   // Priority: match.liquipediaUrl → tournament.liquipediaUrl
   const lpUrl = match.liquipediaUrl ?? match.tournament?.liquipediaUrl;
   if (!lpUrl) {
-    logger.debug(`[LPScorer] Match ${matchId}: no Liquipedia URL — skipping`);
+    logger.info(`[LPScorer] Match ${matchId}: no Liquipedia URL — skipping`);
     return;
   }
 
@@ -560,9 +560,13 @@ async function syncMatchScore(matchId: string): Promise<void> {
     wikitext = await fetchWikitext(wp, page) ?? await fetchWikitext(wp, page + '/AoE4');
     if (wikitext) break;
   }
-  if (!wikitext) return;
+  if (!wikitext) {
+    logger.info(`[LPScorer] Match ${matchId}: could not fetch wikitext for page "${page}" (wiki candidates: ${wikiCandidates.join(', ')})`);
+    return;
+  }
 
   const lpMatches = parseMatches(wikitext);
+  logger.info(`[LPScorer] Match ${matchId}: parsed ${lpMatches.length} match blocks from "${page}"`);
 
   // Find the match that corresponds to our DB match
   const lpMatch = lpMatches.find(lm =>
@@ -571,7 +575,9 @@ async function syncMatchScore(matchId: string): Promise<void> {
   );
 
   if (!lpMatch) {
-    logger.debug(`[LPScorer] Match ${matchId}: ${match.player1.name} vs ${match.player2.name} not found in LP wikitext`);
+    // Log ALL opponent pairs from the wikitext so we can diagnose name mismatches
+    const pairs = lpMatches.map(m => `${m.opponent1} vs ${m.opponent2}`).join(' | ');
+    logger.info(`[LPScorer] Match ${matchId}: "${match.player1.name}" vs "${match.player2.name}" NOT FOUND in LP wikitext. LP has ${lpMatches.length} matches: [${pairs}]`);
     return;
   }
 
