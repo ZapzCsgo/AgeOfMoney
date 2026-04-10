@@ -149,19 +149,26 @@ export async function attemptAutoUnblock(): Promise<{ success: boolean; message:
     }
 
     // ── Step 2: fetch the unblock page to get the reCAPTCHA sitekey ───────
+    // We fetch from Railway's IP so the page shows the CAPTCHA for that IP.
     const unblockRes = await axios.get(unblockUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
       timeout: 15000,
     });
     const unblockHtml = typeof unblockRes.data === 'string' ? unblockRes.data : '';
 
-    const sitekeyMatch = unblockHtml.match(/data-sitekey=["']([^"']+)["']/);
+    // Extract sitekey from data-sitekey="..." (no quotes around value in LP's HTML)
+    const sitekeyMatch = unblockHtml.match(/data-sitekey=["']?([^"'\s>]+)["']?/);
     if (!sitekeyMatch) {
-      logger.warn('[LPScorer] Auto-unblock: could not find reCAPTCHA sitekey on unblock page');
+      logger.warn(`[LPScorer] Auto-unblock: could not find reCAPTCHA sitekey. Page snippet: ${unblockHtml.slice(0, 500)}`);
       return { success: false, message: 'No reCAPTCHA sitekey found on unblock page' };
     }
     const sitekey = sitekeyMatch[1];
-    logger.info(`[LPScorer] Auto-unblock: found reCAPTCHA sitekey, sending to 2captcha...`);
+
+    // Extract the token from the hidden input (needed for the POST)
+    const tokenMatch = unblockHtml.match(/name=["']?token["']?\s+value=["']?([^"'\s>]+)/);
+    const formToken = tokenMatch?.[1] ?? '';
+
+    logger.info(`[LPScorer] Auto-unblock: found reCAPTCHA sitekey (${sitekey.slice(0, 15)}...), sending to 2captcha...`);
 
     // ── Step 3: solve reCAPTCHA via 2captcha ──────────────────────────────
     const submitRes = await axios.get('https://2captcha.com/in.php', {
@@ -205,11 +212,13 @@ export async function attemptAutoUnblock(): Promise<{ success: boolean; message:
 
     logger.info('[LPScorer] Auto-unblock: reCAPTCHA solved, submitting to Liquipedia...');
 
-    // ── Step 4: POST the solution to the unblock page ─────────────────────
-    await axios.post(unblockUrl,
+    // ── Step 4: POST to /unblock (the form action is /unblock, NOT the token URL) ──
+    await axios.post('https://liquipedia.net/unblock',
       new URLSearchParams({
+        'r': '/',
+        'token': formToken,
         'g-recaptcha-response': solution,
-        'agree': '1',  // "I agree to follow the API terms of use" checkbox
+        'agree': '1',
       }).toString(),
       {
         headers: {
