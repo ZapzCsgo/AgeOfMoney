@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "ts-node-dev --respawn src/index.ts",
-    "build": "prisma generate && prisma db push --skip-generate --accept-data-loss && tsc",
+    "build": "prisma generate && tsc",
     "start": "node dist/index.js",
     "db:push": "prisma db push --accept-data-loss",
     "db:migrate": "prisma migrate dev",
