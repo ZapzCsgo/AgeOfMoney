@@ -160,11 +160,11 @@ async function fetchMatchesPage(slug: string, game: string): Promise<{ html: str
 
     const html = res.data?.parse?.text?.['*'] ?? '';
 
-    // Check for redirect
-    const redirectMatch = html.match(/class="redirectText".*?href="\/([^"]+)\/([^"]+)"/);
-    if (redirectMatch) {
-      const redirectWiki = redirectMatch[1];
-      const redirectPage = decodeURIComponent(redirectMatch[2]);
+    // Check for redirect (e.g. Dark/Matches → Dark/Matches/2024-Present)
+    const redirectMatch = html.match(/href="\/([^/"]+)\/([^"]+)"/);
+    if (redirectMatch && html.includes('redirectText')) {
+      const redirectWiki = redirectMatch[1]; // e.g. "ageofempires"
+      const redirectPage = decodeURIComponent(redirectMatch[2]); // e.g. "Dark/Matches/2024-Present"
       logger.info(`[LPHistory] ${slug}: redirect → ${redirectWiki}/${redirectPage}`);
 
       const res2 = await axios.get(`https://liquipedia.net/${redirectWiki}/api.php`, {
