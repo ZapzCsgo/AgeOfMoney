@@ -79,16 +79,33 @@ function parseMatchesHtml(html: string): LpMatchRow[] {
       );
     }
 
-    if (cells.length < 11) continue;
+    // LP uses two table formats:
+    //   12 cols: [date, tier, type, ?, ?, tournament, player, ?, score, ?, opponent, ?]
+    //   10 cols: [date, tier, type, ?, ?, tournament, ?, score, opponent, ?]  (team matches / compact)
+    if (cells.length < 9) continue;
 
     const dateStr = cells[0];
     const tier = cells[1];
-    const tournament = cells[5];
-    const playerName = cells[6];
-    const scoreRaw = cells[8];
-    const opponentName = cells[10];
+    let tournament: string;
+    let playerName: string;
+    let scoreRaw: string;
+    let opponentName: string;
 
-    if (!playerName || !opponentName || !scoreRaw) continue;
+    if (cells.length >= 11) {
+      // Standard 12-col format
+      tournament = cells[5];
+      playerName = cells[6];
+      scoreRaw = cells[8];
+      opponentName = cells[10];
+    } else {
+      // Compact 10-col format (team matches like WTL)
+      tournament = cells[5];
+      playerName = cells[6] || '';  // may be empty for team matches
+      scoreRaw = cells[7];
+      opponentName = cells[8];
+    }
+
+    if (!opponentName || !scoreRaw) continue;
 
     // Map tier to our normalized format — skip unknown tiers
     const normalizedTier = TIER_MAP[tier];
