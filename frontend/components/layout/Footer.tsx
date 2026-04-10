@@ -235,7 +235,8 @@ export function Footer() {
                 </a>
               </div>
             </div>
-            <div className="relative">
+            {/* Shifted left so the floating "My Bets" button doesn't sit on top of it */}
+            <div className="relative sm:mr-40">
               <button
                 onClick={() => setLangOpen(!langOpen)}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors"

@@ -23,33 +23,7 @@ export function MyBetsPanel() {
   const [bets, setBets] = useState<Bet[]>([]);
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState<'PENDING' | 'all'>('PENDING');
-  // Distance from the bottom of the viewport — bumped up when the page footer
-  // becomes visible so the floating button never overlaps the language switcher.
-  const [bottomOffset, setBottomOffset] = useState(16);
   const { notifications } = useNotifications();
-
-  // Lift the button only when the user is scrolled within ~140px of the very
-  // bottom of the document — that's where the footer's language switcher sits.
-  // Anywhere else on the page, the button stays at its default 16px offset.
-  useEffect(() => {
-    const LIFT_ZONE = 140;
-    const update = () => {
-      const docHeight = document.documentElement.scrollHeight;
-      const distanceFromBottom = docHeight - (window.scrollY + window.innerHeight);
-      if (distanceFromBottom < LIFT_ZONE) {
-        setBottomOffset(LIFT_ZONE - distanceFromBottom + 16);
-      } else {
-        setBottomOffset(16);
-      }
-    };
-    update();
-    window.addEventListener('scroll', update, { passive: true });
-    window.addEventListener('resize', update);
-    return () => {
-      window.removeEventListener('scroll', update);
-      window.removeEventListener('resize', update);
-    };
-  }, []);
 
   const fetchBets = useCallback(async () => {
     if (!session?.user) return;
@@ -74,11 +48,10 @@ export function MyBetsPanel() {
 
   return (
     <div
-      className="fixed z-[65] flex flex-col items-end pointer-events-none
+      className="fixed bottom-4 z-[65] flex flex-col items-end pointer-events-none
         left-1/2 -translate-x-1/2
         md:left-auto md:translate-x-0 md:right-4
         lg:right-[296px]"
-      style={{ bottom: bottomOffset }}
     >
       {/* ── Floating panel — only this has pointer-events ─────────────────── */}
       {open && (

@@ -382,16 +382,19 @@ export default function WithdrawPage() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
 
-      {/* Tabs */}
-      <div className="flex gap-1 p-1 rounded-xl mb-8" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
-        <Link href="/deposit" className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-cinzel font-bold text-sm tracking-wider text-aoe-parchment-muted hover:text-aoe-parchment transition-colors">
-          <ArrowDownToLine size={15} />
+      {/* Tabs — same underlined style as the deposit page */}
+      <div className="flex mb-8 border-b" style={{ borderColor: '#1e1a30' }}>
+        <Link
+          href="/deposit"
+          className="flex-1 flex items-center justify-center gap-2 py-3 font-cinzel font-bold text-[12px] tracking-[0.18em] uppercase text-[#6b6488] hover:text-[#e8e2f5] transition-colors"
+        >
+          <ArrowDownToLine size={13} />
           {t('deposit_tab')}
         </Link>
-        <div className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-cinzel font-bold text-sm tracking-wider cursor-default"
-          style={{ background: 'linear-gradient(135deg, #8b6410, #d4a017)', color: '#07060f' }}>
-          <ArrowUpFromLine size={15} />
+        <div className="flex-1 flex items-center justify-center gap-2 py-3 font-cinzel font-bold text-[12px] tracking-[0.18em] uppercase cursor-default text-[#d4a017] relative">
+          <ArrowUpFromLine size={13} />
           {t('withdraw_tab')}
+          <span className="absolute left-0 right-0 -bottom-px h-[2px] bg-[#d4a017]" />
         </div>
       </div>
 

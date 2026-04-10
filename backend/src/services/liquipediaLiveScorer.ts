@@ -24,14 +24,47 @@ const gunzip = promisify(zlib.gunzip);
 // Wiki path is determined per-match from the tournament's Liquipedia URL.
 // All AoE wikis share the same MediaWiki API at /{wiki}/api.php.
 const LP_API_FOR = (wikiPath: string) => `https://liquipedia.net/${wikiPath}/api.php`;
-const HEADERS = {
-  'User-Agent': 'AgeOfMoney/1.0 (contact@ageofmoney.com)',
-  'Accept-Encoding': 'gzip', // Liquipedia REQUIRES gzip (406 otherwise)
-};
+const LP_API_KEY = process.env.LIQUIPEDIA_API_KEY;
+function buildHeaders(): Record<string, string> {
+  const h: Record<string, string> = {
+    'User-Agent': 'AgeOfMoney/1.0 (contact@ageofmoney.com)',
+    'Accept-Encoding': 'gzip', // Liquipedia REQUIRES gzip (406 otherwise)
+  };
+  // Authenticated requests bypass the public IP-based rate limit. If we have
+  // a key set in env, send it on every request — this is the only sustainable
+  // way to keep the live scorer working from a shared host like Railway.
+  if (LP_API_KEY) h.Authorization = `Apikey ${LP_API_KEY}`;
+  return h;
+}
 
 // Cache wikitext per page — serves all concurrent match checks from same page
 const wikiCache: Record<string, { text: string; fetchedAt: number }> = {};
 const CACHE_TTL = 4_000; // 4s — reuse only within a single poll burst (interval is 5s)
+
+// ── Circuit breaker ──────────────────────────────────────────────────────────
+// When Liquipedia hard-blocks our IP, hammering it more makes the block last
+// longer. After consecutive 429s, refuse to fire ANY request until a backoff
+// window passes. The backoff grows exponentially up to 1h so we recover
+// gracefully without spamming the logs every 5s.
+let lpBlockedUntil = 0;
+let consecutive429s = 0;
+const BACKOFF_MIN = [1, 2, 5, 15, 30, 60]; // minutes per consecutive failure
+
+function tripCircuitBreaker(): void {
+  consecutive429s++;
+  const idx = Math.min(consecutive429s - 1, BACKOFF_MIN.length - 1);
+  const minutes = BACKOFF_MIN[idx];
+  lpBlockedUntil = Date.now() + minutes * 60_000;
+  logger.warn(`[LPScorer] 429 from Liquipedia (${consecutive429s} consecutive) — circuit breaker open for ${minutes}min, no more LP requests until ${new Date(lpBlockedUntil).toISOString()}`);
+}
+
+function resetCircuitBreaker(): void {
+  if (consecutive429s > 0) {
+    logger.info('[LPScorer] Liquipedia request succeeded — circuit breaker reset');
+  }
+  consecutive429s = 0;
+  lpBlockedUntil = 0;
+}
 
 // Bottleneck limiter: 1 request at a time, 2s between each, max 25/min
 // At 5s interval with cache, same-page matches share one fetch so real rate stays low
@@ -44,13 +77,20 @@ const lpLimiter = new Bottleneck({
 });
 
 lpLimiter.on('failed', async (error, jobInfo) => {
-  if (jobInfo.retryCount < 2) {
+  // NEVER retry on 429 — retrying a rate-limited request just makes the IP
+  // ban last longer. Only retry transient network errors.
+  if (axios.isAxiosError(error) && error.response?.status === 429) return null;
+  if (jobInfo.retryCount < 1) {
     logger.warn(`[LPScorer] Request failed (attempt ${jobInfo.retryCount + 1}), retrying in 5s: ${error.message}`);
-    return 5000; // retry after 5s
+    return 5000;
   }
+  return null;
 });
 
 async function fetchWikitext(wikiPath: string, page: string): Promise<string | null> {
+  // Circuit breaker: if Liquipedia blocked us, do not even try
+  if (Date.now() < lpBlockedUntil) return null;
+
   const cacheKey = `${wikiPath}:${page}`;
   const now = Date.now();
   if (wikiCache[cacheKey] && now - wikiCache[cacheKey].fetchedAt < CACHE_TTL) {
@@ -60,16 +100,14 @@ async function fetchWikitext(wikiPath: string, page: string): Promise<string | n
   try {
     const res = await lpLimiter.schedule(() => axios.get(LP_API_FOR(wikiPath), {
       params: { action: 'parse', page, prop: 'wikitext', format: 'json' },
-      headers: HEADERS,
+      headers: buildHeaders(),
       timeout: 15000,
       responseType: 'arraybuffer', // receive raw gzip bytes
       decompress: false,           // don't auto-decompress (we do it manually)
     }));
 
     if (res.status === 429) {
-      logger.warn('[LPScorer] Rate limited by Liquipedia — draining limiter reservoir for 60s');
-      lpLimiter.updateSettings({ reservoir: 0 });
-      setTimeout(() => lpLimiter.updateSettings({ reservoir: 20 }), 60_000);
+      tripCircuitBreaker();
       return null;
     }
 
@@ -85,12 +123,11 @@ async function fetchWikitext(wikiPath: string, page: string): Promise<string | n
     const parsed = JSON.parse(jsonStr);
     const text = parsed?.parse?.wikitext?.['*'] ?? null;
     if (text) wikiCache[cacheKey] = { text, fetchedAt: Date.now() };
+    resetCircuitBreaker(); // success → clear any prior backoff
     return text;
   } catch (err) {
     if (axios.isAxiosError(err) && err.response?.status === 429) {
-      logger.warn('[LPScorer] Rate limited by Liquipedia — draining limiter reservoir for 60s');
-      lpLimiter.updateSettings({ reservoir: 0 });
-      setTimeout(() => lpLimiter.updateSettings({ reservoir: 20 }), 60_000);
+      tripCircuitBreaker();
     } else {
       logger.warn(`[LPScorer] Failed to fetch wikitext for "${wikiPath}/${page}":`, err);
     }
