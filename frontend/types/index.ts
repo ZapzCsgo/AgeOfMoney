@@ -51,6 +51,7 @@ export interface Tournament {
   id: string;
   name: string;
   tier: TournamentTier;
+  game?: string;
   prizePool?: string | null;
   startDate: string;
   endDate?: string | null;

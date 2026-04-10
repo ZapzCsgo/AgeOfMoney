@@ -130,8 +130,12 @@ const t_fr = {
   tourn_empty:        'Aucun tournoi actif.',
   tourn_active:       'En cours',
   tourn_upcoming:     'À venir',
+  tourn_finished:     'Terminé',
   tourn_prize:        'Prize pool',
   tourn_tier:         'Tier',
+  tourn_all_games:    'Tous les jeux',
+  tourn_matches_count:'{n} match{s}',
+  tourn_search:       'Rechercher un tournoi…',
 
   // Profile
   profile_tab_profile:'Profil',
@@ -610,8 +614,12 @@ const t_en: Record<keyof typeof t_fr, string> = {
   tourn_empty:        'No active tournaments.',
   tourn_active:       'Active',
   tourn_upcoming:     'Upcoming',
+  tourn_finished:     'Finished',
   tourn_prize:        'Prize pool',
   tourn_tier:         'Tier',
+  tourn_all_games:    'All games',
+  tourn_matches_count:'{n} match{s}',
+  tourn_search:       'Search tournaments…',
 
   profile_tab_profile:'Profile',
   profile_tab_settings:'Settings',
@@ -1075,8 +1083,12 @@ const t_es: Record<keyof typeof t_fr, string> = {
   tourn_empty:        'No hay torneos activos.',
   tourn_active:       'Activo',
   tourn_upcoming:     'Próximo',
+  tourn_finished:     'Finalizado',
   tourn_prize:        'Premio',
   tourn_tier:         'Tier',
+  tourn_all_games:    'Todos los juegos',
+  tourn_matches_count:'{n} partido{s}',
+  tourn_search:       'Buscar torneo…',
 
   profile_tab_profile:'Perfil',
   profile_tab_settings:'Ajustes',
