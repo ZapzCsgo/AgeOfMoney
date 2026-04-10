@@ -132,6 +132,28 @@ if (process.env.NODE_ENV !== 'production') {
   logger.info('Dev routes enabled (NODE_ENV != production)');
 }
 
+// Public LP diagnostics (no auth — read-only, temporary debugging)
+app.get('/api/v1/lp-status', async (_req, res) => {
+  try {
+    const { isLpBlocked } = await import('./services/liquipediaLiveScorer');
+    const axios = (await import('axios')).default;
+    let tokenPageContent = '';
+    let tokenPageStatus = 0;
+    try {
+      const r = await axios.get('https://liquipedia.net/token/generate', {
+        headers: { 'User-Agent': 'AgeOfMoney/1.0 (contact@ageofmoney.com)' },
+        timeout: 10000,
+      });
+      tokenPageContent = typeof r.data === 'string' ? r.data : JSON.stringify(r.data);
+      tokenPageStatus = r.status;
+    } catch (err: any) {
+      tokenPageStatus = err?.response?.status ?? 0;
+      tokenPageContent = err?.response?.data ? String(err.response.data).slice(0, 2000) : err.message;
+    }
+    res.json({ circuitBreakerActive: isLpBlocked(), tokenPage: { status: tokenPageStatus, content: tokenPageContent.slice(0, 3000) } });
+  } catch (err) { res.status(500).json({ error: String(err) }); }
+});
+
 // Health check
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
