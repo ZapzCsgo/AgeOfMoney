@@ -132,6 +132,14 @@ if (process.env.NODE_ENV !== 'production') {
   logger.info('Dev routes enabled (NODE_ENV != production)');
 }
 
+// Public purge endpoint (temporary — remove after use)
+app.delete('/api/v1/purge-match-records', async (_req, res) => {
+  try {
+    const result = await prisma.playerMatchRecord.deleteMany({});
+    res.json({ ok: true, deleted: result.count });
+  } catch (err) { res.status(500).json({ error: String(err) }); }
+});
+
 // Public LP diagnostics (no auth — read-only, temporary debugging)
 app.get('/api/v1/lp-status', async (_req, res) => {
   try {
