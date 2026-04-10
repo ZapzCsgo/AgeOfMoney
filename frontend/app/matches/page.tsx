@@ -7,7 +7,7 @@ import { Match } from '@/types';
 import { getMatches } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Clock, RefreshCw, AlertTriangle, Swords, ChevronRight, Zap } from 'lucide-react';
+import { Clock, RefreshCw, AlertTriangle, Swords, ChevronRight, Zap, Search } from 'lucide-react';
 import { useT } from '@/lib/i18n';
 
 function formatCountdown(dateStr: string, t: (k: string) => string): string {
@@ -155,12 +155,22 @@ function MatchSkeleton() {
   );
 }
 
+const GAME_TABS = [
+  { id: 'all', label: 'All' },
+  { id: 'AoE2', label: 'AoE2' },
+  { id: 'AoE4', label: 'AoE4' },
+  { id: 'AoE3', label: 'AoE3' },
+  { id: 'AoM', label: 'AoM' },
+] as const;
+
 export default function MatchesPage() {
   const { t } = useT();
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
   const [filter, setFilter]   = useState('all');
+  const [gameFilter, setGameFilter] = useState('all');
+  const [search, setSearch]   = useState('');
 
   const FILTERS = [
     { id: 'all',       label: t('matches_filter_all') },
@@ -187,7 +197,16 @@ export default function MatchesPage() {
     return () => clearInterval(interval);
   }, [fetchMatches]);
 
-  const filtered  = (filter === 'all' ? matches : matches.filter(m => m.status === filter))
+  const searchLower = search.trim().toLowerCase();
+  const filtered  = matches
+    .filter(m => filter === 'all' || m.status === filter)
+    .filter(m => gameFilter === 'all' || m.game === gameFilter)
+    .filter(m => {
+      if (!searchLower) return true;
+      return m.player1.name.toLowerCase().includes(searchLower)
+        || m.player2.name.toLowerCase().includes(searchLower)
+        || (m.tournament?.name ?? '').toLowerCase().includes(searchLower);
+    })
     .slice()
     .sort((a, b) => {
       if (a.status === 'COMPLETED' && b.status !== 'COMPLETED') return 1;
@@ -196,6 +215,7 @@ export default function MatchesPage() {
     });
   const liveCount = matches.filter(m => m.status === 'LIVE').length;
   const upcoming  = matches.filter(m => m.status === 'UPCOMING').length;
+  const availableGames = new Set(matches.map(m => m.game).filter(Boolean));
 
   // Group by tournament
   const groups: { id: string; name: string; tier: string; format: string; matches: Match[] }[] = [];
@@ -230,24 +250,54 @@ export default function MatchesPage() {
         </div>
       </div>
 
-      <div className="px-5 py-5">
-        {/* Filters */}
-        <div className="flex items-center gap-1 p-1 rounded-xl border border-[#1e1a30] mb-5 w-fit" style={{ background: 'rgba(0,0,0,0.35)' }}>
-          {FILTERS.map(f => {
-            const isActive = filter === f.id;
-            const count = f.id === 'LIVE' ? liveCount : f.id === 'UPCOMING' ? upcoming : undefined;
-            return (
-              <button key={f.id} onClick={() => setFilter(f.id)}
-                className={cn('flex items-center gap-1.5 px-4 py-1.5 text-[11px] font-cinzel tracking-wider uppercase rounded-lg transition-all',
-                  isActive ? 'text-[#07060f] font-bold' : 'text-[#6b6488] hover:text-[#e8e2f5] hover:bg-white/5')}
-                style={isActive ? { background: 'linear-gradient(135deg, #8b6410, #d4a017)' } : undefined}
-              >
-                {f.id === 'LIVE' && liveCount > 0 && <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />}
-                {f.label}
-                {count !== undefined && count > 0 && !isActive && <span className="text-[9px] bg-[#1e1a30] px-1.5 py-0.5 rounded-full font-sans">{count}</span>}
-              </button>
-            );
-          })}
+      <div className="px-5 py-5 space-y-4">
+        {/* Game filter chips */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          {GAME_TABS.filter(g => g.id === 'all' || availableGames.has(g.id)).map(g => (
+            <button
+              key={g.id}
+              onClick={() => setGameFilter(g.id)}
+              className={cn(
+                'shrink-0 px-3 py-1.5 rounded-md text-[11px] font-medium transition-colors border',
+                gameFilter === g.id
+                  ? 'bg-[#d4a017] text-black border-[#d4a017]'
+                  : 'bg-transparent text-[#9990b8] border-[#1e1a30] hover:border-[#3d3860] hover:text-[#e8e2f5]'
+              )}
+            >
+              {g.id === 'all' ? t('tourn_all_games') : g.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Search + status filters */}
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4a4570]" />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder={t('tourn_search')}
+              className="w-full h-9 rounded-md pl-9 pr-3 text-[12px] outline-none bg-[#0d0b1a] border border-[#1e1a30] text-[#e8e2f5] placeholder-[#4a4570] focus:border-[#3d3860] transition-colors"
+            />
+          </div>
+
+          <div className="flex shrink-0 border border-[#1e1a30] rounded-md overflow-hidden">
+            {FILTERS.map(f => {
+              const isActive = filter === f.id;
+              const count = f.id === 'LIVE' ? liveCount : f.id === 'UPCOMING' ? upcoming : undefined;
+              return (
+                <button key={f.id} onClick={() => setFilter(f.id)}
+                  className={cn('flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold tracking-wider uppercase transition-colors',
+                    isActive ? 'bg-[#1e1a30] text-[#e8e2f5]' : 'text-[#6b6488] hover:text-[#9990b8]')}
+                >
+                  {f.id === 'LIVE' && liveCount > 0 && <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />}
+                  {f.label}
+                  {count !== undefined && count > 0 && !isActive && <span className="text-[9px] bg-[#1e1a30] px-1.5 py-0.5 rounded-full font-sans">{count}</span>}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {error && (
