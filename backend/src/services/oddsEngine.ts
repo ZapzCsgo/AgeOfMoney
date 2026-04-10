@@ -203,12 +203,13 @@ function computeFormFactor(records: MatchRecord[], now = Date.now()): number {
 
 // ── Core: Inactivity Penalty ───────────────────────────────────────────────────
 /**
- * Penalty for inactive players — starts after 14 days, max at 90 days.
+ * Penalty for inactive players — starts after 45 days, max at 120 days.
+ * AoE tournaments are spaced out; 3-4 weeks between events is normal.
  * Returns a value from 0 (no penalty) to 0.04 (4% prob reduction).
  */
 function computeRustPenalty(daysSinceLastMatch: number): number {
-  if (daysSinceLastMatch <= 14) return 0;
-  return Math.min(0.04, (daysSinceLastMatch - 14) * 0.0006);
+  if (daysSinceLastMatch <= 45) return 0;
+  return Math.min(0.04, (daysSinceLastMatch - 45) * 0.0005);
 }
 
 // ── Main: Calculate Odds ───────────────────────────────────────────────────────
