@@ -83,101 +83,79 @@ export function tripCircuitBreaker(): void {
 /**
  * Attempt to automatically unblock our IP from Liquipedia's rate limit.
  *
- * Flow:
- *  1. GET /token/generate from our IP → returns an HTML page
- *  2. If the page has a CAPTCHA (reCAPTCHA, hCaptcha, Turnstile), send it
- *     to 2captcha.com for solving (requires TWOCAPTCHA_API_KEY env var)
- *  3. Submit the solution back to Liquipedia
- *  4. If no CAPTCHA (just a token link), visit the URL directly
+ * Verified flow (from real LP page inspection):
+ *  1. GET /token/generate → returns plain text with an unblock URL:
+ *     "Please visit the following URL in a browser to unblock X.X.X.X:
+ *      https://liquipedia.net/token/unblock?token=..."
+ *  2. GET that unblock URL → returns HTML with reCAPTCHA v2 + terms checkbox
+ *  3. Solve reCAPTCHA via 2captcha.com ($0.003 per solve)
+ *  4. POST the unblock URL with g-recaptcha-response + terms agreement
+ *  5. IP unblocked → verify with a real LP API request → reset circuit breaker
  *
- * If TWOCAPTCHA_API_KEY is not set, logs the unblock URL so the admin
- * can visit it manually.
+ * If IP is not blocked, /token/generate returns:
+ *   "This IP address is not blocked."
+ *
+ * Requires TWOCAPTCHA_API_KEY env var. Without it, logs the unblock URL
+ * for the admin to visit manually in a browser.
  */
 export async function attemptAutoUnblock(): Promise<{ success: boolean; message: string }> {
   const CAPTCHA_KEY = process.env.TWOCAPTCHA_API_KEY;
 
   try {
-    // Step 1: request the unblock page from our (blocked) IP
+    // ── Step 1: get the unblock URL from /token/generate ──────────────────
     const tokenRes = await axios.get('https://liquipedia.net/token/generate', {
       headers: { 'User-Agent': 'AgeOfMoney/1.0 (contact@ageofmoney.com)' },
       timeout: 15000,
-      maxRedirects: 5,
-      ...buildProxyConfig(),
     });
+    const tokenText = typeof tokenRes.data === 'string' ? tokenRes.data : '';
 
-    const html = typeof tokenRes.data === 'string' ? tokenRes.data : '';
-
-    // Case A: the page returned 200 without an obvious CAPTCHA widget.
-    // BUT this does NOT mean the IP is unblocked — LP's token page often
-    // returns 200 with a JS-based verification that a simple GET doesn't
-    // complete. We MUST verify by making a real LP API request to confirm.
-    if (tokenRes.status === 200 && !html.includes('g-recaptcha') && !html.includes('h-captcha') && !html.includes('cf-turnstile')) {
-      logger.info('[LPScorer] Auto-unblock: token/generate returned 200, verifying with a real LP request...');
-      try {
-        const testRes = await axios.get(LP_API_FOR('ageofempires'), {
-          params: { action: 'query', meta: 'siteinfo', format: 'json' },
-          headers: buildHeaders(),
-          timeout: 10000,
-          responseType: 'arraybuffer',
-          decompress: false,
-          ...buildProxyConfig(),
-        });
-        if (testRes.status === 200) {
-          logger.info('[LPScorer] Auto-unblock: verification succeeded — IP is unblocked!');
-          resetCircuitBreaker();
-          return { success: true, message: 'IP verified unblocked after token/generate visit' };
-        }
-      } catch (testErr: any) {
-        const testStatus = testErr?.response?.status;
-        logger.warn(`[LPScorer] Auto-unblock: verification failed (HTTP ${testStatus ?? 'timeout'}) — IP still blocked, breaker stays open`);
-        return { success: false, message: `IP still blocked after token/generate (test returned ${testStatus})` };
+    // If IP is already unblocked, verify and reset
+    if (tokenText.includes('not blocked')) {
+      logger.info('[LPScorer] Auto-unblock: LP says IP is not blocked — verifying...');
+      const verified = await verifyLpAccess();
+      if (verified) {
+        resetCircuitBreaker();
+        return { success: true, message: 'IP is not blocked (verified)' };
       }
+      return { success: false, message: 'LP says not blocked but API still returns 429' };
     }
 
-    // Case B: CAPTCHA detected — need 2captcha to solve it
+    // Extract the unblock URL
+    const urlMatch = tokenText.match(/(https:\/\/liquipedia\.net\/token\/unblock\?token=[^\s]+)/);
+    if (!urlMatch) {
+      logger.warn(`[LPScorer] Auto-unblock: could not find unblock URL in token/generate response`);
+      return { success: false, message: 'No unblock URL found in token/generate response' };
+    }
+    const unblockUrl = urlMatch[1];
+    logger.info(`[LPScorer] Auto-unblock: got unblock URL for IP`);
+
     if (!CAPTCHA_KEY) {
-      logger.warn('[LPScorer] Auto-unblock: CAPTCHA detected but TWOCAPTCHA_API_KEY not set. Visit https://liquipedia.net/token/generate manually to unblock.');
-      return { success: false, message: 'CAPTCHA detected, no 2captcha key configured' };
+      logger.warn(`[LPScorer] Auto-unblock: reCAPTCHA required but TWOCAPTCHA_API_KEY not set. Visit manually: ${unblockUrl}`);
+      return { success: false, message: `CAPTCHA required, no 2captcha key. Manual URL: ${unblockUrl}` };
     }
 
-    // Detect CAPTCHA type and sitekey
-    let captchaType: 'recaptcha' | 'hcaptcha' | 'turnstile' | null = null;
-    let sitekey = '';
+    // ── Step 2: fetch the unblock page to get the reCAPTCHA sitekey ───────
+    const unblockRes = await axios.get(unblockUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+      timeout: 15000,
+    });
+    const unblockHtml = typeof unblockRes.data === 'string' ? unblockRes.data : '';
 
-    const recapMatch = html.match(/data-sitekey=["']([^"']+)["']/);
-    if (html.includes('g-recaptcha') && recapMatch) {
-      captchaType = 'recaptcha';
-      sitekey = recapMatch[1];
+    const sitekeyMatch = unblockHtml.match(/data-sitekey=["']([^"']+)["']/);
+    if (!sitekeyMatch) {
+      logger.warn('[LPScorer] Auto-unblock: could not find reCAPTCHA sitekey on unblock page');
+      return { success: false, message: 'No reCAPTCHA sitekey found on unblock page' };
     }
-    const hcapMatch = html.match(/data-sitekey=["']([^"']+)["']/);
-    if (html.includes('h-captcha') && hcapMatch) {
-      captchaType = 'hcaptcha';
-      sitekey = hcapMatch[1];
-    }
-    const cfMatch = html.match(/data-sitekey=["']([^"']+)["']/);
-    if (html.includes('cf-turnstile') && cfMatch) {
-      captchaType = 'turnstile';
-      sitekey = cfMatch[1];
-    }
+    const sitekey = sitekeyMatch[1];
+    logger.info(`[LPScorer] Auto-unblock: found reCAPTCHA sitekey, sending to 2captcha...`);
 
-    if (!captchaType || !sitekey) {
-      logger.warn('[LPScorer] Auto-unblock: unknown CAPTCHA type, cannot solve automatically');
-      return { success: false, message: 'Unknown CAPTCHA type' };
-    }
-
-    logger.info(`[LPScorer] Auto-unblock: detected ${captchaType} (sitekey=${sitekey.slice(0, 20)}...), sending to 2captcha...`);
-
-    // Step 2: submit CAPTCHA to 2captcha
-    const method = captchaType === 'recaptcha' ? 'userrecaptcha'
-      : captchaType === 'hcaptcha' ? 'hcaptcha'
-      : 'turnstile';
-
+    // ── Step 3: solve reCAPTCHA via 2captcha ──────────────────────────────
     const submitRes = await axios.get('https://2captcha.com/in.php', {
       params: {
         key: CAPTCHA_KEY,
-        method,
-        sitekey,
-        pageurl: 'https://liquipedia.net/token/generate',
+        method: 'userrecaptcha',
+        googlekey: sitekey,
+        pageurl: unblockUrl,
         json: 1,
       },
       timeout: 15000,
@@ -188,9 +166,9 @@ export async function attemptAutoUnblock(): Promise<{ success: boolean; message:
     }
 
     const taskId = submitRes.data.request;
-    logger.info(`[LPScorer] Auto-unblock: 2captcha task ${taskId} submitted, waiting for solution...`);
+    logger.info(`[LPScorer] Auto-unblock: 2captcha task ${taskId}, waiting for solution (~15-30s)...`);
 
-    // Step 3: poll for solution (max ~120s)
+    // Poll for solution (max ~120s)
     let solution = '';
     for (let i = 0; i < 24; i++) {
       await new Promise(r => setTimeout(r, 5000));
@@ -211,35 +189,58 @@ export async function attemptAutoUnblock(): Promise<{ success: boolean; message:
       return { success: false, message: '2captcha timeout (120s)' };
     }
 
-    logger.info('[LPScorer] Auto-unblock: got CAPTCHA solution, submitting to Liquipedia...');
+    logger.info('[LPScorer] Auto-unblock: reCAPTCHA solved, submitting to Liquipedia...');
 
-    // Step 4: submit solution back to Liquipedia's token page
-    // The exact form submission depends on LP's page structure, but typically
-    // it's a POST with the CAPTCHA response token.
-    const formField = captchaType === 'recaptcha' ? 'g-recaptcha-response'
-      : captchaType === 'hcaptcha' ? 'h-captcha-response'
-      : 'cf-turnstile-response';
-
-    await axios.post('https://liquipedia.net/token/generate',
-      new URLSearchParams({ [formField]: solution }).toString(),
+    // ── Step 4: POST the solution to the unblock page ─────────────────────
+    await axios.post(unblockUrl,
+      new URLSearchParams({
+        'g-recaptcha-response': solution,
+        'agree': '1',  // "I agree to follow the API terms of use" checkbox
+      }).toString(),
       {
         headers: {
-          'User-Agent': 'AgeOfMoney/1.0 (contact@ageofmoney.com)',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
           'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': unblockUrl,
         },
         timeout: 15000,
         maxRedirects: 5,
-        ...buildProxyConfig(),
       }
     );
 
-    logger.info('[LPScorer] Auto-unblock: CAPTCHA submitted successfully — resetting circuit breaker');
-    resetCircuitBreaker();
-    return { success: true, message: `CAPTCHA solved via 2captcha (${captchaType})` };
+    // ── Step 5: verify the IP is actually unblocked ───────────────────────
+    // Give LP a moment to propagate the unblock
+    await new Promise(r => setTimeout(r, 2000));
+
+    const verified = await verifyLpAccess();
+    if (verified) {
+      logger.info('[LPScorer] Auto-unblock: SUCCESS — IP unblocked and verified!');
+      resetCircuitBreaker();
+      return { success: true, message: 'IP unblocked via 2captcha and verified' };
+    } else {
+      logger.warn('[LPScorer] Auto-unblock: CAPTCHA submitted but LP still returns 429');
+      return { success: false, message: 'CAPTCHA submitted but verification failed — IP may still be blocked' };
+    }
 
   } catch (err: any) {
     logger.warn(`[LPScorer] Auto-unblock error: ${err.message}`);
     return { success: false, message: err.message };
+  }
+}
+
+/** Make a lightweight LP API request to verify the IP is not rate-limited. */
+async function verifyLpAccess(): Promise<boolean> {
+  try {
+    const res = await axios.get(LP_API_FOR('ageofempires'), {
+      params: { action: 'query', meta: 'siteinfo', format: 'json' },
+      headers: buildHeaders(),
+      timeout: 10000,
+      responseType: 'arraybuffer',
+      decompress: false,
+    });
+    return res.status === 200;
+  } catch {
+    return false;
   }
 }
 
