@@ -190,7 +190,35 @@ startMatchVerifier();
 // Start Liquipedia live scorer (polls wikitext every 60s for tournament BO scores)
 startLiquipediaLiveScorer();
 
-// Startup scrape is handled by jobs.ts setImmediate — no duplicate needed here
+// Startup: clean up duplicate matches left by past race conditions
+(async () => {
+  try {
+    const matches = await prisma.match.findMany({
+      where: { status: { in: ['UPCOMING', 'LIVE'] } },
+      select: { id: true, player1Id: true, player2Id: true, tournamentId: true, scheduledAt: true, status: true },
+      orderBy: { scheduledAt: 'desc' },
+    });
+    const groups = new Map<string, typeof matches>();
+    for (const m of matches) {
+      const key = [m.player1Id, m.player2Id].sort().join(':') + ':' + (m.tournamentId ?? '');
+      groups.set(key, [...(groups.get(key) ?? []), m]);
+    }
+    let removed = 0;
+    for (const [, group] of groups) {
+      if (group.length <= 1) continue;
+      for (const dup of group.slice(1)) {
+        const bets = await prisma.bet.findMany({ where: { matchId: dup.id, status: 'PENDING' } });
+        for (const bet of bets) {
+          await prisma.user.update({ where: { id: bet.userId }, data: { coins: { increment: bet.amount } } });
+          await prisma.bet.update({ where: { id: bet.id }, data: { status: 'REFUNDED' } });
+        }
+        await prisma.match.delete({ where: { id: dup.id } });
+        removed++;
+      }
+    }
+    if (removed > 0) logger.info(`[Startup] Cleaned up ${removed} duplicate matches`);
+  } catch (err) { logger.warn('[Startup] Dedup cleanup failed:', err); }
+})();
 
 
 const PORT = parseInt(process.env.PORT || '4000', 10);

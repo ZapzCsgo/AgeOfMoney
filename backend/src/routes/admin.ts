@@ -848,6 +848,55 @@ router.get('/matches/:id/inspect', async (req: Request, res: Response): Promise<
   }
 });
 
+// POST /dedup-matches — find and remove duplicate UPCOMING/LIVE matches
+// Keeps the match with the latest scheduledAt, cancels+refunds the others.
+router.post('/dedup-matches', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    // Find all UPCOMING/LIVE matches grouped by player pair + tournament
+    const matches = await prisma.match.findMany({
+      where: { status: { in: ['UPCOMING', 'LIVE'] } },
+      select: { id: true, player1Id: true, player2Id: true, tournamentId: true, scheduledAt: true, status: true },
+      orderBy: { scheduledAt: 'desc' },
+    });
+
+    // Group by normalized key (sorted player IDs + tournament)
+    const groups = new Map<string, typeof matches>();
+    for (const m of matches) {
+      const pairKey = [m.player1Id, m.player2Id].sort().join(':') + ':' + (m.tournamentId ?? '');
+      const existing = groups.get(pairKey) ?? [];
+      existing.push(m);
+      groups.set(pairKey, existing);
+    }
+
+    let removed = 0;
+    let refunded = 0;
+    const removedIds: string[] = [];
+
+    for (const [, group] of groups) {
+      if (group.length <= 1) continue;
+      // Keep the first (latest scheduledAt), remove the rest
+      const toRemove = group.slice(1);
+      for (const dup of toRemove) {
+        // Refund any bets on this match
+        const bets = await prisma.bet.findMany({ where: { matchId: dup.id, status: 'PENDING' } });
+        for (const bet of bets) {
+          await prisma.user.update({ where: { id: bet.userId }, data: { coins: { increment: bet.amount } } });
+          await prisma.bet.update({ where: { id: bet.id }, data: { status: 'REFUNDED' } });
+          refunded++;
+        }
+        await prisma.match.delete({ where: { id: dup.id } });
+        removedIds.push(dup.id);
+        removed++;
+        logger.info(`[Admin] Dedup: removed duplicate match ${dup.id} (${dup.status}, scheduledAt=${dup.scheduledAt.toISOString()})`);
+      }
+    }
+
+    res.json({ ok: true, duplicateGroupsFound: [...groups.values()].filter(g => g.length > 1).length, matchesRemoved: removed, betsRefunded: refunded, removedIds });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 // POST /lp-unblock — attempt to automatically unblock our IP from Liquipedia
 router.post('/lp-unblock', async (_req: Request, res: Response): Promise<void> => {
   try {
