@@ -190,8 +190,9 @@ startMatchVerifier();
 // Start Liquipedia live scorer (polls wikitext every 60s for tournament BO scores)
 startLiquipediaLiveScorer();
 
-// Startup: clean up duplicate matches left by past race conditions
-(async () => {
+// Startup: clean up duplicate matches — delayed 10s to avoid saturating
+// the Supabase connection pool at boot (scorer, cron, roulette all start first)
+setTimeout(async () => {
   try {
     const matches = await prisma.match.findMany({
       where: { status: { in: ['UPCOMING', 'LIVE'] } },
@@ -218,7 +219,7 @@ startLiquipediaLiveScorer();
     }
     if (removed > 0) logger.info(`[Startup] Cleaned up ${removed} duplicate matches`);
   } catch (err) { logger.warn('[Startup] Dedup cleanup failed:', err); }
-})();
+}, 10_000);
 
 
 const PORT = parseInt(process.env.PORT || '4000', 10);
