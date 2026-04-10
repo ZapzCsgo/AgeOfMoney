@@ -67,7 +67,7 @@ const CACHE_TTL = 25_000; // 25s — reuse within a poll cycle (min interval is 
 // gracefully without spamming the logs every 5s.
 let lpBlockedUntil = 0;
 let consecutive429s = 0;
-const BACKOFF_MIN = [1, 2, 5, 15, 30, 60]; // minutes per consecutive failure
+const BACKOFF_MIN = [2, 5, 10, 20, 30, 60]; // minutes per consecutive failure (start at 2min)
 
 /** Check if Liquipedia is currently blocked by the circuit breaker. */
 export function isLpBlocked(): boolean { return Date.now() < lpBlockedUntil; }
@@ -78,14 +78,6 @@ export function tripCircuitBreaker(): void {
   const minutes = BACKOFF_MIN[idx];
   lpBlockedUntil = Date.now() + minutes * 60_000;
   logger.warn(`[LPScorer] 429 from Liquipedia (${consecutive429s} consecutive) — circuit breaker open for ${minutes}min, no more LP requests until ${new Date(lpBlockedUntil).toISOString()}`);
-
-  // Auto-unblock: attempt to solve the LP rate-limit CAPTCHA automatically.
-  // Fire-and-forget — if it works, resetCircuitBreaker() is called and we resume.
-  if (consecutive429s >= 2) {
-    attemptAutoUnblock().catch(err =>
-      logger.warn(`[LPScorer] Auto-unblock failed: ${err.message}`)
-    );
-  }
 }
 
 /**
@@ -115,11 +107,31 @@ export async function attemptAutoUnblock(): Promise<{ success: boolean; message:
 
     const html = typeof tokenRes.data === 'string' ? tokenRes.data : '';
 
-    // Case A: the page redirects or returns a simple token — just visiting was enough
-    if (tokenRes.status === 200 && !html.includes('captcha') && !html.includes('g-recaptcha') && !html.includes('h-captcha') && !html.includes('cf-turnstile')) {
-      logger.info('[LPScorer] Auto-unblock: token/generate returned no CAPTCHA — IP may already be unblocked');
-      resetCircuitBreaker();
-      return { success: true, message: 'No CAPTCHA detected, IP likely unblocked' };
+    // Case A: the page returned 200 without an obvious CAPTCHA widget.
+    // BUT this does NOT mean the IP is unblocked — LP's token page often
+    // returns 200 with a JS-based verification that a simple GET doesn't
+    // complete. We MUST verify by making a real LP API request to confirm.
+    if (tokenRes.status === 200 && !html.includes('g-recaptcha') && !html.includes('h-captcha') && !html.includes('cf-turnstile')) {
+      logger.info('[LPScorer] Auto-unblock: token/generate returned 200, verifying with a real LP request...');
+      try {
+        const testRes = await axios.get(LP_API_FOR('ageofempires'), {
+          params: { action: 'query', meta: 'siteinfo', format: 'json' },
+          headers: buildHeaders(),
+          timeout: 10000,
+          responseType: 'arraybuffer',
+          decompress: false,
+          ...buildProxyConfig(),
+        });
+        if (testRes.status === 200) {
+          logger.info('[LPScorer] Auto-unblock: verification succeeded — IP is unblocked!');
+          resetCircuitBreaker();
+          return { success: true, message: 'IP verified unblocked after token/generate visit' };
+        }
+      } catch (testErr: any) {
+        const testStatus = testErr?.response?.status;
+        logger.warn(`[LPScorer] Auto-unblock: verification failed (HTTP ${testStatus ?? 'timeout'}) — IP still blocked, breaker stays open`);
+        return { success: false, message: `IP still blocked after token/generate (test returned ${testStatus})` };
+      }
     }
 
     // Case B: CAPTCHA detected — need 2captcha to solve it
