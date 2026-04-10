@@ -127,7 +127,8 @@ export function MatchChat({ matchId }: MatchChatProps) {
   }, [matchId, session]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Use block:'nearest' so only the chat container scrolls, not the whole page
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [messages]);
 
   const handleSend = () => {
