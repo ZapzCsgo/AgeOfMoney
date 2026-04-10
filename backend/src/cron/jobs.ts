@@ -233,6 +233,24 @@ async function recalcActiveMatchOdds(): Promise<void> {
         }),
       ]);
 
+      // If BOTH players have 0 tournament records, suspend bets — odds are
+      // meaningless without data. An admin needs to seed the players first.
+      if (p1Records.length === 0 && p2Records.length === 0) {
+        if (match.betsOpen !== false) {
+          await prisma.match.update({ where: { id: match.id }, data: { betsOpen: false } });
+          io?.emit('matchUpdate', { matchId: match.id, betsOpen: false, insufficientData: true });
+          logger.info(`[FastRecalc] Match ${match.id}: bets suspended — both players have 0 tournament records`);
+        }
+        continue;
+      }
+
+      // If bets were suspended due to missing data but we now have records, reopen
+      if (match.betsOpen === false && (p1Records.length > 0 || p2Records.length > 0) && match.status === 'UPCOMING') {
+        await prisma.match.update({ where: { id: match.id }, data: { betsOpen: true } });
+        io?.emit('matchUpdate', { matchId: match.id, betsOpen: true });
+        logger.info(`[FastRecalc] Match ${match.id}: bets reopened — player data now available`);
+      }
+
       const h2h = await getPlayerH2HFromHistory(match.player1.id, match.player2.id, match.game);
       const now = Date.now();
       const days1 = match.player1.lastMatchAt ? (now - match.player1.lastMatchAt.getTime()) / 86400000 : 30;

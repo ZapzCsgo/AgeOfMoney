@@ -86,6 +86,7 @@ export function BetForm({ match, onBetPlaced, initialPlayer = null }: BetFormPro
           <p className="text-aoe-parchment-dim text-sm font-cinzel">
             {match.status === 'COMPLETED' ? t('bet_closed_match') :
              match.status === 'CANCELLED' ? t('bet_cancelled') :
+             match.betsOpen === false && match.status === 'UPCOMING' ? t('bet_insufficient_data') :
              match.betsOpen === false ? t('bet_closed_live') :
              t('bet_closed')}
           </p>
