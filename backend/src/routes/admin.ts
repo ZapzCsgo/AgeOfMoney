@@ -864,11 +864,35 @@ router.post('/lp-unblock', async (_req: Request, res: Response): Promise<void> =
   }
 });
 
-// GET /lp-status — check if Liquipedia is currently blocked
+// GET /lp-status — check if Liquipedia is currently blocked + fetch token/generate raw content
 router.get('/lp-status', async (_req: Request, res: Response): Promise<void> => {
   try {
     const { isLpBlocked } = await import('../services/liquipediaLiveScorer');
-    res.json({ blocked: isLpBlocked() });
+    const axios = (await import('axios')).default;
+
+    // Fetch token/generate from THIS server's IP to see what LP shows
+    let tokenPageContent = '';
+    let tokenPageStatus = 0;
+    try {
+      const r = await axios.get('https://liquipedia.net/token/generate', {
+        headers: { 'User-Agent': 'AgeOfMoney/1.0 (contact@ageofmoney.com)' },
+        timeout: 10000,
+        maxRedirects: 5,
+      });
+      tokenPageContent = typeof r.data === 'string' ? r.data : JSON.stringify(r.data);
+      tokenPageStatus = r.status;
+    } catch (err: any) {
+      tokenPageStatus = err?.response?.status ?? 0;
+      tokenPageContent = err?.response?.data ? String(err.response.data).slice(0, 2000) : err.message;
+    }
+
+    res.json({
+      circuitBreakerActive: isLpBlocked(),
+      tokenPage: {
+        status: tokenPageStatus,
+        content: tokenPageContent.slice(0, 3000),
+      },
+    });
   } catch (err) {
     res.status(500).json({ error: String(err) });
   }
