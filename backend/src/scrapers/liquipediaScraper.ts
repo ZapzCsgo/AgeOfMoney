@@ -499,14 +499,23 @@ export async function scrapeUpcomingMatches(): Promise<void> {
           });
 
           if (duplicate) {
-            // Merge: update the stale record with the real Liquipedia URL + authoritative data
-            logger.info(`[Liquipedia] Merging duplicate tournament "${duplicate.name}" → "${m.tournamentName}"`);
+            // Merge: update the stale record with the real Liquipedia URL + authoritative data.
+            // Apply the same `game` overwrite protection as the regular update branch:
+            // never overwrite a manually-corrected non-AoE4 game unless the infobox
+            // probe gave us a high-confidence verdict.
+            const dupExisting = await prisma.tournament.findUnique({
+              where: { id: duplicate.id },
+              select: { game: true },
+            });
+            const dupHighConfidenceGame = !!gameFromInfobox;
+            const dupShouldUpdateGame = dupExisting?.game === 'AoE4' || dupHighConfidenceGame;
+            logger.info(`[Liquipedia] Merging duplicate tournament "${duplicate.name}" → "${m.tournamentName}"${dupShouldUpdateGame ? '' : ` (preserving game=${dupExisting?.game})`}`);
             tournament = await prisma.tournament.update({
               where: { id: duplicate.id },
               data: {
                 liquipediaUrl: m.tournamentUrl,
                 name: m.tournamentName,
-                game: correctGame,
+                ...(dupShouldUpdateGame ? { game: correctGame } : {}),
                 tier: correctTier,
                 isActive: true,
                 ...(twitchChannel ? { twitchChannel } : {}),

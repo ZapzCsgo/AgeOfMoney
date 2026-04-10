@@ -99,48 +99,6 @@ export function PlayerStats({ player1, player2, recentForm1 = [], recentForm2 = 
       </div>
 
 
-      {/* BO Score — shown when match is LIVE or COMPLETED */}
-      {(matchStatus === 'LIVE' || matchStatus === 'COMPLETED') && (p1Score !== undefined || p2Score !== undefined) && (
-        <>
-          <div className="aoe-divider">
-            <span>{matchStatus === 'COMPLETED' ? 'Score final' : 'Score en cours'}</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="flex-1 text-center">
-              <div className={cn(
-                'font-cinzel font-black text-4xl',
-                matchStatus === 'COMPLETED'
-                  ? (winnerId === player1.id ? 'text-[#d4a017]' : 'text-[#4a4570]')
-                  : 'text-amber-400'
-              )}>
-                {p1Score ?? 0}
-              </div>
-              <div className="text-aoe-parchment-dim text-xs mt-1">{player1.name}</div>
-            </div>
-            <div className="text-center">
-              <div className="text-[#3a3560] font-cinzel text-xl font-black">—</div>
-            </div>
-            <div className="flex-1 text-center">
-              <div className={cn(
-                'font-cinzel font-black text-4xl',
-                matchStatus === 'COMPLETED'
-                  ? (winnerId === player2.id ? 'text-[#d4a017]' : 'text-[#4a4570]')
-                  : 'text-blue-400'
-              )}>
-                {p2Score ?? 0}
-              </div>
-              <div className="text-aoe-parchment-dim text-xs mt-1">{player2.name}</div>
-            </div>
-          </div>
-          {matchStatus === 'COMPLETED' && (
-            <div className="flex h-1.5 rounded-full overflow-hidden">
-              <div className="bg-[#d4a017]" style={{ width: `${((p1Score ?? 0) / Math.max((p1Score ?? 0) + (p2Score ?? 0), 1)) * 100}%` }} />
-              <div className="bg-[#2a2540] flex-1" />
-            </div>
-          )}
-        </>
-      )}
-
       {/* H2H — only shown when match is upcoming (no live score yet) */}
       {matchStatus !== 'LIVE' && matchStatus !== 'COMPLETED' && h2h && h2h.total > 0 && (
         <>
