@@ -50,7 +50,10 @@ let lpBlockedUntil = 0;
 let consecutive429s = 0;
 const BACKOFF_MIN = [1, 2, 5, 15, 30, 60]; // minutes per consecutive failure
 
-function tripCircuitBreaker(): void {
+/** Check if Liquipedia is currently blocked by the circuit breaker. */
+export function isLpBlocked(): boolean { return Date.now() < lpBlockedUntil; }
+
+export function tripCircuitBreaker(): void {
   consecutive429s++;
   const idx = Math.min(consecutive429s - 1, BACKOFF_MIN.length - 1);
   const minutes = BACKOFF_MIN[idx];
@@ -58,7 +61,7 @@ function tripCircuitBreaker(): void {
   logger.warn(`[LPScorer] 429 from Liquipedia (${consecutive429s} consecutive) — circuit breaker open for ${minutes}min, no more LP requests until ${new Date(lpBlockedUntil).toISOString()}`);
 }
 
-function resetCircuitBreaker(): void {
+export function resetCircuitBreaker(): void {
   if (consecutive429s > 0) {
     logger.info('[LPScorer] Liquipedia request succeeded — circuit breaker reset');
   }

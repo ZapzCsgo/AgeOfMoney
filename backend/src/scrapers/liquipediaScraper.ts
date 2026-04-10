@@ -70,11 +70,23 @@ const LP_USER_AGENT = 'AgeOfMoneyBot/1.0 (https://ageof.money; contact@ageof.mon
  * Falls back to direct HTML fetch if the API fails.
  */
 async function fetchHtml(url: string, retries = 3): Promise<string | null> {
+  // Respect the shared circuit breaker — if Liquipedia is blocking us,
+  // don't even try (both the scorer and this scraper trip the same breaker).
+  const { isLpBlocked, tripCircuitBreaker, resetCircuitBreaker } = require('../services/liquipediaLiveScorer');
+  if (isLpBlocked()) {
+    logger.debug(`[Liquipedia] Skipping fetch (circuit breaker active): ${url}`);
+    return null;
+  }
+
   // Try MediaWiki API first for Liquipedia pages
   const mwHtml = await fetchViaMediaWikiApi(url);
-  if (mwHtml) return mwHtml;
+  if (mwHtml) {
+    resetCircuitBreaker();
+    return mwHtml;
+  }
 
-  // Fallback: direct HTML fetch
+  // Fallback: direct HTML fetch — NO retry on 429 (retrying a rate-limited
+  // request just extends the IP ban). Only retry on transient errors.
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       const res = await axios.get<string>(url, {
@@ -94,22 +106,22 @@ async function fetchHtml(url: string, retries = 3): Promise<string | null> {
         res.data.includes('cf-browser-verification')
       )) {
         logger.warn(`[Liquipedia] Blocked/CAPTCHA on ${url} (attempt ${attempt}/${retries})`);
-        if (attempt < retries) {
-          await sleep(attempt * 30000);
-          continue;
-        }
+        tripCircuitBreaker();
         return null;
       }
 
+      resetCircuitBreaker();
       return res.data;
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const status = err.response?.status;
+        if (status === 429 || status === 503) {
+          logger.warn(`[Liquipedia] ${status} on ${url} — tripping circuit breaker, no retry`);
+          tripCircuitBreaker();
+          return null; // do NOT retry 429/503
+        }
         logger.warn(`[Liquipedia] Direct fetch failed (attempt ${attempt}/${retries}): ${err.message} (HTTP ${status ?? 'timeout'})`);
-        if ((status === 429 || status === 503) && attempt < retries) {
-          await sleep(attempt * 60000);
-          continue;
-        } else if (attempt < retries) {
+        if (attempt < retries) {
           await sleep(attempt * 5000);
           continue;
         }
@@ -129,6 +141,9 @@ async function fetchViaMediaWikiApi(url: string): Promise<string | null> {
   // Only works for liquipedia.net URLs
   const match = url.match(/liquipedia\.net\/([^/]+)\/(.+)/);
   if (!match) return null;
+
+  const { isLpBlocked, tripCircuitBreaker } = require('../services/liquipediaLiveScorer');
+  if (isLpBlocked()) return null;
 
   const [, wiki, pagePath] = match;
   const pageName = decodeURIComponent(pagePath.split('?')[0]);
@@ -158,7 +173,9 @@ async function fetchViaMediaWikiApi(url: string): Promise<string | null> {
     return null;
   } catch (err) {
     if (axios.isAxiosError(err)) {
-      logger.warn(`[Liquipedia] MediaWiki API failed for ${pageName}: ${err.message} (HTTP ${err.response?.status ?? 'timeout'})`);
+      const status = err.response?.status;
+      logger.warn(`[Liquipedia] MediaWiki API failed for ${pageName}: ${err.message} (HTTP ${status ?? 'timeout'})`);
+      if (status === 429 || status === 503) tripCircuitBreaker();
     }
     return null;
   }
