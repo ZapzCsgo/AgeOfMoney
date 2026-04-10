@@ -21,7 +21,9 @@ import logger from '../logger';
 
 const gunzip = promisify(zlib.gunzip);
 
-const LP_API = 'https://liquipedia.net/ageofempires/api.php';
+// Wiki path is determined per-match from the tournament's Liquipedia URL.
+// All AoE wikis share the same MediaWiki API at /{wiki}/api.php.
+const LP_API_FOR = (wikiPath: string) => `https://liquipedia.net/${wikiPath}/api.php`;
 const HEADERS = {
   'User-Agent': 'AgeOfMoney/1.0 (contact@ageofmoney.com)',
   'Accept-Encoding': 'gzip', // Liquipedia REQUIRES gzip (406 otherwise)
@@ -48,14 +50,15 @@ lpLimiter.on('failed', async (error, jobInfo) => {
   }
 });
 
-async function fetchWikitext(page: string): Promise<string | null> {
+async function fetchWikitext(wikiPath: string, page: string): Promise<string | null> {
+  const cacheKey = `${wikiPath}:${page}`;
   const now = Date.now();
-  if (wikiCache[page] && now - wikiCache[page].fetchedAt < CACHE_TTL) {
-    return wikiCache[page].text;
+  if (wikiCache[cacheKey] && now - wikiCache[cacheKey].fetchedAt < CACHE_TTL) {
+    return wikiCache[cacheKey].text;
   }
 
   try {
-    const res = await lpLimiter.schedule(() => axios.get(LP_API, {
+    const res = await lpLimiter.schedule(() => axios.get(LP_API_FOR(wikiPath), {
       params: { action: 'parse', page, prop: 'wikitext', format: 'json' },
       headers: HEADERS,
       timeout: 15000,
@@ -81,7 +84,7 @@ async function fetchWikitext(page: string): Promise<string | null> {
 
     const parsed = JSON.parse(jsonStr);
     const text = parsed?.parse?.wikitext?.['*'] ?? null;
-    if (text) wikiCache[page] = { text, fetchedAt: Date.now() };
+    if (text) wikiCache[cacheKey] = { text, fetchedAt: Date.now() };
     return text;
   } catch (err) {
     if (axios.isAxiosError(err) && err.response?.status === 429) {
@@ -89,7 +92,7 @@ async function fetchWikitext(page: string): Promise<string | null> {
       lpLimiter.updateSettings({ reservoir: 0 });
       setTimeout(() => lpLimiter.updateSettings({ reservoir: 20 }), 60_000);
     } else {
-      logger.warn(`[LPScorer] Failed to fetch wikitext for "${page}":`, err);
+      logger.warn(`[LPScorer] Failed to fetch wikitext for "${wikiPath}/${page}":`, err);
     }
     return null;
   }
@@ -175,13 +178,24 @@ function namesMatch(a: string, b: string): boolean {
 }
 
 /**
- * Find the Liquipedia tournament page slug from a liquipediaUrl.
- * e.g. "https://liquipedia.net/ageofempires/Red_Bull_Wololo/Londinium/AoE4" → "Red_Bull_Wololo/Londinium/AoE4"
+ * Extract { wikiPath, page } from a Liquipedia URL — supports all AoE wikis.
+ * e.g. "https://liquipedia.net/ageofempires2/Hidden_Cup_5" → { wikiPath: "ageofempires2", page: "Hidden_Cup_5" }
  */
-function extractLiquipediaPage(url: string): string | null {
-  // Strip #anchor and trailing slashes, then decode
-  const m = url.match(/liquipedia\.net\/ageofempires\/([^#]+)/);
-  return m ? decodeURIComponent(m[1].replace(/\/$/, '')) : null;
+function extractLiquipediaPage(url: string): { wikiPath: string; page: string } | null {
+  // Match any /ageofempires*, /ageofmythology, etc. wiki path
+  const m = url.match(/liquipedia\.net\/(ageofempires2|ageofempires3|ageofmythology|ageofempires)\/([^#]+)/);
+  if (!m) return null;
+  return { wikiPath: m[1], page: decodeURIComponent(m[2].replace(/\/$/, '')) };
+}
+
+/** Map our internal game code → the Liquipedia wiki path that hosts that game. */
+function wikiPathForGame(game: string): string {
+  switch (game) {
+    case 'AoE2': return 'ageofempires2';
+    case 'AoE3': return 'ageofempires3';
+    case 'AoM':  return 'ageofmythology';
+    default:     return 'ageofempires'; // AoE4 and AoE1 both live here
+  }
 }
 
 async function syncMatchScore(matchId: string): Promise<void> {
@@ -204,11 +218,16 @@ async function syncMatchScore(matchId: string): Promise<void> {
     return;
   }
 
-  let page = extractLiquipediaPage(lpUrl);
-  if (!page) return;
+  const extracted = extractLiquipediaPage(lpUrl);
+  if (!extracted) return;
+  const { page } = extracted;
+  // The match.game field is authoritative — it tells us which wiki to query.
+  // The URL's wiki prefix can be wrong (cross-wiki tournaments live on /ageofempires/
+  // even when the match is AoE2/AoE3/AoM).
+  const wikiPath = wikiPathForGame(match.game);
 
   // For tournament-level URLs, try appending /AoE4 for tournament bracket page
-  const wikitext = await fetchWikitext(page) ?? await fetchWikitext(page + '/AoE4');
+  const wikitext = await fetchWikitext(wikiPath, page) ?? await fetchWikitext(wikiPath, page + '/AoE4');
   if (!wikitext) return;
 
   const lpMatches = parseMatches(wikitext);
@@ -374,11 +393,13 @@ export async function debugLpMatch(matchId: string): Promise<Record<string, unkn
     match: { id: matchId, player1: match.player1.name, player2: match.player2.name },
   };
 
-  const page = extractLiquipediaPage(lpUrl);
-  if (!page) return { error: 'Could not extract page slug from URL', url: lpUrl };
+  const extracted = extractLiquipediaPage(lpUrl);
+  if (!extracted) return { error: 'Could not extract page slug from URL', url: lpUrl };
+  const { page } = extracted;
+  const wikiPath = wikiPathForGame(match.game);
 
-  const wikitext = await fetchWikitext(page) ?? await fetchWikitext(page + '/AoE4');
-  if (!wikitext) return { error: 'Failed to fetch wikitext', page };
+  const wikitext = await fetchWikitext(wikiPath, page) ?? await fetchWikitext(wikiPath, page + '/AoE4');
+  if (!wikitext) return { error: 'Failed to fetch wikitext', page, wikiPath };
 
   const lpMatches = parseMatches(wikitext);
   const p1 = match.player1.name;
@@ -391,6 +412,7 @@ export async function debugLpMatch(matchId: string): Promise<Record<string, unkn
 
   return {
     page,
+    wikiPath,
     urlUsed: lpUrl,
     dbScore: `${match.p1Score}-${match.p2Score}`,
     dbStatus: match.status,
