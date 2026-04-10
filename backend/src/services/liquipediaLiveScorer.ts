@@ -113,6 +113,66 @@ interface LpMatch {
   finishedMaps: number;
 }
 
+/**
+ * Walk a string from a position pointing at `{{` and return the index of the
+ * matching `}}` (exclusive). Returns -1 if no balanced closer is found.
+ */
+function findBalancedTemplateEnd(text: string, start: number): number {
+  if (text[start] !== '{' || text[start + 1] !== '{') return -1;
+  let depth = 0;
+  let i = start;
+  while (i < text.length) {
+    if (text[i] === '{' && text[i + 1] === '{') { depth++; i += 2; }
+    else if (text[i] === '}' && text[i + 1] === '}') {
+      depth--;
+      i += 2;
+      if (depth === 0) return i;
+    }
+    else i++;
+  }
+  return -1;
+}
+
+/**
+ * Extract a {{SoloOpponent|name|...|score=N}} template attached to a given
+ * `|opponentN=` key. Handles balanced braces (nested templates inside) and
+ * multi-line content. Returns the player name + the score field if present.
+ */
+function extractSoloOpponent(block: string, oppKey: 'opponent1' | 'opponent2'): { name: string; score: number | null } | null {
+  const marker = `|${oppKey}=`;
+  const idx = block.indexOf(marker);
+  if (idx === -1) return null;
+  const tplStart = idx + marker.length;
+  if (block[tplStart] !== '{' || block[tplStart + 1] !== '{') return null;
+  const tplEnd = findBalancedTemplateEnd(block, tplStart);
+  if (tplEnd === -1) return null;
+  const inside = block.slice(tplStart + 2, tplEnd - 2); // strip the {{ }}
+  // Quick sanity check: must be a SoloOpponent template
+  if (!/^SoloOpponent\b/.test(inside)) return null;
+
+  // Split into top-level pipe parts (don't split inside nested {{...}})
+  const parts: string[] = [];
+  let buf = '';
+  let depth = 0;
+  for (let i = 0; i < inside.length; i++) {
+    const ch = inside[i];
+    if (ch === '{' && inside[i + 1] === '{') { depth++; buf += '{{'; i++; continue; }
+    if (ch === '}' && inside[i + 1] === '}') { depth--; buf += '}}'; i++; continue; }
+    if (ch === '|' && depth === 0) { parts.push(buf); buf = ''; continue; }
+    buf += ch;
+  }
+  parts.push(buf);
+  // parts[0] = "SoloOpponent", parts[1] = positional player name
+  const name = (parts[1] ?? '').trim();
+  if (!name) return null;
+  let score: number | null = null;
+  for (const p of parts.slice(2)) {
+    const m = p.match(/^\s*score\s*=\s*(\d+)\s*$/);
+    if (m) { score = parseInt(m[1], 10); break; }
+  }
+  return { name, score };
+}
+
 function parseMatches(wikitext: string): LpMatch[] {
   const results: LpMatch[] = [];
 
@@ -122,40 +182,61 @@ function parseMatches(wikitext: string): LpMatch[] {
   const matchStart = /\{\{Match\b/g;
   let ms: RegExpExecArray | null;
   while ((ms = matchStart.exec(wikitext)) !== null) {
-    let depth = 0;
-    let i = ms.index;
-    let end = -1;
-    while (i < wikitext.length) {
-      if (wikitext[i] === '{' && wikitext[i + 1] === '{') { depth++; i += 2; }
-      else if (wikitext[i] === '}' && wikitext[i + 1] === '}') { depth--; if (depth === 0) { end = i + 2; break; } i += 2; }
-      else i++;
-    }
+    const end = findBalancedTemplateEnd(wikitext, ms.index);
     if (end > ms.index) matchBlocks.push(wikitext.slice(ms.index, end));
   }
 
   for (const block of matchBlocks) {
-    // Extract opponent names
-    const opp1 = block.match(/\|opponent1=\{\{SoloOpponent\|([^|}]+)/)?.[1]?.trim();
-    const opp2 = block.match(/\|opponent2=\{\{SoloOpponent\|([^|}]+)/)?.[1]?.trim();
-    if (!opp1 || !opp2) continue;
+    // ── Opponents (balanced-brace extraction, picks up |score=N if present) ──
+    const opp1Info = extractSoloOpponent(block, 'opponent1');
+    const opp2Info = extractSoloOpponent(block, 'opponent2');
+    if (!opp1Info || !opp2Info) continue;
+    const opp1 = opp1Info.name;
+    const opp2 = opp2Info.name;
 
     const date = block.match(/\|date=([^\n|]+)/)?.[1]?.trim() ?? '';
     const bestof = parseInt(block.match(/\|bestof=(\d+)/)?.[1] ?? '3');
 
-    // Extract map results
-    const mapRegex = /\|map=([^|}\n]+).*?\|winner=(\d?)/gs;
-    const maps: Array<{ map: string; winner: 1 | 2 | null }> = [];
-    let m;
-    const blockClean = block.replace(/\n\s*/g, ' ');
-    while ((m = mapRegex.exec(blockClean)) !== null) {
-      const mapName = m[1].trim();
-      const w = m[2] ? parseInt(m[2]) : null;
-      maps.push({ map: mapName, winner: (w === 1 || w === 2) ? w : null });
-    }
+    // ── Score signals — try them in order of reliability ────────────────────
+    // Signal 1: score field inside the SoloOpponent template (most reliable —
+    //   editors usually update this first when a map ends).
+    const sigTplScore =
+      opp1Info.score !== null && opp2Info.score !== null
+        ? { p1: opp1Info.score, p2: opp2Info.score }
+        : null;
 
-    const p1Score = maps.filter(m => m.winner === 1).length;
-    const p2Score = maps.filter(m => m.winner === 2).length;
-    const finishedMaps = maps.filter(m => m.winner !== null).length;
+    // Signal 2: top-level |opponent1score= / |opponent2score= on the Match.
+    const tlS1 = block.match(/\|opponent1score\s*=\s*(\d+)/)?.[1];
+    const tlS2 = block.match(/\|opponent2score\s*=\s*(\d+)/)?.[1];
+    const sigTopLevel =
+      tlS1 !== undefined && tlS2 !== undefined
+        ? { p1: parseInt(tlS1, 10), p2: parseInt(tlS2, 10) }
+        : null;
+
+    // Signal 3: count |winner=1 / |winner=2 occurrences anywhere in the block.
+    // Catches both legacy `|map=X|...|winner=N` and modern
+    // `|mapN={{Map|...|winner=X}}` formats in one shot.
+    let countedWinner1 = 0;
+    let countedWinner2 = 0;
+    const winnerRe = /\|winner\s*=\s*(\d)/g;
+    let wm: RegExpExecArray | null;
+    while ((wm = winnerRe.exec(block)) !== null) {
+      if (wm[1] === '1') countedWinner1++;
+      else if (wm[1] === '2') countedWinner2++;
+    }
+    const sigCounted = { p1: countedWinner1, p2: countedWinner2 };
+
+    // Pick the strongest signal: prefer direct score fields, then counted maps.
+    // We prefer ANY signal whose total > 0, falling back to 0-0 only if all
+    // three signals say so (genuinely no progress yet).
+    const sigs = [sigTplScore, sigTopLevel, sigCounted].filter(Boolean) as { p1: number; p2: number }[];
+    const best = sigs.find(s => s.p1 + s.p2 > 0) ?? sigs[0] ?? { p1: 0, p2: 0 };
+    const p1Score = best.p1;
+    const p2Score = best.p2;
+
+    const finishedMaps = countedWinner1 + countedWinner2;
+    // maps[] kept for the LpMatch shape — the live scorer only consumes scores.
+    const maps: Array<{ map: string; winner: 1 | 2 | null }> = [];
 
     results.push({ opponent1: opp1, opponent2: opp2, date, bestof, maps, p1Score, p2Score, finishedMaps });
   }

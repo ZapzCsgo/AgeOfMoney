@@ -8,20 +8,44 @@ import { getMyBets, setAuthToken } from '@/lib/api';
 import { Receipt, ChevronDown, ChevronUp, Loader2, Trophy, Clock, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNotifications } from '@/contexts/NotificationsContext';
+import { useT } from '@/lib/i18n';
 
 const STATUS_CONFIG = {
-  PENDING: { label: 'En cours', color: 'text-amber-400',  bg: 'bg-amber-400/10',  border: 'border-amber-400/30',  icon: Clock    },
-  WON:     { label: 'Gagné',    color: 'text-green-400',  bg: 'bg-green-400/10',   border: 'border-green-400/30',  icon: Trophy   },
-  LOST:    { label: 'Perdu',    color: 'text-red-400',    bg: 'bg-red-400/10',     border: 'border-red-400/30',    icon: XCircle  },
-};
+  PENDING: { tKey: 'bet_status_pending', color: 'text-amber-400', bg: 'bg-amber-400/10', border: 'border-amber-400/30', icon: Clock   },
+  WON:     { tKey: 'bet_status_won',     color: 'text-green-400', bg: 'bg-green-400/10', border: 'border-green-400/30', icon: Trophy  },
+  LOST:    { tKey: 'bet_status_lost',    color: 'text-red-400',   bg: 'bg-red-400/10',   border: 'border-red-400/30',   icon: XCircle },
+} as const;
 
 export function MyBetsPanel() {
   const { data: session } = useSession();
+  const { t } = useT();
   const [open, setOpen] = useState(false);
   const [bets, setBets] = useState<Bet[]>([]);
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState<'PENDING' | 'all'>('PENDING');
+  // Distance from the bottom of the viewport — bumped up when the page footer
+  // becomes visible so the floating button never overlaps the language switcher.
+  const [bottomOffset, setBottomOffset] = useState(16);
   const { notifications } = useNotifications();
+
+  // Watch the page footer and lift the button above it when it scrolls into view.
+  useEffect(() => {
+    const update = () => {
+      const footer = document.querySelector('footer');
+      if (!footer) { setBottomOffset(16); return; }
+      const rect = footer.getBoundingClientRect();
+      const overlap = window.innerHeight - rect.top;
+      // 16px gap between the button and whatever is just above it
+      setBottomOffset(overlap > 0 ? overlap + 16 : 16);
+    };
+    update();
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+    };
+  }, []);
 
   const fetchBets = useCallback(async () => {
     if (!session?.user) return;
@@ -45,10 +69,12 @@ export function MyBetsPanel() {
   const pendingCount = pendingBets.length;
 
   return (
-    <div className="fixed bottom-4 z-[65] flex flex-col items-end pointer-events-none
-      left-1/2 -translate-x-1/2
-      md:left-auto md:translate-x-0 md:right-4
-      lg:right-[296px]"
+    <div
+      className="fixed z-[65] flex flex-col items-end pointer-events-none
+        left-1/2 -translate-x-1/2
+        md:left-auto md:translate-x-0 md:right-4
+        lg:right-[296px]"
+      style={{ bottom: bottomOffset }}
     >
       {/* ── Floating panel — only this has pointer-events ─────────────────── */}
       {open && (
@@ -67,7 +93,7 @@ export function MyBetsPanel() {
           <div className="flex items-center justify-between px-4 py-3 border-b border-[#1e1a30] shrink-0">
             <div className="flex items-center gap-2">
               <Receipt size={13} className="text-[#d4a017]" />
-              <span className="font-cinzel font-bold text-[13px] text-[#d4a017]">Mes Paris</span>
+              <span className="font-cinzel font-bold text-[13px] text-[#d4a017]">{t('mybets_title')}</span>
               {pendingCount > 0 && (
                 <span className="text-[10px] font-bold text-amber-400 bg-amber-400/10 border border-amber-400/30 rounded-full px-2 py-0.5">
                   {pendingCount}
@@ -76,13 +102,13 @@ export function MyBetsPanel() {
             </div>
             <div className="flex items-center gap-2">
               <div className="flex rounded-lg overflow-hidden border border-[#1e1a30]">
-                {(['PENDING', 'all'] as const).map(t => (
-                  <button key={t} onClick={() => setTab(t)}
+                {(['PENDING', 'all'] as const).map(tabKey => (
+                  <button key={tabKey} onClick={() => setTab(tabKey)}
                     className={cn('px-2.5 py-1 text-[10px] font-cinzel font-bold transition-colors',
-                      tab === t ? 'bg-[#d4a017] text-black' : 'text-[#6b6488] hover:text-[#e8e2f5]'
+                      tab === tabKey ? 'bg-[#d4a017] text-black' : 'text-[#6b6488] hover:text-[#e8e2f5]'
                     )}
                   >
-                    {t === 'PENDING' ? 'En cours' : 'Tous'}
+                    {tabKey === 'PENDING' ? t('mybets_pending') : t('mybets_all')}
                   </button>
                 ))}
               </div>
@@ -100,13 +126,14 @@ export function MyBetsPanel() {
               </div>
             ) : displayBets.length === 0 ? (
               <div className="py-8 text-center text-[#6b6488] text-[12px]">
-                {tab === 'PENDING' ? 'Aucun pari en cours' : 'Aucun pari'}
+                {tab === 'PENDING' ? t('mybets_empty_pending') : t('mybets_empty')}
               </div>
             ) : (
               <div className="divide-y divide-[#13111f]">
                 {displayBets.map(bet => {
                   const cfg = STATUS_CONFIG[bet.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.PENDING;
                   const StatusIcon = cfg.icon;
+                  const statusLabel = t(cfg.tKey);
                   const betOnName   = bet.selectedPlayer === 1 ? bet.match?.player1?.name : bet.match?.player2?.name;
                   const opponentName = bet.selectedPlayer === 1 ? bet.match?.player2?.name : bet.match?.player1?.name;
 
@@ -123,8 +150,8 @@ export function MyBetsPanel() {
                           <span className="text-[#4a4570] text-[10px] shrink-0">vs {opponentName}</span>
                         </div>
                         <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="text-[10px] text-[#6b6488] truncate">{bet.match?.tournament?.name ?? 'Tournoi'}</span>
-                          <span className={cn('text-[10px] font-semibold shrink-0', cfg.color)}>· {cfg.label}</span>
+                          <span className="text-[10px] text-[#6b6488] truncate">{bet.match?.tournament?.name ?? t('mybets_tournament_fallback')}</span>
+                          <span className={cn('text-[10px] font-semibold shrink-0', cfg.color)}>· {statusLabel}</span>
                         </div>
                       </div>
                       <div className="text-right shrink-0">
@@ -159,7 +186,7 @@ export function MyBetsPanel() {
         style={{ boxShadow: '0 4px 20px rgba(212,160,23,0.3)' }}
       >
         <Receipt size={13} />
-        Mes Paris
+        {t('mybets_title')}
         {pendingCount > 0 && (
           <span className={cn(
             'rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-black',

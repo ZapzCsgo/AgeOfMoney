@@ -213,14 +213,15 @@ function isTierAllowed(tier: string): boolean {
  * Prefer `fetchTournamentInfo` for the real value.
  */
 function guessTierFallback(name: string): string {
+  // VERY conservative — only flag the few tournament series that are
+  // unambiguously S-tier on Liquipedia. Everything else falls to 'C' so it
+  // gets filtered out by isTierAllowed(); names like "Invitational", "WTL",
+  // "Championship" or "Pro League" are NOT reliable signals (e.g. WTL
+  // Invitational Season is actually B-tier on Liquipedia).
   const n = name.toLowerCase();
-  if (n.includes('world championship') || n.includes('red bull') || n.includes('masters') ||
+  if (n.includes('world championship') || n.includes('red bull') ||
       n.includes('wololo') || n.includes('hidden cup') || n.includes('warlords') ||
       n.includes('t90') || n.includes('pandora')) return 'S';
-  if (n.includes('quarterly') || n.includes('invitational') || n.includes('wtl') ||
-      n.includes('world team league') || n.includes('showcase') || n.includes('clash') ||
-      n.includes('championship') || n.includes('global series') || n.includes('pro league')) return 'A';
-  if (n.includes('league') || n.includes('cup') || n.includes('series') || n.includes('road to')) return 'B';
   return 'C';
 }
 
@@ -229,7 +230,7 @@ function guessTierFallback(name: string): string {
  * Tier is read from the infobox `lp-{s/a/b/c/d}-tier` CSS class or "X-Tier" text.
  * Results are cached in the DB — only call for new/unknown tournaments.
  */
-async function fetchTournamentInfo(liquipediaUrl: string): Promise<{ twitchChannel: string | null; tier: string | null; gameFromInfobox: string | null }> {
+export async function fetchTournamentInfo(liquipediaUrl: string): Promise<{ twitchChannel: string | null; tier: string | null; gameFromInfobox: string | null }> {
   const html = await fetchHtml(liquipediaUrl);
   if (!html) return { twitchChannel: null, tier: null, gameFromInfobox: null };
   await sleep(1500);

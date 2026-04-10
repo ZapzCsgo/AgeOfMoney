@@ -370,20 +370,12 @@ export function ChatPanel() {
                 </div>
                 {/* Emoji picker popup */}
                 <div className="relative px-3 pb-2" ref={emojiRef}>
-                  <div className="flex items-center justify-between">
-                    <button
-                      onClick={() => setShowEmojis(v => !v)}
-                      className={cn('transition-colors', showEmojis ? 'text-[#d4a017]' : 'text-[#3d3860] hover:text-[#6b6488]')}
-                    >
-                      <Smile size={14} />
-                    </button>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[#d4a017] text-[11px] font-bold">⚜</span>
-                      <span className="text-[#d4a017] text-[11px] font-bold tabular-nums">
-                        {new Intl.NumberFormat('fr-FR').format(session.user.coins)}
-                      </span>
-                    </div>
-                  </div>
+                  <button
+                    onClick={() => setShowEmojis(v => !v)}
+                    className={cn('transition-colors', showEmojis ? 'text-[#d4a017]' : 'text-[#3d3860] hover:text-[#6b6488]')}
+                  >
+                    <Smile size={14} />
+                  </button>
 
                   {showEmojis && (
                     <div

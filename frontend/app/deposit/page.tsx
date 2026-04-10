@@ -256,15 +256,20 @@ export default function DepositPage() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
 
-      {/* Tabs */}
-      <div className="flex gap-1 p-1 rounded-xl mb-8" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
-        <div className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-cinzel font-bold text-sm tracking-wider cursor-default"
-          style={{ background: 'linear-gradient(135deg, #8b6410, #d4a017)', color: '#07060f' }}>
-          <ArrowDownToLine size={15} />
+      {/* Tabs — underlined indicator, no gradient pill */}
+      <div className="flex mb-8 border-b" style={{ borderColor: '#1e1a30' }}>
+        <div
+          className="flex-1 flex items-center justify-center gap-2 py-3 font-cinzel font-bold text-[12px] tracking-[0.18em] uppercase cursor-default text-[#d4a017] relative"
+        >
+          <ArrowDownToLine size={13} />
           {t('deposit_tab')}
+          <span className="absolute left-0 right-0 -bottom-px h-[2px] bg-[#d4a017]" />
         </div>
-        <Link href="/withdraw" className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-cinzel font-bold text-sm tracking-wider text-aoe-parchment-muted hover:text-aoe-parchment transition-colors">
-          <ArrowUpFromLine size={15} />
+        <Link
+          href="/withdraw"
+          className="flex-1 flex items-center justify-center gap-2 py-3 font-cinzel font-bold text-[12px] tracking-[0.18em] uppercase text-[#6b6488] hover:text-[#e8e2f5] transition-colors"
+        >
+          <ArrowUpFromLine size={13} />
           {t('withdraw_tab')}
         </Link>
       </div>
@@ -383,7 +388,7 @@ export default function DepositPage() {
             <div className="flex items-center gap-2 mb-2">
               <Gift size={12} className="text-aoe-parchment-dim" />
               <p className="text-[10px] font-cinzel tracking-widest text-aoe-parchment-dim uppercase">
-                Code affiliation <span className="text-aoe-parchment-muted normal-case font-sans tracking-normal">(optionnel)</span>
+                {t('deposit_affiliate_code')} <span className="text-aoe-parchment-muted normal-case font-sans tracking-normal">{t('deposit_affiliate_optional')}</span>
               </p>
             </div>
             {!promoApplied ? (
@@ -392,14 +397,15 @@ export default function DepositPage() {
                   type="text" value={promoCode}
                   onChange={e => { setPromoCode(e.target.value); setPromoApplied(false); setPromoError(''); }}
                   placeholder={t('chat_promo_placeholder')}
-                  className="flex-1 bg-aoe-stone/50 border border-aoe-border rounded-xl px-4 py-2.5 text-aoe-parchment placeholder-aoe-parchment-muted outline-none focus:border-aoe-border-gold transition-colors uppercase tracking-widest font-cinzel text-sm h-10"
+                  className="flex-1 bg-aoe-stone/50 border border-aoe-border rounded-sm px-4 py-2.5 text-aoe-parchment placeholder-aoe-parchment-muted outline-none focus:border-aoe-border-gold transition-colors uppercase tracking-widest font-cinzel text-sm h-10"
                   maxLength={20}
                   onKeyDown={e => { if (e.key === 'Enter') applyPromo(); }}
                 />
-                <button onClick={applyPromo}
-                  className="px-4 h-10 rounded-xl text-xs font-cinzel font-bold tracking-wide shrink-0 transition-all hover:brightness-110"
-                  style={{ background: 'linear-gradient(135deg, #8b6410, #d4a017)', color: '#07060f' }}>
-                  Appliquer
+                <button
+                  onClick={applyPromo}
+                  className="px-5 h-10 rounded-sm text-[11px] font-cinzel font-black tracking-[0.15em] uppercase shrink-0 transition-colors border-2 border-[#d4a017] bg-transparent text-[#d4a017] hover:bg-[#d4a017]/15"
+                >
+                  {t('deposit_promo_apply')}
                 </button>
               </div>
             ) : (
@@ -429,14 +435,20 @@ export default function DepositPage() {
             </div>
           )}
 
-          {/* CTA */}
+          {/* CTA — corner-bracket esports CTA, no shiny gradient */}
           <div className="pt-2 border-t" style={{ borderColor: '#1e1a30' }}>
             <button
               onClick={handleDeposit}
               disabled={loading}
-              className="w-full py-4 rounded-xl font-cinzel font-bold text-base tracking-[0.1em] uppercase transition-all flex items-center justify-center gap-2 disabled:opacity-50 hover:brightness-110 active:scale-[0.99]"
-              style={{ background: 'linear-gradient(135deg, #8b6410 0%, #d4a017 45%, #f5c842 55%, #d4a017 80%, #8b6410 100%)', color: '#07060f' }}
+              className="group relative w-full py-[18px] rounded-sm font-cinzel font-black text-[13px] tracking-[0.2em] uppercase transition-colors flex items-center justify-center gap-3 disabled:opacity-50 border-y-2 border-[#d4a017] bg-[#13111f] text-[#d4a017] hover:bg-[#d4a017]/[0.08]"
             >
+              {/* Corner brackets — top-left, top-right, bottom-left, bottom-right */}
+              <span aria-hidden className="pointer-events-none absolute left-2 top-2 w-2.5 h-2.5 border-l-2 border-t-2 border-[#d4a017]" />
+              <span aria-hidden className="pointer-events-none absolute right-2 top-2 w-2.5 h-2.5 border-r-2 border-t-2 border-[#d4a017]" />
+              <span aria-hidden className="pointer-events-none absolute left-2 bottom-2 w-2.5 h-2.5 border-l-2 border-b-2 border-[#d4a017]" />
+              <span aria-hidden className="pointer-events-none absolute right-2 bottom-2 w-2.5 h-2.5 border-r-2 border-b-2 border-[#d4a017]" />
+              {/* Top accent line */}
+              <span aria-hidden className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[#f5c842]/60 to-transparent" />
               {loading
                 ? <><RefreshCw size={16} className="animate-spin" /> {t('common_processing')}</>
                 : !session
@@ -444,7 +456,7 @@ export default function DepositPage() {
                   : baseCoins < 1
                     ? t('deposit_select_crypto')
                     : <>
-                        <ArrowDownToLine size={16} />
+                        <ArrowDownToLine size={15} />
                         {t('deposit_get_coins', { coins: totalCoins.toLocaleString('fr-FR'), amount: usdCost.toFixed(2) })}
                       </>
               }

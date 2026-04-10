@@ -703,6 +703,50 @@ router.post('/tournaments/set-game', async (req: Request, res: Response): Promis
   }
 });
 
+// POST /tournaments/recompute-tiers — re-fetch the real tier from Liquipedia
+// for every tournament that has a Liquipedia URL. Updates Tournament.tier in
+// place. Use this when the heuristic guesser mis-classified existing rows
+// (e.g. WTL Invitational was wrongly tagged 'A' but is actually 'B' on LP).
+// Body (optional): { onlyName?: string } — limit to tournaments whose name
+// contains this substring (case-insensitive). Otherwise scans all of them.
+router.post('/tournaments/recompute-tiers', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { onlyName } = req.body as { onlyName?: string };
+    const tournaments = await prisma.tournament.findMany({
+      where: onlyName ? { name: { contains: onlyName, mode: 'insensitive' } } : {},
+      select: { id: true, name: true, tier: true, liquipediaUrl: true },
+    });
+
+    res.json({ ok: true, message: `Recomputing tier for ${tournaments.length} tournaments in background` });
+
+    (async () => {
+      const { fetchTournamentInfo } = await import('../scrapers/liquipediaScraper');
+      let changed = 0;
+      let unchanged = 0;
+      let failed = 0;
+      for (const t of tournaments) {
+        try {
+          const info = await fetchTournamentInfo(t.liquipediaUrl!);
+          if (!info.tier) { failed++; continue; }
+          if (info.tier !== t.tier) {
+            await prisma.tournament.update({ where: { id: t.id }, data: { tier: info.tier } });
+            logger.info(`[Admin] Tier recompute: "${t.name}" ${t.tier} → ${info.tier}`);
+            changed++;
+          } else {
+            unchanged++;
+          }
+        } catch (err) {
+          logger.warn(`[Admin] Tier recompute failed for "${t.name}":`, err);
+          failed++;
+        }
+      }
+      logger.info(`[Admin] Tier recompute done — changed=${changed} unchanged=${unchanged} failed=${failed}`);
+    })().catch(err => logger.error('[Admin] recompute-tiers error:', err));
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 // POST /players/seed-all — seed all players missing history
 // Players with <5 records are force-reseeded (Claude is re-queried even if some data exists)
 router.post('/players/seed-all', async (_req: Request, res: Response): Promise<void> => {

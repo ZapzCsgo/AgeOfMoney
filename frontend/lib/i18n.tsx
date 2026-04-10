@@ -101,7 +101,6 @@ const t_fr = {
   bet_placed_on:      'Misé sur',
   common_refresh:     'Actualiser',
   common_updated_at:  'Mis à jour {time}',
-  roulette_result:    'Résultat',
 
   // Roulette
   roulette_title:     'Roulette',
@@ -363,6 +362,19 @@ const t_fr = {
   // Deposit extra
   deposit_promo:      'Code promo',
   deposit_promo_apply:'Appliquer',
+  deposit_affiliate_code: 'Code affiliation',
+  deposit_affiliate_optional: '(optionnel)',
+
+  // My bets floating panel
+  mybets_title:       'Mes Paris',
+  mybets_pending:     'En cours',
+  mybets_all:         'Tous',
+  mybets_empty_pending: 'Aucun pari en cours',
+  mybets_empty:       'Aucun pari',
+  mybets_tournament_fallback: 'Tournoi',
+  bet_status_pending: 'En cours',
+  bet_status_won:     'Gagné',
+  bet_status_lost:    'Perdu',
   deposit_network:    'Réseau',
   deposit_rate:       'Taux',
   deposit_receive:    'Vous recevez',
@@ -572,7 +584,6 @@ const t_en: Record<keyof typeof t_fr, string> = {
   bet_placed_on:      'Bet on',
   common_refresh:     'Refresh',
   common_updated_at:  'Updated at {time}',
-  roulette_result:    'Result',
 
   roulette_title:     'Roulette',
   roulette_select_zone: 'Select a zone',
@@ -821,6 +832,19 @@ const t_en: Record<keyof typeof t_fr, string> = {
 
   deposit_promo:      'Promo code',
   deposit_promo_apply:'Apply',
+  deposit_affiliate_code: 'Affiliate code',
+  deposit_affiliate_optional: '(optional)',
+
+  // My bets floating panel
+  mybets_title:       'My Bets',
+  mybets_pending:     'Active',
+  mybets_all:         'All',
+  mybets_empty_pending: 'No active bets',
+  mybets_empty:       'No bets yet',
+  mybets_tournament_fallback: 'Tournament',
+  bet_status_pending: 'Pending',
+  bet_status_won:     'Won',
+  bet_status_lost:    'Lost',
   deposit_network:    'Network',
   deposit_rate:       'Rate',
   deposit_receive:    'You receive',
@@ -1025,7 +1049,6 @@ const t_es: Record<keyof typeof t_fr, string> = {
   bet_placed_on:      'Apostado en',
   common_refresh:     'Actualizar',
   common_updated_at:  'Actualizado a las {time}',
-  roulette_result:    'Resultado',
 
   roulette_title:     'Ruleta',
   roulette_select_zone: 'Selecciona una zona',
@@ -1274,6 +1297,19 @@ const t_es: Record<keyof typeof t_fr, string> = {
 
   deposit_promo:      'Código promo',
   deposit_promo_apply:'Aplicar',
+  deposit_affiliate_code: 'Código de afiliado',
+  deposit_affiliate_optional: '(opcional)',
+
+  // My bets floating panel
+  mybets_title:       'Mis Apuestas',
+  mybets_pending:     'Activas',
+  mybets_all:         'Todas',
+  mybets_empty_pending: 'Sin apuestas activas',
+  mybets_empty:       'Sin apuestas',
+  mybets_tournament_fallback: 'Torneo',
+  bet_status_pending: 'En curso',
+  bet_status_won:     'Ganado',
+  bet_status_lost:    'Perdido',
   deposit_network:    'Red',
   deposit_rate:       'Tasa',
   deposit_receive:    'Recibes',

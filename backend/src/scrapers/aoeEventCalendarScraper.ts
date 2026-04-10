@@ -220,14 +220,12 @@ export async function syncAoeEventCalendar(): Promise<{ name: string; game: stri
  * fetches the real tier from the tournament page infobox.
  */
 function guessTier(name: string, _game: string): string {
+  // VERY conservative — only flag tournaments that are unambiguously top-tier S.
+  // Everything else falls to 'C' so it gets filtered out of the S/A-only UI;
+  // the real tier (and any genuine A-tier upgrades) come from the Liquipedia
+  // infobox via fetchTournamentInfo() during the persist step.
   const n = name.toLowerCase();
   if (n.includes('red bull') || n.includes('wololo') || n.includes('world championship') ||
-      n.includes('masters') || n.includes('hidden cup') || n.includes('warlords') || n.includes('t90')) return 'S';
-  if (n.includes('quarterly') || n.includes('invitational') || n.includes('wtl') ||
-      n.includes('world team league') || n.includes('golden league') || n.includes('king of the desert') ||
-      n.includes('holy series') || n.includes('over the top') || n.includes('titans') ||
-      n.includes('mythic clan') || n.includes('nations cup') || n.includes('global series') ||
-      n.includes('pro league') || n.includes('championship')) return 'A';
-  if (n.includes('cup') || n.includes('league') || n.includes('road to') || n.includes('homestead') || n.includes('series')) return 'B';
+      n.includes('hidden cup') || n.includes('warlords') || n.includes('t90')) return 'S';
   return 'C';
 }

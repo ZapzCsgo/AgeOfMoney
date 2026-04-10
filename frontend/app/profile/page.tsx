@@ -481,6 +481,7 @@ export default function ProfilePage() {
   const [historyFilter, setHistoryFilter] = useState<'all' | 'match' | 'roulette'>('all');
   const [loading, setLoading]     = useState(false);
   const [profileBio, setProfileBio] = useState('I love AgeOfMoney !');
+  const [profileCreatedAt, setProfileCreatedAt] = useState<string | null>(null);
   const [publicProfile, setPublicProfile] = useState<PublicProfile | null>(null);
   const [publicLoading, setPublicLoading] = useState(false);
 
@@ -508,6 +509,7 @@ export default function ProfilePage() {
       apiClient.get('/users/me').catch(() => null),
     ]).then(([betsRes, lbRes, rouRes, meRes]) => {
       if (meRes?.data?.data?.bio != null) setProfileBio(meRes.data.data.bio ?? '');
+      if (meRes?.data?.data?.createdAt) setProfileCreatedAt(meRes.data.data.createdAt as string);
       if (betsRes) {
         setBets(betsRes.data);
         setBetsTotal(betsRes.total);
@@ -655,8 +657,10 @@ export default function ProfilePage() {
   const s = stats;
   const lvl = getLevel(s?.totalWagered ?? 0);
   const color = levelColor(lvl.level);
-  const joinedAt = session?.user?.createdAt
-    ? new Date(session.user.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+  // Use the createdAt from /users/me (real DB value); fall back to "Recently"
+  // only while the request is still in flight.
+  const joinedAt = profileCreatedAt
+    ? new Date(profileCreatedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })
     : t('profile_recently');
 
   // Compute period stats from both match bets + roulette bets
@@ -842,6 +846,9 @@ export default function ProfilePage() {
               ) : (
                 <div className="divide-y" style={{ borderColor: '#1a1730' }}>
                   {filtered.map(item => {
+                    // Shared formatter — keeps numbers compact and consistent
+                    const fmt = (n: number) => new Intl.NumberFormat('fr-FR').format(n);
+
                     if (item.type === 'match') {
                       const bet = item.bet;
                       const playerName = bet.selectedPlayer === 1 ? bet.match.player1.name : bet.match.player2.name;
@@ -856,59 +863,52 @@ export default function ProfilePage() {
                           <div className="flex-1 min-w-0">
                             <Link href={`/matches/${bet.matchId}`} className="hover:text-[#d4a017] transition-colors">
                               <p className="text-[13px] font-medium text-[#c8c0e0] truncate">
+                                <span className="text-[#6b6488]">{playerName}</span>
+                                <span className="text-[#3d3860] mx-1.5">·</span>
                                 {bet.match.player1.name} vs {bet.match.player2.name}
-                              </p>
-                              <p className="text-[11px] text-[#6b6488] mt-0.5 truncate">
-                                {t('bet_placed_on')} <span className="text-[#d4a017]">{playerName}</span>
-                                {bet.match.tournament && ` · ${bet.match.tournament.name}`}
                               </p>
                             </Link>
                           </div>
-                          <div className="text-right shrink-0">
-                            <p className="text-[13px] font-bold text-[#d4a017]">{new Intl.NumberFormat('fr-FR').format(bet.amount)} ⚜</p>
-                            <p className="text-[10px] text-[#6b6488]">× {bet.oddsAtBet.toFixed(2)}</p>
+                          <div className="shrink-0 text-[11px] text-[#6b6488] tabular-nums whitespace-nowrap">
+                            {fmt(bet.amount)} ⚜ <span className="text-[#3d3860]">× {bet.oddsAtBet.toFixed(2)}</span>
                           </div>
-                          <div className="text-right shrink-0 w-24">
-                            {bet.status === 'WON'  && <p className="text-[13px] font-bold text-emerald-400">+{new Intl.NumberFormat('fr-FR').format(profit)} ⚜</p>}
-                            {bet.status === 'LOST' && <p className="text-[13px] font-bold text-red-400">-{new Intl.NumberFormat('fr-FR').format(bet.amount)} ⚜</p>}
-                            {bet.status === 'PENDING' && <p className="text-[13px] text-[#d4a017]">{t('profile_history_pending')}</p>}
-                            {bet.status === 'REFUNDED' && <p className="text-[13px] text-[#6b6488]">{t('common_pending')}</p>}
+                          <div className="text-right shrink-0 w-24 tabular-nums">
+                            {bet.status === 'WON'      && <p className="text-[13px] font-bold text-emerald-400">+{fmt(profit)} ⚜</p>}
+                            {bet.status === 'LOST'     && <p className="text-[13px] font-bold text-red-400">−{fmt(bet.amount)} ⚜</p>}
+                            {bet.status === 'PENDING'  && <p className="text-[12px] text-[#6b6488]">{t('profile_history_pending')}</p>}
+                            {bet.status === 'REFUNDED' && <p className="text-[12px] text-[#6b6488]">{t('common_pending')}</p>}
                           </div>
-                          <BetStatusBadge status={bet.status} />
                         </div>
                       );
                     } else {
                       const bet = item.bet;
-                      const zoneColor = ZONE_COLORS[bet.zone] ?? '#9990b8';
                       const zoneLabel = ZONE_LABELS[bet.zone] ?? bet.zone;
+                      const winLabel  = bet.round.winZone ? (ZONE_LABELS[bet.round.winZone] ?? bet.round.winZone) : null;
                       const payout = bet.payout ?? 0;
                       const profit = payout - bet.amount;
-                      const statusKey = bet.won === true ? 'WON' : bet.won === false ? 'LOST' : 'PENDING';
                       return (
                         <div key={`r-${bet.id}`} className="flex items-center gap-4 px-4 py-3 hover:bg-[#13111f] transition-colors">
                           <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
                             style={{ background: '#1a1630', border: '1px solid #2a2640' }}>
-                            <Dices size={11} style={{ color: zoneColor }} />
+                            <Dices size={11} style={{ color: '#6b6488' }} />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-[13px] font-medium text-[#c8c0e0]">Roulette</p>
-                            <p className="text-[11px] mt-0.5">
-                              <span style={{ color: zoneColor }}>{t('bet_placed_on')} {zoneLabel}</span>
-                              {bet.round.winZone && (
-                                <span className="text-[#6b6488]"> · {t('roulette_result')} : <span style={{ color: ZONE_COLORS[bet.round.winZone] ?? '#9990b8' }}>{ZONE_LABELS[bet.round.winZone] ?? bet.round.winZone}</span></span>
-                              )}
+                            <p className="text-[13px] font-medium text-[#c8c0e0] truncate">
+                              {zoneLabel}
+                              {winLabel && <>
+                                <span className="text-[#3d3860] mx-1.5">→</span>
+                                <span className="text-[#6b6488]">{winLabel}</span>
+                              </>}
                             </p>
                           </div>
-                          <div className="text-right shrink-0">
-                            <p className="text-[13px] font-bold text-[#d4a017]">{new Intl.NumberFormat('fr-FR').format(bet.amount)} ⚜</p>
-                            <p className="text-[10px] text-[#6b6488]">× {bet.round.multiplier ?? '?'}</p>
+                          <div className="shrink-0 text-[11px] text-[#6b6488] tabular-nums whitespace-nowrap">
+                            {fmt(bet.amount)} ⚜ <span className="text-[#3d3860]">× {bet.round.multiplier ?? '?'}</span>
                           </div>
-                          <div className="text-right shrink-0 w-24">
-                            {bet.won === true  && <p className="text-[13px] font-bold text-emerald-400">+{new Intl.NumberFormat('fr-FR').format(profit)} ⚜</p>}
-                            {bet.won === false  && <p className="text-[13px] font-bold text-red-400">-{new Intl.NumberFormat('fr-FR').format(bet.amount)} ⚜</p>}
-                            {bet.won === null   && <p className="text-[13px] text-[#d4a017]">{t('profile_history_pending')}</p>}
+                          <div className="text-right shrink-0 w-24 tabular-nums">
+                            {bet.won === true  && <p className="text-[13px] font-bold text-emerald-400">+{fmt(profit)} ⚜</p>}
+                            {bet.won === false && <p className="text-[13px] font-bold text-red-400">−{fmt(bet.amount)} ⚜</p>}
+                            {bet.won === null  && <p className="text-[12px] text-[#6b6488]">{t('profile_history_pending')}</p>}
                           </div>
-                          <BetStatusBadge status={statusKey} />
                         </div>
                       );
                     }
