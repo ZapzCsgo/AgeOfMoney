@@ -603,18 +603,29 @@ router.get('/players', async (_req: Request, res: Response): Promise<void> => {
       },
     });
 
-    // Compute competitive winrate from PlayerMatchRecord for each player
-    const enriched = await Promise.all(players.map(async (p) => {
-      const records = await prisma.playerMatchRecord.findMany({
-        where: { playerId: p.id, NOT: { opponentName: SENTINEL } },
-        select: { won: true },
-      });
-      const total = records.length;
-      const wins = records.filter(r => r.won).length;
-      // Bayesian smoothing: prior 50% with strength 3
+    // Compute competitive winrate in 2 bulk queries (not per-player)
+    const [totalCounts, winCounts] = await Promise.all([
+      prisma.playerMatchRecord.groupBy({
+        by: ['playerId'],
+        where: { NOT: { opponentName: SENTINEL } },
+        _count: { _all: true },
+      }),
+      prisma.playerMatchRecord.groupBy({
+        by: ['playerId'],
+        where: { won: true, NOT: { opponentName: SENTINEL } },
+        _count: { _all: true },
+      }),
+    ]);
+
+    const totalMap = new Map(totalCounts.map(r => [r.playerId, r._count._all]));
+    const winMap = new Map(winCounts.map(r => [r.playerId, r._count._all]));
+
+    const enriched = players.map(p => {
+      const total = totalMap.get(p.id) ?? 0;
+      const wins = winMap.get(p.id) ?? 0;
       const compWinrate = total > 0 ? (wins + 1.5) / (total + 3) : 0.5;
       return { ...p, winrate: compWinrate, totalGames: total };
-    }));
+    });
 
     res.json({ data: enriched });
   } catch (err) {
