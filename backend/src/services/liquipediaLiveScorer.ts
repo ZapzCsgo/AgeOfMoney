@@ -78,6 +78,20 @@ export function tripCircuitBreaker(): void {
   const minutes = BACKOFF_MIN[idx];
   lpBlockedUntil = Date.now() + minutes * 60_000;
   logger.warn(`[LPScorer] 429 from Liquipedia (${consecutive429s} consecutive) — circuit breaker open for ${minutes}min, no more LP requests until ${new Date(lpBlockedUntil).toISOString()}`);
+
+  // Auto-unblock: if 2captcha key is configured, attempt to solve the
+  // reCAPTCHA and unblock the IP automatically. The function verifies with
+  // a real LP API request before resetting the breaker (no more false positives).
+  if (process.env.TWOCAPTCHA_API_KEY && consecutive429s >= 2) {
+    logger.info('[LPScorer] TWOCAPTCHA_API_KEY detected — attempting auto-unblock...');
+    attemptAutoUnblock().then(result => {
+      if (result.success) {
+        logger.info(`[LPScorer] Auto-unblock succeeded: ${result.message}`);
+      } else {
+        logger.warn(`[LPScorer] Auto-unblock failed: ${result.message}`);
+      }
+    }).catch(err => logger.warn(`[LPScorer] Auto-unblock error: ${err.message}`));
+  }
 }
 
 /**
