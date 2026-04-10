@@ -419,7 +419,7 @@ export async function getPlayerH2HFromHistory(
   player1Id: string,
   player2Id: string,
   game?: string,
-): Promise<{ winner: 1 | 2; confidence: number }[]> {
+): Promise<{ winner: 1 | 2; tier: string; matchDate: Date | null; confidence: number }[]> {
   // Get player names for cross-matching
   const [p1, p2] = await Promise.all([
     prisma.player.findUnique({ where: { id: player1Id }, select: { name: true } }),
@@ -491,6 +491,8 @@ export async function getPlayerH2HFromHistory(
 
   return unique.map(r => ({
     winner: (r.playerId === player1Id ? r.won : !r.won) ? (1 as const) : (2 as const),
+    tier: (r as any).tier ?? 'B',
+    matchDate: r.matchDate,
     confidence: r.confidence,
   }));
 }

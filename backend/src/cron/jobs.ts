@@ -205,14 +205,15 @@ async function closeBetsPreMatch(): Promise<void> {
  */
 async function recalcActiveMatchOdds(): Promise<void> {
   const io = getIo();
-  const { calculateOddsFromPlayers } = await import('../services/oddsEngine');
+  const { calculateOddsV2 } = await import('../services/oddsEngine');
   const { getPlayerH2HFromHistory } = await import('../scrapers/aiPlayerHistoryScraper');
 
+  const SENTINEL_OPPONENT = '__AI_ENRICHED__';
   const activeMatches = await prisma.match.findMany({
     where: { status: { in: ['UPCOMING', 'LIVE'] } },
     include: {
-      player1: { select: { id: true, elo: true, winrate: true, totalGames: true, currentStreak: true, peakElo: true, lastMatchAt: true } },
-      player2: { select: { id: true, elo: true, winrate: true, totalGames: true, currentStreak: true, peakElo: true, lastMatchAt: true } },
+      player1: { select: { id: true, lastMatchAt: true } },
+      player2: { select: { id: true, lastMatchAt: true } },
     },
   });
 
@@ -220,8 +221,30 @@ async function recalcActiveMatchOdds(): Promise<void> {
 
   for (const match of activeMatches) {
     try {
+      // Load full match records for both players (filtered by game)
+      const [p1Records, p2Records] = await Promise.all([
+        prisma.playerMatchRecord.findMany({
+          where: { playerId: match.player1.id, game: match.game, NOT: { opponentName: SENTINEL_OPPONENT } },
+          select: { won: true, tier: true, matchDate: true, opponentId: true },
+        }),
+        prisma.playerMatchRecord.findMany({
+          where: { playerId: match.player2.id, game: match.game, NOT: { opponentName: SENTINEL_OPPONENT } },
+          select: { won: true, tier: true, matchDate: true, opponentId: true },
+        }),
+      ]);
+
       const h2h = await getPlayerH2HFromHistory(match.player1.id, match.player2.id, match.game);
-      const modelOdds = calculateOddsFromPlayers(match.player1, match.player2, h2h);
+      const now = Date.now();
+      const days1 = match.player1.lastMatchAt ? (now - match.player1.lastMatchAt.getTime()) / 86400000 : 30;
+      const days2 = match.player2.lastMatchAt ? (now - match.player2.lastMatchAt.getTime()) / 86400000 : 30;
+
+      const modelOdds = calculateOddsV2({
+        p1Records: p1Records.map(r => ({ won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId })),
+        p2Records: p2Records.map(r => ({ won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId })),
+        h2h,
+        daysSinceLastMatch1: days1,
+        daysSinceLastMatch2: days2,
+      });
 
       const modelChanged = Math.abs(modelOdds.odds1 - match.odds1) > 0.005 || Math.abs(modelOdds.odds2 - match.odds2) > 0.005;
       if (modelChanged) {
