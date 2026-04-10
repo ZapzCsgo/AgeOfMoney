@@ -607,8 +607,8 @@ router.get('/players', async (_req: Request, res: Response): Promise<void> => {
   }
 });
 
-// POST /players/:id/seed-history — seed a specific player's history (all sources)
-// Body: { force?: boolean, game?: string, source?: 'all'|'ai'|'aoe4world' }
+// POST /players/:id/seed-history — seed a specific player's history
+// Body: { force?: boolean, game?: string, source?: 'all'|'ai'|'aoe4world'|'liquipedia' }
 router.post('/players/:id/seed-history', async (req: Request, res: Response): Promise<void> => {
   try {
     const player = await prisma.player.findUnique({ where: { id: req.params.id }, select: { id: true, name: true, aoe4worldId: true } });
@@ -644,6 +644,13 @@ router.post('/players/:id/seed-history', async (req: Request, res: Response): Pr
         const proIds = await buildProPlayerSet();
         await seedPlayerHistoryFromAoe4World(player.id, player.name, player.aoe4worldId, proIds, force);
         logger.info(`[Admin] Seeded ${player.name} via aoe4world`);
+      }
+
+      // Liquipedia direct scraper (all games — scrapes /Matches subpage)
+      if (source === 'all' || source === 'liquipedia') {
+        const { scrapePlayerHistoryFromLiquipedia } = await import('../scrapers/liquipediaPlayerHistoryScraper');
+        await scrapePlayerHistoryFromLiquipedia(player.id, game!, force);
+        logger.info(`[Admin] Seeded ${player.name} via Liquipedia scraper (${game})`);
       }
 
       // Claude AI seeder (all games — uses Liquipedia knowledge)
@@ -895,6 +902,21 @@ router.post('/dedup-matches', async (_req: Request, res: Response): Promise<void
     }
 
     res.json({ ok: true, duplicateGroupsFound: [...groups.values()].filter(g => g.length > 1).length, matchesRemoved: removed, betsRefunded: refunded, removedIds });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// DELETE /players/match-records — purge all PlayerMatchRecord entries
+// Body: { source?: 'all'|'ai'|'aoe4world'|'liquipedia'|'platform' }
+// Default 'all' deletes everything. Use source to only delete one type.
+router.delete('/players/match-records', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const source = (req.body?.source as string) ?? 'all';
+    const where = source === 'all' ? {} : { source };
+    const result = await prisma.playerMatchRecord.deleteMany({ where });
+    logger.info(`[Admin] Purged ${result.count} PlayerMatchRecord entries (source=${source})`);
+    res.json({ ok: true, deleted: result.count, source });
   } catch (err) {
     res.status(500).json({ error: String(err) });
   }

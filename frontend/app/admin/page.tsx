@@ -677,16 +677,26 @@ export default function AdminPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1 flex-wrap">
+                            {/* Liquipedia scraper — direct match history from LP /Matches page */}
+                            <button
+                              onClick={() => handleSeedPlayer(p.id, p.name, 'liquipedia')}
+                              disabled={seeding === p.id}
+                              className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-all disabled:opacity-40"
+                              style={{ background: 'rgba(212,160,23,0.08)', border: '1px solid rgba(212,160,23,0.2)', color: '#d4a017' }}
+                              title="Seed via Liquipedia /Matches page (S/A tier tournament results)"
+                            >
+                              {seeding === p.id ? <RefreshCw size={10} className="animate-spin" /> : <>📖</>}
+                              LP
+                            </button>
                             {/* AI seed — Claude Opus (all games, uses Liquipedia knowledge) */}
                             <button
                               onClick={() => handleSeedPlayer(p.id, p.name, 'ai')}
                               disabled={seeding === p.id}
                               className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-all disabled:opacity-40"
                               style={{ background: 'rgba(34,211,238,0.08)', border: '1px solid rgba(34,211,238,0.2)', color: '#22d3ee' }}
-                              title="Seed via Claude AI (Liquipedia + esport data)"
+                              title="Seed via Claude AI (esport knowledge)"
                             >
-                              {seeding === p.id ? <RefreshCw size={10} className="animate-spin" /> : <>🤖</>}
-                              AI
+                              🤖 AI
                             </button>
                             {/* aoe4world seed (AoE4 only) */}
                             {p.aoe4worldId && (
