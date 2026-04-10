@@ -589,19 +589,34 @@ router.post('/users/set-admin-by-steam', async (req: Request, res: Response): Pr
   }
 });
 
-// GET /players — list all players with their match record counts
+// GET /players — list all players with competitive winrate from LP records
 router.get('/players', async (_req: Request, res: Response): Promise<void> => {
   try {
+    const SENTINEL = '__AI_ENRICHED__';
     const players = await prisma.player.findMany({
       orderBy: { name: 'asc' },
       select: {
-        id: true, name: true, aoe4worldId: true, winrate: true,
+        id: true, name: true, aoe4worldId: true,
         totalGames: true, country: true, lastUpdatedAt: true,
         game: true, aiEnrichedGames: true,
         _count: { select: { matchHistory: true } },
       },
     });
-    res.json({ data: players });
+
+    // Compute competitive winrate from PlayerMatchRecord for each player
+    const enriched = await Promise.all(players.map(async (p) => {
+      const records = await prisma.playerMatchRecord.findMany({
+        where: { playerId: p.id, NOT: { opponentName: SENTINEL } },
+        select: { won: true },
+      });
+      const total = records.length;
+      const wins = records.filter(r => r.won).length;
+      // Bayesian smoothing: prior 50% with strength 3
+      const compWinrate = total > 0 ? (wins + 1.5) / (total + 3) : 0.5;
+      return { ...p, winrate: compWinrate, totalGames: total };
+    }));
+
+    res.json({ data: enriched });
   } catch (err) {
     res.status(500).json({ error: String(err) });
   }
