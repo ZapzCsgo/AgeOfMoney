@@ -220,14 +220,19 @@ async function syncMatchScore(matchId: string): Promise<void> {
 
   const extracted = extractLiquipediaPage(lpUrl);
   if (!extracted) return;
-  const { page } = extracted;
-  // The match.game field is authoritative — it tells us which wiki to query.
-  // The URL's wiki prefix can be wrong (cross-wiki tournaments live on /ageofempires/
-  // even when the match is AoE2/AoE3/AoM).
-  const wikiPath = wikiPathForGame(match.game);
+  const { page, wikiPath: urlWikiPath } = extracted;
+  // The URL is the source of truth for *where the page lives*. Some AoE2/AoE3
+  // tournaments are hosted on /ageofempires/ (the AoE4 wiki) via the federated
+  // upcoming-matches widget — using match.game to pick the wiki would miss them.
+  // We try the URL's wiki first, then fall back to the game's expected wiki.
+  const fallbackWiki = wikiPathForGame(match.game);
+  const wikiCandidates = urlWikiPath === fallbackWiki ? [urlWikiPath] : [urlWikiPath, fallbackWiki];
 
-  // For tournament-level URLs, try appending /AoE4 for tournament bracket page
-  const wikitext = await fetchWikitext(wikiPath, page) ?? await fetchWikitext(wikiPath, page + '/AoE4');
+  let wikitext: string | null = null;
+  for (const wp of wikiCandidates) {
+    wikitext = await fetchWikitext(wp, page) ?? await fetchWikitext(wp, page + '/AoE4');
+    if (wikitext) break;
+  }
   if (!wikitext) return;
 
   const lpMatches = parseMatches(wikitext);
@@ -395,11 +400,17 @@ export async function debugLpMatch(matchId: string): Promise<Record<string, unkn
 
   const extracted = extractLiquipediaPage(lpUrl);
   if (!extracted) return { error: 'Could not extract page slug from URL', url: lpUrl };
-  const { page } = extracted;
-  const wikiPath = wikiPathForGame(match.game);
+  const { page, wikiPath: urlWikiPath } = extracted;
+  const fallbackWiki = wikiPathForGame(match.game);
+  const wikiCandidates = urlWikiPath === fallbackWiki ? [urlWikiPath] : [urlWikiPath, fallbackWiki];
 
-  const wikitext = await fetchWikitext(wikiPath, page) ?? await fetchWikitext(wikiPath, page + '/AoE4');
-  if (!wikitext) return { error: 'Failed to fetch wikitext', page, wikiPath };
+  let wikitext: string | null = null;
+  let wikiPath = urlWikiPath;
+  for (const wp of wikiCandidates) {
+    wikitext = await fetchWikitext(wp, page) ?? await fetchWikitext(wp, page + '/AoE4');
+    if (wikitext) { wikiPath = wp; break; }
+  }
+  if (!wikitext) return { error: 'Failed to fetch wikitext', page, wikiCandidates };
 
   const lpMatches = parseMatches(wikitext);
   const p1 = match.player1.name;
