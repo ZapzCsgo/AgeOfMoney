@@ -119,6 +119,20 @@ async function tickMatchStatuses(): Promise<void> {
   const io = getIo();
   const now = new Date();
 
+  // ── Fix falsely-LIVE matches (scheduledAt still >1h in the future) ────────
+  // Race conditions in the scraper can create duplicates with wrong dates that
+  // get auto-promoted to LIVE. Revert them to UPCOMING.
+  const oneHourFromNow = new Date(Date.now() + 60 * 60 * 1000);
+  const falselyLive = await prisma.match.findMany({
+    where: { status: 'LIVE', winnerId: null, scheduledAt: { gt: oneHourFromNow } },
+    select: { id: true, scheduledAt: true },
+  });
+  for (const match of falselyLive) {
+    await prisma.match.update({ where: { id: match.id }, data: { status: 'UPCOMING' } });
+    io?.emit('matchUpdate', { matchId: match.id, status: 'UPCOMING' });
+    logger.info(`[Tick] ${match.id} → reverted to UPCOMING (scheduledAt ${match.scheduledAt.toISOString()} is still in the future)`);
+  }
+
   // ── UPCOMING → LIVE ───────────────────────────────────────────────────────
   const toStart = await prisma.match.findMany({
     where: { status: 'UPCOMING', scheduledAt: { lte: now } },

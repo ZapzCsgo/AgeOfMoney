@@ -405,7 +405,15 @@ function parseMatchBlocks(html: string, wikiPath: string, game: string): Array<{
   return results;
 }
 
+// Mutex to prevent concurrent scraper runs (race condition creates duplicates)
+let scrapeLock = false;
+
 export async function scrapeUpcomingMatches(): Promise<void> {
+  if (scrapeLock) {
+    logger.info('[Liquipedia] Scrape already in progress — skipping concurrent run');
+    return;
+  }
+  scrapeLock = true;
   const startTime = Date.now();
   let matchesFound = 0;
   let matchesSaved = 0;
@@ -687,6 +695,8 @@ export async function scrapeUpcomingMatches(): Promise<void> {
         error: err instanceof Error ? err.message : String(err),
       },
     });
+  } finally {
+    scrapeLock = false;
   }
 }
 
