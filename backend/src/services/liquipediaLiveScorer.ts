@@ -39,7 +39,7 @@ function buildHeaders(): Record<string, string> {
 
 // Cache wikitext per page — serves all concurrent match checks from same page
 const wikiCache: Record<string, { text: string; fetchedAt: number }> = {};
-const CACHE_TTL = 4_000; // 4s — reuse only within a single poll burst (interval is 5s)
+const CACHE_TTL = 25_000; // 25s — reuse within a poll cycle (min interval is 30s)
 
 // ── Circuit breaker ──────────────────────────────────────────────────────────
 // When Liquipedia hard-blocks our IP, hammering it more makes the block last
@@ -459,37 +459,87 @@ async function syncMatchScore(matchId: string): Promise<void> {
   }
 }
 
-let scorerInterval: ReturnType<typeof setInterval> | null = null;
+let scorerTimeout: ReturnType<typeof setTimeout> | null = null;
+let lastLoggedInterval = 0;
+
+/**
+ * Compute the poll interval based on how many unique LP pages we need to
+ * fetch.  Target: stay under ~400 req/h to never trigger a 429.
+ *
+ *   unique pages │ interval │  req/h
+ *   ─────────────┼──────────┼───────
+ *       1–4      │   30s    │  ≤480  (safe with cache dedup → real ~120-240)
+ *       5–7      │   60s    │  ≤420
+ *       8–12     │   90s    │  ≤480
+ *       13+      │  120s    │  safe
+ *
+ * In practice, matches from the same tournament share one page, so even with
+ * 17 matches the unique-page count rarely exceeds 3-4.
+ */
+function computeInterval(uniquePages: number): number {
+  if (uniquePages <= 4) return 30_000;
+  if (uniquePages <= 7) return 60_000;
+  if (uniquePages <= 12) return 90_000;
+  return 120_000;
+}
 
 export function startLiquipediaLiveScorer(): void {
-  if (scorerInterval) return;
-  logger.info('[LPScorer] Starting Liquipedia live scorer (5s interval)');
-
-  // Run immediately on start
+  if (scorerTimeout) return;
+  logger.info('[LPScorer] Starting Liquipedia live scorer (adaptive interval, 30s base)');
   runScorer();
-
-  scorerInterval = setInterval(runScorer, 5_000);
 }
 
 async function runScorer(): Promise<void> {
   try {
+    // Circuit breaker: if we're blocked, skip this cycle entirely but keep
+    // scheduling so we resume automatically when the window expires.
+    if (Date.now() < lpBlockedUntil) {
+      scorerTimeout = setTimeout(runScorer, 30_000);
+      return;
+    }
+
     const liveMatches = await prisma.match.findMany({
       where: { status: 'LIVE', winnerId: null },
-      select: { id: true },
+      select: { id: true, liquipediaUrl: true, tournament: { select: { liquipediaUrl: true } } },
     });
 
-    // Run concurrently — Bottleneck inside fetchWikitext handles LP rate limiting
-    // Cache (25s TTL) means multiple matches on same page share one fetch
-    await Promise.all(liveMatches.map(m => syncMatchScore(m.id)));
+    if (liveMatches.length === 0) {
+      // No live matches — idle at 60s to avoid pointless DB queries
+      scorerTimeout = setTimeout(runScorer, 60_000);
+      return;
+    }
+
+    // Count unique LP page URLs to decide the poll interval
+    const uniquePages = new Set(
+      liveMatches
+        .map((m: any) => m.liquipediaUrl ?? m.tournament?.liquipediaUrl)
+        .filter(Boolean)
+    ).size;
+
+    const interval = computeInterval(uniquePages);
+
+    // Log the interval only when it changes
+    if (interval !== lastLoggedInterval) {
+      logger.info(`[LPScorer] ${liveMatches.length} live matches on ${uniquePages} unique LP pages → polling every ${interval / 1000}s`);
+      lastLoggedInterval = interval;
+    }
+
+    // Sync all matches — Bottleneck + cache ensure same-page matches share
+    // a single HTTP fetch within the same cycle
+    await Promise.all(liveMatches.map((m: any) => syncMatchScore(m.id)));
+
+    // Schedule next cycle
+    scorerTimeout = setTimeout(runScorer, interval);
   } catch (err) {
     logger.error('[LPScorer] runScorer error:', err);
+    scorerTimeout = setTimeout(runScorer, 30_000);
   }
 }
 
 export function stopLiquipediaLiveScorer(): void {
-  if (scorerInterval) {
-    clearInterval(scorerInterval);
-    scorerInterval = null;
+  if (scorerTimeout) {
+    clearTimeout(scorerTimeout);
+    scorerTimeout = null;
   }
 }
 
