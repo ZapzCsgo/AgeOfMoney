@@ -648,7 +648,7 @@ async function syncMatchScore(matchId: string): Promise<void> {
         where: { id: matchId },
         data: { p1Score, p2Score, status: 'CANCELLED', resultScore, betsOpen: false, currentGameId: null },
       });
-      await refundBets(matchId);
+      await refundBets(matchId, 'Match annulé — forfait/walkover (pas de match joué)');
       io?.emit('matchUpdate', { matchId, status: 'CANCELLED', p1Score, p2Score });
       return;
     }

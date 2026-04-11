@@ -112,6 +112,8 @@ export interface BetResultPayload {
   matchId: string;
   betId: string;
   won: boolean;
+  refunded?: boolean;
+  reason?: string;
   amount: number;
   payout: number;
   playerBetOn?: string;

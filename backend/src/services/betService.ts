@@ -256,16 +256,26 @@ export async function distributePayout(matchId: string, winnerId: string): Promi
   );
 }
 
-export async function refundBets(matchId: string): Promise<void> {
+export async function refundBets(matchId: string, reason?: string): Promise<void> {
   const pendingBets = await prisma.bet.findMany({
     where: { matchId, status: BetStatus.PENDING },
-    select: { id: true, userId: true, amount: true },
+    select: { id: true, userId: true, amount: true, selectedPlayer: true },
   });
 
   if (pendingBets.length === 0) {
     logger.info(`refundBets: no pending bets for match ${matchId}`);
     return;
   }
+
+  // Fetch match info for notifications
+  const match = await prisma.match.findUnique({
+    where: { id: matchId },
+    include: {
+      player1: { select: { name: true } },
+      player2: { select: { name: true } },
+      tournament: { select: { name: true } },
+    },
+  });
 
   // Batch all refunds in a single transaction instead of N individual ones
   await prisma.$transaction([
@@ -281,7 +291,32 @@ export async function refundBets(matchId: string): Promise<void> {
     ),
   ]);
 
-  logger.info(`refundBets: match=${matchId}, refunded ${pendingBets.length} bets`);
+  // Notify each user of the refund via socket
+  const io = getIo();
+  if (io && match) {
+    const tournamentName = match.tournament?.name ?? 'Tournament';
+    const refundReason = reason ?? 'Match annulé (forfait/walkover)';
+    for (const bet of pendingBets) {
+      const playerBetOn = bet.selectedPlayer === 1 ? match.player1?.name : match.player2?.name;
+      // Send updated coin balance
+      const updatedUser = await prisma.user.findUnique({ where: { id: bet.userId }, select: { coins: true } });
+      if (updatedUser) io.to(`user:${bet.userId}`).emit('coinsUpdate', { coins: updatedUser.coins, direction: 'up' });
+      // Send refund notification
+      io.to(`user:${bet.userId}`).emit('betResult', {
+        matchId,
+        betId: bet.id,
+        won: false,
+        refunded: true,
+        reason: refundReason,
+        amount: bet.amount,
+        payout: bet.amount, // refund = full amount back
+        playerBetOn,
+        tournamentName,
+      });
+    }
+  }
+
+  logger.info(`refundBets: match=${matchId}, refunded ${pendingBets.length} bets (reason: ${reason ?? 'cancelled'})`);
 }
 
 export interface UserStats {

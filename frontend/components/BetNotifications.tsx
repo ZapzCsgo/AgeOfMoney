@@ -19,18 +19,27 @@ export function BetNotifications() {
           key={n.id}
           className={`relative flex items-start gap-3 rounded-lg border px-4 py-3 shadow-2xl backdrop-blur-sm
             w-[300px] sm:w-[340px] text-sm animate-in slide-in-from-right-4
-            ${n.won
-              ? 'bg-[#0a1a0a] border-[#2a5c2a] text-[#e8e2f5]'
-              : 'bg-[#12080f] border-[#4a1a2a] text-[#e8e2f5]'
+            ${n.refunded
+              ? 'bg-[#0f0d1a] border-[#3d3860] text-[#e8e2f5]'
+              : n.won
+                ? 'bg-[#0a1a0a] border-[#2a5c2a] text-[#e8e2f5]'
+                : 'bg-[#12080f] border-[#4a1a2a] text-[#e8e2f5]'
             }`}
         >
-          <div className={`mt-0.5 shrink-0 text-lg leading-none ${n.won ? 'text-[#4ade80]' : 'text-[#f87171]'}`}>
-            {n.won ? '🏆' : '💀'}
+          <div className={`mt-0.5 shrink-0 text-lg leading-none ${
+            n.refunded ? 'text-[#d4a017]' : n.won ? 'text-[#4ade80]' : 'text-[#f87171]'
+          }`}>
+            {n.refunded ? '↩️' : n.won ? '🏆' : '💀'}
           </div>
           <div className="flex-1 min-w-0">
-            <p className={`font-bold text-sm ${n.won ? 'text-[#4ade80]' : 'text-[#f87171]'}`}>
-              {n.won ? 'Pari gagné !' : 'Pari perdu'}
+            <p className={`font-bold text-sm ${
+              n.refunded ? 'text-[#d4a017]' : n.won ? 'text-[#4ade80]' : 'text-[#f87171]'
+            }`}>
+              {n.refunded ? 'Pari remboursé' : n.won ? 'Pari gagné !' : 'Pari perdu'}
             </p>
+            {n.refunded && n.reason && (
+              <p className="text-[#9988bb] text-xs mt-0.5">{n.reason}</p>
+            )}
             {n.tournamentName && (
               <p className="text-[#9988bb] text-xs truncate">{n.tournamentName}</p>
             )}
@@ -39,10 +48,12 @@ export function BetNotifications() {
             </p>
             <div className="mt-1.5 flex items-center gap-2">
               <span className="text-[#9988bb] text-xs">Mise : {n.amount.toFixed(2)} ⚜</span>
-              {n.won && (
+              {(n.won || n.refunded) && (
                 <>
                   <span className="text-[#9988bb]">→</span>
-                  <span className="text-[#f5c842] font-bold text-xs">+{n.payout.toFixed(2)} ⚜</span>
+                  <span className={`font-bold text-xs ${n.refunded ? 'text-[#d4a017]' : 'text-[#f5c842]'}`}>
+                    +{n.payout.toFixed(2)} ⚜ {n.refunded ? '(remboursé)' : ''}
+                  </span>
                 </>
               )}
             </div>
