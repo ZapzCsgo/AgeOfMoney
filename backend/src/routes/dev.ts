@@ -220,6 +220,18 @@ router.post('/scrape-liquipedia', async (_req: Request, res: Response): Promise<
   }
 });
 
+// POST /api/v1/dev/sync-score/:matchId — Force LP score sync for a specific match
+router.post('/sync-score/:matchId', async (req: Request, res: Response): Promise<void> => {
+  const { matchId } = req.params;
+  res.json({ ok: true, message: `Syncing score for match ${matchId}` });
+  try {
+    const { syncMatchScore } = await import('../services/liquipediaLiveScorer');
+    await (syncMatchScore as (id: string) => Promise<void>)(matchId);
+  } catch (err) {
+    console.error('Sync score error:', err);
+  }
+});
+
 // POST /api/v1/dev/enrich — trigger full enrichment (pro player set + odds recalc)
 router.post('/enrich', async (_req: Request, res: Response): Promise<void> => {
   res.json({ ok: true, message: 'Enrichment started in background — check backend logs' });

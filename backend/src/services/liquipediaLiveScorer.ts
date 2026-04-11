@@ -420,11 +420,13 @@ function extractSoloOpponent(block: string, oppKey: 'opponent1' | 'opponent2'): 
   let score: number | null = null;
   let isWalkover = false;
   for (const p of parts.slice(2)) {
-    const m = p.match(/^\s*score\s*=\s*(\S+)\s*$/);
+    const m = p.match(/^\s*score\s*=\s*(.+?)\s*$/);
     if (m) {
-      const val = m[1];
+      const val = m[1].trim();
       if (/^\d+$/.test(val)) { score = parseInt(val, 10); }
-      else if (/^(W|FF|L|DQ)$/i.test(val)) { isWalkover = true; score = -1; }
+      else if (/^-?\d+$/.test(val) && parseInt(val, 10) < 0) { isWalkover = true; score = -1; } // score=-1
+      else if (/^(W|FF|L|DQ|WO|w|ff)$/i.test(val)) { isWalkover = true; score = -1; }
+      else if (val === '-') { isWalkover = true; score = -1; } // score=-
       break;
     }
   }
@@ -457,17 +459,35 @@ function parseMatches(wikitext: string): LpMatch[] {
 
     // ── Walkover detection ──────────────────────────────────────────────────
     const isWalkover = opp1Info.isWalkover || opp2Info.isWalkover;
-    // Check top-level walkover indicators too
-    const walkoverMatch = block.match(/\|walkover\s*=\s*(\d)/);
-    const topLevelWalkover = walkoverMatch ? parseInt(walkoverMatch[1], 10) : 0; // 1 or 2
+    // Check top-level walkover indicators: |walkover=1, |walkover=2, |walkover=true, |finished=true with |winner= but 0 maps
+    const walkoverMatch = block.match(/\|walkover\s*=\s*(\w+)/);
+    let topLevelWalkover = 0;
+    if (walkoverMatch) {
+      const wv = walkoverMatch[1];
+      if (wv === '1' || wv === '2') topLevelWalkover = parseInt(wv, 10);
+      else if (/^(true|yes|ff|wo|l|dq)$/i.test(wv)) topLevelWalkover = -1; // generic walkover, pick winner from |winner=
+    }
+    // Also check for |winner= at Match level (may be on same line as |walkover=)
+    const matchWinner = block.match(/\|winner\s*=\s*(\d)/)?.[1];
+    if (!isWalkover && topLevelWalkover === 0 && matchWinner) {
+      // If there's a match-level winner but zero finished maps, it's likely a walkover
+      const hasMapResults = /\|map\d+\s*=\s*\{\{Map/.test(block) || /\|winner\s*=\s*\d/g.test(
+        block.replace(/^\|winner\s*=\s*\d\s*$/m, '') // remove the match-level winner
+      );
+      if (!hasMapResults) topLevelWalkover = parseInt(matchWinner, 10);
+    }
 
     // ── Score signals — try them in order of reliability ────────────────────
     // Signal 1: score field inside the SoloOpponent template (most reliable —
     //   editors usually update this first when a map ends).
     let sigTplScore: { p1: number; p2: number } | null = null;
-    if (isWalkover || topLevelWalkover) {
+    if (isWalkover || topLevelWalkover !== 0) {
       // Walkover: winner gets needed wins, loser gets 0
-      const winnerIs1 = opp2Info.isWalkover || topLevelWalkover === 1;
+      let winnerIs1: boolean;
+      if (topLevelWalkover === 1) winnerIs1 = true;
+      else if (topLevelWalkover === 2) winnerIs1 = false;
+      else if (topLevelWalkover === -1 && matchWinner) winnerIs1 = matchWinner === '1';
+      else winnerIs1 = opp2Info.isWalkover; // opp2 forfeits → opp1 wins
       sigTplScore = { p1: winnerIs1 ? Math.ceil(bestof / 2) : 0, p2: winnerIs1 ? 0 : Math.ceil(bestof / 2) };
     } else if (opp1Info.score !== null && opp1Info.score >= 0 && opp2Info.score !== null && opp2Info.score >= 0) {
       sigTplScore = { p1: opp1Info.score, p2: opp2Info.score };
@@ -514,7 +534,12 @@ function parseMatches(wikitext: string): LpMatch[] {
     // maps[] kept for the LpMatch shape — the live scorer only consumes scores.
     const maps: Array<{ map: string; winner: 1 | 2 | null }> = [];
 
-    results.push({ opponent1: opp1, opponent2: opp2, date, bestof, maps, p1Score, p2Score, finishedMaps, walkover: isWalkover || topLevelWalkover > 0 });
+    // Debug: log scores for known problematic matches
+    const wo = isWalkover || topLevelWalkover !== 0;
+    if (/barles|warrior|pub|blacksails/i.test(opp1) || /barles|warrior|pub|blacksails/i.test(opp2)) {
+      logger.info(`[LPScorer:DEBUG] ${opp1} vs ${opp2}: opp1score=${opp1Info.score} opp1wo=${opp1Info.isWalkover} opp2score=${opp2Info.score} opp2wo=${opp2Info.isWalkover} topWO=${topLevelWalkover} sigTpl=${JSON.stringify(sigTplScore)} sigTop=${JSON.stringify(sigTopLevel)} sigCnt=${JSON.stringify(sigCounted)} → ${p1Score}-${p2Score} walkover=${wo}`);
+    }
+    results.push({ opponent1: opp1, opponent2: opp2, date, bestof, maps, p1Score, p2Score, finishedMaps, walkover: wo });
   }
 
   return results;
