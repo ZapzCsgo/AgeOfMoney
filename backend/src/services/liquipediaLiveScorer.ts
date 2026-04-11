@@ -389,7 +389,7 @@ function findBalancedTemplateEnd(text: string, start: number): number {
  * `|opponentN=` key. Handles balanced braces (nested templates inside) and
  * multi-line content. Returns the player name + the score field if present.
  */
-function extractSoloOpponent(block: string, oppKey: 'opponent1' | 'opponent2'): { name: string; score: number | null } | null {
+function extractSoloOpponent(block: string, oppKey: 'opponent1' | 'opponent2'): { name: string; score: number | null; isWalkover: boolean } | null {
   const marker = `|${oppKey}=`;
   const idx = block.indexOf(marker);
   if (idx === -1) return null;
@@ -417,11 +417,17 @@ function extractSoloOpponent(block: string, oppKey: 'opponent1' | 'opponent2'): 
   const name = (parts[1] ?? '').trim();
   if (!name) return null;
   let score: number | null = null;
+  let isWalkover = false;
   for (const p of parts.slice(2)) {
-    const m = p.match(/^\s*score\s*=\s*(\d+)\s*$/);
-    if (m) { score = parseInt(m[1], 10); break; }
+    const m = p.match(/^\s*score\s*=\s*(\S+)\s*$/);
+    if (m) {
+      const val = m[1];
+      if (/^\d+$/.test(val)) { score = parseInt(val, 10); }
+      else if (/^(W|FF|L|DQ)$/i.test(val)) { isWalkover = true; score = -1; }
+      break;
+    }
   }
-  return { name, score };
+  return { name, score, isWalkover };
 }
 
 function parseMatches(wikitext: string): LpMatch[] {
@@ -448,21 +454,39 @@ function parseMatches(wikitext: string): LpMatch[] {
     const date = block.match(/\|date=([^\n|]+)/)?.[1]?.trim() ?? '';
     const bestof = parseInt(block.match(/\|bestof=(\d+)/)?.[1] ?? '3');
 
+    // ── Walkover detection ──────────────────────────────────────────────────
+    const isWalkover = opp1Info.isWalkover || opp2Info.isWalkover;
+    // Check top-level walkover indicators too
+    const walkoverMatch = block.match(/\|walkover\s*=\s*(\d)/);
+    const topLevelWalkover = walkoverMatch ? parseInt(walkoverMatch[1], 10) : 0; // 1 or 2
+
     // ── Score signals — try them in order of reliability ────────────────────
     // Signal 1: score field inside the SoloOpponent template (most reliable —
     //   editors usually update this first when a map ends).
-    const sigTplScore =
-      opp1Info.score !== null && opp2Info.score !== null
-        ? { p1: opp1Info.score, p2: opp2Info.score }
-        : null;
+    let sigTplScore: { p1: number; p2: number } | null = null;
+    if (isWalkover || topLevelWalkover) {
+      // Walkover: winner gets needed wins, loser gets 0
+      const winnerIs1 = opp2Info.isWalkover || topLevelWalkover === 1;
+      sigTplScore = { p1: winnerIs1 ? Math.ceil(bestof / 2) : 0, p2: winnerIs1 ? 0 : Math.ceil(bestof / 2) };
+    } else if (opp1Info.score !== null && opp1Info.score >= 0 && opp2Info.score !== null && opp2Info.score >= 0) {
+      sigTplScore = { p1: opp1Info.score, p2: opp2Info.score };
+    }
 
     // Signal 2: top-level |opponent1score= / |opponent2score= on the Match.
-    const tlS1 = block.match(/\|opponent1score\s*=\s*(\d+)/)?.[1];
-    const tlS2 = block.match(/\|opponent2score\s*=\s*(\d+)/)?.[1];
-    const sigTopLevel =
-      tlS1 !== undefined && tlS2 !== undefined
-        ? { p1: parseInt(tlS1, 10), p2: parseInt(tlS2, 10) }
-        : null;
+    const tlS1Raw = block.match(/\|opponent1score\s*=\s*(\S+)/)?.[1];
+    const tlS2Raw = block.match(/\|opponent2score\s*=\s*(\S+)/)?.[1];
+    let sigTopLevel: { p1: number; p2: number } | null = null;
+    if (tlS1Raw && tlS2Raw) {
+      const isWO1 = /^(W|FF|L|DQ)$/i.test(tlS1Raw);
+      const isWO2 = /^(W|FF|L|DQ)$/i.test(tlS2Raw);
+      if (isWO1 || isWO2) {
+        // Walkover: the side with W/FF loses, the other wins
+        const winnerIs1 = isWO2;
+        sigTopLevel = { p1: winnerIs1 ? Math.ceil(bestof / 2) : 0, p2: winnerIs1 ? 0 : Math.ceil(bestof / 2) };
+      } else if (/^\d+$/.test(tlS1Raw) && /^\d+$/.test(tlS2Raw)) {
+        sigTopLevel = { p1: parseInt(tlS1Raw, 10), p2: parseInt(tlS2Raw, 10) };
+      }
+    }
 
     // Signal 3: count |winner=1 / |winner=2 occurrences anywhere in the block.
     // Catches both legacy `|map=X|...|winner=N` and modern
