@@ -16,7 +16,7 @@ import { promisify } from 'util';
 import Bottleneck from 'bottleneck';
 import { prisma } from '../index';
 import { getIo } from '../socket';
-import { distributePayout } from './betService';
+import { distributePayout, refundBets } from './betService';
 import logger from '../logger';
 
 const gunzip = promisify(zlib.gunzip);
@@ -362,6 +362,7 @@ interface LpMatch {
   p1Score: number;
   p2Score: number;
   finishedMaps: number;
+  walkover: boolean;
 }
 
 /**
@@ -513,7 +514,7 @@ function parseMatches(wikitext: string): LpMatch[] {
     // maps[] kept for the LpMatch shape — the live scorer only consumes scores.
     const maps: Array<{ map: string; winner: 1 | 2 | null }> = [];
 
-    results.push({ opponent1: opp1, opponent2: opp2, date, bestof, maps, p1Score, p2Score, finishedMaps });
+    results.push({ opponent1: opp1, opponent2: opp2, date, bestof, maps, p1Score, p2Score, finishedMaps, walkover: isWalkover || topLevelWalkover > 0 });
   }
 
   return results;
@@ -639,6 +640,19 @@ async function syncMatchScore(matchId: string): Promise<void> {
 
   if (resolvedWinnerId) {
     const resultScore = `${p1Score}-${p2Score}`;
+
+    // Walkover/forfeit → cancel the match and refund all bets (no real match played)
+    if (lpMatch.walkover) {
+      logger.info(`[LPScorer] Match ${matchId}: walkover detected — cancelling and refunding bets`);
+      await prisma.match.update({
+        where: { id: matchId },
+        data: { p1Score, p2Score, status: 'CANCELLED', resultScore, betsOpen: false, currentGameId: null },
+      });
+      await refundBets(matchId);
+      io?.emit('matchUpdate', { matchId, status: 'CANCELLED', p1Score, p2Score });
+      return;
+    }
+
     await prisma.match.update({
       where: { id: matchId },
       data: { p1Score, p2Score, status: 'COMPLETED', winnerId: resolvedWinnerId, resultScore, betsOpen: false, currentGameId: null },
