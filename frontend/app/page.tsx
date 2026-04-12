@@ -703,11 +703,11 @@ export default function HomePage() {
         const future = (tournRes.value.data ?? []).filter((tourn: Tournament) => {
           // Only tier S and A
           if (tourn.tier !== 'S' && tourn.tier !== 'A') return false;
-          // Must not have ended
-          if (tourn.endDate && new Date(tourn.endDate).getTime() < now) return false;
-          // Must start in the future (or within last 7 days if ongoing)
-          if (new Date(tourn.startDate).getTime() < now - 7 * 24 * 3600 * 1000 && !tourn.endDate) return false;
-          return true;
+          const start = new Date(tourn.startDate).getTime();
+          // If has endDate: keep only if not ended yet (ongoing)
+          if (tourn.endDate) return new Date(tourn.endDate).getTime() >= now;
+          // No endDate: keep only if starts in the future
+          return start > now;
         });
         setUpcomingTourneys(future);
       }
