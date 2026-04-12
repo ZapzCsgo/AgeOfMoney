@@ -16,10 +16,13 @@ const ZONES = {
 type Zone = keyof typeof ZONES;
 
 // 15-slot pattern — exact CSGOEmpire distribution: 7 KNIGHTS, 1 EMPEROR, 7 ARCHERS
-const BASE_PATTERN: Zone[] = [
-  'KNIGHTS','ARCHERS','KNIGHTS','ARCHERS','KNIGHTS',
-  'ARCHERS','KNIGHTS','EMPEROR','ARCHERS','KNIGHTS',
-  'ARCHERS','KNIGHTS','ARCHERS','KNIGHTS','ARCHERS',
+// Each slot has a unique number (1-15) displayed on the tile
+const BASE_PATTERN: { zone: Zone; num: number }[] = [
+  { zone: 'KNIGHTS', num: 1 },  { zone: 'ARCHERS', num: 2 },  { zone: 'KNIGHTS', num: 3 },
+  { zone: 'ARCHERS', num: 4 },  { zone: 'KNIGHTS', num: 5 },  { zone: 'ARCHERS', num: 6 },
+  { zone: 'KNIGHTS', num: 7 },  { zone: 'EMPEROR', num: 8 },  { zone: 'ARCHERS', num: 9 },
+  { zone: 'KNIGHTS', num: 10 }, { zone: 'ARCHERS', num: 11 }, { zone: 'KNIGHTS', num: 12 },
+  { zone: 'ARCHERS', num: 13 }, { zone: 'KNIGHTS', num: 14 }, { zone: 'ARCHERS', num: 15 },
 ];
 
 const ITEM_W = 80;
@@ -96,6 +99,8 @@ export default function RoulettePage() {
   const hasAnimatedRef = useRef(false); // true once animateSpin has been called this session
 
   const displayStrip = Array.from({ length: REPEATS }, () => BASE_PATTERN).flat();
+  // Helper to get zone from strip item
+  const zoneAt = (i: number) => displayStrip[i]?.zone ?? 'KNIGHTS';
 
   useEffect(() => {
     if (session?.user.accessToken) setAuthToken(session.user.accessToken);
@@ -119,7 +124,6 @@ export default function RoulettePage() {
       if (rd) setFairnessRound({ id: rd.id, roundHash: rd.roundHash, serverSeed: rd.serverSeed, result: rd.result, winZone: rd.winZone });
       if (rd?.status === 'BETTING') setPhase('betting');
       else if (rd?.status === 'SPINNING') {
-        // Remounted during a spin — reset wheel so items are visible, result arrives via socket
         setPhase('spinning');
         setTimeout(() => {
           if (wheelRef.current && !hasAnimatedRef.current) {
@@ -127,7 +131,19 @@ export default function RoulettePage() {
             wheelRef.current.style.transform = 'translateX(0px)';
           }
         }, 50);
+      } else if (rd?.status === 'COMPLETED') {
+        setPhase('result');
+        setWinZone(rd.winZone);
+      } else {
+        setPhase('idle');
       }
+      // Always ensure wheel is visible on mount
+      setTimeout(() => {
+        if (wheelRef.current) {
+          wheelRef.current.style.transition = 'none';
+          wheelRef.current.style.transform = 'translateX(0px)';
+        }
+      }, 100);
     }
     if (h.status === 'fulfilled') setHistory(h.value.data.data ?? []);
   }, []);
@@ -165,10 +181,10 @@ export default function RoulettePage() {
     s.on('roulette:betsUpdate', (d: { roundId: string; bets: RoundBet[] }) => {
       setRound(prev => prev?.id === d.roundId ? { ...prev, bets: d.bets } : prev);
     });
-    s.on('roulette:spin', (d: { winZone: Zone; multiplier: number }) => {
+    s.on('roulette:spin', (d: { winZone: Zone; multiplier: number; result?: number }) => {
       setPhase('spinning');
       setRound(prev => prev ? { ...prev, status: 'SPINNING' } : prev);
-      animateSpin(d.winZone);
+      animateSpin(d.winZone, d.result);
       // Fallback wololo if not already played
       if (!wololoPlayedRef.current) { wololoPlayedRef.current = true; playWololo(0.3); }
     });
@@ -214,7 +230,7 @@ export default function RoulettePage() {
     lastTickIdx.current = 4;
   }
 
-  function animateSpin(wz: Zone) {
+  function animateSpin(wz: Zone, resultNum?: number) {
     if (!wheelRef.current) return;
     hasAnimatedRef.current = true;
     if (tickIntervalRef.current) clearInterval(tickIntervalRef.current);
@@ -222,10 +238,19 @@ export default function RoulettePage() {
 
     const full = displayStrip;
     const target = Math.floor(full.length * 0.68);
-    // Collect all occurrences of the winning zone in the look-ahead window
+    // If we have the exact result number, land on that specific numbered slot
+    // Otherwise fall back to any slot of the winning zone
     const occurrences: number[] = [];
     for (let i = 0; i < 80; i++) {
-      if (full[(target + i) % full.length] === wz) occurrences.push(target + i);
+      const idx = target + i;
+      const slot = full[idx % full.length];
+      if (resultNum != null) {
+        // Match exact number
+        if (slot.num === resultNum) occurrences.push(idx);
+      } else {
+        // Fall back to zone match
+        if (slot.zone === wz) occurrences.push(idx);
+      }
     }
     const landIdx = occurrences.length > 0
       ? occurrences[Math.floor(Math.random() * occurrences.length)]
@@ -385,9 +410,11 @@ export default function RoulettePage() {
             {history.slice(0, 20).map(h => {
               const z = ZONES[h.winZone]; const Icon = z.icon;
               return (
-                <div key={h.id} className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                <div key={h.id} className="w-7 h-7 rounded-lg flex flex-col items-center justify-center shrink-0"
+                  title={`#${h.result ?? '?'}`}
                   style={{ background:z.bg, border:`1px solid ${z.border}`, boxShadow:`0 0 6px ${z.glow}` }}>
-                  <Icon size={13} style={{ color:z.color }} />
+                  <Icon size={10} style={{ color:z.color }} />
+                  <span className="text-[7px] font-bold leading-none" style={{ color:z.color }}>{h.result ?? ''}</span>
                 </div>
               );
             })}
@@ -497,13 +524,13 @@ export default function RoulettePage() {
 
               {/* Strip — ALWAYS fully colored */}
               <div ref={wheelRef} className="flex" style={{ gap:ITEM_GAP }}>
-                {displayStrip.map((zone, i) => {
-                  const z = ZONES[zone]; const Icon = z.icon;
+                {displayStrip.map((slot, i) => {
+                  const z = ZONES[slot.zone]; const Icon = z.icon;
                   const isCenter = i === centerIdx;
-                  const isWinCenter = isResult && isCenter && zone === winZone;
+                  const isWinCenter = isResult && isCenter && slot.zone === winZone;
                   return (
                     <div key={i}
-                      className="flex-shrink-0 flex items-center justify-center rounded-xl"
+                      className="flex-shrink-0 flex flex-col items-center justify-center rounded-xl relative"
                       style={{
                         width:ITEM_W, height:ITEM_W,
                         background: z.bg,
@@ -512,7 +539,8 @@ export default function RoulettePage() {
                         transform: isCenter ? 'scale(1.06)' : 'scale(1)',
                         transition:'transform 0.08s,box-shadow 0.08s',
                       }}>
-                      <Icon size={30} style={{ color: z.color }} />
+                      <Icon size={24} style={{ color: z.color }} />
+                      <span className="text-[11px] font-bold mt-0.5 tabular-nums" style={{ color: z.color, opacity: 0.7 }}>{slot.num}</span>
                     </div>
                   );
                 })}
@@ -540,6 +568,9 @@ export default function RoulettePage() {
                 ) : (
                   <p className="text-xl font-bold" style={{ color:ZONES[winZone].color, fontFamily:'Cinzel,serif' }}>
                     {zoneLabel(winZone)} ×{ZONES[winZone].multiplier}
+                    {fairnessRound?.result != null && (
+                      <span className="text-sm ml-2 opacity-60">#{fairnessRound.result}</span>
+                    )}
                   </p>
                 )}
               </div>
