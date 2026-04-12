@@ -241,15 +241,30 @@ export default function TournamentsPage() {
     );
   })();
 
-  // Apply filters
+  // Apply filters + sort: ongoing first, then upcoming, then finished
+  const now = new Date();
   const filtered = processed
     .filter(t => {
-      if (statusFilter === 'active') return t.isActive && new Date(t.startDate) <= new Date();
-      if (statusFilter === 'upcoming') return new Date(t.startDate) > new Date();
+      if (statusFilter === 'active') return t.isActive && new Date(t.startDate) <= now;
+      if (statusFilter === 'upcoming') return new Date(t.startDate) > now;
       return true;
     })
     .filter(t => gameFilter === 'all' || t.game === gameFilter)
-    .filter(t => !search.trim() || t.name.toLowerCase().includes(search.trim().toLowerCase()));
+    .filter(t => !search.trim() || t.name.toLowerCase().includes(search.trim().toLowerCase()))
+    .sort((a, b) => {
+      const aStarted = new Date(a.startDate) <= now;
+      const bStarted = new Date(b.startDate) <= now;
+      const aOngoing = a.isActive && aStarted;
+      const bOngoing = b.isActive && bStarted;
+      const aUpcoming = !aStarted;
+      const bUpcoming = !bStarted;
+      // Ongoing first, then upcoming, then finished
+      const aOrder = aOngoing ? 0 : aUpcoming ? 1 : 2;
+      const bOrder = bOngoing ? 0 : bUpcoming ? 1 : 2;
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      // Within same group: sort by start date (soonest first for upcoming, most recent first for ongoing)
+      return new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
+    });
 
   const activeCount  = processed.filter(t => t.isActive && new Date(t.startDate) <= new Date()).length;
   const upcomingCount = processed.filter(t => new Date(t.startDate) > new Date()).length;
