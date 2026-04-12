@@ -502,9 +502,8 @@ export default function ProfilePage() {
       .finally(() => setPublicLoading(false));
   }, [viewId, isViewingOther]);
 
-  useEffect(() => {
-    if (!session) return;
-    if (isViewingOther) return; // don't load own data when viewing someone else
+  const fetchProfileData = useCallback(() => {
+    if (!session || isViewingOther) return;
     setLoading(true);
     if (session.user.accessToken) setAuthToken(session.user.accessToken);
     Promise.all([
@@ -523,7 +522,16 @@ export default function ProfilePage() {
       if (lbRes) setLeaderboard(lbRes.data);
       if (rouRes) setRouletteBets(rouRes.data.data ?? []);
     }).finally(() => setLoading(false));
-  }, [session]);
+  }, [session, isViewingOther]);
+
+  useEffect(() => { fetchProfileData(); }, [fetchProfileData]);
+
+  // Refetch on tab focus (e.g. after betting on another tab)
+  useEffect(() => {
+    const onFocus = () => fetchProfileData();
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [fetchProfileData]);
 
   if (status === 'loading') {
     return (

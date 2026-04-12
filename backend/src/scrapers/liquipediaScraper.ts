@@ -369,7 +369,8 @@ function parseMatchBlocks(html: string, wikiPath: string, game: string): Array<{
       if (!player1 || !player2 || player1 === player2) return;
       if (player1.toLowerCase() === 'tbd' || player2.toLowerCase() === 'tbd') return;
       if (leftEl.find('.block-player').length > 1 || rightEl.find('.block-player').length > 1) return;
-      const teamPattern = /^team\s+|esports?\s*[ab]?$|\s+esports?$|esports?\s+[ab]$/i;
+      // Skip team org names: "Team X", "X Esports", "X Esports A/B", "Old School B", "Rulers of Rome A"
+      const teamPattern = /^team\s+|esports?\s*[ab]?$|\s+esports?$|esports?\s+[ab]$|\s+[AB]$/;
       if (teamPattern.test(player1) || teamPattern.test(player2)) return;
 
       const player1Country = leftEl.find('.flag img').first().attr('alt') || '';
