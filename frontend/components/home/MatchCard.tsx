@@ -119,9 +119,14 @@ export function MatchCard({ match }: MatchCardProps) {
                     {match.player1.name.substring(0, 6)}
                   </div>
                 </div>
-                <div className="flex items-center">
-                  <span className="text-aoe-parchment-muted text-xs font-cinzel px-1">VS</span>
-                </div>
+                {match.oddsDraw && (
+                  <div className="aoe-odds-btn px-3 py-2 min-w-[50px]">
+                    <div className="text-aoe-gold font-bold font-cinzel text-lg leading-none">
+                      {match.oddsDraw.toFixed(2)}
+                    </div>
+                    <div className="text-aoe-parchment-muted text-[10px] mt-0.5">Draw</div>
+                  </div>
+                )}
                 <div className="aoe-odds-btn px-4 py-2 min-w-[60px]">
                   <div className="text-aoe-gold font-bold font-cinzel text-lg leading-none">
                     {match.odds2.toFixed(2)}

@@ -10,7 +10,7 @@ export async function placeBet(
   userId: string,
   matchId: string,
   amount: number,
-  selectedPlayer: 1 | 2
+  selectedPlayer: 0 | 1 | 2 // 0 = draw, 1 = player1, 2 = player2
 ): Promise<{
   id: string;
   amount: number;
@@ -26,10 +26,12 @@ export async function placeBet(
       select: {
         id: true,
         status: true,
+        format: true,
         betsClosedAt: true,
         betsOpen: true,
         odds1: true,
         odds2: true,
+        oddsDraw: true,
         scheduledAt: true,
       },
     }),
@@ -86,7 +88,18 @@ export async function placeBet(
     throw new Error(`Maximum ${MAX_BETS_PER_MATCH} bets per match reached`);
   }
 
-  const oddsAtBet = selectedPlayer === 1 ? match.odds1 : match.odds2;
+  // Validate draw bet: only allowed for even BO formats
+  if (selectedPlayer === 0) {
+    const bo = parseInt(match.format.replace(/\D/g, ''), 10) || 3;
+    if (bo % 2 !== 0) throw new Error('Draw bets are only available for even BO formats (BO2, BO4...)');
+    if (!match.oddsDraw) throw new Error('Draw odds not available for this match');
+  }
+
+  const oddsAtBet = selectedPlayer === 0
+    ? (match.oddsDraw ?? 0)
+    : selectedPlayer === 1 ? match.odds1 : match.odds2;
+
+  if (oddsAtBet <= 0) throw new Error('Invalid odds for this selection');
 
   // Use a transaction to deduct coins and create bet atomically
   const bet = await prisma.$transaction(async (tx) => {
@@ -254,6 +267,62 @@ export async function distributePayout(matchId: string, winnerId: string): Promi
   logger.info(
     `distributePayout: match=${matchId}, winner=player${winnerPosition}, ${payoutsDistributed}/${pendingBets.length} bets won, total paid=${totalPaid} coins`
   );
+}
+
+/**
+ * Distribute payouts for a draw outcome (even BO formats like BO2/BO4).
+ * selectedPlayer=0 bets win, selectedPlayer=1/2 bets lose.
+ */
+export async function distributeDrawPayout(matchId: string): Promise<void> {
+  const match = await prisma.match.findUnique({
+    where: { id: matchId },
+    select: {
+      oddsDraw: true, resultScore: true,
+      player1: { select: { name: true } },
+      player2: { select: { name: true } },
+      tournament: { select: { name: true } },
+    },
+  });
+  if (!match) return;
+
+  const pendingBets = await prisma.bet.findMany({
+    where: { matchId, status: BetStatus.PENDING },
+    select: { id: true, userId: true, amount: true, oddsAtBet: true, selectedPlayer: true },
+  });
+  if (pendingBets.length === 0) return;
+
+  const io = getIo();
+  const tournamentName = match.tournament?.name ?? 'Tournament';
+  let payoutsDistributed = 0;
+  let totalPaid = 0;
+
+  for (const bet of pendingBets) {
+    const won = bet.selectedPlayer === 0; // draw bets win
+    const payout = won ? Math.floor(bet.amount * bet.oddsAtBet) : 0;
+
+    await prisma.$transaction([
+      prisma.bet.update({
+        where: { id: bet.id },
+        data: { status: won ? BetStatus.WON : BetStatus.LOST, payout: won ? payout : 0 },
+      }),
+      ...(won ? [prisma.user.update({ where: { id: bet.userId }, data: { coins: { increment: payout } } })] : []),
+    ]);
+
+    if (won) { payoutsDistributed++; totalPaid += payout; }
+    if (io) {
+      if (won) {
+        const updatedUser = await prisma.user.findUnique({ where: { id: bet.userId }, select: { coins: true } });
+        if (updatedUser) io.to(`user:${bet.userId}`).emit('coinsUpdate', { coins: updatedUser.coins, direction: 'up' });
+      }
+      const playerBetOn = bet.selectedPlayer === 0 ? 'Égalité' : bet.selectedPlayer === 1 ? match.player1?.name : match.player2?.name;
+      io.to(`user:${bet.userId}`).emit('betResult', {
+        matchId, betId: bet.id, won, amount: bet.amount, payout: won ? payout : 0,
+        playerBetOn, winnerName: 'Égalité', loserName: undefined, tournamentName,
+      });
+    }
+  }
+
+  logger.info(`distributeDrawPayout: match=${matchId}, ${payoutsDistributed}/${pendingBets.length} draw bets won, total paid=${totalPaid} coins`);
 }
 
 export async function refundBets(matchId: string, reason?: string): Promise<void> {

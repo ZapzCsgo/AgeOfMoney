@@ -126,6 +126,7 @@ model Match {
   winnerId         String?
   odds1            Float       @default(2.0)
   odds2            Float       @default(2.0)
+  oddsDraw         Float?      // draw odds — only set for formats that allow draws (BO2)
   betsClosedAt     DateTime?
   betsOpen         Boolean     @default(true)    // dynamic — closed while a game is ongoing
   currentBoNumber  Int         @default(0)       // 0 = not started, 1..n = current BO game

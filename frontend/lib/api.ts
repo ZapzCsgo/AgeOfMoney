@@ -92,7 +92,7 @@ export async function getTournament(id: string): Promise<ApiResponse<Tournament 
 }
 
 // Bets
-export async function placeBet(matchId: string, amount: number, selectedPlayer: 1 | 2): Promise<ApiResponse<Bet>> {
+export async function placeBet(matchId: string, amount: number, selectedPlayer: 0 | 1 | 2): Promise<ApiResponse<Bet>> {
   const res = await apiClient.post('/bets', { matchId, amount, selectedPlayer });
   return res.data as ApiResponse<Bet>;
 }

@@ -82,16 +82,44 @@ export interface OddsInputV2 {
   daysSinceLastMatch2: number;
   // Current match tier (for tier-context adjustment)
   matchTier?: string;
+  // Match format — needed to calculate draw odds for even BOs
+  format?: string;
 }
 
 export interface OddsResult {
   odds1: number;
   odds2: number;
+  oddsDraw?: number; // only for even BO formats (BO2, BO4, BO6...)
   prob1: number;
   prob2: number;
+  probDraw?: number;
   impliedProb1: number;
   impliedProb2: number;
   margin: number;
+}
+
+/** Check if a BO format allows draws (even numbers: BO2, BO4, BO6...) */
+export function formatAllowsDraw(format: string): boolean {
+  const bo = parseInt(format.replace(/\D/g, ''), 10);
+  return !isNaN(bo) && bo > 0 && bo % 2 === 0;
+}
+
+/**
+ * Calculate draw probability for even BO formats.
+ * Draw probability depends on how close the players are in skill (prob1 ≈ 0.5 → higher draw chance).
+ * For BO2: P(draw) = 2 * p * (1-p) where p = prob of winning a single game.
+ * For BO4: P(draw) = C(4,2) * p^2 * (1-p)^2 = 6 * p^2 * (1-p)^2
+ * General: P(draw in BO_n) = C(n, n/2) * p^(n/2) * (1-p)^(n/2)
+ */
+export function calculateDrawProbability(prob1: number, boNum: number): number {
+  if (boNum % 2 !== 0) return 0;
+  const half = boNum / 2;
+  // Binomial coefficient C(n, n/2)
+  let binom = 1;
+  for (let i = 0; i < half; i++) {
+    binom = binom * (boNum - i) / (i + 1);
+  }
+  return binom * Math.pow(prob1, half) * Math.pow(1 - prob1, half);
 }
 
 // ── Core: Competitive Winrate ──────────────────────────────────────────────────
@@ -292,7 +320,7 @@ export function calculateOddsV2(input: OddsInputV2): OddsResult {
   const minProb = 1 - maxProb;
 
   prob1 = Math.min(maxProb, Math.max(minProb, prob1));
-  const prob2 = 1 - prob1;
+  let prob2 = 1 - prob1;
 
   // ── House margin (7% overround, proportional split) ─────────────────────
   let odds1 = (1 / prob1) * (1 - HOUSE_MARGIN / 2);
@@ -301,11 +329,35 @@ export function calculateOddsV2(input: OddsInputV2): OddsResult {
   odds1 = Math.min(MAX_ODDS, Math.max(MIN_ODDS, Math.round(odds1 * 100) / 100));
   odds2 = Math.min(MAX_ODDS, Math.max(MIN_ODDS, Math.round(odds2 * 100) / 100));
 
+  // ── Draw odds for even BO formats ──────────────────────────────────────
+  const format = input.format ?? 'BO3';
+  const boNum = parseInt(format.replace(/\D/g, ''), 10) || 3;
+  let oddsDraw: number | undefined;
+  let probDraw: number | undefined;
+  if (boNum % 2 === 0) {
+    // Calculate draw probability based on single-game win prob
+    probDraw = calculateDrawProbability(prob1, boNum);
+    // Ensure draw prob is reasonable (5%-40% range for BO2, tighter for BO4+)
+    const maxDraw = boNum === 2 ? 0.40 : 0.30;
+    probDraw = Math.min(maxDraw, Math.max(0.05, probDraw));
+    // Redistribute: scale down p1/p2 so p1+p2+pDraw = 1
+    const winTotal = 1 - probDraw;
+    const ratio = prob1 / (prob1 + prob2);
+    prob1 = winTotal * ratio;
+    prob2 = winTotal * (1 - ratio);
+    // Apply margin to all three
+    odds1 = Math.min(MAX_ODDS, Math.max(MIN_ODDS, Math.round((1 / prob1) * (1 - HOUSE_MARGIN / 2) * 100) / 100));
+    odds2 = Math.min(MAX_ODDS, Math.max(MIN_ODDS, Math.round((1 / prob2) * (1 - HOUSE_MARGIN / 2) * 100) / 100));
+    oddsDraw = Math.min(MAX_ODDS, Math.max(MIN_ODDS, Math.round((1 / probDraw) * (1 - HOUSE_MARGIN / 2) * 100) / 100));
+  }
+
   const impliedProb1 = 1 / odds1;
   const impliedProb2 = 1 / odds2;
-  const margin = (impliedProb1 + impliedProb2 - 1) * 100;
+  const margin = oddsDraw
+    ? (impliedProb1 + impliedProb2 + 1 / oddsDraw - 1) * 100
+    : (impliedProb1 + impliedProb2 - 1) * 100;
 
-  return { odds1, odds2, prob1, prob2, impliedProb1, impliedProb2, margin };
+  return { odds1, odds2, oddsDraw, prob1, prob2, probDraw, impliedProb1, impliedProb2, margin };
 }
 
 // ── Legacy compatibility wrappers ──────────────────────────────────────────────

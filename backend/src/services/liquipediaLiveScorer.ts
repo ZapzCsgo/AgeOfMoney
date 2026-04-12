@@ -16,7 +16,7 @@ import { promisify } from 'util';
 import Bottleneck from 'bottleneck';
 import { prisma } from '../index';
 import { getIo } from '../socket';
-import { distributePayout, refundBets } from './betService';
+import { distributePayout, distributeDrawPayout, refundBets } from './betService';
 import logger from '../logger';
 
 const gunzip = promisify(zlib.gunzip);
@@ -678,16 +678,16 @@ async function syncMatchScore(matchId: string): Promise<void> {
 
   const io = getIo();
 
-  // BO2 draw: match is over but no winner — refund all bets
+  // Even BO draw (BO2 1-1, BO4 2-2, etc.): match completed with no winner — draw bets win
   if (isBO2Draw) {
     const resultScore = `${p1Score}-${p2Score}`;
-    logger.info(`[LPScorer] Match ${matchId}: BO2 draw (${resultScore}) — cancelling and refunding bets`);
+    logger.info(`[LPScorer] Match ${matchId}: even BO draw (${resultScore}) — draw bets win, player bets lose`);
     await prisma.match.update({
       where: { id: matchId },
-      data: { p1Score, p2Score, status: 'CANCELLED', resultScore, betsOpen: false, currentGameId: null },
+      data: { p1Score, p2Score, status: 'COMPLETED', resultScore, betsOpen: false, currentGameId: null },
     });
-    await refundBets(matchId, `Match terminé en égalité (${resultScore}) — BO2 sans vainqueur`);
-    io?.emit('matchUpdate', { matchId, status: 'CANCELLED', p1Score, p2Score });
+    await distributeDrawPayout(matchId);
+    io?.emit('matchUpdate', { matchId, status: 'COMPLETED', p1Score, p2Score });
     return;
   }
 

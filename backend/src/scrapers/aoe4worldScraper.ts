@@ -725,7 +725,7 @@ export async function enrichMatchWithH2H(matchId: string): Promise<void> {
   const oddsChanged = Math.abs(newOdds.odds1 - match.player1.elo) > 0.01 || true; // always update for now
   await prisma.match.update({
     where: { id: matchId },
-    data: { odds1: newOdds.odds1, odds2: newOdds.odds2 },
+    data: { odds1: newOdds.odds1, odds2: newOdds.odds2, ...('oddsDraw' in newOdds ? { oddsDraw: (newOdds as { oddsDraw?: number }).oddsDraw } : {}) },
   });
 
   // Broadcast updated odds to connected clients in real-time

@@ -640,6 +640,15 @@ export async function scrapeUpcomingMatches(): Promise<void> {
         const odds1 = parseFloat(Math.max(1.05, (1 / prob1) * (1 - margin)).toFixed(2));
         const odds2 = parseFloat(Math.max(1.05, (1 / (1 - prob1)) * (1 - margin)).toFixed(2));
 
+        // Calculate draw odds for even BO formats (BO2, BO4...)
+        const { formatAllowsDraw, calculateDrawProbability } = await import('../services/oddsEngine');
+        let oddsDraw: number | null = null;
+        if (formatAllowsDraw(m.format)) {
+          const boNum = parseInt(m.format.replace(/\D/g, ''), 10);
+          const drawProb = Math.min(0.40, Math.max(0.05, calculateDrawProbability(prob1, boNum)));
+          oddsDraw = parseFloat(Math.max(1.05, (1 / drawProb) * (1 - margin)).toFixed(2));
+        }
+
         const tournGame = (tournament as { game?: string }).game ?? m.game;
         await prisma.match.create({
           data: {
@@ -647,7 +656,7 @@ export async function scrapeUpcomingMatches(): Promise<void> {
             game: tournGame, status: 'UPCOMING', format: m.format,
             scheduledAt: m.scheduledAt,
             betsClosedAt: new Date(m.scheduledAt.getTime() - 5 * 60 * 1000),
-            odds1, odds2,
+            odds1, odds2, oddsDraw,
           },
         });
         matchesSaved++;

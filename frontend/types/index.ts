@@ -87,6 +87,7 @@ export interface Match {
   winnerId?: string | null;
   odds1: number;
   odds2: number;
+  oddsDraw?: number | null;
   betsClosedAt?: string | null;
   betsOpen?: boolean;
   currentBoNumber?: number;
