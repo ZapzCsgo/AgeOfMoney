@@ -138,14 +138,18 @@ export default function RoulettePage() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  // Always reset wheel to visible position when not spinning
+  // On mount only: ensure wheel is visible at center position
   useEffect(() => {
-    if (phase === 'spinning') return; // don't interfere with active spin
-    if (!wheelRef.current) return;
-    wheelRef.current.style.transition = 'none';
-    wheelRef.current.style.transform = 'translateX(0px)';
-    setCenterIdx(4);
-  }, [phase]);
+    // Small delay to ensure wheelRef is attached to DOM
+    const timer = setTimeout(() => {
+      if (wheelRef.current) {
+        wheelRef.current.style.transition = 'none';
+        wheelRef.current.style.transform = 'translateX(0px)';
+        setCenterIdx(4);
+      }
+    }, 50);
+    return () => clearTimeout(timer);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Countdown
   useEffect(() => {
@@ -528,7 +532,7 @@ export default function RoulettePage() {
               <div className="absolute inset-y-0 right-0 w-10 z-10 pointer-events-none" style={{ background:'linear-gradient(to left,rgba(13,11,26,0.85),transparent)' }} />
 
               {/* Strip — ALWAYS fully colored */}
-              <div ref={wheelRef} className="flex" style={{ gap:ITEM_GAP }}>
+              <div ref={wheelRef} className="flex" style={{ gap:ITEM_GAP, transform: 'translateX(0px)' }}>
                 {displayStrip.map((slot, i) => {
                   const z = ZONES[slot.zone]; const Icon = z.icon;
                   const isCenter = i === centerIdx;
