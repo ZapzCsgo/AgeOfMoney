@@ -213,6 +213,8 @@ export async function placeBet(userId: string, zone: Zone, amount: number): Prom
   ]);
 
   if (!round || round.status !== 'BETTING') return { ok: false, error: 'Betting is closed' };
+  // Strict timing check — prevent bets after betting phase deadline (even if DB status not yet updated)
+  if (round.endsAt && new Date() > round.endsAt) return { ok: false, error: 'Betting phase has ended' };
   if (!user) return { ok: false, error: 'User not found' };
   if (user.isBanned) return { ok: false, error: 'Account banned' };
   if (user.coins < amount) return { ok: false, error: 'Insufficient coins' };

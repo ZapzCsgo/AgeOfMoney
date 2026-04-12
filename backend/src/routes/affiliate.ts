@@ -151,9 +151,15 @@ router.post('/admin/create', requireAuth, requireAdmin, async (req: Request, res
       res.json({ data: existing }); return; // idempotent
     }
 
-    const code = customCode
-      ? customCode.trim().toUpperCase()
-      : generateCode(user.username);
+    let code: string;
+    if (customCode) {
+      code = customCode.trim().toUpperCase();
+      if (!/^[A-Z0-9]{3,20}$/.test(code)) {
+        res.status(400).json({ error: 'Code must be 3-20 alphanumeric characters' }); return;
+      }
+    } else {
+      code = generateCode(user.username);
+    }
 
     // Ensure code uniqueness
     const codeConflict = await prisma.affiliateCode.findUnique({ where: { code } });

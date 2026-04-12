@@ -164,8 +164,8 @@ export function initSocket(httpServer: HttpServer): void {
 
       next();
     } catch {
-      // Token invalid — allow as anonymous rather than blocking
-      next();
+      // Token provided but invalid — reject (don't fall back to anonymous)
+      return next(new Error('Invalid authentication token'));
     }
   });
 

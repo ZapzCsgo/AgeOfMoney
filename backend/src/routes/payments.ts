@@ -192,25 +192,29 @@ router.post('/crypto/create', requireAuth, async (req: Request, res: Response): 
 // ── POST /payments/crypto/webhook — NOWPayments IPN callback ──────────────────
 router.post('/crypto/webhook', async (req: Request, res: Response): Promise<void> => {
   try {
-    // Verify NOWPayments IPN signature (HMAC-SHA512)
+    // Verify NOWPayments IPN signature (HMAC-SHA512) — MANDATORY in production
     const ipnSecret = process.env.NOWPAYMENTS_IPN_SECRET;
-    if (ipnSecret) {
+    if (!ipnSecret) {
+      if (process.env.NODE_ENV === 'production') {
+        logger.error('[Webhook] NOWPAYMENTS_IPN_SECRET not configured — rejecting in production');
+        res.status(500).json({ error: 'Server misconfiguration' });
+        return;
+      }
+      logger.warn('[Webhook] NOWPAYMENTS_IPN_SECRET not set — dev mode, skipping signature');
+    } else {
       const sig = req.headers['x-nowpayments-sig'] as string | undefined;
       if (!sig) {
         logger.warn('[Webhook] Missing NOWPayments signature — rejecting');
         res.status(401).json({ error: 'Missing signature' });
         return;
       }
-      // Signature is computed over the sorted JSON body
       const sortedBody = JSON.stringify(sortObject(req.body));
       const expected = crypto.createHmac('sha512', ipnSecret).update(sortedBody).digest('hex');
-      if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) {
+      if (sig.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) {
         logger.warn('[Webhook] Invalid NOWPayments signature — rejecting');
         res.status(401).json({ error: 'Invalid signature' });
         return;
       }
-    } else {
-      logger.warn('[Webhook] NOWPAYMENTS_IPN_SECRET not set — skipping signature check');
     }
 
     const { payment_status, order_id } = req.body;

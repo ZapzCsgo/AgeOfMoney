@@ -48,7 +48,17 @@ router.put('/me', requireAuth, async (req: Request, res: Response): Promise<void
   try {
     const { email, bio } = req.body as { email?: string; bio?: string };
     const data: Record<string, unknown> = {};
-    if (email !== undefined) data.email = email.trim() || null;
+    if (email !== undefined) {
+      const trimmed = email.trim();
+      if (trimmed && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+        res.status(400).json({ error: 'Invalid email format' }); return;
+      }
+      if (trimmed) {
+        const existing = await prisma.user.findFirst({ where: { email: trimmed, id: { not: req.user!.id } } });
+        if (existing) { res.status(409).json({ error: 'Email already in use' }); return; }
+      }
+      data.email = trimmed || null;
+    }
     if (bio !== undefined) data.bio = bio.trim().slice(0, 200) || null;
     const user = await prisma.user.update({
       where: { id: req.user!.id },
@@ -236,8 +246,7 @@ router.post('/2fa/verify', requireAuth, async (req: Request, res: Response): Pro
       select: { totpSecret: true, totpEnabled: true },
     });
     if (!user?.totpEnabled || !user.totpSecret) {
-      // 2FA not enabled — allow through (should not happen if frontend checks correctly)
-      res.json({ data: { valid: true } });
+      res.status(400).json({ error: '2FA is not enabled on this account' });
       return;
     }
 
@@ -272,10 +281,14 @@ router.post('/:id/tip', requireAuth, async (req: Request, res: Response): Promis
     if (!recipient || recipient.isBanned) { res.status(404).json({ error: 'User not found' }); return; }
     if (sender.coins < amountInt) { res.status(400).json({ error: 'Insufficient coins' }); return; }
 
-    const [updatedSender, updatedRecipient] = await prisma.$transaction([
-      prisma.user.update({ where: { id: senderId },    data: { coins: { decrement: amountInt } }, select: { coins: true } }),
-      prisma.user.update({ where: { id: recipientId }, data: { coins: { increment: amountInt } }, select: { coins: true } }),
-    ]);
+    // Atomic transaction with balance re-check to prevent race conditions
+    const [updatedSender, updatedRecipient] = await prisma.$transaction(async (tx) => {
+      const freshSender = await tx.user.findUnique({ where: { id: senderId }, select: { coins: true } });
+      if (!freshSender || freshSender.coins < amountInt) throw new Error('Insufficient coins');
+      const s = await tx.user.update({ where: { id: senderId }, data: { coins: { decrement: amountInt } }, select: { coins: true } });
+      const r = await tx.user.update({ where: { id: recipientId }, data: { coins: { increment: amountInt } }, select: { coins: true } });
+      return [s, r] as const;
+    });
 
     const io = getIo();
     // Notify sender (coin deduction)
