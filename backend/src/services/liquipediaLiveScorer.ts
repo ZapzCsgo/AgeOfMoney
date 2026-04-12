@@ -642,18 +642,33 @@ async function syncMatchScore(matchId: string): Promise<void> {
   const p2Score = reversed ? lpMatch.p1Score : lpMatch.p2Score;
 
   // Use DB format as authoritative source for wins needed (LP bestof can be missing/wrong)
-  const dbNeeded = Math.ceil((parseInt(match.format.replace(/\D/g, ''), 10) || 3) / 2);
+  const boNum = parseInt(match.format.replace(/\D/g, ''), 10) || 3;
+  const dbNeeded = Math.ceil(boNum / 2);
   const lpNeeded = lpMatch.bestof > 0 ? Math.ceil(lpMatch.bestof / 2) : dbNeeded;
   // Take the higher of the two — be conservative, don't complete early
   const needed = Math.max(dbNeeded, lpNeeded);
-  const resolvedWinnerId = p1Score >= needed ? match.player1.id
-    : p2Score >= needed ? match.player2.id
-    : null;
+
+  let resolvedWinnerId: string | null = null;
+  // BO2 special case: 1-1 is a draw, not a win — only 2-0 is decisive
+  const isBO2 = boNum === 2 || lpMatch.bestof === 2;
+  if (isBO2) {
+    // In BO2: winner must have MORE wins than opponent (2-0). 1-1 = draw = no winner.
+    if (p1Score > p2Score && p1Score >= needed) resolvedWinnerId = match.player1.id;
+    else if (p2Score > p1Score && p2Score >= needed) resolvedWinnerId = match.player2.id;
+    // 1-1 → resolvedWinnerId stays null → match stays LIVE, will eventually be CANCELLED
+  } else {
+    resolvedWinnerId = p1Score >= needed ? match.player1.id
+      : p2Score >= needed ? match.player2.id
+      : null;
+  }
+
+  // BO2 draw detection: 1-1 is a completed draw → refund all bets
+  const isBO2Draw = isBO2 && p1Score === p2Score && p1Score >= 1 && !resolvedWinnerId;
 
   const scoresUnchanged = p1Score === match.p1Score && p2Score === match.p2Score;
 
   // Skip if nothing changed AND match doesn't need resolving
-  if (scoresUnchanged && !resolvedWinnerId) return;
+  if (scoresUnchanged && !resolvedWinnerId && !isBO2Draw) return;
 
   if (!scoresUnchanged) {
     logger.info(`[LPScorer] Match ${matchId} (${match.player1.name} vs ${match.player2.name}): LP score ${p1Score}-${p2Score} (was ${match.p1Score}-${match.p2Score})`);
@@ -662,6 +677,19 @@ async function syncMatchScore(matchId: string): Promise<void> {
   }
 
   const io = getIo();
+
+  // BO2 draw: match is over but no winner — refund all bets
+  if (isBO2Draw) {
+    const resultScore = `${p1Score}-${p2Score}`;
+    logger.info(`[LPScorer] Match ${matchId}: BO2 draw (${resultScore}) — cancelling and refunding bets`);
+    await prisma.match.update({
+      where: { id: matchId },
+      data: { p1Score, p2Score, status: 'CANCELLED', resultScore, betsOpen: false, currentGameId: null },
+    });
+    await refundBets(matchId, `Match terminé en égalité (${resultScore}) — BO2 sans vainqueur`);
+    io?.emit('matchUpdate', { matchId, status: 'CANCELLED', p1Score, p2Score });
+    return;
+  }
 
   if (resolvedWinnerId) {
     const resultScore = `${p1Score}-${p2Score}`;
