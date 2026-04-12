@@ -15,17 +15,7 @@ export function getSocket(token?: string): Socket {
       auth: token ? { token } : {},
     });
 
-    socket.on('connect', () => {
-      console.log('[Socket] Connected:', socket?.id);
-    });
-
-    socket.on('disconnect', (reason) => {
-      console.log('[Socket] Disconnected:', reason);
-    });
-
-    socket.on('connect_error', (err) => {
-      console.error('[Socket] Connection error:', err.message);
-    });
+    // Silently handle connection events — no console output in production
   }
 
   return socket;

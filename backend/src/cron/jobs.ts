@@ -4,7 +4,6 @@ import { enrichAllUpcomingMatches } from '../scrapers/aoe4worldScraper';
 import { scrapeAoe4WorldTournaments } from '../scrapers/aoe4worldTournamentScraper';
 import { scrapeUpcomingMatches } from '../scrapers/liquipediaScraper';
 import { syncAoeEventCalendar } from '../scrapers/aoeEventCalendarScraper';
-import { enrichAllSparseH2H } from '../scrapers/aiH2HScraper';
 import { distributePayout, refundBets } from '../services/betService';
 import { getIo } from '../socket';
 import logger from '../logger';
@@ -59,16 +58,6 @@ export function initCronJobs(): void {
       logger.error('[CRON] avatar fetch failed:', err);
     }
   });
-
-  // ── Every 6 hours: AI H2H enrichment for sparse pairs ────────────────────
-  // PAUSED — using Liquipedia direct scraper instead of AI/aoe4world seeders
-  // cron.schedule('0 */6 * * *', async () => {
-  //   try {
-  //     await enrichAllSparseH2H();
-  //   } catch (err) {
-  //     logger.error('[CRON] AI H2H enrichment failed:', err);
-  //   }
-  // });
 
   // ── Every minute: transition match statuses + close bets ──────────────────
   cron.schedule('* * * * *', async () => {

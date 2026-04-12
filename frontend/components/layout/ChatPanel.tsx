@@ -207,7 +207,7 @@ export function ChatPanel() {
   const handleSend = useCallback(() => {
     const text = input.trim();
     if (!text || !session || !connected) return;
-    getSocket().emit('globalChat', { message: text });
+    getSocket(session.user?.accessToken).emit('globalChat', { message: text });
     setInput('');
     inputRef.current?.focus();
   }, [input, session, connected]);

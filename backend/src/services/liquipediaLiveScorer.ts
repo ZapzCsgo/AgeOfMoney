@@ -534,11 +534,7 @@ function parseMatches(wikitext: string): LpMatch[] {
     // maps[] kept for the LpMatch shape — the live scorer only consumes scores.
     const maps: Array<{ map: string; winner: 1 | 2 | null }> = [];
 
-    // Debug: log scores for known problematic matches
     const wo = isWalkover || topLevelWalkover !== 0;
-    if (/barles|warrior|pub|blacksails/i.test(opp1) || /barles|warrior|pub|blacksails/i.test(opp2)) {
-      logger.info(`[LPScorer:DEBUG] ${opp1} vs ${opp2}: opp1score=${opp1Info.score} opp1wo=${opp1Info.isWalkover} opp2score=${opp2Info.score} opp2wo=${opp2Info.isWalkover} topWO=${topLevelWalkover} sigTpl=${JSON.stringify(sigTplScore)} sigTop=${JSON.stringify(sigTopLevel)} sigCnt=${JSON.stringify(sigCounted)} → ${p1Score}-${p2Score} walkover=${wo}`);
-    }
     results.push({ opponent1: opp1, opponent2: opp2, date, bestof, maps, p1Score, p2Score, finishedMaps, walkover: wo });
   }
 

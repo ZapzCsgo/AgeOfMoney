@@ -6,6 +6,7 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../index';
 import { scrapeAoe4WorldTournaments } from '../scrapers/aoe4worldTournamentScraper';
+import logger from '../logger';
 
 const router = Router();
 
@@ -179,7 +180,7 @@ router.post('/seed', async (_req: Request, res: Response): Promise<void> => {
       message: `Seed complete. Created ${created} matches, ${playerDefs.length} players, 4 tournaments.`,
     });
   } catch (err) {
-    console.error('Seed error:', err);
+    logger.error('Seed error:', err);
     res.status(500).json({ error: String(err) });
   }
 });
@@ -203,7 +204,7 @@ router.post('/scrape', async (_req: Request, res: Response): Promise<void> => {
   try {
     await scrapeAoe4WorldTournaments();
   } catch (err) {
-    console.error('Scrape error:', err);
+    logger.error('Scrape error:', err);
   }
 });
 
@@ -216,7 +217,7 @@ router.post('/scrape-liquipedia', async (_req: Request, res: Response): Promise<
     await syncAoeEventCalendar();
     await scrapeUpcomingMatches();
   } catch (err) {
-    console.error('Liquipedia scrape error:', err);
+    logger.error('Liquipedia scrape error:', err);
   }
 });
 
@@ -228,7 +229,7 @@ router.post('/sync-score/:matchId', async (req: Request, res: Response): Promise
     const { syncMatchScore } = await import('../services/liquipediaLiveScorer');
     await (syncMatchScore as (id: string) => Promise<void>)(matchId);
   } catch (err) {
-    console.error('Sync score error:', err);
+    logger.error('Sync score error:', err);
   }
 });
 
@@ -239,7 +240,7 @@ router.post('/enrich', async (_req: Request, res: Response): Promise<void> => {
     const { enrichAllUpcomingMatches } = await import('../scrapers/aoe4worldScraper');
     await enrichAllUpcomingMatches();
   } catch (err) {
-    console.error('Enrich error:', err);
+    logger.error('Enrich error:', err);
   }
 });
 
@@ -259,7 +260,7 @@ router.post('/seed-ai-history', async (req: Request, res: Response): Promise<voi
     const { enrichAllProPlayers } = await import('../scrapers/aiPlayerHistoryScraper');
     await enrichAllProPlayers(force);
   } catch (err) {
-    console.error('[AI History] Batch error:', err);
+    logger.error('[AI History] Batch error:', err);
   }
 });
 
@@ -296,7 +297,7 @@ router.post('/seed-history', async (req: Request, res: Response): Promise<void> 
     const { enrichAllProPlayers } = await import('../scrapers/aiPlayerHistoryScraper');
     await enrichAllProPlayers(force);
   } catch (err) {
-    console.error('[Seed History] Error:', err);
+    logger.error('[Seed History] Error:', err);
   }
 });
 

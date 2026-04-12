@@ -13,13 +13,17 @@ export interface User {
   email: string;
   steamId?: string | null;
   avatar?: string | null;
+  bio?: string | null;
   coins: number;
+  totalWagered?: number;
   isAdmin: boolean;
+  isMod?: boolean;
+  isPartner?: boolean;
   isBanned?: boolean;
   provider?: string;
   createdAt: string;
   lastActiveAt?: string;
-  _count?: { bets: number };
+  _count?: { bets: number; rouletteBets?: number };
 }
 
 export interface Player {
