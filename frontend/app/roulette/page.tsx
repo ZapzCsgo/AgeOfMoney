@@ -138,18 +138,33 @@ export default function RoulettePage() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  // On mount only: ensure wheel is visible at center position
+  // On mount: ensure wheel is visible at center position
   useEffect(() => {
-    // Small delay to ensure wheelRef is attached to DOM
     const timer = setTimeout(() => {
       if (wheelRef.current) {
         wheelRef.current.style.transition = 'none';
         wheelRef.current.style.transform = 'translateX(0px)';
+        void wheelRef.current.offsetHeight; // force reflow
         setCenterIdx(4);
       }
     }, 50);
     return () => clearTimeout(timer);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Handle tab visibility changes during spin — snap to result if spin already ended
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.hidden || !wheelRef.current) return;
+      // User came back — check if spin should have ended
+      const now = Date.now();
+      if (spinEndsAtRef.current > 0 && now >= spinEndsAtRef.current) {
+        // Spin animation should be done — snap wheel to final position
+        if (tickIntervalRef.current) clearInterval(tickIntervalRef.current);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
 
   // Countdown
   useEffect(() => {
@@ -232,6 +247,7 @@ export default function RoulettePage() {
     if (!wheelRef.current) return;
     wheelRef.current.style.transition = 'none';
     wheelRef.current.style.transform = 'translateX(0px)';
+    void wheelRef.current.offsetHeight; // force browser reflow before next transition
     setCenterIdx(4);
     lastTickIdx.current = 4;
   }
