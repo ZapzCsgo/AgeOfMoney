@@ -154,9 +154,10 @@ router.post('/crypto/create', requireAuth, async (req: Request, res: Response): 
         order_description: `AgeOfMoney — ${finalCoins} ⚜ coins`,
         ipn_callback_url:  `${process.env.BACKEND_URL}/api/v1/payments/crypto/webhook`,
       });
-    } catch (npErr) {
-      // If NOWPayments not configured, return mock address for dev
-      logger.warn('NOWPayments not configured, returning dev mock address');
+    } catch (npErr: unknown) {
+      const errMsg = npErr instanceof Error ? npErr.message : String(npErr);
+      const axiosData = (npErr as { response?: { data?: unknown } })?.response?.data;
+      logger.error(`NOWPayments API error: ${errMsg}`, { data: axiosData, apiKey: NP_KEY() ? 'SET' : 'EMPTY' });
       res.json({
         address:      'DEV_MODE_NO_NOWPAYMENTS_KEY_CONFIGURED',
         cryptoAmount: (usdAmount * 0.000015).toFixed(8),
