@@ -218,12 +218,12 @@ export default function MatchesPage() {
   const availableGames = new Set(matches.map(m => m.game).filter(Boolean));
 
   // Group by tournament
-  const groups: { id: string; name: string; tier: string; format: string; matches: Match[] }[] = [];
+  const groups: { id: string; name: string; tier: string; format: string; game: string; matches: Match[] }[] = [];
   for (const match of filtered) {
     const tid = match.tournament?.id ?? 'none';
     const g = groups.find(x => x.id === tid);
     if (g) { g.matches.push(match); }
-    else groups.push({ id: tid, name: match.tournament?.name ?? t('matches_no_tournament'), tier: match.tournament?.tier ?? 'C', format: match.format, matches: [match] });
+    else groups.push({ id: tid, name: match.tournament?.name ?? t('matches_no_tournament'), tier: match.tournament?.tier ?? 'C', format: match.format, game: match.game ?? 'AoE4', matches: [match] });
   }
 
   return (
@@ -319,6 +319,10 @@ export default function MatchesPage() {
                 <div className="flex items-center gap-3 px-5 py-3 border-b" style={{ borderColor: '#1e1a30', background: 'rgba(0,0,0,0.2)' }}>
                   <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: TIER_COLORS[g.tier] ?? '#6b6488' }} />
                   <span className="text-[11px] font-cinzel font-semibold truncate" style={{ color: TIER_COLORS[g.tier] ?? '#6b6488' }}>{g.name}</span>
+                  <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded font-bold tracking-wide"
+                    style={{ background: 'rgba(212,160,23,0.08)', color: '#d4a017', border: '1px solid rgba(212,160,23,0.15)' }}>
+                    {g.game}
+                  </span>
                   <span className="text-[10px] text-[#3d3860] ml-auto shrink-0 font-cinzel">{g.format} · {g.matches.length} {t('nav_matches').toLowerCase()}</span>
                 </div>
                 {g.matches.map(m => <MatchRow key={m.id} match={m} />)}
