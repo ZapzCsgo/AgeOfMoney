@@ -40,16 +40,15 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
     if (status) {
       whereClause.status = status as MatchStatus;
     } else {
-      // Par défaut : LIVE + UPCOMING dans les X prochaines heures + récemment terminés
+      // Par défaut : LIVE + UPCOMING + COMPLETED within last 2h only
       const futureCutoff = new Date();
       futureCutoff.setHours(futureCutoff.getHours() + hours);
-      const pastCutoff = new Date();
-      pastCutoff.setHours(pastCutoff.getHours() - 24);
+      const completedCutoff = new Date(Date.now() - 2 * 3600 * 1000); // 2 hours ago
 
       whereClause.OR = [
         { status: 'LIVE' },
         { status: 'UPCOMING', scheduledAt: { lte: futureCutoff } },
-        { status: 'COMPLETED', scheduledAt: { gte: pastCutoff } },
+        { status: 'COMPLETED', updatedAt: { gte: completedCutoff } },
       ];
     }
 
