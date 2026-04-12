@@ -15,14 +15,14 @@ const ZONES = {
 } as const;
 type Zone = keyof typeof ZONES;
 
-// 15-slot pattern — exact CSGOEmpire distribution: 7 KNIGHTS, 1 EMPEROR, 7 ARCHERS
-// Each slot has a unique number (1-15) displayed on the tile
+// 15-slot wheel — alternating KNIGHTS/ARCHERS visually with EMPEROR in the middle
+// Numbers MUST match backend mapping: 1-7=KNIGHTS, 8=EMPEROR, 9-15=ARCHERS
 const BASE_PATTERN: { zone: Zone; num: number }[] = [
-  { zone: 'KNIGHTS', num: 1 },  { zone: 'ARCHERS', num: 2 },  { zone: 'KNIGHTS', num: 3 },
-  { zone: 'ARCHERS', num: 4 },  { zone: 'KNIGHTS', num: 5 },  { zone: 'ARCHERS', num: 6 },
-  { zone: 'KNIGHTS', num: 7 },  { zone: 'EMPEROR', num: 8 },  { zone: 'ARCHERS', num: 9 },
-  { zone: 'KNIGHTS', num: 10 }, { zone: 'ARCHERS', num: 11 }, { zone: 'KNIGHTS', num: 12 },
-  { zone: 'ARCHERS', num: 13 }, { zone: 'KNIGHTS', num: 14 }, { zone: 'ARCHERS', num: 15 },
+  { zone: 'KNIGHTS', num: 1 },  { zone: 'ARCHERS', num: 9 },  { zone: 'KNIGHTS', num: 2 },
+  { zone: 'ARCHERS', num: 10 }, { zone: 'KNIGHTS', num: 3 },  { zone: 'ARCHERS', num: 11 },
+  { zone: 'KNIGHTS', num: 4 },  { zone: 'EMPEROR', num: 8 },  { zone: 'ARCHERS', num: 12 },
+  { zone: 'KNIGHTS', num: 5 },  { zone: 'ARCHERS', num: 13 }, { zone: 'KNIGHTS', num: 6 },
+  { zone: 'ARCHERS', num: 14 }, { zone: 'KNIGHTS', num: 7 },  { zone: 'ARCHERS', num: 15 },
 ];
 
 const ITEM_W = 80;
