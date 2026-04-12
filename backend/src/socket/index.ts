@@ -32,24 +32,37 @@ interface AuthenticatedSocket extends Socket {
 
 const URL_REGEX = /https?:\/\/[^\s]+/gi;
 
-// Per-user chat rate limiting: max 5 messages per 5 seconds
-const chatRateMap = new Map<string, { count: number; resetAt: number }>();
-function isRateLimited(userId: string): boolean {
+// Per-user chat anti-spam: rate limiting + duplicate detection
+const chatSpamMap = new Map<string, { count: number; resetAt: number; lastMsgs: string[]; warnCount: number }>();
+function isSpam(userId: string, message: string, isStaff: boolean): string | null {
+  if (isStaff) return null; // admins/mods bypass spam filter
   const now = Date.now();
-  const entry = chatRateMap.get(userId);
+  let entry = chatSpamMap.get(userId);
   if (!entry || now > entry.resetAt) {
-    chatRateMap.set(userId, { count: 1, resetAt: now + 5000 });
-    return false;
+    entry = { count: 0, resetAt: now + 5000, lastMsgs: [], warnCount: 0 };
+    chatSpamMap.set(userId, entry);
   }
   entry.count++;
-  if (entry.count > 5) return true;
-  return false;
+
+  // Rate limit: max 4 messages per 5 seconds
+  if (entry.count > 4) return 'Vous envoyez des messages trop rapidement.';
+
+  // Duplicate: block 3+ identical messages in a row
+  entry.lastMsgs.push(message.toLowerCase().trim());
+  if (entry.lastMsgs.length > 5) entry.lastMsgs.shift();
+  const dupes = entry.lastMsgs.filter(m => m === message.toLowerCase().trim()).length;
+  if (dupes >= 3) return 'Veuillez ne pas envoyer le meme message plusieurs fois.';
+
+  // Short message flood: block repeated 1-2 char messages
+  if (message.trim().length <= 2 && entry.count > 2) return 'Messages trop courts, veuillez ecrire des messages plus longs.';
+
+  return null;
 }
-// Clean up old entries every 60s to prevent memory leak
+// Clean up old entries every 60s
 setInterval(() => {
   const now = Date.now();
-  for (const [uid, entry] of chatRateMap) {
-    if (now > entry.resetAt) chatRateMap.delete(uid);
+  for (const [uid, entry] of chatSpamMap) {
+    if (now > entry.resetAt + 30000) chatSpamMap.delete(uid);
   }
 }, 60_000);
 
@@ -207,13 +220,15 @@ export function initSocket(httpServer: HttpServer): void {
         return;
       }
 
-      if (isRateLimited(socket.userId)) {
-        socket.emit('error', { message: 'Vous envoyez des messages trop rapidement.' });
-        return;
-      }
-
       const trimmed = (data.message || '').trim().substring(0, 200);
       if (!trimmed) return;
+
+      const isStaff = socket.isAdmin || socket.isMod || false;
+      const spamReason = isSpam(socket.userId, trimmed, isStaff);
+      if (spamReason) {
+        socket.emit('error', { message: spamReason });
+        return;
+      }
 
       const isPartner = socket.isPartner ?? (freshUser as Record<string, unknown>)?.isPartner as boolean ?? false;
       const censored = censorLinks(trimmed, isPartner, socket.isAdmin ?? false);
@@ -280,12 +295,13 @@ export function initSocket(httpServer: HttpServer): void {
       }
       const { matchId, message } = data;
       if (!matchId || !message || typeof message !== 'string') return;
-      if (isRateLimited(socket.userId)) {
-        socket.emit('error', { message: 'Vous envoyez des messages trop rapidement.' });
-        return;
-      }
       const trimmed = message.trim().substring(0, 200);
       if (!trimmed) return;
+      const matchSpamReason = isSpam(socket.userId, trimmed, socket.isAdmin || socket.isMod || false);
+      if (matchSpamReason) {
+        socket.emit('error', { message: matchSpamReason });
+        return;
+      }
 
       // Auto-join room if somehow not yet joined
       socket.join(`matchRoom:${matchId}`);
