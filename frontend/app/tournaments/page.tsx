@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Tournament, Match } from '@/types';
 import { getTournaments, getTournament } from '@/lib/api';
 import { cn } from '@/lib/utils';
-import { Calendar, Users, ChevronDown, ChevronUp, Trophy, RefreshCw, AlertTriangle, ExternalLink, Zap, Search } from 'lucide-react';
+import { Calendar, Users, ChevronDown, ChevronUp, Trophy, RefreshCw, AlertTriangle, Zap, Search } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useT } from '@/lib/i18n';
 
@@ -78,7 +78,10 @@ function TournamentCard({ tournament }: { tournament: Tournament & { _count?: { 
   const { t } = useT();
 
   const handleToggle = async () => {
-    if (!expanded && matches.length === 0) {
+    const willExpand = !expanded;
+    setExpanded(willExpand);
+    // Load matches only on first expand (cached after that)
+    if (willExpand && matches.length === 0 && matchCount > 0) {
       setLoadingMatches(true);
       try {
         const res = await getTournament(tournament.id);
@@ -87,7 +90,6 @@ function TournamentCard({ tournament }: { tournament: Tournament & { _count?: { 
         setLoadingMatches(false);
       }
     }
-    setExpanded(!expanded);
   };
 
   const isActive  = tournament.isActive;
@@ -168,18 +170,6 @@ function TournamentCard({ tournament }: { tournament: Tournament & { _count?: { 
                 style={{ background: 'rgba(74,69,112,0.08)', border: '1px solid rgba(74,69,112,0.15)' }}>
                 TERMINÉ
               </span>
-            )}
-
-            {tournament.liquipediaUrl && (
-              <a
-                href={tournament.liquipediaUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={e => e.stopPropagation()}
-                className="text-[#4a4570] hover:text-[#9990b8] transition-colors"
-              >
-                <ExternalLink size={13} />
-              </a>
             )}
 
             {expanded ? <ChevronUp size={14} className="text-[#6b6488]" /> : <ChevronDown size={14} className="text-[#6b6488]" />}
