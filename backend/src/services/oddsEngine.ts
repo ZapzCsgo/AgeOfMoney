@@ -335,20 +335,22 @@ export function calculateOddsV2(input: OddsInputV2): OddsResult {
   let oddsDraw: number | undefined;
   let probDraw: number | undefined;
   if (boNum % 2 === 0) {
-    // Calculate draw probability based on single-game win prob
+    // Calculate true draw probability using binomial distribution
+    // BO2 with equal players: P(draw) = 50%, BO4: P(draw) = 37.5%
     probDraw = calculateDrawProbability(prob1, boNum);
-    // Ensure draw prob is reasonable (5%-40% range for BO2, tighter for BO4+)
-    const maxDraw = boNum === 2 ? 0.40 : 0.30;
-    probDraw = Math.min(maxDraw, Math.max(0.05, probDraw));
+    // Minimum 5% draw chance (very lopsided matchups)
+    probDraw = Math.max(0.05, probDraw);
     // Redistribute: scale down p1/p2 so p1+p2+pDraw = 1
     const winTotal = 1 - probDraw;
     const ratio = prob1 / (prob1 + prob2);
     prob1 = winTotal * ratio;
     prob2 = winTotal * (1 - ratio);
-    // Apply margin to all three
-    odds1 = Math.min(MAX_ODDS, Math.max(MIN_ODDS, Math.round((1 / prob1) * (1 - HOUSE_MARGIN / 2) * 100) / 100));
-    odds2 = Math.min(MAX_ODDS, Math.max(MIN_ODDS, Math.round((1 / prob2) * (1 - HOUSE_MARGIN / 2) * 100) / 100));
-    oddsDraw = Math.min(MAX_ODDS, Math.max(MIN_ODDS, Math.round((1 / probDraw) * (1 - HOUSE_MARGIN / 2) * 100) / 100));
+    // Apply HIGHER margin for 3-way market (10% overround total instead of 7%)
+    const threeWayMargin = 0.10;
+    const marginPerOdds = threeWayMargin / 3;
+    odds1 = Math.min(MAX_ODDS, Math.max(MIN_ODDS, Math.round((1 / prob1) * (1 - marginPerOdds) * 100) / 100));
+    odds2 = Math.min(MAX_ODDS, Math.max(MIN_ODDS, Math.round((1 / prob2) * (1 - marginPerOdds) * 100) / 100));
+    oddsDraw = Math.min(MAX_ODDS, Math.max(MIN_ODDS, Math.round((1 / probDraw) * (1 - marginPerOdds) * 100) / 100));
   }
 
   const impliedProb1 = 1 / odds1;

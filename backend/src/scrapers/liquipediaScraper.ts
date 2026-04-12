@@ -646,7 +646,7 @@ export async function scrapeUpcomingMatches(): Promise<void> {
         let oddsDraw: number | null = null;
         if (formatAllowsDraw(m.format)) {
           const boNum = parseInt(m.format.replace(/\D/g, ''), 10);
-          const drawProb = Math.min(0.40, Math.max(0.05, calculateDrawProbability(prob1, boNum)));
+          const drawProb = Math.max(0.05, calculateDrawProbability(prob1, boNum));
           oddsDraw = parseFloat(Math.max(1.05, (1 / drawProb) * (1 - margin)).toFixed(2));
         }
 
