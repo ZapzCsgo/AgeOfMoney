@@ -126,25 +126,12 @@ export default function RoulettePage() {
       if (rd?.status === 'BETTING') setPhase('betting');
       else if (rd?.status === 'SPINNING') {
         setPhase('spinning');
-        setTimeout(() => {
-          if (wheelRef.current && !hasAnimatedRef.current) {
-            wheelRef.current.style.transition = 'none';
-            wheelRef.current.style.transform = 'translateX(0px)';
-          }
-        }, 50);
       } else if (rd?.status === 'COMPLETED') {
         setPhase('result');
         setWinZone(rd.winZone);
       } else {
         setPhase('idle');
       }
-      // Always ensure wheel is visible on mount
-      setTimeout(() => {
-        if (wheelRef.current) {
-          wheelRef.current.style.transition = 'none';
-          wheelRef.current.style.transform = 'translateX(0px)';
-        }
-      }, 100);
     }
     if (h.status === 'fulfilled') setHistory(h.value.data.data ?? []);
   }, []);
