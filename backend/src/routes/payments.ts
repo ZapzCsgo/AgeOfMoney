@@ -11,7 +11,7 @@ const router = Router();
 // ── Rates ──────────────────────────────────────────────────────────────────────
 const DEPOSIT_RATE  = 1.69;   // $1 = 1.69 coins
 const WITHDRAW_RATE = 0.585;  // 1 coin = $0.585 (1.69 coins = $0.99)
-const MIN_DEPOSIT   = 1;      // $1 minimum
+const MIN_DEPOSIT   = 5;      // $5 minimum (NOWPayments requires minimum crypto amounts)
 const MIN_WITHDRAW  = 169;    // 169 coins minimum (= $0.99)
 
 // ── Affiliate tier progression ─────────────────────────────────────────────────
