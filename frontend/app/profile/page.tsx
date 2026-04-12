@@ -484,7 +484,8 @@ export default function ProfilePage() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [rouletteBets, setRouletteBets] = useState<RouletteBetHistory[]>([]);
   const [historyFilter, setHistoryFilter] = useState<'all' | 'match' | 'roulette'>('all');
-  const [loading, setLoading]     = useState(false);
+  const [loading, setLoading]     = useState(true);
+  const [dataLoaded, setDataLoaded] = useState(false);
   const [profileBio, setProfileBio] = useState('');
   const [profileCreatedAt, setProfileCreatedAt] = useState<string | null>(null);
   const [publicProfile, setPublicProfile] = useState<PublicProfile | null>(null);
@@ -502,18 +503,24 @@ export default function ProfilePage() {
       .finally(() => setPublicLoading(false));
   }, [viewId, isViewingOther]);
 
-  const fetchProfileData = useCallback(() => {
-    if (!session || isViewingOther) return;
-    setLoading(true);
+  const fetchProfileData = useCallback(async () => {
+    if (!session || isViewingOther) { setLoading(false); return; }
     if (session.user.accessToken) setAuthToken(session.user.accessToken);
+
+    // Phase 1: fetch user profile (fast — shows header immediately)
+    try {
+      const meRes = await apiClient.get('/users/me').catch(() => null);
+      if (meRes?.data?.data?.bio != null) setProfileBio(meRes.data.data.bio ?? '');
+      if (meRes?.data?.data?.createdAt) setProfileCreatedAt(meRes.data.data.createdAt as string);
+    } catch { /* ignore */ }
+    setLoading(false);
+
+    // Phase 2: fetch heavy data in background (bets, leaderboard, roulette)
     Promise.all([
       getMyBets({ limit: 50 }).catch(() => null),
       getLeaderboard().catch(() => null),
       apiClient.get('/roulette/my').catch(() => null),
-      apiClient.get('/users/me').catch(() => null),
-    ]).then(([betsRes, lbRes, rouRes, meRes]) => {
-      if (meRes?.data?.data?.bio != null) setProfileBio(meRes.data.data.bio ?? '');
-      if (meRes?.data?.data?.createdAt) setProfileCreatedAt(meRes.data.data.createdAt as string);
+    ]).then(([betsRes, lbRes, rouRes]) => {
       if (betsRes) {
         setBets(betsRes.data);
         setBetsTotal(betsRes.total);
@@ -521,17 +528,18 @@ export default function ProfilePage() {
       }
       if (lbRes) setLeaderboard(lbRes.data);
       if (rouRes) setRouletteBets(rouRes.data.data ?? []);
-    }).finally(() => setLoading(false));
+      setDataLoaded(true);
+    });
   }, [session, isViewingOther]);
 
   useEffect(() => { fetchProfileData(); }, [fetchProfileData]);
 
-  // Refetch on tab focus (e.g. after betting on another tab)
+  // Refetch on tab focus
   useEffect(() => {
-    const onFocus = () => fetchProfileData();
+    const onFocus = () => { if (dataLoaded) fetchProfileData(); };
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
-  }, [fetchProfileData]);
+  }, [fetchProfileData, dataLoaded]);
 
   if (status === 'loading') {
     return (

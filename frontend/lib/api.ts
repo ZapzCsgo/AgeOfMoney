@@ -14,7 +14,7 @@ const apiClient: AxiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000,
+  timeout: 6000,
 });
 
 // Add auth token to every request if available
@@ -124,9 +124,16 @@ export async function getUserProfile(): Promise<ApiResponse<User>> {
   return res.data as ApiResponse<User>;
 }
 
+// Simple in-memory cache for leaderboard (changes slowly, expensive to fetch)
+let lbCache: { data: ApiResponse<LeaderboardEntry[]>; ts: number } | null = null;
+const LB_CACHE_TTL = 60_000; // 1 minute
+
 export async function getLeaderboard(): Promise<ApiResponse<LeaderboardEntry[]>> {
+  if (lbCache && Date.now() - lbCache.ts < LB_CACHE_TTL) return lbCache.data;
   const res = await apiClient.get('/users/leaderboard');
-  return res.data as ApiResponse<LeaderboardEntry[]>;
+  const data = res.data as ApiResponse<LeaderboardEntry[]>;
+  lbCache = { data, ts: Date.now() };
+  return data;
 }
 
 export async function getWeeklyLeaderboard(): Promise<ApiResponse<WeeklyLeaderboardEntry[]> & { weekStart: string }> {
