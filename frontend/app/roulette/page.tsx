@@ -169,7 +169,8 @@ export default function RoulettePage() {
       setWinZone(null); setUserWon(null); setPayout(null); setDisplayedPayout(0);
       setPhase('betting'); wololoPlayedRef.current = false;
       setFairnessRound(prev => prev ? { ...prev, roundHash: d.roundHash, serverSeed: null, result: null, winZone: null } : null);
-      resetWheel(); fetchAll();
+      // Don't reset wheel here — keep showing last result until next spin
+      fetchAll();
       // Schedule Wololo 150ms before spin
       const msUntilSpin = new Date(d.endsAt).getTime() - Date.now() - 150;
       if (msUntilSpin > 0) {
@@ -232,6 +233,8 @@ export default function RoulettePage() {
 
   function animateSpin(wz: Zone, resultNum?: number) {
     if (!wheelRef.current) return;
+    // Reset wheel position before starting new spin
+    resetWheel();
     hasAnimatedRef.current = true;
     if (tickIntervalRef.current) clearInterval(tickIntervalRef.current);
     setAnticipation(false);
