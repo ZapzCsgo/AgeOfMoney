@@ -96,16 +96,26 @@ function TournamentCard({ tournament }: { tournament: Tournament & { _count?: { 
   const tier = tournament.tier ?? 'C';
   const tierStyle = TIER_STYLE[tier] ?? TIER_STYLE.C;
 
+  // Visual status
+  const isOngoing = isActive && hasStarted;
+  const isUpcoming = !hasStarted;
+  const isFinished = !isActive || (hasStarted && !isOngoing);
+  const statusColor = isOngoing ? '#10b981' : isUpcoming ? '#60a5fa' : '#3d3860';
+
   return (
     <div
-      className="rounded-lg border overflow-hidden transition-colors"
+      className="rounded-lg border overflow-hidden transition-colors relative"
       style={{
-        background: '#0d0b1a',
-        borderColor: isActive && hasStarted ? tierStyle.border : '#1e1a30',
+        background: isFinished ? '#0a0918' : '#0d0b1a',
+        borderColor: isOngoing ? statusColor + '50' : isUpcoming ? '#1e1a30' : '#151325',
+        opacity: isFinished ? 0.7 : 1,
       }}
     >
+      {/* Left status bar */}
+      <div className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: statusColor }} />
+
       <button onClick={handleToggle} className="w-full text-left">
-        <div className="flex items-center gap-4 px-4 py-3.5">
+        <div className="flex items-center gap-4 px-4 py-3.5 pl-5">
           {/* Tier badge */}
           <div
             className="shrink-0 w-8 h-8 rounded flex items-center justify-center text-[11px] font-black"
@@ -117,7 +127,7 @@ function TournamentCard({ tournament }: { tournament: Tournament & { _count?: { 
           {/* Info */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
-              <h3 className="text-[13px] font-semibold text-[#e8e2f5] truncate">{tournament.name}</h3>
+              <h3 className={cn("text-[13px] font-semibold truncate", isFinished ? 'text-[#8880a8]' : 'text-[#e8e2f5]')}>{tournament.name}</h3>
               {tournament.game && (
                 <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded font-bold tracking-wide"
                   style={{ background: 'rgba(212,160,23,0.08)', color: '#d4a017', border: '1px solid rgba(212,160,23,0.15)' }}>
@@ -129,6 +139,7 @@ function TournamentCard({ tournament }: { tournament: Tournament & { _count?: { 
               <span className="flex items-center gap-1">
                 <Calendar size={10} />
                 {formatDate(tournament.startDate)}
+                {tournament.endDate && ` → ${formatDate(tournament.endDate)}`}
               </span>
               {matchCount > 0 && (
                 <span className="flex items-center gap-1">
@@ -141,18 +152,21 @@ function TournamentCard({ tournament }: { tournament: Tournament & { _count?: { 
 
           {/* Status + chevron */}
           <div className="flex items-center gap-3 shrink-0">
-            {isActive && hasStarted ? (
-              <span className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-400">
+            {isOngoing ? (
+              <span className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold text-emerald-400"
+                style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)' }}>
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                {t('tourn_active').toUpperCase()}
+                EN COURS
               </span>
-            ) : !hasStarted ? (
-              <span className="text-[10px] font-bold text-[#60a5fa]">
-                {t('tourn_upcoming').toUpperCase()}
+            ) : isUpcoming ? (
+              <span className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold text-[#60a5fa]"
+                style={{ background: 'rgba(96,165,250,0.08)', border: '1px solid rgba(96,165,250,0.2)' }}>
+                À VENIR
               </span>
             ) : (
-              <span className="text-[10px] text-[#4a4570]">
-                {t('tourn_finished').toUpperCase()}
+              <span className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold text-[#4a4570]"
+                style={{ background: 'rgba(74,69,112,0.08)', border: '1px solid rgba(74,69,112,0.15)' }}>
+                TERMINÉ
               </span>
             )}
 
