@@ -24,7 +24,8 @@
  */
 
 // ── Constants ──────────────────────────────────────────────────────────────────
-const HOUSE_MARGIN = 0.07;  // 7% overround (esports niche standard)
+const HOUSE_MARGIN_2WAY = 0.06;  // 6% overround for 2-way markets (BO3/5/7)
+const HOUSE_MARGIN_3WAY = 0.10;  // 10% overround for 3-way markets (BO2/4 with draw)
 const MIN_ODDS = 1.05;
 const MAX_ODDS = 20.0;
 
@@ -322,9 +323,10 @@ export function calculateOddsV2(input: OddsInputV2): OddsResult {
   prob1 = Math.min(maxProb, Math.max(minProb, prob1));
   let prob2 = 1 - prob1;
 
-  // ── House margin (7% overround, proportional split) ─────────────────────
-  let odds1 = (1 / prob1) * (1 - HOUSE_MARGIN / 2);
-  let odds2 = (1 / prob2) * (1 - HOUSE_MARGIN / 2);
+  // ── House margin (6% overround for 2-way) ───────────────────────────────
+  // Formula: odds = 1 / (prob * (1 + margin)) → ensures overround = margin
+  let odds1 = 1 / (prob1 * (1 + HOUSE_MARGIN_2WAY));
+  let odds2 = 1 / (prob2 * (1 + HOUSE_MARGIN_2WAY));
 
   odds1 = Math.min(MAX_ODDS, Math.max(MIN_ODDS, Math.round(odds1 * 100) / 100));
   odds2 = Math.min(MAX_ODDS, Math.max(MIN_ODDS, Math.round(odds2 * 100) / 100));
@@ -345,12 +347,10 @@ export function calculateOddsV2(input: OddsInputV2): OddsResult {
     const ratio = prob1 / (prob1 + prob2);
     prob1 = winTotal * ratio;
     prob2 = winTotal * (1 - ratio);
-    // Apply HIGHER margin for 3-way market (10% overround total instead of 7%)
-    const threeWayMargin = 0.10;
-    const marginPerOdds = threeWayMargin / 3;
-    odds1 = Math.min(MAX_ODDS, Math.max(MIN_ODDS, Math.round((1 / prob1) * (1 - marginPerOdds) * 100) / 100));
-    odds2 = Math.min(MAX_ODDS, Math.max(MIN_ODDS, Math.round((1 / prob2) * (1 - marginPerOdds) * 100) / 100));
-    oddsDraw = Math.min(MAX_ODDS, Math.max(MIN_ODDS, Math.round((1 / probDraw) * (1 - marginPerOdds) * 100) / 100));
+    // Apply 3-way margin (10% overround)
+    odds1 = Math.min(MAX_ODDS, Math.max(MIN_ODDS, Math.round(1 / (prob1 * (1 + HOUSE_MARGIN_3WAY)) * 100) / 100));
+    odds2 = Math.min(MAX_ODDS, Math.max(MIN_ODDS, Math.round(1 / (prob2 * (1 + HOUSE_MARGIN_3WAY)) * 100) / 100));
+    oddsDraw = Math.min(MAX_ODDS, Math.max(MIN_ODDS, Math.round(1 / (probDraw * (1 + HOUSE_MARGIN_3WAY)) * 100) / 100));
   }
 
   const impliedProb1 = 1 / odds1;
