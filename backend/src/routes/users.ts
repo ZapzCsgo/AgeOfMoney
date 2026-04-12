@@ -296,9 +296,19 @@ router.post('/:id/tip', requireAuth, async (req: Request, res: Response): Promis
   }
 });
 
+// Leaderboard cache (expensive query, refreshed every 60s)
+let lbCache: { data: unknown; ts: number } | null = null;
+const LB_CACHE_TTL = 60_000;
+
 // GET /leaderboard - All-time top users by totalWagered
 router.get('/leaderboard', async (_req: Request, res: Response): Promise<void> => {
   try {
+    if (lbCache && Date.now() - lbCache.ts < LB_CACHE_TTL) {
+      res.set('Cache-Control', 'public, max-age=60');
+      res.json(lbCache.data);
+      return;
+    }
+
     const users = await prisma.user.findMany({
       where: { isBanned: false },
       orderBy: { totalWagered: 'desc' },
@@ -314,7 +324,10 @@ router.get('/leaderboard', async (_req: Request, res: Response): Promise<void> =
       },
     });
 
-    res.json({ data: users });
+    const result = { data: users };
+    lbCache = { data: result, ts: Date.now() };
+    res.set('Cache-Control', 'public, max-age=60');
+    res.json(result);
   } catch (error) {
     logger.error('GET /users/leaderboard error:', error);
     res.status(500).json({ error: 'Failed to fetch leaderboard' });

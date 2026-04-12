@@ -7,9 +7,10 @@ import { useSession } from 'next-auth/react';
 import { useT } from '@/lib/i18n';
 import { Match, Tournament } from '@/types';
 import { getMatches, placeBet, getTournaments } from '@/lib/api';
-import { Particles } from '@/components/magicui/particles';
-import { GridPattern } from '@/components/magicui/grid-pattern';
-import { Meteors } from '@/components/magicui/meteors';
+import dynamic from 'next/dynamic';
+const Particles = dynamic(() => import('@/components/magicui/particles').then(m => ({ default: m.Particles })), { ssr: false });
+const GridPattern = dynamic(() => import('@/components/magicui/grid-pattern').then(m => ({ default: m.GridPattern })), { ssr: false });
+const Meteors = dynamic(() => import('@/components/magicui/meteors').then(m => ({ default: m.Meteors })), { ssr: false });
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import {

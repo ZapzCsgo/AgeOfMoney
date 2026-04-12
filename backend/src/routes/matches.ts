@@ -7,6 +7,10 @@ import logger from '../logger';
 
 const router = Router();
 
+// Simple in-memory cache for match list (invalidated every 10s)
+let matchListCache: { key: string; data: unknown; ts: number } | null = null;
+const MATCH_CACHE_TTL = 10_000; // 10 seconds
+
 const matchQuerySchema = z.object({
   status: z.enum(['UPCOMING', 'LIVE', 'COMPLETED', 'CANCELLED', 'POSTPONED']).optional(),
   tournamentId: z.string().optional(),
@@ -24,6 +28,12 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
     }
 
     const { status, tournamentId, limit, offset, hours } = query.data;
+
+    // Serve from cache for default queries (home page polls every 30s)
+    if (!status && !tournamentId && offset === 0 && matchListCache && matchListCache.key === `${limit}_${hours}` && Date.now() - matchListCache.ts < MATCH_CACHE_TTL) {
+      res.json(matchListCache.data);
+      return;
+    }
 
     const whereClause: Record<string, unknown> = {};
 
@@ -132,12 +142,12 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
       };
     });
 
-    res.json({
-      data: matchesWithVolume,
-      total,
-      limit,
-      offset,
-    });
+    const result = { data: matchesWithVolume, total, limit, offset };
+    // Cache the default query (most common)
+    if (!status && !tournamentId && offset === 0) {
+      matchListCache = { key: `${limit}_${hours}`, data: result, ts: Date.now() };
+    }
+    res.json(result);
   } catch (error) {
     logger.error('GET /matches error:', error);
     res.status(500).json({ error: 'Failed to fetch matches' });

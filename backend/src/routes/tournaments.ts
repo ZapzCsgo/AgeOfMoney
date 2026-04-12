@@ -4,9 +4,18 @@ import logger from '../logger';
 
 const router = Router();
 
+// Cache active tournaments (changes only when scrapers run)
+let tournCache: { data: unknown; ts: number } | null = null;
+const TOURN_CACHE_TTL = 30_000; // 30 seconds
+
 router.get('/', async (req: Request, res: Response): Promise<void> => {
   try {
     const isActive = req.query.active !== undefined ? req.query.active === 'true' : undefined;
+    // Serve from cache for active tournament queries (home page)
+    if (isActive && tournCache && Date.now() - tournCache.ts < TOURN_CACHE_TTL) {
+      res.json(tournCache.data);
+      return;
+    }
     const tier = req.query.tier as string | undefined;
     const limit = Math.min(parseInt(req.query.limit as string || '20'), 100);
     const offset = parseInt(req.query.offset as string || '0');
@@ -38,7 +47,10 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
       prisma.tournament.count({ where: whereClause }),
     ]);
 
-    res.json({ data: tournaments, total, limit, offset });
+    const result = { data: tournaments, total, limit, offset };
+    if (isActive) tournCache = { data: result, ts: Date.now() };
+    res.set('Cache-Control', 'public, max-age=30');
+    res.json(result);
   } catch (error) {
     logger.error('GET /tournaments error:', error);
     res.status(500).json({ error: 'Failed to fetch tournaments' });

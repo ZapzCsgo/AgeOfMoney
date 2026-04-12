@@ -34,6 +34,8 @@ model User {
   rouletteBets  RouletteBet[]
 
   @@unique([provider, providerId])
+  @@index([totalWagered])
+  @@index([isBanned])
 }
 
 model Player {
