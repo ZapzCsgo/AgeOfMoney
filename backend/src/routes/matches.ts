@@ -99,7 +99,7 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
           },
         },
         orderBy: { scheduledAt: 'asc' },
-        take: limit,
+        take: Math.max(limit, 50), // fetch more to ensure LIVE/UPCOMING aren't cut off by COMPLETED
         skip: offset,
       }),
       prisma.match.count({ where: whereClause }),
@@ -142,7 +142,20 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
       };
     });
 
-    const result = { data: matchesWithVolume, total, limit, offset };
+    // Sort: LIVE first, then UPCOMING, then COMPLETED/CANCELLED
+    const statusOrder: Record<string, number> = { LIVE: 0, UPCOMING: 1, COMPLETED: 2, CANCELLED: 3, POSTPONED: 4 };
+    matchesWithVolume.sort((a, b) => {
+      const sa = statusOrder[a.status] ?? 9;
+      const sb = statusOrder[b.status] ?? 9;
+      if (sa !== sb) return sa - sb;
+      // Within same status: upcoming by soonest, completed by most recent
+      if (a.status === 'UPCOMING') return new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime();
+      return new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime();
+    });
+
+    // Trim to requested limit
+    const trimmed = matchesWithVolume.slice(0, limit);
+    const result = { data: trimmed, total, limit, offset };
     // Cache the default query (most common)
     if (!status && !tournamentId && offset === 0) {
       matchListCache = { key: `${limit}_${hours}`, data: result, ts: Date.now() };
