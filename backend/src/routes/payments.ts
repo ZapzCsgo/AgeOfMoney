@@ -359,21 +359,20 @@ router.post('/crypto/withdraw', requireAuth, async (req: Request, res: Response)
       res.status(400).json({ error: 'Adresse de retrait invalide' }); return;
     }
 
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user || user.coins < coinsInt) {
-      res.status(400).json({ error: 'Solde insuffisant' }); return;
-    }
-
     const usdAmount = parseFloat((coinsInt * WITHDRAW_RATE).toFixed(2));
     const currency  = CRYPTO_MAP[cryptoId].currency;
 
-    // Debit coins immediately
-    await prisma.$transaction([
-      prisma.user.update({
+    // Atomic transaction: re-check balance inside to prevent race conditions
+    await prisma.$transaction(async (tx) => {
+      const freshUser = await tx.user.findUnique({ where: { id: userId }, select: { coins: true } });
+      if (!freshUser || freshUser.coins < coinsInt) {
+        throw new Error('Solde insuffisant');
+      }
+      await tx.user.update({
         where: { id: userId },
         data:  { coins: { decrement: coinsInt } },
-      }),
-      prisma.transaction.create({
+      });
+      await tx.transaction.create({
         data: {
           userId,
           type:       'withdrawal',
@@ -382,8 +381,8 @@ router.post('/crypto/withdraw', requireAuth, async (req: Request, res: Response)
           coins:      -coinsInt,
           status:     'pending',
         },
-      }),
-    ]);
+      });
+    });
 
     // Initiate payout via NOWPayments
     try {

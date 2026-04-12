@@ -74,18 +74,21 @@ router.get('/me', requireAuth, async (req: Request, res: Response): Promise<void
 router.post('/claim', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id;
-    const aff = await prisma.affiliateCode.findUnique({ where: { userId } });
-    if (!aff || aff.available <= 0) {
+    // Atomic transaction to prevent double-claim race condition
+    const claimed = await prisma.$transaction(async (tx) => {
+      const freshAff = await tx.affiliateCode.findUnique({ where: { userId } });
+      if (!freshAff || freshAff.available <= 0) return 0;
+      await tx.user.update({ where: { id: userId }, data: { coins: { increment: freshAff.available } } });
+      await tx.affiliateCode.update({ where: { userId }, data: { available: 0 } });
+      return freshAff.available;
+    });
+
+    if (claimed === 0) {
       res.status(400).json({ error: 'Aucune commission disponible' });
       return;
     }
 
-    await prisma.$transaction([
-      prisma.user.update({ where: { id: userId }, data: { coins: { increment: aff.available } } }),
-      prisma.affiliateCode.update({ where: { userId }, data: { available: 0 } }),
-    ]);
-
-    res.json({ ok: true, claimed: aff.available });
+    res.json({ ok: true, claimed });
   } catch (err) {
     logger.error('POST /affiliate/claim error:', err);
     res.status(500).json({ error: 'Failed to claim earnings' });

@@ -159,10 +159,9 @@ export function ChatPanel() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, []);
 
+  // Socket event listeners — attached once, reconnection handled separately
   useEffect(() => {
-    const token = session?.user?.accessToken;
-    connectSocket(token);
-    const s = getSocket(token);
+    const s = getSocket();
 
     const onConnect    = () => setConnected(true);
     const onDisconnect = () => setConnected(false);
@@ -195,6 +194,17 @@ export function ChatPanel() {
       s.off('chatUnmuted', onChatUnmuted);
       s.off('chatSystem',  onChatSystem);
     };
+  }, []);
+
+  // Connect/reconnect with auth token when session changes
+  useEffect(() => {
+    const token = session?.user?.accessToken;
+    if (!token) return;
+    connectSocket(token);
+    // After reconnect, check connected state
+    const s = getSocket();
+    const checkConnected = () => setConnected(s.connected);
+    setTimeout(checkConnected, 500);
   }, [session?.user?.accessToken]);
 
   useEffect(() => {

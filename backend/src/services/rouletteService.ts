@@ -216,16 +216,23 @@ export async function placeBet(userId: string, zone: Zone, amount: number): Prom
   if (!user) return { ok: false, error: 'User not found' };
   if (user.isBanned) return { ok: false, error: 'Account banned' };
   if (user.coins < amount) return { ok: false, error: 'Insufficient coins' };
-  const [, updatedUser] = await Promise.all([
-    existing
-      ? prisma.rouletteBet.update({ where: { id: existing.id }, data: { amount: { increment: amount } } })
-      : prisma.rouletteBet.create({ data: { roundId: currentRoundId, userId, zone, amount } }),
-    prisma.user.update({
+
+  // Atomic transaction to prevent race conditions (double-spend)
+  const updatedUser = await prisma.$transaction(async (tx) => {
+    const freshUser = await tx.user.findUnique({ where: { id: userId }, select: { coins: true } });
+    if (!freshUser || freshUser.coins < amount) throw new Error('Insufficient coins');
+
+    if (existing) {
+      await tx.rouletteBet.update({ where: { id: existing.id }, data: { amount: { increment: amount } } });
+    } else {
+      await tx.rouletteBet.create({ data: { roundId: currentRoundId!, userId, zone, amount } });
+    }
+    return tx.user.update({
       where: { id: userId },
       data: { coins: { decrement: amount }, totalWagered: { increment: amount } },
       select: { coins: true },
-    }),
-  ]);
+    });
+  });
 
   // Broadcast updated bets
   const io = getIo();

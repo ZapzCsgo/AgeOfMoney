@@ -113,6 +113,14 @@ export async function placeBet(
       throw new Error('Insufficient coins');
     }
 
+    // Re-check max bets inside transaction to prevent race condition
+    const txBetCount = await tx.bet.count({
+      where: { userId, matchId, status: { notIn: [BetStatus.CANCELLED, BetStatus.REFUNDED] } },
+    });
+    if (txBetCount >= MAX_BETS_PER_MATCH) {
+      throw new Error(`Maximum ${MAX_BETS_PER_MATCH} bets per match reached`);
+    }
+
     // Deduct coins
     await tx.user.update({
       where: { id: userId },
