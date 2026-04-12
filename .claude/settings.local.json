@@ -59,7 +59,14 @@
       "Bash(node -e \"const d=require\\('fs'\\).readFileSync\\('c:/Users/mmurr/Documents/aoe4/backend/tmp_wikitext.json','utf8'\\); const j=JSON.parse\\(d\\); const wt=j.parse?.wikitext?.['*']??''; const idx=wt.indexOf\\('Barles'\\); console.log\\('Found Barles at index:', idx\\); if\\(idx>-1\\) console.log\\(wt.slice\\(Math.max\\(0,idx-300\\), idx+500\\)\\)\")",
       "Bash(curl -s \"https://liquipedia.net/ageofempires/Brazilian_Dynasty/International_Qualifier/1?action=raw\" -H \"User-Agent: AgeOfMoney/1.0\" -o \"c:/Users/mmurr/Documents/aoe4/backend/tmp_wikitext.txt\")",
       "Bash(node -e \"const wt=require\\('fs'\\).readFileSync\\('c:/Users/mmurr/Documents/aoe4/backend/tmp_wikitext.txt','utf8'\\); const idx=wt.indexOf\\('Barles'\\); console.log\\('Barles at:', idx\\); if\\(idx>-1\\) console.log\\(wt.slice\\(Math.max\\(0,idx-200\\), idx+400\\)\\)\")",
-      "Bash(curl -s \"https://liquipedia.net/ageofempires/AOE_League_Spring_Cup_2026/League_1?action=raw\" -H \"User-Agent: AgeOfMoney/1.0\" -o \"c:/Users/mmurr/Documents/aoe4/backend/tmp_aoe_spring.txt\")"
+      "Bash(curl -s \"https://liquipedia.net/ageofempires/AOE_League_Spring_Cup_2026/League_1?action=raw\" -H \"User-Agent: AgeOfMoney/1.0\" -o \"c:/Users/mmurr/Documents/aoe4/backend/tmp_aoe_spring.txt\")",
+      "Bash(curl -s \"http://localhost:4000/api/v1/tournaments?active=true&limit=50\")",
+      "Bash(node -e \"process.stdin.setEncoding\\('utf8'\\);let d='';process.stdin.on\\('data',c=>d+=c\\);process.stdin.on\\('end',\\(\\)=>{const j=JSON.parse\\(d\\);j.data.filter\\(t=>t.name.toLowerCase\\(\\).includes\\('warlord'\\)\\).forEach\\(t=>console.log\\(t.name,'|',t.game,'|',t.liquipediaUrl\\)\\)}\\)\")",
+      "Bash(grep -r \"findMany\\\\|findFirst\" src/routes/*.ts)",
+      "Bash(grep -n \"transaction\\\\|prisma\\\\.\\\\$\" src/services/betService.ts)",
+      "Bash(grep -n \"requireAuth\\\\|requireAdmin\" src/routes/*.ts)",
+      "Bash(grep -E \"^router\\\\.\\(post|put|patch|delete\\)\\\\\\(\" src/routes/*.ts)",
+      "Bash(curl -s \"https://ageof.money/api/v1/matches?status=UPCOMING&limit=5\")"
     ],
     "additionalDirectories": [
       "\\tmp"

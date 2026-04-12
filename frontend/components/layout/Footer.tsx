@@ -102,8 +102,69 @@ function PrivacyModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+const TOS_SECTIONS = [
+  { title: '1. Acceptation des Conditions', content: 'En accedant ou en utilisant les Services, l\'Utilisateur accepte d\'etre lie par cet Accord. L\'Utilisateur certifie qu\'il a au moins 18 ans.' },
+  { title: '2. Monnaie Virtuelle', content: 'Tous les credits en jeu (coins ⚜) n\'ont aucune valeur monetaire reelle. Les coins sont destines au divertissement uniquement. Partage de compte, transfert de compte et multi-compte sont strictement interdits.' },
+  { title: '3. Achats et Depots', content: 'Les achats sont definitifs et ne peuvent etre rembourses. Depots/retraits crypto sont definitifs. AgeOfMoney n\'est pas responsable des transferts sur mauvais reseau. Taux : 1 USD = 1.69 coins ⚜ / 1.69 ⚜ = 0.99 USD.' },
+  { title: '4. Programme d\'Affiliation', content: 'Les retraits du programme d\'affiliation sont bases sur les commissions de parrainage uniquement. AgeOfMoney se reserve le droit de modifier ou desactiver le programme.' },
+  { title: '5. Jeux et Paris', content: 'Les cotes sont calculees automatiquement. Les paris ferment au debut du match. Forfait = remboursement. Egalite (BO pairs) = paris draw gagnent. La roulette utilise un systeme Provably Fair.' },
+  { title: '6. Jeu Responsable', content: 'Options d\'auto-exclusion disponibles. Politique stricte 18+. Mesures anti-abus en place.' },
+  { title: '7. Absence de Garanties', content: 'Le site est fourni "tel quel". AgeOfMoney ne garantit pas un fonctionnement ininterrompu ou exempt d\'erreurs.' },
+  { title: '8. Non-affiliation', content: 'AgeOfMoney n\'est pas affilie a Xbox Game Studios, Microsoft, Steam ou Valve Corporation.' },
+  { title: '9. Limitation de Responsabilite', content: 'L\'utilisation est a vos propres risques. AgeOfMoney n\'est pas responsable des dommages indirects, fonds perdus ou comptes pirates.' },
+  { title: '10. Code de Conduite', content: 'Interdit : activites illegales, harcelement, bots/scrapers, multi-compte, vente de compte. Violation = suspension/resiliation.' },
+  { title: '11. Confidentialite', content: 'AgeOfMoney collecte les informations necessaires au fonctionnement. Jamais de vente de donnees. Voir Politique de Confidentialite pour details.' },
+  { title: '12. Modifications', content: 'AgeOfMoney se reserve le droit de modifier ces Conditions a tout moment. L\'utilisation continue apres modification vaut acceptation.' },
+];
+
+function TermsModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+      onClick={onClose}>
+      <div
+        className="relative w-full max-w-2xl max-h-[85vh] flex flex-col rounded-2xl overflow-hidden"
+        style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}
+        onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-3 px-6 py-4 shrink-0" style={{ borderBottom: '1px solid #1e1a30', background: '#09080f' }}>
+          <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: '#d4a01720', border: '1px solid #d4a01740' }}>
+            <Shield size={15} style={{ color: '#d4a017' }} />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-[15px] font-bold" style={{ color: '#e8e2f5', fontFamily: 'Cinzel, serif' }}>
+              Conditions d&apos;Utilisation
+            </h2>
+            <p className="text-[10px]" style={{ color: '#6b6488' }}>AgeOfMoney — ageof.money — Avril 2026</p>
+          </div>
+          <button onClick={onClose} className="w-7 h-7 rounded-full flex items-center justify-center transition-colors hover:bg-[#1e1a30]">
+            <X size={14} style={{ color: '#6b6488' }} />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          {TOS_SECTIONS.map(s => (
+            <div key={s.title}>
+              <h3 className="text-[13px] font-bold mb-1.5" style={{ color: '#d4a017' }}>{s.title}</h3>
+              <p className="text-[12px] leading-relaxed whitespace-pre-line" style={{ color: '#9990b8' }}>{s.content}</p>
+            </div>
+          ))}
+          <div className="rounded-xl p-4" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
+            <p className="text-[11px] leading-relaxed" style={{ color: '#6b6488' }}>
+              Pour toute question, contactez-nous a{' '}
+              <a href="mailto:support@ageofmoney.gg" className="hover:opacity-80 transition-opacity" style={{ color: '#d4a017' }}>support@ageofmoney.gg</a>
+            </p>
+          </div>
+        </div>
+        <div className="px-6 py-4 shrink-0 flex justify-end" style={{ borderTop: '1px solid #1e1a30', background: '#09080f' }}>
+          <button onClick={onClose} className="px-5 py-2 rounded-lg text-[12px] font-bold transition-all hover:opacity-90"
+            style={{ background: '#d4a017', color: '#07060f' }}>J&apos;ai compris</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function Footer() {
   const [privacyOpen, setPrivacyOpen] = useState(false);
+  const [termsOpen, setTermsOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
   const { t, lang, setLang } = useT();
 
@@ -193,9 +254,9 @@ export function Footer() {
               <h4 className="text-[11px] font-bold uppercase tracking-widest mb-4" style={{ color: '#f5c842' }}>{t('footer_about')}</h4>
               <ul className="space-y-2.5">
                 <li>
-                  <Link href="/terms" className="text-[13px] transition-colors hover:text-[#e8e2f5]" style={{ color: '#6b6488' }}>
+                  <button onClick={() => setTermsOpen(true)} className="text-[13px] transition-colors hover:text-[#e8e2f5] text-left" style={{ color: '#6b6488' }}>
                     {t('footer_terms')}
-                  </Link>
+                  </button>
                 </li>
                 <li>
                   <button onClick={() => setPrivacyOpen(true)}
@@ -275,6 +336,7 @@ export function Footer() {
       </footer>
 
       {privacyOpen && <PrivacyModal onClose={() => setPrivacyOpen(false)} />}
+      {termsOpen && <TermsModal onClose={() => setTermsOpen(false)} />}
     </>
   );
 }
