@@ -96,6 +96,7 @@ export default function RoulettePage() {
   const tickIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastTickIdx = useRef(-1);
   const wololoPlayedRef = useRef(false);
+  const spinEndsAtRef = useRef<number>(0); // timestamp when current spin animation ends
   const hasAnimatedRef = useRef(false); // true once animateSpin has been called this session
 
   const displayStrip = Array.from({ length: REPEATS }, () => BASE_PATTERN).flat();
@@ -190,33 +191,37 @@ export default function RoulettePage() {
       if (!wololoPlayedRef.current) { wololoPlayedRef.current = true; playWololo(0.3); }
     });
     s.on('roulette:result', (d: { winZone: Zone; multiplier: number; serverSeed?: string; roundHash?: string; result?: number; roundId: string; source?: 'random.org' | 'crypto' }) => {
-      if (tickIntervalRef.current) clearInterval(tickIntervalRef.current);
-      hasAnimatedRef.current = false; // reset for next round
-      setPhase('result'); setWinZone(d.winZone);
-      setFairnessRound({ id: d.roundId, roundHash: d.roundHash ?? null, serverSeed: d.serverSeed ?? null, result: d.result ?? null, winZone: d.winZone, source: d.source });
-      setRound(prev => prev ? { ...prev, status: 'COMPLETED', winZone: d.winZone } : prev);
+      // Wait for spin animation to finish before showing result
+      const remaining = spinEndsAtRef.current - Date.now();
+      const delay = Math.max(0, remaining + 300); // +300ms buffer after animation
 
-      // Check if current user won
-      setRound(prev => {
-        if (!prev) return prev;
-        const userId = (session?.user as { id?: string })?.id;
-        const myBetOnWin = prev.bets.find(b => b.zone === d.winZone && b.user.id === userId);
-        const didBet     = prev.bets.some(b => b.user.id === userId);
-        if (myBetOnWin) {
-          setUserWon(true);
-          const p = Math.floor(myBetOnWin.amount * d.multiplier);
-          setPayout(p); animatePayout(p);
-          if (d.winZone === 'EMPEROR') playEmperorWin();
-          else playWin();
-        } else if (didBet) {
-          // user bet but on wrong zone → show lost
-          setUserWon(false);
-          playLose();
-        }
-        // user didn't bet at all → leave userWon null, no animation
-        return prev;
-      });
-      fetchAll();
+      setTimeout(() => {
+        if (tickIntervalRef.current) clearInterval(tickIntervalRef.current);
+        hasAnimatedRef.current = false;
+        setPhase('result'); setWinZone(d.winZone);
+        setFairnessRound({ id: d.roundId, roundHash: d.roundHash ?? null, serverSeed: d.serverSeed ?? null, result: d.result ?? null, winZone: d.winZone, source: d.source });
+        setRound(prev => prev ? { ...prev, status: 'COMPLETED', winZone: d.winZone } : prev);
+
+        // Check if current user won
+        setRound(prev => {
+          if (!prev) return prev;
+          const userId = (session?.user as { id?: string })?.id;
+          const myBetOnWin = prev.bets.find(b => b.zone === d.winZone && b.user.id === userId);
+          const didBet     = prev.bets.some(b => b.user.id === userId);
+          if (myBetOnWin) {
+            setUserWon(true);
+            const p = Math.floor(myBetOnWin.amount * d.multiplier);
+            setPayout(p); animatePayout(p);
+            if (d.winZone === 'EMPEROR') playEmperorWin();
+            else playWin();
+          } else if (didBet) {
+            setUserWon(false);
+            playLose();
+          }
+          return prev;
+        });
+        fetchAll();
+      }, delay);
     });
 
     return () => { s.off('roulette:roundStart'); s.off('roulette:betsUpdate'); s.off('roulette:spin'); s.off('roulette:result'); };
@@ -262,6 +267,7 @@ export default function RoulettePage() {
     const finalX = -(landIdx * ITEM_SLOT - CENTER_OFFSET + ITEM_W / 2);
     const spinDuration = 6500;
     const startTime = Date.now();
+    spinEndsAtRef.current = startTime + spinDuration;
     let lastTick = -1;
     let anticipationTriggered = false;
 
