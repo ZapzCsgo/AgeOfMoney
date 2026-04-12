@@ -138,6 +138,29 @@ export default function RoulettePage() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
+  // On mount: position wheel on last winning slot from history (not always slot 5)
+  useEffect(() => {
+    if (wheelRef.current) {
+      wheelRef.current.style.transition = 'none';
+      wheelRef.current.style.transform = 'translateX(0px)';
+    }
+    // Try to center on last result from history
+    if (history.length > 0 && history[0].result != null) {
+      const lastResult = history[0].result;
+      // Find this slot number in the display strip
+      const idx = displayStrip.findIndex(s => s.num === lastResult);
+      if (idx >= 0) {
+        setCenterIdx(idx);
+        if (wheelRef.current) {
+          const targetX = -(idx * ITEM_SLOT - CENTER_OFFSET + ITEM_W / 2);
+          wheelRef.current.style.transform = `translateX(${targetX}px)`;
+        }
+      }
+    } else {
+      setCenterIdx(4);
+    }
+  }, [history.length > 0]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Countdown
   useEffect(() => {
     if (countdownRef.current) clearInterval(countdownRef.current);
