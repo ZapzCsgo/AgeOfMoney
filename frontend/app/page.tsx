@@ -97,7 +97,7 @@ function QuickBetBar({
   onClose,
 }: {
   match: Match;
-  selectedPlayer: 1 | 2;
+  selectedPlayer: 0 | 1 | 2;
   onClose: () => void;
 }) {
   const { t } = useT();
@@ -107,9 +107,9 @@ function QuickBetBar({
   const [result, setResult] = useState<'success' | 'error' | null>(null);
   const [errMsg, setErrMsg] = useState('');
 
-  const odds = selectedPlayer === 1 ? match.odds1 : match.odds2;
+  const odds = selectedPlayer === 0 ? (match.oddsDraw ?? 0) : selectedPlayer === 1 ? match.odds1 : match.odds2;
   const potential = Math.floor(amount * odds);
-  const player = selectedPlayer === 1 ? match.player1 : match.player2;
+  const player = selectedPlayer === 0 ? { name: 'Draw' } : selectedPlayer === 1 ? match.player1 : match.player2;
 
   const handleBet = async () => {
     if (!session) return;
@@ -224,7 +224,7 @@ function formatCiv(civ?: string | null): string {
 function MatchCard({ match }: { match: Match }) {
   const { t } = useT();
   const router = useRouter();
-  const [selected, setSelected] = useState<1 | 2 | null>(null);
+  const [selected, setSelected] = useState<0 | 1 | 2 | null>(null);
   const isLive      = match.status === 'LIVE';
   const isCompleted = match.status === 'COMPLETED';
   const vol = match.betVolume ?? { pct1: 50, pct2: 50, total: 0 };
@@ -405,6 +405,16 @@ function MatchCard({ match }: { match: Match }) {
             </div>
           )}
           <div className="w-px flex-1 bg-gradient-to-b from-aoe-border via-transparent to-transparent" />
+          {/* Draw button for even BO formats */}
+          {!isCompleted && match.oddsDraw && (
+            <button
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSelected(selected === 0 ? null : 0); }}
+              className={cn('px-3 py-1.5 rounded-lg text-center transition-all duration-200 border', selected === 0 ? 'border-[#d4a017] bg-[#d4a017]/10' : 'border-[#1e1a30] bg-[#0d0b1a]/50 hover:border-[#3d3860]')}
+            >
+              <div className="font-cinzel font-bold text-sm text-[#d4a017] leading-none">{match.oddsDraw.toFixed(2)}</div>
+              <div className="text-[8px] text-[#6b6488] mt-0.5 uppercase tracking-widest">Draw</div>
+            </button>
+          )}
         </div>
 
         {/* Player 2 */}
