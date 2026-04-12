@@ -150,7 +150,7 @@ export default function DepositPage() {
   const handleDeposit = async () => {
     if (!session) { handleSteamLogin(); return; }
     if (!baseCoins || baseCoins < 1) { setError(t('deposit_select_crypto')); return; }
-    if (usdCost < 5) { setError(t('deposit_min') + ' $5.00 (≈ 9 ⚜)'); return; }
+    if (usdCost < 3) { setError(t('deposit_min') + ' $3.00 (≈ 5 ⚜)'); return; }
     setLoading(true); setError(null);
     try {
       const res = await fetch('/api/payments/crypto/create', {
@@ -165,7 +165,13 @@ export default function DepositPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || t('common_error'));
-      setInvoice({ ...data, crypto: selectedCrypto.symbol });
+      // OxaPay returns a payment URL — redirect user to hosted payment page
+      if (data.paymentUrl) {
+        window.open(data.paymentUrl, '_blank');
+        setInvoice({ address: data.paymentUrl, cryptoAmount: '', coins: data.coins, crypto: selectedCrypto.symbol, usdAmount: data.usdAmount, expiresAt: data.expiresAt });
+      } else {
+        setInvoice({ ...data, crypto: selectedCrypto.symbol });
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : t('common_error'));
     } finally {

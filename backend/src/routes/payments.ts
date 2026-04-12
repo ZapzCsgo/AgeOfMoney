@@ -11,11 +11,10 @@ const router = Router();
 // ── Rates ──────────────────────────────────────────────────────────────────────
 const DEPOSIT_RATE  = 1.69;   // $1 = 1.69 coins
 const WITHDRAW_RATE = 0.585;  // 1 coin = $0.585 (1.69 coins = $0.99)
-const MIN_DEPOSIT   = 5;      // $5 minimum (NOWPayments requires minimum crypto amounts)
+const MIN_DEPOSIT   = 3;      // $3 minimum
 const MIN_WITHDRAW  = 169;    // 169 coins minimum (= $0.99)
 
 // ── Affiliate tier progression ─────────────────────────────────────────────────
-// Each tier requires BOTH referral count AND deposited volume (in coins)
 const TIERS = [
   { rate: 0.005, referrals:   0, deposited:       0 }, // Tier 1 — 0.5%
   { rate: 0.010, referrals:  15, deposited:   15000 }, // Tier 2 — 1%
@@ -39,46 +38,34 @@ function computeTierRate(totalReferrals: number, totalDeposited: number): number
   return rate;
 }
 
-// ── NOWPayments client ─────────────────────────────────────────────────────────
-const NOWPAYMENTS_API = 'https://api.nowpayments.io/v1';
-const NP_KEY = () => process.env.NOWPAYMENTS_API_KEY || '';
+// ── OxaPay API client ─────────────────────────────────────────────────────────
+const OXAPAY_API = 'https://api.oxapay.com/v1';
+const OXAPAY_KEY = () => process.env.OXAPAY_API_KEY || '';
 
-async function npGet(path: string) {
-  const res = await axios.get(`${NOWPAYMENTS_API}${path}`, {
-    headers: { 'x-api-key': NP_KEY() },
-  });
-  return res.data;
-}
-
-async function npPost(path: string, body: Record<string, unknown>) {
-  const res = await axios.post(`${NOWPAYMENTS_API}${path}`, body, {
-    headers: { 'x-api-key': NP_KEY(), 'Content-Type': 'application/json' },
+async function oxaPost(path: string, body: Record<string, unknown>) {
+  const res = await axios.post(`${OXAPAY_API}${path}`, {
+    ...body,
+    merchant_api_key: OXAPAY_KEY(),
+  }, {
+    headers: { 'Content-Type': 'application/json' },
+    timeout: 15000,
   });
   return res.data;
 }
 
 // ── Supported cryptos ──────────────────────────────────────────────────────────
 const CRYPTO_MAP: Record<string, { currency: string; network: string }> = {
-  btc:  { currency: 'btc',       network: 'Bitcoin'    },
-  eth:  { currency: 'eth',       network: 'ERC-20'     },
-  usdt: { currency: 'usdttrc20', network: 'TRC-20'     },
-  ltc:  { currency: 'ltc',       network: 'Litecoin'   },
-  sol:  { currency: 'sol',       network: 'Solana'     },
-  xrp:  { currency: 'xrp',       network: 'XRP Ledger' },
+  btc:   { currency: 'BTC',  network: 'Bitcoin'  },
+  eth:   { currency: 'ETH',  network: 'ERC-20'   },
+  usdt:  { currency: 'USDT', network: 'TRC-20'   },
+  ltc:   { currency: 'LTC',  network: 'Litecoin' },
+  sol:   { currency: 'SOL',  network: 'Solana'   },
+  xrp:   { currency: 'XRP',  network: 'XRP'      },
+  bnb:   { currency: 'BNB',  network: 'BEP-20'   },
+  matic: { currency: 'MATIC', network: 'Polygon' },
 };
 
-// Recursively sort object keys for NOWPayments IPN signature verification
-function sortObject(obj: Record<string, unknown>): Record<string, unknown> {
-  return Object.keys(obj).sort().reduce((acc, key) => {
-    const val = obj[key];
-    acc[key] = val && typeof val === 'object' && !Array.isArray(val)
-      ? sortObject(val as Record<string, unknown>)
-      : val;
-    return acc;
-  }, {} as Record<string, unknown>);
-}
-
-// ── POST /payments/crypto/create — Create crypto deposit invoice ───────────────
+// ── POST /payments/crypto/create — Create OxaPay deposit invoice ─────────────
 router.post('/crypto/create', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id;
@@ -90,8 +77,6 @@ router.post('/crypto/create', requireAuth, async (req: Request, res: Response): 
     if (!usdAmount || usdAmount < MIN_DEPOSIT) {
       res.status(400).json({ error: `Montant minimum: $${MIN_DEPOSIT}` }); return;
     }
-
-    const currency = CRYPTO_MAP[cryptoId].currency;
 
     // ── Validate affiliate code from DB ────────────────────────────────────────
     let bonusMultiplier = 1;
@@ -109,7 +94,6 @@ router.post('/crypto/create', requireAuth, async (req: Request, res: Response): 
         res.status(400).json({ error: 'Vous ne pouvez pas utiliser votre propre code' }); return;
       }
 
-      // Check user hasn't already used a referral code before
       const existingReferral = await prisma.affiliateReferral.findUnique({
         where: { referredUserId: userId },
       });
@@ -117,7 +101,6 @@ router.post('/crypto/create', requireAuth, async (req: Request, res: Response): 
         res.status(400).json({ error: 'Vous avez déjà utilisé un code affilié' }); return;
       }
 
-      // Bonus coins = referrer's commission rate (e.g. 5% → +5% coins for depositor)
       bonusMultiplier = 1 + aff.commissionRate;
       affiliateCodeId = aff.id;
     }
@@ -137,91 +120,78 @@ router.post('/crypto/create', requireAuth, async (req: Request, res: Response): 
       },
     });
 
-    // Create NOWPayments invoice
-    let invoiceData: {
-      payment_id: string;
-      pay_address: string;
-      pay_amount: number;
-      pay_currency: string;
-    };
-
+    // Create OxaPay invoice
     try {
-      invoiceData = await npPost('/payment', {
-        price_amount:      usdAmount,
-        price_currency:    'usd',
-        pay_currency:      currency,
-        order_id:          transaction.id,
-        order_description: `AgeOfMoney — ${finalCoins} ⚜ coins`,
-        ipn_callback_url:  `${process.env.BACKEND_URL}/api/v1/payments/crypto/webhook`,
+      const invoiceRes = await oxaPost('/payment/invoice', {
+        amount:       usdAmount,
+        currency:     'USD',
+        to_currency:  CRYPTO_MAP[cryptoId].currency,
+        order_id:     transaction.id,
+        description:  `AgeOfMoney — ${finalCoins} ⚜ coins`,
+        callback_url: `${process.env.BACKEND_URL}/api/v1/payments/crypto/webhook`,
+        return_url:   `${process.env.FRONTEND_URL}/deposit`,
+        lifetime:     60, // 60 minutes
       });
-    } catch (npErr: unknown) {
-      const errMsg = npErr instanceof Error ? npErr.message : String(npErr);
-      const axiosData = (npErr as { response?: { data?: unknown } })?.response?.data;
-      logger.error(`NOWPayments API error: ${errMsg}`, { data: axiosData, apiKey: NP_KEY() ? 'SET' : 'EMPTY' });
+
+      if (invoiceRes.status !== 200 || !invoiceRes.data) {
+        throw new Error(invoiceRes.message || 'OxaPay invoice creation failed');
+      }
+
+      // Save track_id to transaction
+      await prisma.transaction.update({
+        where: { id: transaction.id },
+        data:  { stripeSessionId: invoiceRes.data.track_id },
+      });
+
       res.json({
-        address:      'DEV_MODE_NO_NOWPAYMENTS_KEY_CONFIGURED',
-        cryptoAmount: (usdAmount * 0.000015).toFixed(8),
+        paymentUrl:   invoiceRes.data.payment_url,
+        trackId:      invoiceRes.data.track_id,
         usdAmount,
         coins:        finalCoins,
         paymentId:    transaction.id,
-        expiresAt:    new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-        devMode:      true,
+        expiresAt:    new Date(invoiceRes.data.expired_at * 1000).toISOString(),
       });
-      return;
+    } catch (oxaErr: unknown) {
+      const errMsg = oxaErr instanceof Error ? oxaErr.message : String(oxaErr);
+      const axiosData = (oxaErr as { response?: { data?: unknown } })?.response?.data;
+      logger.error(`OxaPay API error: ${errMsg}`, { data: axiosData, apiKey: OXAPAY_KEY() ? 'SET' : 'EMPTY' });
+      res.status(500).json({ error: 'Erreur lors de la création du paiement. Réessayez.' });
     }
-
-    // Save payment id to transaction
-    await prisma.transaction.update({
-      where: { id: transaction.id },
-      data:  { stripeSessionId: invoiceData.payment_id.toString() },
-    });
-
-    res.json({
-      address:      invoiceData.pay_address,
-      cryptoAmount: invoiceData.pay_amount.toString(),
-      usdAmount,
-      coins:        finalCoins,
-      paymentId:    invoiceData.payment_id,
-      expiresAt:    new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-    });
   } catch (error) {
     logger.error('POST /payments/crypto/create error:', error);
     res.status(500).json({ error: 'Erreur lors de la création du paiement' });
   }
 });
 
-// ── POST /payments/crypto/webhook — NOWPayments IPN callback ──────────────────
+// ── POST /payments/crypto/webhook — OxaPay callback ──────────────────────────
 router.post('/crypto/webhook', async (req: Request, res: Response): Promise<void> => {
   try {
-    // Verify NOWPayments IPN signature (HMAC-SHA512) — MANDATORY in production
-    const ipnSecret = process.env.NOWPAYMENTS_IPN_SECRET;
-    if (!ipnSecret) {
-      if (process.env.NODE_ENV === 'production') {
-        logger.error('[Webhook] NOWPAYMENTS_IPN_SECRET not configured — rejecting in production');
-        res.status(500).json({ error: 'Server misconfiguration' });
-        return;
-      }
-      logger.warn('[Webhook] NOWPAYMENTS_IPN_SECRET not set — dev mode, skipping signature');
-    } else {
-      const sig = req.headers['x-nowpayments-sig'] as string | undefined;
-      if (!sig) {
-        logger.warn('[Webhook] Missing NOWPayments signature — rejecting');
-        res.status(401).json({ error: 'Missing signature' });
-        return;
-      }
-      const sortedBody = JSON.stringify(sortObject(req.body));
-      const expected = crypto.createHmac('sha512', ipnSecret).update(sortedBody).digest('hex');
-      if (sig.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) {
-        logger.warn('[Webhook] Invalid NOWPayments signature — rejecting');
-        res.status(401).json({ error: 'Invalid signature' });
-        return;
-      }
+    // Verify OxaPay HMAC-SHA512 signature
+    const apiKey = OXAPAY_KEY();
+    if (!apiKey) {
+      logger.error('[Webhook] OXAPAY_API_KEY not configured');
+      res.status(500).send('ok'); return;
     }
 
-    const { payment_status, order_id } = req.body;
+    const hmacHeader = req.headers['hmac'] as string | undefined;
+    if (!hmacHeader) {
+      logger.warn('[Webhook] Missing HMAC header — rejecting');
+      res.status(401).send('ok'); return;
+    }
 
-    if (payment_status !== 'finished' && payment_status !== 'confirmed') {
-      res.json({ received: true }); return;
+    // Verify signature using raw body
+    const rawBody = JSON.stringify(req.body);
+    const expected = crypto.createHmac('sha512', apiKey).update(rawBody).digest('hex');
+    if (hmacHeader !== expected) {
+      logger.warn('[Webhook] Invalid OxaPay HMAC signature — rejecting');
+      res.status(401).send('ok'); return;
+    }
+
+    const { status, order_id, amount } = req.body;
+
+    // Only process confirmed payments
+    if (status !== 'Paid') {
+      res.status(200).send('ok'); return;
     }
 
     const transaction = await prisma.transaction.findUnique({
@@ -229,17 +199,14 @@ router.post('/crypto/webhook', async (req: Request, res: Response): Promise<void
     });
 
     if (!transaction || transaction.status === 'completed') {
-      res.json({ received: true }); return;
+      res.status(200).send('ok'); return;
     }
 
     // Credit coins to depositor atomically
     await prisma.$transaction([
       prisma.user.update({
         where: { id: transaction.userId },
-        data:  {
-          coins:        { increment: transaction.coins },
-          totalWagered: { increment: 0 }, // keep field touched
-        },
+        data:  { coins: { increment: transaction.coins } },
       }),
       prisma.transaction.update({
         where: { id: transaction.id },
@@ -254,7 +221,7 @@ router.post('/crypto/webhook', async (req: Request, res: Response): Promise<void
       io.to(`user:${transaction.userId}`).emit('notification', { type: 'deposit', amount: transaction.coins });
     }
 
-    logger.info(`Credited ${transaction.coins} coins to user ${transaction.userId}`);
+    logger.info(`[Deposit] Credited ${transaction.coins} coins to user ${transaction.userId} (OxaPay order ${order_id})`);
 
     // ── Process affiliate commission ───────────────────────────────────────────
     if (transaction.affiliateCodeId) {
@@ -266,18 +233,14 @@ router.post('/crypto/webhook', async (req: Request, res: Response): Promise<void
 
         if (affCode) {
           const referrerId = affCode.userId;
-          const depositedCoins = transaction.coins; // coins credited to depositor
-
-          // Commission earned by referrer
+          const depositedCoins = transaction.coins;
           const commission = Math.floor(depositedCoins * affCode.commissionRate);
 
-          // Upsert AffiliateReferral for this user
           const existingReferral = await prisma.affiliateReferral.findUnique({
             where: { referredUserId: transaction.userId },
           });
 
           if (existingReferral) {
-            // Update existing referral (re-deposit scenario)
             await prisma.affiliateReferral.update({
               where: { referredUserId: transaction.userId },
               data: {
@@ -288,7 +251,6 @@ router.post('/crypto/webhook', async (req: Request, res: Response): Promise<void
               },
             });
           } else {
-            // First deposit with this code — create referral
             await prisma.affiliateReferral.create({
               data: {
                 affiliateCodeId: affCode.id,
@@ -301,7 +263,6 @@ router.post('/crypto/webhook', async (req: Request, res: Response): Promise<void
             });
           }
 
-          // Credit commission to referrer's affiliate balance
           await prisma.affiliateCode.update({
             where: { id: affCode.id },
             data: {
@@ -310,15 +271,15 @@ router.post('/crypto/webhook', async (req: Request, res: Response): Promise<void
             },
           });
 
-          // Auto-update commission tier based on aggregate referral stats
+          // Auto-update commission tier
           const updatedAff = await prisma.affiliateCode.findUnique({
             where: { id: affCode.id },
             include: { referrals: true },
           });
           if (updatedAff) {
-            const totalReferrals  = updatedAff.referrals.length;
-            const totalDeposited  = updatedAff.referrals.reduce((s, r) => s + r.totalDeposited, 0);
-            const newRate         = computeTierRate(totalReferrals, totalDeposited);
+            const totalReferrals = updatedAff.referrals.length;
+            const totalDeposited = updatedAff.referrals.reduce((s, r) => s + r.totalDeposited, 0);
+            const newRate = computeTierRate(totalReferrals, totalDeposited);
             if (newRate !== updatedAff.commissionRate) {
               await prisma.affiliateCode.update({
                 where: { id: affCode.id },
@@ -328,18 +289,18 @@ router.post('/crypto/webhook', async (req: Request, res: Response): Promise<void
             }
           }
 
-          logger.info(`Affiliate commission: ${commission} coins → referrer ${referrerId} (code ${affCode.code})`);
+          logger.info(`[Affiliate] Commission: ${commission} coins → referrer ${referrerId} (code ${affCode.code})`);
         }
       } catch (affErr) {
-        // Don't fail the webhook if affiliate processing errors
-        logger.error('Affiliate commission processing error:', affErr);
+        logger.error('[Affiliate] Commission processing error:', affErr);
       }
     }
 
-    res.json({ received: true });
+    // OxaPay requires "ok" response
+    res.status(200).send('ok');
   } catch (error) {
     logger.error('POST /payments/crypto/webhook error:', error);
-    res.status(500).json({ error: 'Webhook error' });
+    res.status(200).send('ok');
   }
 });
 
@@ -356,7 +317,7 @@ router.post('/crypto/withdraw', requireAuth, async (req: Request, res: Response)
     if (!Number.isFinite(coinsInt) || coinsInt < MIN_WITHDRAW) {
       res.status(400).json({ error: `Minimum de retrait: ${MIN_WITHDRAW} ⚜ ($0.99)` }); return;
     }
-    const MAX_WITHDRAW = 100_000; // 100k coins max per withdrawal
+    const MAX_WITHDRAW = 100_000;
     if (coinsInt > MAX_WITHDRAW) {
       res.status(400).json({ error: `Maximum de retrait: ${MAX_WITHDRAW} ⚜ par transaction` }); return;
     }
@@ -365,7 +326,7 @@ router.post('/crypto/withdraw', requireAuth, async (req: Request, res: Response)
     }
 
     const usdAmount = parseFloat((coinsInt * WITHDRAW_RATE).toFixed(2));
-    const currency  = CRYPTO_MAP[cryptoId].currency;
+    const currency = CRYPTO_MAP[cryptoId].currency;
 
     // Atomic transaction: re-check balance inside to prevent race conditions
     await prisma.$transaction(async (tx) => {
@@ -389,27 +350,14 @@ router.post('/crypto/withdraw', requireAuth, async (req: Request, res: Response)
       });
     });
 
-    // Initiate payout via NOWPayments
-    try {
-      await npPost('/payout', {
-        withdrawals: [{
-          address,
-          currency,
-          amount:   usdAmount,
-          extra_id: `aom_${userId}_${Date.now()}`,
-        }],
-      });
-    } catch (npErr) {
-      logger.warn('NOWPayments payout failed (dev mode?)', npErr);
-    }
+    // TODO: Initiate payout via OxaPay payout API when payout key is configured
+    logger.info(`[Withdraw] ${coinsInt} coins ($${usdAmount}) withdrawal initiated for user ${userId} → ${address} (${currency})`);
 
-    const approxCrypto = (usdAmount * 0.000015).toFixed(8);
     res.json({
-      success:      true,
+      success:  true,
       usdAmount,
-      cryptoAmount: approxCrypto,
-      currency:     currency.toUpperCase(),
-      message:      `Retrait de ${coinsInt} ⚜ initié. Vous recevrez $${usdAmount} en ${currency.toUpperCase()} sous 24h.`,
+      currency: currency.toUpperCase(),
+      message:  `Retrait de ${coinsInt} ⚜ initié. Vous recevrez $${usdAmount} en ${currency.toUpperCase()} sous 24h.`,
     });
   } catch (error) {
     logger.error('POST /payments/crypto/withdraw error:', error);
