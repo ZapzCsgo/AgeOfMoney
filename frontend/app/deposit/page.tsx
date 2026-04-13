@@ -250,9 +250,6 @@ export default function DepositPage() {
             <SteamIcon />
             {t('auth_signin_steam')}
           </button>
-          <p className="text-aoe-parchment-muted text-xs mt-4">
-            {t('deposit_tagline')}
-          </p>
         </div>
       </div>
     );
