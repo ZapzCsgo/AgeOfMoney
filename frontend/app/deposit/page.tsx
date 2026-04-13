@@ -260,10 +260,10 @@ export default function DepositPage() {
 
   // ── Main ─────────────────────────────────────────────────────────────────────
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8">
+    <div className="max-w-2xl mx-auto px-4 py-4">
 
-      {/* Tabs — underlined indicator, no gradient pill */}
-      <div className="flex mb-8 border-b" style={{ borderColor: '#1e1a30' }}>
+      {/* Tabs */}
+      <div className="flex mb-4 border-b" style={{ borderColor: '#1e1a30' }}>
         <div
           className="flex-1 flex items-center justify-center gap-2 py-3 font-cinzel font-bold text-[12px] tracking-[0.18em] uppercase cursor-default text-[#d4a017] relative"
         >
@@ -280,16 +280,15 @@ export default function DepositPage() {
         </Link>
       </div>
 
-      {/* Hero value prop */}
-      <div className="text-center mb-8">
-        <h1 className="font-cinzel font-black text-3xl text-aoe-gold tracking-wider mb-2">{t('deposit_title')}</h1>
-        <p className="text-aoe-parchment-muted text-sm">
+      {/* Hero + exchange widget combined */}
+      <div className="text-center mb-3">
+        <h1 className="font-cinzel font-black text-2xl text-aoe-gold tracking-wider mb-1">{t('deposit_title')}</h1>
+        <p className="text-aoe-parchment-muted text-xs">
           <span className="text-aoe-gold font-bold">$1 = 1.69 ⚜</span> <span className="text-aoe-parchment-muted">({t('deposit_credited_fast')})</span>
         </p>
       </div>
 
-      {/* Live exchange widget — always visible */}
-      <div className="rounded-xl p-4 mb-6 flex items-center justify-between gap-4" style={{ background: 'linear-gradient(135deg, rgba(212,160,23,0.08), rgba(212,160,23,0.04))', border: '1px solid rgba(212,160,23,0.25)' }}>
+      <div className="rounded-xl p-3 mb-4 flex items-center justify-between gap-3" style={{ background: 'linear-gradient(135deg, rgba(212,160,23,0.08), rgba(212,160,23,0.04))', border: '1px solid rgba(212,160,23,0.25)' }}>
         <div className="text-center flex-1">
           <p className="text-aoe-parchment-muted text-[10px] font-cinzel tracking-wider uppercase mb-1">{t('deposit_amount_coins')}</p>
           <p className="font-cinzel font-black text-2xl text-aoe-gold">
@@ -324,18 +323,18 @@ export default function DepositPage() {
       <div className="rounded-2xl border overflow-hidden" style={{ background: '#0d0b1a', borderColor: '#2d2850' }}>
         <div className="h-px" style={{ background: 'linear-gradient(90deg,transparent,#d4a017 30%,#f5c842 50%,#d4a017 70%,transparent)' }} />
 
-        <div className="p-6 space-y-7">
+        <div className="p-4 space-y-4">
 
           {/* COIN AMOUNT INPUT */}
           <div>
-            <p className="text-[10px] font-cinzel tracking-widest text-aoe-parchment-dim uppercase mb-3">{t('deposit_amount_coins')}</p>
+            <p className="text-[10px] font-cinzel tracking-widest text-aoe-parchment-dim uppercase mb-2">{t('deposit_amount_coins')}</p>
             <div className="relative">
               <input
                 type="text" inputMode="numeric"
                 value={customCoins}
                 onChange={e => setCustomCoins(e.target.value.replace(/[^0-9]/g, ''))}
                 placeholder=""
-                className="w-full border rounded-xl px-4 py-4 text-aoe-parchment text-xl font-cinzel font-bold placeholder-aoe-parchment-muted/40 outline-none transition-colors pr-16"
+                className="w-full border rounded-xl px-4 py-3 text-aoe-parchment text-lg font-cinzel font-bold placeholder-aoe-parchment-muted/40 outline-none transition-colors pr-16"
                 style={{ background: 'rgba(255,255,255,0.04)', borderColor: customCoins ? '#d4a017' : '#1e1a30' }}
                 autoFocus
               />
@@ -357,8 +356,8 @@ export default function DepositPage() {
 
           {/* PAYMENT METHOD */}
           <div>
-            <p className="text-[10px] font-cinzel tracking-widest text-aoe-parchment-dim uppercase mb-3">{t('deposit_select_crypto')}</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <p className="text-[10px] font-cinzel tracking-widest text-aoe-parchment-dim uppercase mb-2">{t('deposit_select_crypto')}</p>
+            <div className="grid grid-cols-4 gap-1.5">
               {CRYPTOS.map(c => {
                 const active = selectedCrypto.id === c.id;
                 return (
@@ -366,7 +365,7 @@ export default function DepositPage() {
                     key={c.id}
                     onClick={() => setCrypto(c)}
                     className={cn(
-                      'relative flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl border transition-all',
+                      'relative flex flex-col items-center gap-1 py-2 px-1 rounded-lg border transition-all',
                       active ? 'scale-[1.03]' : 'hover:border-aoe-border-mid'
                     )}
                     style={{

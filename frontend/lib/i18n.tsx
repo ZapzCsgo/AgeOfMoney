@@ -13,7 +13,7 @@ const t_fr = {
   nav_tournaments:    'Tournois',
   nav_leaderboard:    'Classement',
   nav_profile:        'Profil',
-  nav_deposit:        'Dépôt',
+  nav_deposit:        'Dépôt / Retrait',
   nav_affiliates:     'Affiliés',
   nav_admin:          'Administration',
   nav_connected:      'Connecté',
