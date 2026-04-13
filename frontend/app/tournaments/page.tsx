@@ -137,16 +137,16 @@ function TournamentCard({ tournament }: { tournament: Tournament & { _count?: { 
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-3 text-[11px] text-[#6b6488]">
+            <div className="flex items-center gap-3 text-[10px] text-[#6b6488]">
               <span className="flex items-center gap-1">
-                <Calendar size={10} />
+                <Calendar size={9} />
                 {formatDate(tournament.startDate)}
                 {tournament.endDate && ` → ${formatDate(tournament.endDate)}`}
               </span>
               {matchCount > 0 && (
-                <span className="flex items-center gap-1">
-                  <Users size={10} />
-                  {matchCount}
+                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded" style={{ background: '#1e1a30' }}>
+                  <Zap size={8} />
+                  {matchCount} matchs
                 </span>
               )}
             </div>
@@ -372,7 +372,7 @@ export default function TournamentsPage() {
           </div>
         )}
 
-        {/* Tournament list */}
+        {/* Tournament list — grouped by status */}
         {loading ? (
           <div className="space-y-2">
             {[1, 2, 3, 4].map(i => (
@@ -388,8 +388,61 @@ export default function TournamentsPage() {
             ))}
           </div>
         ) : filtered.length > 0 ? (
-          <div className="space-y-2">
-            {filtered.map(t => <TournamentCard key={t.id} tournament={t} />)}
+          <div className="space-y-6">
+            {/* Ongoing section */}
+            {(() => {
+              const ongoing = filtered.filter(t => t.isActive && new Date(t.startDate) <= now);
+              if (ongoing.length === 0) return null;
+              return (
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-400">En cours</h2>
+                    <span className="text-[10px] text-[#4a4570]">({ongoing.length})</span>
+                    <div className="flex-1 h-px ml-2" style={{ background: 'linear-gradient(90deg, rgba(16,185,129,0.3), transparent)' }} />
+                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+                    {ongoing.map(t => <TournamentCard key={t.id} tournament={t} />)}
+                  </div>
+                </div>
+              );
+            })()}
+            {/* Upcoming section */}
+            {(() => {
+              const upcoming = filtered.filter(t => new Date(t.startDate) > now);
+              if (upcoming.length === 0) return null;
+              return (
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="w-2 h-2 rounded-full bg-[#60a5fa]" />
+                    <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#60a5fa]">À venir</h2>
+                    <span className="text-[10px] text-[#4a4570]">({upcoming.length})</span>
+                    <div className="flex-1 h-px ml-2" style={{ background: 'linear-gradient(90deg, rgba(96,165,250,0.3), transparent)' }} />
+                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+                    {upcoming.map(t => <TournamentCard key={t.id} tournament={t} />)}
+                  </div>
+                </div>
+              );
+            })()}
+            {/* Finished section */}
+            {(() => {
+              const finished = filtered.filter(t => !t.isActive && new Date(t.startDate) <= now);
+              if (finished.length === 0) return null;
+              return (
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="w-2 h-2 rounded-full bg-[#3d3860]" />
+                    <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#4a4570]">Terminés</h2>
+                    <span className="text-[10px] text-[#3d3860]">({finished.length})</span>
+                    <div className="flex-1 h-px ml-2" style={{ background: 'linear-gradient(90deg, rgba(61,56,96,0.3), transparent)' }} />
+                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+                    {finished.map(t => <TournamentCard key={t.id} tournament={t} />)}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-20">
