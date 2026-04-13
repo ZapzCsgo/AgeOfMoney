@@ -153,21 +153,7 @@ export default function AffiliatePage() {
     );
   }
 
-  if (!session) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#07060f' }}>
-        <div className="text-center p-8 rounded-xl" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
-          <Gift size={32} className="mx-auto mb-3" style={{ color: '#d4a017' }} />
-          <h2 className="font-bold text-lg mb-2" style={{ fontFamily: 'Cinzel,serif', color: '#d4a017' }}>{t('aff_programme')}</h2>
-          <p className="text-sm mb-5" style={{ color: '#6b6488' }}>{t('aff_connect_desc')}</p>
-          <button onClick={() => signIn()} className="px-6 py-2.5 rounded-lg text-sm font-bold text-[#07060f]"
-            style={{ background: '#d4a017' }}>
-            {t('auth_signin_steam')}
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // No session block — page is visible to everyone, login prompt shown inline
 
   return (
     <div className="min-h-screen" style={{ background: '#07060f', color: '#e8e2f5' }}>

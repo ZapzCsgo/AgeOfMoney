@@ -553,7 +553,6 @@ export default function ProfilePage() {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#07060f' }}>
         <div className="text-center p-8 rounded-xl" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
-          <div className="text-3xl mb-3">⚔</div>
           <h2 className="font-bold text-lg text-[#d4a017] mb-2" style={{ fontFamily: 'Cinzel, serif' }}>{t('auth_required')}</h2>
           <p className="text-[#6b6488] text-sm mb-5">{t('auth_required_desc')}</p>
           <button onClick={() => signIn()} className="px-6 py-2.5 rounded-lg text-sm font-semibold text-[#07060f]"
