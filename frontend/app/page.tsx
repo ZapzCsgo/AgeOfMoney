@@ -172,21 +172,24 @@ function QuickBetBar({
         {/* Amount stepper */}
         <div className="flex items-center gap-1 flex-1">
           <button
-            onClick={() => setAmount((a) => Math.max(10, a - 50))}
+            onClick={() => setAmount((a) => Math.max(5, a - 5))}
             className="w-6 h-6 rounded bg-aoe-stone border border-aoe-border flex items-center justify-center hover:border-aoe-gold/40 transition-colors"
           >
             <Minus size={10} className="text-aoe-parchment-dim" />
           </button>
           <input
-            type="number"
-            min={10}
-            max={500}
+            type="text"
+            inputMode="numeric"
             value={amount}
-            onChange={(e) => setAmount(Math.min(500, Math.max(10, parseInt(e.target.value) || 10)))}
+            onChange={(e) => {
+              const v = parseInt(e.target.value.replace(/[^0-9]/g, '')) || 0;
+              setAmount(Math.min(500, v));
+            }}
+            onBlur={() => setAmount((a) => Math.max(5, a))}
             className="aom-input text-center text-sm font-bold font-cinzel h-6 w-16 px-1"
           />
           <button
-            onClick={() => setAmount((a) => Math.min(500, a + 50))}
+            onClick={() => setAmount((a) => Math.min(500, a + 5))}
             className="w-6 h-6 rounded bg-aoe-stone border border-aoe-border flex items-center justify-center hover:border-aoe-gold/40 transition-colors"
           >
             <Plus size={10} className="text-aoe-parchment-dim" />
@@ -221,10 +224,23 @@ function formatCiv(civ?: string | null): string {
 }
 
 // ── Match Card ────────────────────────────────────────────────────────────────
-function MatchCard({ match }: { match: Match }) {
+function MatchCard({ match, activeMatchId, onSelect }: {
+  match: Match;
+  activeMatchId: string | null;
+  onSelect: (matchId: string | null, player: 0 | 1 | 2 | null) => void;
+}) {
   const { t } = useT();
   const router = useRouter();
-  const [selected, setSelected] = useState<0 | 1 | 2 | null>(null);
+  const [selected, _setSelected] = useState<0 | 1 | 2 | null>(null);
+  // Clear local selection when another match becomes active
+  useEffect(() => {
+    if (activeMatchId !== match.id && selected !== null) _setSelected(null);
+  }, [activeMatchId, match.id, selected]);
+  const setSelected = (val: 0 | 1 | 2 | null | ((prev: 0 | 1 | 2 | null) => 0 | 1 | 2 | null)) => {
+    const next = typeof val === 'function' ? (val as (p: 0 | 1 | 2 | null) => 0 | 1 | 2 | null)(selected) : val;
+    _setSelected(next);
+    onSelect(match.id, next);
+  };
   const isLive      = match.status === 'LIVE';
   const isCompleted = match.status === 'COMPLETED';
   const vol = match.betVolume ?? { pct1: 50, pct2: 50, total: 0 };
@@ -698,6 +714,7 @@ export default function HomePage() {
   const [filter, setFilter]           = useState('all');
   const [lastFetch, setLastFetch]     = useState<Date | null>(null);
   const [upcomingTourneys, setUpcomingTourneys] = useState<Tournament[]>([]);
+  const [activeMatchId, setActiveMatchId] = useState<string | null>(null);
 
   const FILTERS = FILTER_IDS.map((f) => ({ ...f, label: t(f.key) }));
 
@@ -881,7 +898,12 @@ export default function HomePage() {
         ) : filtered.length > 0 ? (
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             {filtered.map((match) => (
-              <MatchCard key={match.id} match={match} />
+              <MatchCard
+                key={match.id}
+                match={match}
+                activeMatchId={activeMatchId}
+                onSelect={(mid, p) => setActiveMatchId(p === null ? null : mid)}
+              />
             ))}
           </div>
         ) : (
