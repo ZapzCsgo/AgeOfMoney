@@ -100,8 +100,6 @@ export default function RoulettePage() {
   const hasAnimatedRef = useRef(false); // true once animateSpin has been called this session
 
   const displayStrip = Array.from({ length: REPEATS }, () => BASE_PATTERN).flat();
-  // Helper to get zone from strip item
-  const zoneAt = (i: number) => displayStrip[i]?.zone ?? 'KNIGHTS';
 
   useEffect(() => {
     if (session?.user.accessToken) setAuthToken(session.user.accessToken);
@@ -424,7 +422,7 @@ export default function RoulettePage() {
         {/* Header */}
         <div className="text-center mb-5">
           <h1 className="text-3xl font-bold mb-0.5" style={{ fontFamily:'Cinzel,serif', color:'#f5c842' }}>{t('roulette_title').toUpperCase()}</h1>
-          <p className="text-[11px] tracking-widest uppercase" style={{ color:'#6b6488' }}>Age of Empires IV</p>
+          <p className="text-[11px] tracking-widest uppercase" style={{ color:'#6b6488' }}>#1 Age of Empire</p>
         </div>
 
         {/* History + Zone stats */}
