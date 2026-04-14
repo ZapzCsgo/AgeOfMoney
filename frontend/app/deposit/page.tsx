@@ -238,10 +238,7 @@ export default function DepositPage() {
           <div className="w-14 h-14 rounded-full mx-auto mb-5 flex items-center justify-center" style={{ background: 'rgba(212,160,23,0.1)', border: '1px solid rgba(212,160,23,0.3)' }}>
             <ArrowDownToLine size={24} className="text-aoe-gold" />
           </div>
-          <h2 className="font-cinzel font-bold text-xl text-aoe-gold mb-2 tracking-wider">{t('auth_required').toUpperCase()}</h2>
-          <p className="text-aoe-parchment-muted text-sm mb-8 leading-relaxed">
-            {t('auth_signin_steam')}
-          </p>
+          <h2 className="font-cinzel font-bold text-xl text-aoe-gold mb-8 tracking-wider">{t('auth_required').toUpperCase()}</h2>
           <button
             onClick={() => handleSteamLogin('/deposit')}
             className="w-full flex items-center justify-center gap-3 py-4 rounded-xl font-bold text-base transition-all hover:brightness-110 active:scale-[0.99]"
