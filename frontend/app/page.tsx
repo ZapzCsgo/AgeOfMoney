@@ -658,8 +658,13 @@ function Hero({ liveCount, totalBets, matchCount }: { liveCount: number; totalBe
           }}
         />
 
-        <p className="text-aoe-parchment-dim text-sm tracking-wide max-w-sm mb-8 leading-relaxed">
-          {t('home_hero_sub')}
+        <p className="text-aoe-parchment-dim text-sm tracking-wide max-w-sm mb-8 leading-relaxed text-center">
+          {(() => {
+            const text = t('home_hero_sub');
+            const parts = text.split('·').map(s => s.trim());
+            if (parts.length === 2) return <>{parts[0]}<br />{parts[1]}</>;
+            return text;
+          })()}
         </p>
 
         {/* Stats row */}
