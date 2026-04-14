@@ -102,7 +102,7 @@ function QuickBetBar({
 }) {
   const { t } = useT();
   const { data: session } = useSession();
-  const [amount, setAmount] = useState(100);
+  const [amount, setAmount] = useState(5);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<'success' | 'error' | null>(null);
   const [errMsg, setErrMsg] = useState('');
