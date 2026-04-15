@@ -83,7 +83,7 @@ export default function AffiliatePage() {
   const [claiming, setClaiming] = useState(false);
   const [customCode, setCustomCode] = useState('');
   const [copied, setCopied] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<TabType>('dashboard');
+  const [activeTab, setActiveTab] = useState<TabType>('tiers');
   const [referralFilter, setReferralFilter] = useState<'all' | 'active'>('all');
   const [claimMsg, setClaimMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
   const [createErr, setCreateErr] = useState<string | null>(null);
@@ -106,6 +106,11 @@ export default function AffiliatePage() {
   }, []);
 
   useEffect(() => { if (session) fetchAff(); }, [session, fetchAff]);
+
+  // Default to Dashboard once logged in; keep Tiers for logged-out visitors
+  useEffect(() => {
+    if (session) setActiveTab('dashboard');
+  }, [session]);
 
   async function createCode() {
     setCreateErr(null);
@@ -329,8 +334,11 @@ export default function AffiliatePage() {
 
         {/* ── Tabs ── */}
         <div className="flex items-center gap-1 p-1 rounded-xl w-fit" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
-          {([['dashboard', 'Dashboard'], ['tiers', 'Tiers']] as [TabType, string][]).map(([id, label]) => (
-            <button key={id} onClick={() => setActiveTab(id)}
+          {(session
+            ? [['dashboard', 'Dashboard'], ['tiers', 'Tiers']]
+            : [['tiers', 'Tiers']]
+          ).map(([id, label]) => (
+            <button key={id} onClick={() => setActiveTab(id as TabType)}
               className="px-4 md:px-5 py-2 rounded-lg text-[12px] font-medium transition-all"
               style={{
                 background: activeTab === id ? '#1a1630' : 'transparent',
