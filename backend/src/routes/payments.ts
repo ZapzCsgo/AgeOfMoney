@@ -25,26 +25,57 @@ const OXAPAY_API = 'https://api.oxapay.com/v1';
 const OXAPAY_KEY = () => process.env.OXAPAY_API_KEY || '';
 const OXAPAY_PAYOUT_KEY = () => process.env.OXAPAY_PAYOUT_API_KEY || '';
 
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+// Retry transient failures only (timeouts, 5xx, network errors).
+// 4xx errors (bad request, invalid key) are surfaced immediately.
+function isTransient(err: unknown): boolean {
+  if (!axios.isAxiosError(err)) return false;
+  if (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET') return true;
+  const status = err.response?.status;
+  return !status || status >= 500;
+}
+
+async function withRetry<T>(fn: () => Promise<T>, label: string, maxAttempts = 3): Promise<T> {
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (attempt === maxAttempts || !isTransient(err)) throw err;
+      const backoff = Math.pow(2, attempt - 1) * 500; // 500ms, 1s, 2s
+      logger.warn(`[${label}] transient error (attempt ${attempt}/${maxAttempts}), retry in ${backoff}ms`);
+      await sleep(backoff);
+    }
+  }
+  throw lastErr;
+}
+
 async function oxaPost(path: string, body: Record<string, unknown>) {
-  const res = await axios.post(`${OXAPAY_API}${path}`, {
-    ...body,
-    merchant_api_key: OXAPAY_KEY(),
-  }, {
-    headers: { 'Content-Type': 'application/json' },
-    timeout: 15000,
-  });
-  return res.data;
+  return withRetry(async () => {
+    const res = await axios.post(`${OXAPAY_API}${path}`, {
+      ...body,
+      merchant_api_key: OXAPAY_KEY(),
+    }, {
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 15000,
+    });
+    return res.data;
+  }, `oxaPost ${path}`);
 }
 
 async function oxaPayout(body: Record<string, unknown>) {
-  const res = await axios.post(`${OXAPAY_API}/payout`, body, {
-    headers: {
-      'Content-Type': 'application/json',
-      'payout_api_key': OXAPAY_PAYOUT_KEY(),
-    },
-    timeout: 15000,
-  });
-  return res.data;
+  return withRetry(async () => {
+    const res = await axios.post(`${OXAPAY_API}/payout`, body, {
+      headers: {
+        'Content-Type': 'application/json',
+        'payout_api_key': OXAPAY_PAYOUT_KEY(),
+      },
+      timeout: 15000,
+    });
+    return res.data;
+  }, 'oxaPayout');
 }
 
 // ── Supported cryptos ──────────────────────────────────────────────────────────
