@@ -77,7 +77,7 @@ export const metadata: Metadata = {
     siteName: 'AgeOfMoney',
     images: [
       {
-        url: '/og-image.png',
+        url: '/banneraom.png',
         width: 1200,
         height: 630,
         alt: 'AgeOfMoney — Paris esport Age of Empires',
@@ -91,11 +91,20 @@ export const metadata: Metadata = {
     title: 'AgeOfMoney — Paris esport Age of Empires',
     description:
       "Paris sur les matchs pro Age of Empires. Cotes live, roulette, tournois cash.",
-    images: ['/og-image.png'],
+    images: ['/banneraom.png'],
     site: '@ageofmoney',
     creator: '@ageofmoney',
   },
   category: 'esports betting',
+  icons: {
+    icon: [
+      { url: '/aomlogo.png', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/aomlogo.png', type: 'image/png' },
+    ],
+    shortcut: ['/aomlogo.png'],
+  },
   formatDetection: {
     telephone: false,
     email: false,
@@ -117,7 +126,11 @@ const structuredData = {
       url: 'https://ageof.money',
       logo: {
         '@type': 'ImageObject',
-        url: 'https://ageof.money/og-image.png',
+        url: 'https://ageof.money/aomlogo.png',
+      },
+      image: {
+        '@type': 'ImageObject',
+        url: 'https://ageof.money/banneraom.png',
         width: 1200,
         height: 630,
       },

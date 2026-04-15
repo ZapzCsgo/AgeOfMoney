@@ -15,19 +15,19 @@ export default function manifest(): MetadataRoute.Manifest {
     lang: 'fr-FR',
     icons: [
       {
-        src: '/icon-192.png',
+        src: '/aomlogo.png',
         sizes: '192x192',
         type: 'image/png',
         purpose: 'any',
       },
       {
-        src: '/icon-512.png',
+        src: '/aomlogo.png',
         sizes: '512x512',
         type: 'image/png',
         purpose: 'any',
       },
       {
-        src: '/icon-maskable-512.png',
+        src: '/aomlogo.png',
         sizes: '512x512',
         type: 'image/png',
         purpose: 'maskable',
