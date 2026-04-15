@@ -336,7 +336,11 @@ router.get('/leaderboard', async (_req: Request, res: Response): Promise<void> =
     }
 
     const users = await prisma.user.findMany({
-      where: { isBanned: false },
+      where: {
+        isBanned: false,
+        isAdmin: false,   // admins never appear in the public leaderboard
+        isMod: false,     // mods neither
+      },
       orderBy: { totalWagered: 'desc' },
       take: 100,
       select: {
@@ -392,7 +396,12 @@ router.get('/leaderboard/weekly', async (_req: Request, res: Response): Promise<
 
     const userIds = weeklyBets.map((b) => b.userId);
     const users = await prisma.user.findMany({
-      where: { id: { in: userIds }, isBanned: false },
+      where: {
+        id: { in: userIds },
+        isBanned: false,
+        isAdmin: false,  // keep admins off the public leaderboard
+        isMod: false,
+      },
       select: {
         id: true,
         username: true,
