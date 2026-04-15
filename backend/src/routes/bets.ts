@@ -43,12 +43,16 @@ router.post('/', requireAuth, async (req: Request, res: Response): Promise<void>
 });
 
 // GET /my - Get current user's bets
+const ALLOWED_BET_STATUS = ['PENDING', 'WON', 'LOST', 'REFUNDED', 'CANCELLED'] as const;
 router.get('/my', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id;
-    const statusFilter = req.query.status as string | undefined;
-    const limit = parseInt(req.query.limit as string || '20');
-    const offset = parseInt(req.query.offset as string || '0');
+    const statusFilterRaw = req.query.status as string | undefined;
+    const statusFilter = statusFilterRaw && (ALLOWED_BET_STATUS as readonly string[]).includes(statusFilterRaw)
+      ? statusFilterRaw
+      : undefined;
+    const limit = Math.min(Math.max(parseInt(req.query.limit as string || '20'), 1), 100);
+    const offset = Math.max(parseInt(req.query.offset as string || '0'), 0);
 
     const whereClause: Record<string, unknown> = { userId };
     if (statusFilter) {
