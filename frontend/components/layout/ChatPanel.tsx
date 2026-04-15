@@ -382,9 +382,15 @@ export function ChatPanel() {
                 <div className="relative px-3 pb-2" ref={emojiRef}>
                   <button
                     onClick={() => setShowEmojis(v => !v)}
-                    className={cn('transition-colors', showEmojis ? 'text-[#d4a017]' : 'text-[#3d3860] hover:text-[#6b6488]')}
+                    className={cn(
+                      'flex items-center justify-center w-8 h-8 rounded-lg border transition-all',
+                      showEmojis
+                        ? 'text-[#d4a017] border-[#d4a017]/40 bg-[#d4a017]/10'
+                        : 'text-[#9990b8] border-[#2d2850] bg-[#0d0b1a] hover:text-[#d4a017] hover:border-[#d4a017]/30 hover:bg-[#d4a017]/5'
+                    )}
+                    title="Emojis"
                   >
-                    <Smile size={14} />
+                    <Smile size={17} />
                   </button>
 
                   {showEmojis && (
