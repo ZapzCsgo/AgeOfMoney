@@ -154,7 +154,10 @@ export function initSocket(httpServer: HttpServer): void {
     try {
       const secret = process.env.JWT_SECRET;
       if (!secret) return next(new Error('Server misconfiguration'));
-      const payload = jwt.verify(token, secret) as JwtPayload;
+      const payload = jwt.verify(token, secret, {
+        algorithms: ['HS256'],
+        clockTolerance: 5,
+      }) as JwtPayload;
 
       const user = await prisma.user.findUnique({
         where: { id: payload.userId },

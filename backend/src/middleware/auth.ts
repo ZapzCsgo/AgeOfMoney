@@ -43,7 +43,12 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 
     let payload: JwtPayload;
     try {
-      payload = jwt.verify(token, secret) as JwtPayload;
+      // Explicit algorithm whitelist prevents "alg: none" and alg confusion attacks.
+      // clockTolerance handles minor server clock drift without accepting stale tokens.
+      payload = jwt.verify(token, secret, {
+        algorithms: ['HS256'],
+        clockTolerance: 5,
+      }) as JwtPayload;
     } catch (err) {
       if (err instanceof jwt.TokenExpiredError) {
         res.status(401).json({ error: 'Token expired' });
@@ -102,5 +107,6 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
 export function generateToken(payload: JwtPayload): string {
   const secret = process.env.JWT_SECRET;
   if (!secret) throw new Error('JWT_SECRET is not configured');
-  return jwt.sign(payload, secret, { expiresIn: '7d' });
+  // Pin algorithm so verify-side whitelist can't be silently downgraded.
+  return jwt.sign(payload, secret, { expiresIn: '7d', algorithm: 'HS256' });
 }
