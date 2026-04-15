@@ -44,9 +44,22 @@ router.get('/me', requireAuth, async (req: Request, res: Response): Promise<void
 });
 
 // PUT /me - Update email and bio
+// Strict whitelist: prevents mass-assignment of privileged fields
+// (isAdmin, coins, totpSecret, etc.) even if a dev ever forgets to
+// destructure the body manually in the future.
+const updateProfileSchema = z.object({
+  email: z.string().trim().max(254).optional(),
+  bio:   z.string().max(500).optional(),
+}).strict();
+
 router.put('/me', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, bio } = req.body as { email?: string; bio?: string };
+    const parsed = updateProfileSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid profile update' });
+      return;
+    }
+    const { email, bio } = parsed.data;
     const data: Record<string, unknown> = {};
     if (email !== undefined) {
       const trimmed = email.trim();
