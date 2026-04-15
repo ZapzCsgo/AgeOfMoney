@@ -22,15 +22,9 @@ const USD_TO_EUR    = 0.92;
 
 const PRESETS = [500, 1000, 2500, 5000, 10000, 25000];
 
+// USDT TRC-20 only — no auto-conversion on payout with OxaPay
 const CRYPTOS = [
-  { id: 'btc',  label: 'Bitcoin',  symbol: 'BTC',  color: '#F7931A', minUsd: 20 },
-  { id: 'eth',  label: 'Ethereum', symbol: 'ETH',  color: '#627EEA', minUsd: 10 },
-  { id: 'usdt', label: 'Tether',   symbol: 'USDT', color: '#26A17B', minUsd: 5  },
-  { id: 'ltc',  label: 'Litecoin', symbol: 'LTC',  color: '#345D9D', minUsd: 5  },
-  { id: 'sol',  label: 'Solana',   symbol: 'SOL',  color: '#9945FF', minUsd: 5  },
-  { id: 'xrp',  label: 'Ripple',   symbol: 'XRP',  color: '#346AA9', minUsd: 5  },
-  { id: 'bnb',  label: 'BNB',      symbol: 'BNB',  color: '#F0B90B', minUsd: 5  },
-  { id: 'matic',label: 'Polygon',  symbol: 'MATIC',color: '#8247E5', minUsd: 5  },
+  { id: 'usdt', label: 'Tether (TRC-20)', symbol: 'USDT', color: '#26A17B', minUsd: 1 },
 ];
 
 function CryptoLogo({ id, size = 32 }: { id: string; size?: number }) {
