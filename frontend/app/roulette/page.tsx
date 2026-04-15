@@ -523,23 +523,70 @@ export default function RoulettePage() {
 
             <div className="relative" style={{ width:WHEEL_W, overflow:'hidden' }}>
 
-              {/* Center frame */}
-              <div className="absolute inset-y-0 pointer-events-none z-20"
-                style={{ left:'50%', transform:'translateX(-50%)', width:ITEM_W,
-                  '--gz': isResult && winZone ? ZONES[winZone].glow : anticipation ? '#f5c842' : 'rgba(245,200,66,0.5)' } as React.CSSProperties}>
-                <div className={cn('h-full rounded-xl',
-                    isSpinning && !anticipation && 'rl-glow-p',
-                    isSpinning && anticipation && 'rl-anticipate',
-                    isResult && winZone && 'rl-winning')}
-                  style={{
-                    border:`2.5px solid ${isResult && winZone ? ZONES[winZone].color : isSpinning ? '#f5c842' : '#ffffff20'}`,
-                    boxShadow: isSpinning && !anticipation ? '0 0 24px rgba(245,200,66,0.5)' : 'none',
-                    '--gz': isResult && winZone ? ZONES[winZone].glow : anticipation ? 'rgba(245,200,66,0.85)' : 'rgba(245,200,66,0.5)',
-                    transition:'border-color 0.3s',
-                  } as React.CSSProperties} />
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2" style={{ width:0,height:0,borderLeft:'8px solid transparent',borderRight:'8px solid transparent',borderTop:`12px solid ${isSpinning ? '#f5c842':'#ffffff30'}` }} />
-                <div className="absolute -bottom-3 left-1/2 -translate-x-1/2" style={{ width:0,height:0,borderLeft:'8px solid transparent',borderRight:'8px solid transparent',borderBottom:`12px solid ${isSpinning ? '#f5c842':'#ffffff30'}` }} />
-              </div>
+              {/* Custom vertical center bar (replaces the old rectangular frame) */}
+              {(() => {
+                const barColor = isResult && winZone
+                  ? ZONES[winZone].color
+                  : anticipation
+                  ? '#f5c842'
+                  : isSpinning
+                  ? '#f5c842'
+                  : '#d4a017';
+                const glowColor = isResult && winZone
+                  ? ZONES[winZone].glow
+                  : 'rgba(245,200,66,0.6)';
+                return (
+                  <div
+                    className={cn(
+                      'absolute pointer-events-none z-30',
+                      isSpinning && !anticipation && 'rl-glow-p',
+                      isSpinning && anticipation && 'rl-anticipate',
+                      isResult && winZone && 'rl-winning'
+                    )}
+                    style={{
+                      left: '50%',
+                      top: -8,
+                      bottom: -8,
+                      width: 4,
+                      transform: 'translateX(-50%)',
+                      background: `linear-gradient(180deg, transparent 0%, ${barColor} 12%, ${barColor} 88%, transparent 100%)`,
+                      boxShadow: `0 0 16px ${glowColor}, 0 0 32px ${glowColor}`,
+                      borderRadius: 2,
+                      transition: 'background 0.3s, box-shadow 0.3s',
+                      '--gz': glowColor,
+                    } as React.CSSProperties}
+                  >
+                    {/* Top arrow indicator */}
+                    <div
+                      className="absolute left-1/2"
+                      style={{
+                        top: -6,
+                        transform: 'translateX(-50%)',
+                        width: 0,
+                        height: 0,
+                        borderLeft: '7px solid transparent',
+                        borderRight: '7px solid transparent',
+                        borderTop: `10px solid ${barColor}`,
+                        filter: `drop-shadow(0 0 6px ${glowColor})`,
+                      }}
+                    />
+                    {/* Bottom arrow indicator */}
+                    <div
+                      className="absolute left-1/2"
+                      style={{
+                        bottom: -6,
+                        transform: 'translateX(-50%)',
+                        width: 0,
+                        height: 0,
+                        borderLeft: '7px solid transparent',
+                        borderRight: '7px solid transparent',
+                        borderBottom: `10px solid ${barColor}`,
+                        filter: `drop-shadow(0 0 6px ${glowColor})`,
+                      }}
+                    />
+                  </div>
+                );
+              })()}
 
               {/* Burst — radial flash centered on the winning slot */}
               {isResult && winZone && (
@@ -572,7 +619,8 @@ export default function RoulettePage() {
               {/* default borders/backgrounds, and image-wrapper height.          */}
               <style>{`
                 .rl-wheel-host .roulette-pro-prize-item-wrapper,
-                .rl-wheel-host .roulette-pro-regular-prize-item-wrapper {
+                .rl-wheel-host .roulette-pro-regular-prize-item-wrapper,
+                .rl-wheel-host ul li.roulette-pro-regular-prize-item-wrapper {
                   width: ${ITEM_W + ITEM_GAP}px !important;
                   height: ${ITEM_W + 6}px !important;
                   background: transparent !important;
@@ -585,8 +633,15 @@ export default function RoulettePage() {
                 .rl-wheel-host .roulette-pro-regular-prize-item-text {
                   display: none !important;
                 }
-                .rl-wheel-host .roulette-pro-regular-design-top {
+                /* Hide the lib's default red center bar — we draw our own */
+                .rl-wheel-host .roulette-pro-regular-design-top,
+                .rl-wheel-host .roulette-pro-regular-design-top.horizontal,
+                .rl-wheel-host div[class*="roulette-pro-regular-design-top"] {
                   display: none !important;
+                  visibility: hidden !important;
+                  opacity: 0 !important;
+                  width: 0 !important;
+                  height: 0 !important;
                 }
                 .rl-wheel-host .roulette-pro-prize-list,
                 .rl-wheel-host .roulette-pro-prize-list.horizontal {
