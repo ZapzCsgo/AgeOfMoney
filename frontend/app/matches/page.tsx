@@ -25,10 +25,10 @@ const TIER_COLORS: Record<string, string> = {
 
 const GAME_STYLE: Record<string, { bg: string; text: string; border: string }> = {
   AoE4: { bg: 'rgba(212,160,23,0.10)', text: '#f5c842', border: 'rgba(212,160,23,0.25)' },
-  AoE2: { bg: 'rgba(244,114,182,0.10)', text: '#f472b6', border: 'rgba(244,114,182,0.25)' },
-  AoE3: { bg: 'rgba(16,185,129,0.10)', text: '#10b981', border: 'rgba(16,185,129,0.25)' },
-  AoM:  { bg: 'rgba(96,165,250,0.10)', text: '#60a5fa', border: 'rgba(96,165,250,0.25)' },
-  AoE1: { bg: 'rgba(251,146,60,0.10)', text: '#fb923c', border: 'rgba(251,146,60,0.25)' },
+  AoE2: { bg: 'rgba(248,113,113,0.10)', text: '#f87171', border: 'rgba(248,113,113,0.40)' },
+  AoE3: { bg: 'rgba(96,165,250,0.10)', text: '#60a5fa', border: 'rgba(96,165,250,0.40)' },
+  AoM:  { bg: 'rgba(52,211,153,0.10)', text: '#34d399', border: 'rgba(52,211,153,0.40)' },
+  AoE1: { bg: 'rgba(251,146,60,0.10)', text: '#fb923c', border: 'rgba(251,146,60,0.40)' },
 };
 
 function PlayerAvatar({ name, avatarUrl, size = 44 }: { name: string; avatarUrl?: string | null; size?: number }) {
