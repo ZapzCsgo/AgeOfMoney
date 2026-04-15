@@ -54,7 +54,7 @@ export const ZONES = {
 
 export type Zone = keyof typeof ZONES;
 
-const BETTING_DURATION = 15_000;  // 15s
+const BETTING_DURATION = 10_000;  // 10s
 const SPIN_DURATION    = 6_000;   // 6s animation
 
 export function getZoneFromResult(result: number): Zone {
