@@ -120,6 +120,33 @@ const paymentLimiter = rateLimit({
   message: { error: 'Too many payment requests. Please try again later.' },
 });
 
+// Roulette: prevent spam placement / polling abuse
+const rouletteLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60, // 60 req/min — legit UI polls + bets fit, bots cap out
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many roulette requests.' },
+});
+
+// Affiliate: prevent code enumeration via /validate + claim flood
+const affiliateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30, // 30 req/min
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many affiliate requests.' },
+});
+
+// User profile lookups: prevent id scraping
+const userLookupLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many profile requests.' },
+});
+
 app.use(globalLimiter);
 
 // Routes
@@ -127,13 +154,13 @@ app.use('/api/v1/matches', matchesRouter);
 app.use('/api/v1/bets', betLimiter, betsRouter);
 app.use('/api/v1/players', playersRouter);
 app.use('/api/v1/tournaments', tournamentsRouter);
-app.use('/api/v1/users', usersRouter);
+app.use('/api/v1/users', userLookupLimiter, usersRouter);
 app.use('/api/v1/admin', adminRouter);
 // Stripe webhook needs raw body — mount before express.json for this route
 app.use('/api/v1/payments/webhook', express.raw({ type: 'application/json' }));
 app.use('/api/v1/payments', paymentLimiter, paymentsRouter);
-app.use('/api/v1/roulette', rouletteRouter);
-app.use('/api/v1/affiliate', affiliateRouter);
+app.use('/api/v1/roulette', rouletteLimiter, rouletteRouter);
+app.use('/api/v1/affiliate', affiliateLimiter, affiliateRouter);
 app.use('/api/v1/support', supportRouter);
 
 // Dev-only routes
