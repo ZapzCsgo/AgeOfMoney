@@ -199,7 +199,10 @@ export default function AffiliatePage() {
 
   const filteredReferrals = (aff?.referrals ?? []).filter(r => referralFilter === 'all' || r.isActive);
 
-  if (status === 'loading' || loading) {
+  // Only show the full-screen spinner on the VERY first load — not on
+  // subsequent session revalidations (NextAuth briefly flips back to
+  // 'loading' on tab focus, which used to flash this spinner).
+  if (aff === null && (status === 'loading' || loading)) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#07060f' }}>
         <div className="w-8 h-8 border-2 border-[#d4a017] border-t-transparent rounded-full animate-spin" />

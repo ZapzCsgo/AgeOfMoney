@@ -433,7 +433,8 @@ export default function AdminPage() {
     [users, deferredUserSearch]
   );
 
-  if (status === 'loading') return (
+  // Only spinner on the very first load (no session resolved yet)
+  if (status === 'loading' && !session) return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: '#07060f' }}>
       <div className="w-8 h-8 border-2 border-[#d4a017] border-t-transparent rounded-full animate-spin" />
     </div>

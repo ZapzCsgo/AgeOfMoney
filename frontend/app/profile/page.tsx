@@ -541,7 +541,8 @@ export default function ProfilePage() {
     return () => window.removeEventListener('focus', onFocus);
   }, [fetchProfileData, dataLoaded]);
 
-  if (status === 'loading') {
+  // Only spinner on the very first load — not on tab-refocus revalidations
+  if (status === 'loading' && !session && !dataLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#07060f' }}>
         <div className="w-8 h-8 border-2 border-[#d4a017] border-t-transparent rounded-full animate-spin" />
