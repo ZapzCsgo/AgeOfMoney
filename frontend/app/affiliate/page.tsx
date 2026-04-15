@@ -240,7 +240,7 @@ export default function AffiliatePage() {
 
             {!session ? (
               <div className="text-[12px]" style={{ color: '#6b6488' }}>
-                Connecte-toi avec Steam pour générer ton code en 1 clic.
+                Connecte-toi avec Steam pour creer ton code en 1 clic.
               </div>
             ) : !aff ? (
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
@@ -512,7 +512,7 @@ export default function AffiliatePage() {
           <div className="space-y-3">
             <p className="text-[12px]" style={{ color: '#8a82a8' }}>
               Tu gagnes <span className="font-bold" style={{ color: '#e8e2f5' }}>X% des pertes nettes</span> de
-              chaque filleul (pas des dépôts). Plus tu en ramènes, plus ton taux monte — et c&apos;est à vie.
+              chaque filleul (pas des dépôts). Plus tu en ramènes, plus ton taux monte.
             </p>
             {TIERS.map((tier) => {
               const isCurrent = aff ? Math.abs(aff.commissionRate - tier.rate) < 1e-9 : tier.rate === TIERS[0].rate;
