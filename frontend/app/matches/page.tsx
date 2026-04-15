@@ -61,6 +61,8 @@ function MatchRow({ match }: { match: Match }) {
   const isLive = match.status === 'LIVE';
   const isCompleted = match.status === 'COMPLETED';
   const betClosed = !!(match.betsClosedAt && new Date() > new Date(match.betsClosedAt));
+  const p1Won = isCompleted && match.winnerId === match.player1.id;
+  const p2Won = isCompleted && match.winnerId === match.player2.id;
 
   const goToMatchWithPlayer = (player: 1 | 2, e: React.MouseEvent) => {
     e.preventDefault();
@@ -71,68 +73,106 @@ function MatchRow({ match }: { match: Match }) {
   return (
     <Link href={`/matches/${match.id}`} className="block group">
       <div
-        className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-white/[0.02] border-b"
-        style={{ borderColor: '#13111f' }}
+        className="grid items-center gap-3 px-4 py-3 transition-all hover:bg-white/[0.02] border-b"
+        style={{
+          borderColor: '#13111f',
+          gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr) auto',
+        }}
       >
-        {/* Player 1 */}
-        <div className={cn('flex items-center gap-3 flex-1 min-w-0', isCompleted && match.winnerId !== match.player1.id && 'opacity-40')}>
-          <PlayerAvatar name={match.player1.name} avatarUrl={match.player1.avatarUrl} size={44} />
-          <div className="min-w-0">
-            <p className="font-cinzel font-bold text-[#e8e2f5] truncate text-[13px] group-hover:text-[#d4a017] transition-colors">
-              {match.player1.name}
-            </p>
-            {!isCompleted && !betClosed && (
-              <button onClick={(e) => goToMatchWithPlayer(1, e)} className="text-[#d4a017] font-cinzel font-bold text-base mt-0.5 hover:text-[#f5c842] hover:underline transition-colors cursor-pointer">
-                {match.odds1.toFixed(2)}×
-              </button>
+        {/* Player 1 — left aligned */}
+        <button
+          onClick={(e) => { if (!isCompleted && !betClosed) goToMatchWithPlayer(1, e); }}
+          className={cn(
+            'flex items-center gap-3 min-w-0 rounded-lg px-2 py-2 -mx-2 transition-all text-left',
+            !isCompleted && !betClosed && 'hover:bg-[#d4a017]/[0.06]',
+            p2Won && 'opacity-35'
+          )}
+        >
+          <PlayerAvatar name={match.player1.name} avatarUrl={match.player1.avatarUrl} size={38} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              {p1Won && <span className="text-[11px]">👑</span>}
+              <p className={cn(
+                'font-cinzel font-bold truncate text-[13px] transition-colors',
+                p1Won ? 'text-[#f5c842]' : 'text-[#e8e2f5] group-hover:text-[#d4a017]'
+              )}>
+                {match.player1.name}
+              </p>
+            </div>
+            {!isCompleted && !betClosed ? (
+              <p className="text-[#d4a017] font-cinzel font-black text-[17px] leading-none mt-1">
+                {match.odds1.toFixed(2)}<span className="text-[11px] opacity-60">×</span>
+              </p>
+            ) : isCompleted && match.resultScore ? (
+              <p className={cn('font-cinzel font-black text-[17px] leading-none mt-1', p1Won ? 'text-[#f5c842]' : 'text-[#4a4570]')}>
+                {match.resultScore.split('-')[0]}
+              </p>
+            ) : (
+              <p className="text-[10px] text-[#6b6488] mt-1">—</p>
             )}
           </div>
-        </div>
+        </button>
 
-        {/* Center */}
-        <div className="flex flex-col items-center gap-1 shrink-0 w-28">
-          {isCompleted && match.resultScore ? (
-            <span className="font-cinzel font-black text-lg text-[#e8e2f5]">{match.resultScore}</span>
-          ) : isLive ? (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)' }}>
-              <Zap size={10} className="text-red-400" />
-              <span className="text-red-400 font-cinzel text-[11px] font-bold">LIVE</span>
+        {/* Center — status + countdown */}
+        <div className="flex flex-col items-center gap-1 shrink-0 px-1">
+          {isLive ? (
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold" style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171' }}>
+              <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+              LIVE
+            </div>
+          ) : isCompleted ? (
+            <div className="px-2 py-0.5 rounded text-[9px] font-bold" style={{ background: 'rgba(107,100,136,0.1)', border: '1px solid rgba(107,100,136,0.25)', color: '#6b6488' }}>
+              FIN
             </div>
           ) : (
-            <span className="text-[#4a4570] font-cinzel text-xs tracking-widest">VS</span>
+            <span className="text-[#3d3860] font-cinzel text-[10px] tracking-[0.2em] font-bold">VS</span>
           )}
-          <div className="flex items-center gap-1 text-[10px] text-[#6b6488]">
-            {match.game && match.game !== 'AoE4' && (
-              <span className="text-[#d4a017]/70 font-cinzel border border-[#d4a017]/20 rounded px-1 py-px mr-1">
-                {match.game}
-              </span>
-            )}
-            {isCompleted ? (
-              <span className="font-cinzel">{t('matches_finished')}</span>
-            ) : betClosed ? (
-              <span>{t('matches_bets_closed')}</span>
+          {!isCompleted && (
+            <div className="flex items-center gap-1 text-[9px] text-[#6b6488] font-medium whitespace-nowrap">
+              {betClosed ? (
+                <span>{t('matches_bets_closed')}</span>
+              ) : (
+                <><Clock size={8} /><span>{formatCountdown(match.scheduledAt, t)}</span></>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Player 2 — right aligned */}
+        <button
+          onClick={(e) => { if (!isCompleted && !betClosed) goToMatchWithPlayer(2, e); }}
+          className={cn(
+            'flex items-center gap-3 min-w-0 rounded-lg px-2 py-2 -mx-2 justify-end transition-all text-right',
+            !isCompleted && !betClosed && 'hover:bg-[#d4a017]/[0.06]',
+            p1Won && 'opacity-35'
+          )}
+        >
+          <div className="min-w-0 flex-1 text-right">
+            <div className="flex items-center gap-1.5 justify-end">
+              <p className={cn(
+                'font-cinzel font-bold truncate text-[13px] transition-colors',
+                p2Won ? 'text-[#f5c842]' : 'text-[#e8e2f5] group-hover:text-[#d4a017]'
+              )}>
+                {match.player2.name}
+              </p>
+              {p2Won && <span className="text-[11px]">👑</span>}
+            </div>
+            {!isCompleted && !betClosed ? (
+              <p className="text-[#d4a017] font-cinzel font-black text-[17px] leading-none mt-1">
+                {match.odds2.toFixed(2)}<span className="text-[11px] opacity-60">×</span>
+              </p>
+            ) : isCompleted && match.resultScore ? (
+              <p className={cn('font-cinzel font-black text-[17px] leading-none mt-1', p2Won ? 'text-[#f5c842]' : 'text-[#4a4570]')}>
+                {match.resultScore.split('-')[1]}
+              </p>
             ) : (
-              <><Clock size={9} /><span>{formatCountdown(match.scheduledAt, t)}</span></>
+              <p className="text-[10px] text-[#6b6488] mt-1">—</p>
             )}
           </div>
-        </div>
+          <PlayerAvatar name={match.player2.name} avatarUrl={match.player2.avatarUrl} size={38} />
+        </button>
 
-        {/* Player 2 */}
-        <div className={cn('flex items-center gap-3 flex-1 min-w-0 justify-end', isCompleted && match.winnerId !== match.player2.id && 'opacity-40')}>
-          <div className="min-w-0 text-right">
-            <p className="font-cinzel font-bold text-[#e8e2f5] truncate text-[13px] group-hover:text-[#d4a017] transition-colors">
-              {match.player2.name}
-            </p>
-            {!isCompleted && !betClosed && (
-              <button onClick={(e) => goToMatchWithPlayer(2, e)} className="text-[#d4a017] font-cinzel font-bold text-base mt-0.5 hover:text-[#f5c842] hover:underline transition-colors cursor-pointer">
-                {match.odds2.toFixed(2)}×
-              </button>
-            )}
-          </div>
-          <PlayerAvatar name={match.player2.name} avatarUrl={match.player2.avatarUrl} size={44} />
-        </div>
-
-        <ChevronRight size={14} className="shrink-0 text-[#3d3860] group-hover:text-[#d4a017] transition-colors" />
+        <ChevronRight size={13} className="shrink-0 text-[#3d3860] group-hover:text-[#d4a017] transition-colors" />
       </div>
     </Link>
   );
