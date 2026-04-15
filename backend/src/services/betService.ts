@@ -221,40 +221,59 @@ export async function distributePayout(matchId: string, winnerId: string): Promi
   const loserName  = winnerPosition === 1 ? match.player2?.name : match.player1?.name;
   const tournamentName = match.tournament?.name ?? 'Tournament';
 
-  for (const bet of pendingBets) {
+  // First pass — compute won/lost + payout for each bet (pure, no I/O)
+  const resolved = pendingBets.map(bet => {
     let won: boolean;
     if (bet.betType === 'EXACT_SCORE') {
-      // Exact score bet: must match both winner and loser game count
       won = bet.selectedPlayer === winnerPosition && actualLoserGames !== null && bet.boNumber === actualLoserGames;
     } else {
       won = bet.selectedPlayer === winnerPosition;
     }
     const payout = won ? Math.floor(bet.amount * bet.oddsAtBet) : 0;
+    return { bet, won, payout };
+  });
 
-    await prisma.$transaction([
+  // Aggregate winner payouts per user (one update per user instead of N)
+  const winnerCoinIncrements = new Map<string, number>();
+  for (const { bet, won, payout } of resolved) {
+    if (won) {
+      winnerCoinIncrements.set(bet.userId, (winnerCoinIncrements.get(bet.userId) ?? 0) + payout);
+      payoutsDistributed++;
+      totalPaid += payout;
+    }
+  }
+
+  // Batch ALL DB writes in a single transaction (was N × 2 queries serial)
+  await prisma.$transaction([
+    ...resolved.map(({ bet, won, payout }) =>
       prisma.bet.update({
         where: { id: bet.id },
         data: {
           status: won ? BetStatus.WON : BetStatus.LOST,
           payout: won ? payout : 0,
         },
-      }),
-      ...(won
-        ? [
-            prisma.user.update({
-              where: { id: bet.userId },
-              data: { coins: { increment: payout } },
-            }),
-          ]
-        : []),
-    ]);
+      })
+    ),
+    ...[...winnerCoinIncrements.entries()].map(([userId, totalIncrement]) =>
+      prisma.user.update({
+        where: { id: userId },
+        data: { coins: { increment: totalIncrement } },
+      })
+    ),
+  ]);
 
-    if (won) {
-      payoutsDistributed++;
-      totalPaid += payout;
-      // Fetch updated coins and notify user
-      const updatedUser = await prisma.user.findUnique({ where: { id: bet.userId }, select: { coins: true } });
-      if (io && updatedUser) io.to(`user:${bet.userId}`).emit('coinsUpdate', { coins: updatedUser.coins, direction: 'up' });
+  // Fetch updated balances for winner users in ONE query (batched notifications)
+  const winnerUserIds = [...winnerCoinIncrements.keys()];
+  const winnerUsers = winnerUserIds.length > 0
+    ? await prisma.user.findMany({ where: { id: { in: winnerUserIds } }, select: { id: true, coins: true } })
+    : [];
+  const winnerUserMap = new Map(winnerUsers.map(u => [u.id, u]));
+
+  // Emit notifications + credit affiliate (these are independent of the DB writes)
+  for (const { bet, won, payout } of resolved) {
+    if (won && io) {
+      const updatedUser = winnerUserMap.get(bet.userId);
+      if (updatedUser) io.to(`user:${bet.userId}`).emit('coinsUpdate', { coins: updatedUser.coins, direction: 'up' });
     }
 
     // Credit affiliate revshare on net outcome
@@ -263,7 +282,6 @@ export async function distributePayout(matchId: string, winnerId: string): Promi
     creditAffiliateOnBetResolved(bet.userId, bet.amount, netDelta)
       .catch(err => logger.warn('[Affiliate] credit failed:', err));
 
-    // Notify user via their private socket room
     if (io) {
       io.to(`user:${bet.userId}`).emit('betResult', {
         matchId,
@@ -311,20 +329,42 @@ export async function distributeDrawPayout(matchId: string): Promise<void> {
   let payoutsDistributed = 0;
   let totalPaid = 0;
 
-  for (const bet of pendingBets) {
-    const won = bet.selectedPlayer === 0; // draw bets win
+  // Compute outcomes + aggregate per-user winner increments
+  const resolved = pendingBets.map(bet => {
+    const won = bet.selectedPlayer === 0;
     const payout = won ? Math.floor(bet.amount * bet.oddsAtBet) : 0;
+    return { bet, won, payout };
+  });
+  const winnerCoinIncrements = new Map<string, number>();
+  for (const { bet, won, payout } of resolved) {
+    if (won) {
+      winnerCoinIncrements.set(bet.userId, (winnerCoinIncrements.get(bet.userId) ?? 0) + payout);
+      payoutsDistributed++;
+      totalPaid += payout;
+    }
+  }
 
-    await prisma.$transaction([
+  // Batch all writes
+  await prisma.$transaction([
+    ...resolved.map(({ bet, won, payout }) =>
       prisma.bet.update({
         where: { id: bet.id },
         data: { status: won ? BetStatus.WON : BetStatus.LOST, payout: won ? payout : 0 },
-      }),
-      ...(won ? [prisma.user.update({ where: { id: bet.userId }, data: { coins: { increment: payout } } })] : []),
-    ]);
+      })
+    ),
+    ...[...winnerCoinIncrements.entries()].map(([userId, totalIncrement]) =>
+      prisma.user.update({ where: { id: userId }, data: { coins: { increment: totalIncrement } } })
+    ),
+  ]);
 
-    if (won) { payoutsDistributed++; totalPaid += payout; }
+  // Fetch winner balances in ONE query
+  const winnerUserIds = [...winnerCoinIncrements.keys()];
+  const winnerUsers = winnerUserIds.length > 0
+    ? await prisma.user.findMany({ where: { id: { in: winnerUserIds } }, select: { id: true, coins: true } })
+    : [];
+  const winnerUserMap = new Map(winnerUsers.map(u => [u.id, u]));
 
+  for (const { bet, won, payout } of resolved) {
     // Credit affiliate revshare on net outcome
     const netDelta = won ? -(payout - bet.amount) : bet.amount;
     creditAffiliateOnBetResolved(bet.userId, bet.amount, netDelta)
@@ -332,7 +372,7 @@ export async function distributeDrawPayout(matchId: string): Promise<void> {
 
     if (io) {
       if (won) {
-        const updatedUser = await prisma.user.findUnique({ where: { id: bet.userId }, select: { coins: true } });
+        const updatedUser = winnerUserMap.get(bet.userId);
         if (updatedUser) io.to(`user:${bet.userId}`).emit('coinsUpdate', { coins: updatedUser.coins, direction: 'up' });
       }
       const playerBetOn = bet.selectedPlayer === 0 ? 'Égalité' : bet.selectedPlayer === 1 ? match.player1?.name : match.player2?.name;
@@ -386,12 +426,19 @@ export async function refundBets(matchId: string, reason?: string): Promise<void
   if (io && match) {
     const tournamentName = match.tournament?.name ?? 'Tournament';
     const refundReason = reason ?? 'Match annulé (forfait/walkover)';
+
+    // Fetch all affected user balances in ONE query (was N findUnique in a loop)
+    const userIds = [...new Set(pendingBets.map(b => b.userId))];
+    const users = await prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, coins: true },
+    });
+    const userMap = new Map(users.map(u => [u.id, u]));
+
     for (const bet of pendingBets) {
       const playerBetOn = bet.selectedPlayer === 1 ? match.player1?.name : match.player2?.name;
-      // Send updated coin balance
-      const updatedUser = await prisma.user.findUnique({ where: { id: bet.userId }, select: { coins: true } });
+      const updatedUser = userMap.get(bet.userId);
       if (updatedUser) io.to(`user:${bet.userId}`).emit('coinsUpdate', { coins: updatedUser.coins, direction: 'up' });
-      // Send refund notification
       io.to(`user:${bet.userId}`).emit('betResult', {
         matchId,
         betId: bet.id,
