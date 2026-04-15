@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
-import { ChevronDown, User, LogOut, Shield, Wallet, PlusCircle, Crown, Bell } from 'lucide-react';
+import { ChevronDown, User, LogOut, Shield, Wallet, PlusCircle, Crown, Bell, Gift, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -274,6 +274,22 @@ export function Navbar() {
                       >
                         <User size={14} className="text-aoe-gold" />
                         {t('auth_my_profile')}
+                      </Link>
+                      <Link
+                        href="/affiliate"
+                        className="flex items-center gap-2 px-4 py-2 text-sm text-aoe-parchment hover:bg-aoe-stone transition-colors"
+                        onClick={() => setDropdownOpen(false)}
+                      >
+                        <Gift size={14} className="text-aoe-gold" />
+                        {t('nav_affiliates')}
+                      </Link>
+                      <Link
+                        href="/leaderboard"
+                        className="flex items-center gap-2 px-4 py-2 text-sm text-aoe-parchment hover:bg-aoe-stone transition-colors md:hidden"
+                        onClick={() => setDropdownOpen(false)}
+                      >
+                        <TrendingUp size={14} className="text-aoe-gold" />
+                        {t('nav_leaderboard')}
                       </Link>
                       {session.user.isAdmin && (
                         <Link
