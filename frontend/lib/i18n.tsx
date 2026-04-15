@@ -1472,8 +1472,13 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       }
     }
     // 3. Final client-side fallback — navigator.language ("fr-FR", "en-US", …)
-    const browserLang = (navigator.language || 'fr').toLowerCase().slice(0, 2);
-    const detected: Lang = browserLang === 'es' ? 'es' : browserLang === 'en' ? 'en' : 'fr';
+    //    If the browser language isn't one we support, default to English
+    //    as the international fallback (not French).
+    const browserLang = (navigator.language || '').toLowerCase().slice(0, 2);
+    const detected: Lang =
+      browserLang === 'fr' ? 'fr' :
+      browserLang === 'es' ? 'es' :
+      'en';
     setLangState(detected);
   }, []);
 

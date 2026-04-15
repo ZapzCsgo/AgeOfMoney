@@ -20,7 +20,8 @@ function pickLanguage(acceptLanguage: string): Lang {
   for (const c of candidates) {
     if ((SUPPORTED_LANGS as readonly string[]).includes(c.tag)) return c.tag as Lang;
   }
-  return 'fr';
+  // International fallback → English (previously was French)
+  return 'en';
 }
 
 function applyLangCookie(req: NextRequest, res: NextResponse) {

@@ -225,7 +225,7 @@ export default function AffiliatePage() {
               </span>
               <span className="text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-widest"
                 style={{ background: '#22c55e22', color: '#22c55e', border: '1px solid #22c55e55' }}>
-                Revshare à vie
+                Exclusivité lancement
               </span>
             </div>
             <h1 className="text-2xl md:text-3xl font-black leading-tight mb-3"
