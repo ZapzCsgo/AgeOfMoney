@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { useSession } from 'next-auth/react';
 import { Send, Users, Smile, VolumeX, User, Coins } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -88,6 +88,76 @@ function avatarColor(name: string): string {
   return colors[h];
 }
 
+// Memoized message row — prevents full chat re-render when a new message is appended.
+// Props are primitives + a stable onAvatarClick, so memo reliably short-circuits.
+interface ChatMessageProps {
+  msg: ChatMsg;
+  isMe: boolean;
+  onAvatarClick: (msg: ChatMsg, rect: DOMRect) => void;
+}
+const ChatMessage = memo(function ChatMessage({ msg, isMe, onAvatarClick }: ChatMessageProps) {
+  if (msg.userId === 'system') {
+    return (
+      <div className="px-3 py-1.5 text-center">
+        <span className="text-[10px] italic" style={{ color: '#4a4468' }}>{msg.message}</span>
+      </div>
+    );
+  }
+  const bgColor = avatarColor(msg.username);
+  const color   = levelColor(msg.tier);
+  return (
+    <div
+      className={cn(
+        'group flex items-start gap-3 px-3 py-3 transition-colors cursor-default',
+        isMe ? 'bg-[#d4a017]/5' : 'hover:bg-[#0d0c18]'
+      )}
+    >
+      <button
+        className="shrink-0 relative cursor-pointer hover:opacity-80 transition-opacity"
+        onClick={(e) => {
+          if (isMe) return;
+          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+          onAvatarClick(msg, rect);
+        }}
+      >
+        <div
+          className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center text-[12px] font-bold text-white"
+          style={{ background: msg.avatar ? 'transparent' : bgColor, border: `2px solid ${color}55` }}
+        >
+          {msg.avatar
+            ? <img src={msg.avatar} alt={msg.username} className="w-full h-full object-cover" />
+            : msg.username.slice(0, 2).toUpperCase()}
+        </div>
+        <div className="absolute -bottom-1 -right-1 text-[9px] font-black rounded-full flex items-center justify-center"
+          style={{ background: color, color: '#07060f', width: 16, height: 16, lineHeight: 1 }}>
+          {msg.level}
+        </div>
+      </button>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+          <span className={cn('text-[13px] font-bold leading-none', isMe ? 'text-[#d4a017]' : 'text-[#e8e2f5]')}>
+            {msg.username}
+          </span>
+          {msg.isAdmin && (
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#be123c33', color: '#f87171', border: '1px solid #be123c55' }}>ADMIN</span>
+          )}
+          {msg.isMod && !msg.isAdmin && (
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#1e3a5f', color: '#60a5fa', border: '1px solid #3b82f640' }}>MOD</span>
+          )}
+          {msg.isPartner && (
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#2d1b4e', color: '#c084fc', border: '1px solid #a855f740' }}>PARTNER</span>
+          )}
+          <span className="text-[10px] text-[#3d3860] opacity-0 group-hover:opacity-100 transition-opacity ml-auto shrink-0">
+            {formatTime(msg.timestamp)}
+          </span>
+        </div>
+        <p className="text-[13px] text-[#9990b8] leading-snug break-words">{renderMessage(msg.message)}</p>
+      </div>
+    </div>
+  );
+});
+
 export function ChatPanel() {
   const { data: session } = useSession();
   const { t } = useT();
@@ -117,6 +187,21 @@ export function ChatPanel() {
   const inputRef   = useRef<HTMLInputElement>(null);
   const emojiRef   = useRef<HTMLDivElement>(null);
   const menuRef    = useRef<HTMLDivElement>(null);
+
+  // Stable handler for ChatMessage so its React.memo prevents re-renders
+  // on new messages. Uses setters which are guaranteed stable by React.
+  const handleAvatarClick = useCallback((msg: ChatMsg, rect: DOMRect) => {
+    setUserMenu({
+      userId: msg.userId,
+      username: msg.username,
+      avatar: msg.avatar,
+      isAdmin: msg.isAdmin,
+      x: rect.right + 4,
+      y: rect.top,
+    });
+    setTipAmount('');
+    setTipMsg(null);
+  }, []);
 
   // Close emoji picker when clicking outside
   useEffect(() => {
@@ -272,72 +357,14 @@ export function ChatPanel() {
             </p>
           </div>
         ) : (
-          messages.map((msg) => {
-            const isMe    = msg.userId === session?.user?.id;
-            const isSystem = msg.userId === 'system';
-            const bgColor = avatarColor(msg.username);
-            const color   = levelColor(msg.tier);
-
-            if (isSystem) return (
-              <div key={msg.id} className="px-3 py-1.5 text-center">
-                <span className="text-[10px] italic" style={{ color: '#4a4468' }}>{msg.message}</span>
-              </div>
-            );
-
-            return (
-              <div
-                key={msg.id}
-                className={cn(
-                  'group flex items-start gap-3 px-3 py-3 transition-colors cursor-default',
-                  isMe ? 'bg-[#d4a017]/5' : 'hover:bg-[#0d0c18]'
-                )}
-              >
-                <button
-                  className="shrink-0 relative cursor-pointer hover:opacity-80 transition-opacity"
-                  onClick={(e) => {
-                    if (isMe) return;
-                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                    setUserMenu({ userId: msg.userId, username: msg.username, avatar: msg.avatar, isAdmin: msg.isAdmin, x: rect.right + 4, y: rect.top });
-                    setTipAmount(''); setTipMsg(null);
-                  }}
-                >
-                  <div
-                    className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center text-[12px] font-bold text-white"
-                    style={{ background: msg.avatar ? 'transparent' : bgColor, border: `2px solid ${color}55` }}
-                  >
-                    {msg.avatar
-                      ? <img src={msg.avatar} alt={msg.username} className="w-full h-full object-cover" />
-                      : msg.username.slice(0, 2).toUpperCase()}
-                  </div>
-                  <div className="absolute -bottom-1 -right-1 text-[9px] font-black rounded-full flex items-center justify-center"
-                    style={{ background: color, color: '#07060f', width: 16, height: 16, lineHeight: 1 }}>
-                    {msg.level}
-                  </div>
-                </button>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                    <span className={cn('text-[13px] font-bold leading-none', isMe ? 'text-[#d4a017]' : 'text-[#e8e2f5]')}>
-                      {msg.username}
-                    </span>
-                    {msg.isAdmin && (
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#be123c33', color: '#f87171', border: '1px solid #be123c55' }}>ADMIN</span>
-                    )}
-                    {msg.isMod && !msg.isAdmin && (
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#1e3a5f', color: '#60a5fa', border: '1px solid #3b82f640' }}>MOD</span>
-                    )}
-                    {msg.isPartner && (
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#2d1b4e', color: '#c084fc', border: '1px solid #a855f740' }}>PARTNER</span>
-                    )}
-                    <span className="text-[10px] text-[#3d3860] opacity-0 group-hover:opacity-100 transition-opacity ml-auto shrink-0">
-                      {formatTime(msg.timestamp)}
-                    </span>
-                  </div>
-                  <p className="text-[13px] text-[#9990b8] leading-snug break-words">{renderMessage(msg.message)}</p>
-                </div>
-              </div>
-            );
-          })
+          messages.map((msg) => (
+            <ChatMessage
+              key={msg.id}
+              msg={msg}
+              isMe={msg.userId === session?.user?.id}
+              onAvatarClick={handleAvatarClick}
+            />
+          ))
         )}
         <div ref={bottomRef} />
       </div>
