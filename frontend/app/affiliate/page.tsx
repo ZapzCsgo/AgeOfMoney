@@ -5,8 +5,7 @@ import { useSession } from 'next-auth/react';
 import { apiClient, setAuthToken } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import {
-  Copy, Check, Users, TrendingUp, Coins, UserCheck,
-  Rocket, Share2, MessageSquare, Twitter, Calculator, Sparkles,
+  Copy, Check, Users, TrendingUp, Coins, UserCheck, Rocket,
 } from 'lucide-react';
 
 interface Referral {
@@ -26,13 +25,15 @@ interface AffiliateData {
   commissionRate: number;
   totalEarnings: number;
   available: number;
+  createdAt?: string;
+  codeUnlocksAt?: string;
   totalReferrals: number;
   activeReferrals: number;
   totalDeposited: number;
   referrals: Referral[];
 }
 
-type TabType = 'dashboard' | 'tools' | 'tiers';
+type TabType = 'dashboard' | 'tiers';
 
 // 3-tier progressive revshare on net losses
 const TIERS = [
@@ -40,12 +41,6 @@ const TIERS = [
   { level: 'Silver', rate: 0.30, refs: 10,  color: '#c0c0c0', desc: '10 filleuls actifs + 10 000⚜ déposés' },
   { level: 'Gold',   rate: 0.35, refs: 50,  color: '#d4a017', desc: '50 filleuls actifs + 50 000⚜ déposés' },
 ];
-
-// Assumed blended house margin on bet volume — used for the earnings simulator.
-// 2-way: 6%, draw: 10%, exact: 15%, roulette: 6.67% → weighted ≈ 7.75%
-const HOUSE_MARGIN = 0.0775;
-// Rough coins→EUR conversion used in simulator examples (1.69⚜ ≈ $0.99 ≈ 0.91€)
-const COIN_TO_EUR = 0.54;
 
 function EarningsChart({ data }: { data: number[] }) {
   if (data.length < 2 || data.every(v => v === 0)) {
@@ -92,10 +87,10 @@ export default function AffiliatePage() {
   const [referralFilter, setReferralFilter] = useState<'all' | 'active'>('all');
   const [claimMsg, setClaimMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
   const [createErr, setCreateErr] = useState<string | null>(null);
-
-  // Simulator state
-  const [simReferrals, setSimReferrals] = useState(10);
-  const [simAvgWager, setSimAvgWager] = useState(500); // coins wagered per ref per month
+  const [editingCode, setEditingCode] = useState(false);
+  const [newCodeInput, setNewCodeInput] = useState('');
+  const [changeErr, setChangeErr] = useState<string | null>(null);
+  const [changing, setChanging] = useState(false);
 
   useEffect(() => {
     if (session?.user.accessToken) setAuthToken(session.user.accessToken);
@@ -113,12 +108,19 @@ export default function AffiliatePage() {
   useEffect(() => { if (session) fetchAff(); }, [session, fetchAff]);
 
   async function createCode() {
-    setCreating(true);
     setCreateErr(null);
+    const trimmed = customCode.trim();
+    if (!trimmed) {
+      setCreateErr('Choisis un code');
+      return;
+    }
+    if (!/^[A-Za-z0-9]{3,16}$/.test(trimmed)) {
+      setCreateErr('3 à 16 caractères alphanumériques');
+      return;
+    }
+    setCreating(true);
     try {
-      const body: { customCode?: string } = {};
-      if (customCode.trim()) body.customCode = customCode.trim();
-      const res = await apiClient.post('/affiliate/me/create', body);
+      const res = await apiClient.post('/affiliate/me/create', { customCode: trimmed });
       setAff(res.data.data);
       await fetchAff();
     } catch (e) {
@@ -126,6 +128,27 @@ export default function AffiliatePage() {
       setCreateErr(msg);
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function changeCode() {
+    setChangeErr(null);
+    const trimmed = newCodeInput.trim();
+    if (!/^[A-Za-z0-9]{3,16}$/.test(trimmed)) {
+      setChangeErr('3 à 16 caractères alphanumériques');
+      return;
+    }
+    setChanging(true);
+    try {
+      const res = await apiClient.patch('/affiliate/me/code', { customCode: trimmed });
+      setAff(res.data.data);
+      setEditingCode(false);
+      setNewCodeInput('');
+      await fetchAff();
+    } catch (e) {
+      setChangeErr(e instanceof Error ? e.message : 'Erreur');
+    } finally {
+      setChanging(false);
     }
   }
 
@@ -156,22 +179,6 @@ export default function AffiliatePage() {
     return [...TIERS].reverse().find(t => t.rate <= rate + 1e-9) ?? TIERS[0];
   }, [aff]);
 
-  // Share URL
-  const shareUrl = useMemo(() => {
-    if (!aff) return '';
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://ageof.money';
-    return `${origin}/?ref=${aff.code}`;
-  }, [aff]);
-
-  // Earnings simulator math
-  const simulator = useMemo(() => {
-    const totalVolume = simReferrals * simAvgWager; // coins wagered / month
-    const houseRevenue = totalVolume * HOUSE_MARGIN; // coins of user losses
-    const myCommission = Math.floor(houseRevenue * currentTier.rate);
-    const myEuros = Math.floor(myCommission * COIN_TO_EUR);
-    return { totalVolume, houseRevenue, myCommission, myEuros };
-  }, [simReferrals, simAvgWager, currentTier.rate]);
-
   // Chart data (7 days)
   const chartData = useMemo(() => {
     return [0, 0, 0, 0, 0, 0, 0].map((_, i) => {
@@ -186,30 +193,6 @@ export default function AffiliatePage() {
   }, [aff]);
 
   const filteredReferrals = (aff?.referrals ?? []).filter(r => referralFilter === 'all' || r.isActive);
-
-  // Templates
-  const dmTemplate = aff ? `Salut [pseudo],
-
-Je viens de lancer AgeOfMoney, la première plateforme de paris sur les matchs pro d'Age of Empires. C'est un projet fait par un fan d'AoE pour la communauté.
-
-Je te propose un deal revshare à vie : tu utilises mon code et tu touches ${Math.round(aff.commissionRate * 100)}% sur les pertes nettes de chaque joueur que tu ramènes. Pas de limite de temps, pas de plafond.
-
-Mon code : ${aff.code}
-Lien : ${shareUrl}
-
-Ça t'intéresse d'en parler ?` : '';
-
-  const tweetTemplate = aff ? `Je viens de découvrir AgeOfMoney, le premier site de paris AoE esport 🏰
-
-Cotes sur les matchs pro, roulette, tournois cash — 100% pour la communauté.
-
-Mon code : ${aff.code}
-→ ${shareUrl}` : '';
-
-  const discordTemplate = aff ? `**AgeOfMoney** — paris esport Age of Empires 🏰
-Cotes sur tous les matchs pro AoE4/AoE2/AoM, roulette, tournois cash.
-
-Utilise mon code \`${aff.code}\` pour nous soutenir : ${shareUrl}` : '';
 
   if (status === 'loading' || loading) {
     return (
@@ -260,18 +243,40 @@ Utilise mon code \`${aff.code}\` pour nous soutenir : ${shareUrl}` : '';
                   type="text"
                   value={customCode}
                   onChange={e => setCustomCode(e.target.value.replace(/[^A-Za-z0-9]/g, '').slice(0, 16))}
-                  placeholder="Code custom (optionnel)"
+                  placeholder="Choisis ton code (3-16 car.)"
                   maxLength={16}
-                  className="px-4 py-2.5 rounded-lg text-[13px] font-mono tracking-widest w-full sm:w-52 outline-none"
+                  className="px-4 py-2.5 rounded-lg text-[13px] font-mono tracking-widest w-full sm:w-60 outline-none"
                   style={{ background: '#13111f', border: '1px solid #2a2640', color: '#e8e2f5' }}
                 />
                 <button
                   onClick={createCode}
-                  disabled={creating}
-                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold text-[13px] transition-opacity hover:opacity-80 disabled:opacity-50 w-full sm:w-auto justify-center"
+                  disabled={creating || !customCode.trim()}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold text-[13px] transition-opacity hover:opacity-80 disabled:opacity-40 w-full sm:w-auto justify-center"
                   style={{ background: '#d4a017', color: '#07060f' }}>
                   <Rocket size={14} />
-                  {creating ? 'Création...' : 'Générer mon code en 1 clic'}
+                  {creating ? 'Création...' : 'Créer mon code'}
+                </button>
+              </div>
+            ) : editingCode ? (
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                <input
+                  type="text"
+                  value={newCodeInput}
+                  onChange={e => setNewCodeInput(e.target.value.replace(/[^A-Za-z0-9]/g, '').slice(0, 16))}
+                  placeholder="Nouveau code"
+                  maxLength={16}
+                  className="px-4 py-2.5 rounded-lg text-[13px] font-mono tracking-widest w-full sm:w-60 outline-none"
+                  style={{ background: '#13111f', border: '1px solid #2a2640', color: '#e8e2f5' }}
+                />
+                <button onClick={changeCode} disabled={changing || !newCodeInput.trim()}
+                  className="px-5 py-2.5 rounded-lg font-bold text-[13px] disabled:opacity-40"
+                  style={{ background: '#d4a017', color: '#07060f' }}>
+                  {changing ? '...' : 'Confirmer'}
+                </button>
+                <button onClick={() => { setEditingCode(false); setNewCodeInput(''); setChangeErr(null); }}
+                  className="px-4 py-2.5 rounded-lg text-[12px]"
+                  style={{ background: 'transparent', border: '1px solid #2a2640', color: '#8a82a8' }}>
+                  Annuler
                 </button>
               </div>
             ) : (
@@ -291,18 +296,40 @@ Utilise mon code \`${aff.code}\` pour nous soutenir : ${shareUrl}` : '';
                     {currentTier.level} · {Math.round(currentTier.rate * 100)}%
                   </span>
                 </div>
+                {(() => {
+                  const unlocksAt = aff.codeUnlocksAt ? new Date(aff.codeUnlocksAt) : null;
+                  const unlocked = unlocksAt ? Date.now() >= unlocksAt.getTime() : true;
+                  if (unlocked) {
+                    return (
+                      <button onClick={() => setEditingCode(true)}
+                        className="text-[11px] px-3 py-2 rounded-lg hover:opacity-80"
+                        style={{ background: 'transparent', border: '1px solid #2a2640', color: '#8a82a8' }}>
+                        Modifier le code
+                      </button>
+                    );
+                  }
+                  const daysLeft = Math.ceil((unlocksAt!.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+                  return (
+                    <span className="text-[11px] px-3 py-2 rounded-lg" style={{ background: '#13111f', color: '#6b6488', border: '1px solid #1a1730' }}>
+                      🔒 modifiable dans {daysLeft}j
+                    </span>
+                  );
+                })()}
               </div>
             )}
 
-            {createErr && (
+            {createErr && !aff && (
               <p className="text-[11px] text-red-400 mt-3">{createErr}</p>
+            )}
+            {changeErr && editingCode && (
+              <p className="text-[11px] text-red-400 mt-3">{changeErr}</p>
             )}
           </div>
         </div>
 
         {/* ── Tabs ── */}
         <div className="flex items-center gap-1 p-1 rounded-xl w-fit" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
-          {([['dashboard', 'Dashboard'], ['tools', 'Outils de partage'], ['tiers', 'Tiers']] as [TabType, string][]).map(([id, label]) => (
+          {([['dashboard', 'Dashboard'], ['tiers', 'Tiers']] as [TabType, string][]).map(([id, label]) => (
             <button key={id} onClick={() => setActiveTab(id)}
               className="px-4 md:px-5 py-2 rounded-lg text-[12px] font-medium transition-all"
               style={{
@@ -317,60 +344,6 @@ Utilise mon code \`${aff.code}\` pour nous soutenir : ${shareUrl}` : '';
         {/* ── DASHBOARD ── */}
         {activeTab === 'dashboard' && (
           <>
-            {/* Simulator — always visible to motivate */}
-            <div className="rounded-2xl p-5 md:p-6" style={{
-              background: 'linear-gradient(135deg, #0d0b1a 0%, #13111f 100%)',
-              border: '1px solid #1e1a30',
-            }}>
-              <div className="flex items-center gap-2 mb-4">
-                <Calculator size={16} style={{ color: '#d4a017' }} />
-                <h2 className="text-[14px] font-bold uppercase tracking-wider" style={{ color: '#e8e2f5' }}>
-                  Simulateur de gains
-                </h2>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between text-[12px] mb-1">
-                      <span style={{ color: '#8a82a8' }}>Filleuls actifs / mois</span>
-                      <span className="font-bold" style={{ color: '#e8e2f5' }}>{simReferrals}</span>
-                    </div>
-                    <input type="range" min="1" max="100" value={simReferrals}
-                      onChange={e => setSimReferrals(parseInt(e.target.value))}
-                      className="w-full accent-[#d4a017]" />
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-[12px] mb-1">
-                      <span style={{ color: '#8a82a8' }}>Volume misé par filleul / mois</span>
-                      <span className="font-bold" style={{ color: '#e8e2f5' }}>{simAvgWager.toLocaleString('fr-FR')}⚜</span>
-                    </div>
-                    <input type="range" min="100" max="5000" step="100" value={simAvgWager}
-                      onChange={e => setSimAvgWager(parseInt(e.target.value))}
-                      className="w-full accent-[#d4a017]" />
-                  </div>
-                  <p className="text-[11px]" style={{ color: '#4a4468' }}>
-                    Calcul : volume × marge maison (7.75%) × ton taux ({Math.round(currentTier.rate * 100)}%)
-                  </p>
-                </div>
-                <div className="flex flex-col justify-center p-5 rounded-xl"
-                  style={{ background: '#07060f', border: '1px solid #1e1a30' }}>
-                  <p className="text-[11px] uppercase tracking-widest mb-2" style={{ color: '#6b6488' }}>
-                    Tes gains estimés / mois
-                  </p>
-                  <p className="text-4xl font-black mb-1" style={{ color: '#d4a017', fontFamily: 'Cinzel,serif' }}>
-                    {simulator.myCommission.toLocaleString('fr-FR')}⚜
-                  </p>
-                  <p className="text-[13px]" style={{ color: '#8a82a8' }}>
-                    ≈ <span className="font-bold" style={{ color: '#22c55e' }}>{simulator.myEuros}€</span> par mois
-                  </p>
-                  <div className="mt-3 pt-3 border-t text-[10px] space-y-0.5" style={{ borderColor: '#1e1a30', color: '#4a4468' }}>
-                    <div>Volume total : {simulator.totalVolume.toLocaleString('fr-FR')}⚜</div>
-                    <div>Pertes nettes joueurs : {Math.floor(simulator.houseRevenue).toLocaleString('fr-FR')}⚜</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
             {aff && (
               <>
                 {/* Chart + Stats */}
@@ -524,84 +497,6 @@ Utilise mon code \`${aff.code}\` pour nous soutenir : ${shareUrl}` : '';
               </div>
             )}
           </>
-        )}
-
-        {/* ── TOOLS ── */}
-        {activeTab === 'tools' && (
-          <div className="space-y-4">
-            {!aff ? (
-              <div className="rounded-2xl p-10 text-center" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
-                <Sparkles size={32} className="mx-auto mb-3" style={{ color: '#d4a017' }} />
-                <p className="text-[13px]" style={{ color: '#8a82a8' }}>
-                  Génère ton code depuis le dashboard pour débloquer les outils de partage
-                </p>
-              </div>
-            ) : (
-              <>
-                {/* Share URL */}
-                <div className="rounded-xl p-5" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <Share2 size={14} style={{ color: '#d4a017' }} />
-                    <h3 className="text-[12px] font-bold uppercase tracking-wider" style={{ color: '#e8e2f5' }}>
-                      Ton lien de partage
-                    </h3>
-                  </div>
-                  <div className="flex items-center gap-2 p-3 rounded-lg font-mono text-[12px] break-all"
-                    style={{ background: '#13111f', border: '1px solid #1a1730', color: '#c8c0e0' }}>
-                    <span className="flex-1">{shareUrl}</span>
-                    <button onClick={() => copyText(shareUrl, 'url')}
-                      className="shrink-0 px-3 py-1.5 rounded-md text-[11px] font-bold"
-                      style={{ background: '#d4a017', color: '#07060f' }}>
-                      {copied === 'url' ? '✓ Copié' : 'Copier'}
-                    </button>
-                  </div>
-                  <div className="flex gap-2 mt-3">
-                    <a href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetTemplate)}`}
-                      target="_blank" rel="noreferrer"
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] font-bold hover:opacity-80"
-                      style={{ background: '#1da1f222', color: '#1da1f2', border: '1px solid #1da1f255' }}>
-                      <Twitter size={12} /> Tweeter
-                    </a>
-                    <a href={`https://wa.me/?text=${encodeURIComponent(`AgeOfMoney — paris esport AoE 🏰\n${shareUrl}`)}`}
-                      target="_blank" rel="noreferrer"
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] font-bold hover:opacity-80"
-                      style={{ background: '#25d36622', color: '#25d366', border: '1px solid #25d36655' }}>
-                      <MessageSquare size={12} /> WhatsApp
-                    </a>
-                  </div>
-                </div>
-
-                {/* Templates */}
-                <div className="rounded-xl p-5" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
-                  <h3 className="text-[12px] font-bold uppercase tracking-wider mb-4" style={{ color: '#e8e2f5' }}>
-                    Templates prêts à copier
-                  </h3>
-                  <div className="space-y-4">
-                    {[
-                      { key: 'dm', label: 'DM à un streamer', body: dmTemplate },
-                      { key: 'tweet', label: 'Tweet / Post X', body: tweetTemplate },
-                      { key: 'discord', label: 'Message Discord', body: discordTemplate },
-                    ].map(tpl => (
-                      <div key={tpl.key}>
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: '#8a82a8' }}>{tpl.label}</span>
-                          <button onClick={() => copyText(tpl.body, tpl.key)}
-                            className="text-[10px] font-bold px-2 py-1 rounded hover:opacity-80"
-                            style={{ background: '#1a1630', color: '#d4a017', border: '1px solid #2a2640' }}>
-                            {copied === tpl.key ? '✓ Copié' : 'Copier'}
-                          </button>
-                        </div>
-                        <pre className="text-[11px] p-3 rounded-lg whitespace-pre-wrap font-mono leading-relaxed"
-                          style={{ background: '#13111f', border: '1px solid #1a1730', color: '#c8c0e0' }}>
-                          {tpl.body}
-                        </pre>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
         )}
 
         {/* ── TIERS ── */}

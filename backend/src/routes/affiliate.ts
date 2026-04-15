@@ -52,12 +52,18 @@ router.get('/me', requireAuth, async (req: Request, res: Response): Promise<void
       user: userMap[r.referredUserId] ?? null,
     }));
 
+    // Compute when the code becomes changeable (14 days after creation)
+    const lockMs = 14 * 24 * 60 * 60 * 1000;
+    const codeUnlocksAt = new Date(aff.createdAt.getTime() + lockMs).toISOString();
+
     res.json({
       data: {
         code: aff.code,
         commissionRate: aff.commissionRate,
         totalEarnings: aff.totalEarnings,
         available: aff.available,
+        createdAt: aff.createdAt.toISOString(),
+        codeUnlocksAt,
         totalReferrals,
         activeReferrals,
         totalDeposited,
@@ -77,37 +83,81 @@ router.post('/me/create', requireAuth, async (req: Request, res: Response): Prom
     const { customCode } = (req.body ?? {}) as { customCode?: string };
 
     const existing = await prisma.affiliateCode.findUnique({ where: { userId } });
-    if (existing) { res.json({ data: existing }); return; }
+    if (existing) { res.status(400).json({ error: 'Tu as déjà un code' }); return; }
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) { res.status(404).json({ error: 'Utilisateur introuvable' }); return; }
 
-    let code: string;
-    if (customCode && typeof customCode === 'string' && customCode.trim()) {
-      code = customCode.trim().toUpperCase();
-      if (!/^[A-Z0-9]{3,16}$/.test(code)) {
-        res.status(400).json({ error: 'Le code doit contenir 3 à 16 caractères alphanumériques' }); return;
-      }
-      const conflict = await prisma.affiliateCode.findUnique({ where: { code } });
-      if (conflict) { res.status(409).json({ error: `Le code "${code}" est déjà pris` }); return; }
-    } else {
-      let attempts = 0;
-      do {
-        code = generateCode(user.username);
-        const conflict = await prisma.affiliateCode.findUnique({ where: { code } });
-        if (!conflict) break;
-        attempts++;
-      } while (attempts < 5);
+    // Custom code is REQUIRED — no auto-generation
+    if (!customCode || typeof customCode !== 'string' || !customCode.trim()) {
+      res.status(400).json({ error: 'Tu dois choisir ton code' }); return;
     }
+    const code = customCode.trim().toUpperCase();
+    if (!/^[A-Z0-9]{3,16}$/.test(code)) {
+      res.status(400).json({ error: 'Le code doit contenir 3 à 16 caractères alphanumériques' }); return;
+    }
+    const conflict = await prisma.affiliateCode.findUnique({ where: { code } });
+    if (conflict) { res.status(409).json({ error: `Le code "${code}" est déjà pris` }); return; }
 
     const aff = await prisma.affiliateCode.create({
-      data: { userId, code: code!, commissionRate: 0.25 },
+      data: { userId, code, commissionRate: 0.25 },
     });
 
-    logger.info(`Self-service affiliate code created: ${code!} for user ${userId}`);
+    logger.info(`Self-service affiliate code created: ${code} for user ${userId}`);
     res.json({ data: aff });
   } catch (err) {
     logger.error('POST /affiliate/me/create error:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// PATCH /affiliate/me/code — change an existing affiliate code
+// Gated: must be at least 14 days after creation to prevent abuse
+const CHANGE_LOCK_DAYS = 14;
+router.patch('/me/code', requireAuth, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user!.id;
+    const { customCode } = (req.body ?? {}) as { customCode?: string };
+
+    if (!customCode || typeof customCode !== 'string' || !customCode.trim()) {
+      res.status(400).json({ error: 'Nouveau code requis' }); return;
+    }
+    const newCode = customCode.trim().toUpperCase();
+    if (!/^[A-Z0-9]{3,16}$/.test(newCode)) {
+      res.status(400).json({ error: 'Le code doit contenir 3 à 16 caractères alphanumériques' }); return;
+    }
+
+    const existing = await prisma.affiliateCode.findUnique({ where: { userId } });
+    if (!existing) { res.status(404).json({ error: 'Tu n\'as pas encore de code' }); return; }
+
+    // Lock window: 14 days since creation
+    const lockMs = CHANGE_LOCK_DAYS * 24 * 60 * 60 * 1000;
+    const unlocksAt = new Date(existing.createdAt.getTime() + lockMs);
+    if (Date.now() < unlocksAt.getTime()) {
+      const daysLeft = Math.ceil((unlocksAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+      res.status(403).json({
+        error: `Ton code est verrouillé pendant ${CHANGE_LOCK_DAYS} jours après création. Tu pourras le modifier dans ${daysLeft} jour${daysLeft > 1 ? 's' : ''}.`,
+        unlocksAt: unlocksAt.toISOString(),
+      });
+      return;
+    }
+
+    if (newCode === existing.code) {
+      res.json({ data: existing }); return;
+    }
+
+    const conflict = await prisma.affiliateCode.findUnique({ where: { code: newCode } });
+    if (conflict) { res.status(409).json({ error: `Le code "${newCode}" est déjà pris` }); return; }
+
+    const updated = await prisma.affiliateCode.update({
+      where: { userId },
+      data: { code: newCode },
+    });
+
+    logger.info(`Affiliate code changed: ${existing.code} → ${newCode} (user=${userId})`);
+    res.json({ data: updated });
+  } catch (err) {
+    logger.error('PATCH /affiliate/me/code error:', err);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
