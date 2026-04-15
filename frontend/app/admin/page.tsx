@@ -891,6 +891,12 @@ export default function AdminPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1 flex-wrap">
+                          <button onClick={() => openUserDetail(u.id)}
+                            className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-all"
+                            title="Inspecter l'activité complète"
+                            style={{ background: '#d4a01715', border: '1px solid #d4a01740', color: '#d4a017' }}>
+                            <Eye size={11} /> Inspecter
+                          </button>
                           {!u.isAdmin && (
                             <button onClick={() => handleBan(u.id, u.isBanned ?? false)}
                               className={cn('px-2 py-1 rounded text-[10px] font-medium transition-all',
