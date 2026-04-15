@@ -24,6 +24,15 @@ const TIER_STYLE: Record<string, { bg: string; text: string; border: string }> =
   C: { bg: 'rgba(107,100,136,0.08)', text: '#6b6488', border: 'rgba(107,100,136,0.2)' },
 };
 
+// Per-game badge styles — distinct colors to avoid confusion
+const GAME_STYLE: Record<string, { bg: string; text: string; border: string }> = {
+  AoE4: { bg: 'rgba(212,160,23,0.10)', text: '#f5c842', border: 'rgba(212,160,23,0.25)' },  // gold
+  AoE2: { bg: 'rgba(244,114,182,0.10)', text: '#f472b6', border: 'rgba(244,114,182,0.25)' }, // pink
+  AoE3: { bg: 'rgba(16,185,129,0.10)', text: '#10b981', border: 'rgba(16,185,129,0.25)' },   // emerald
+  AoM:  { bg: 'rgba(96,165,250,0.10)', text: '#60a5fa', border: 'rgba(96,165,250,0.25)' },   // blue
+  AoE1: { bg: 'rgba(251,146,60,0.10)', text: '#fb923c', border: 'rgba(251,146,60,0.25)' },   // orange
+};
+
 function formatDate(dateStr?: string): string {
   if (!dateStr) return '';
   return new Date(dateStr).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
@@ -130,12 +139,15 @@ function TournamentCard({ tournament }: { tournament: Tournament & { _count?: { 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
               <h3 className={cn("text-[13px] font-semibold truncate", isFinished ? 'text-[#8880a8]' : 'text-[#e8e2f5]')}>{tournament.name}</h3>
-              {tournament.game && (
-                <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded font-bold tracking-wide"
-                  style={{ background: 'rgba(212,160,23,0.08)', color: '#d4a017', border: '1px solid rgba(212,160,23,0.15)' }}>
-                  {tournament.game}
-                </span>
-              )}
+              {tournament.game && (() => {
+                const gs = GAME_STYLE[tournament.game] ?? GAME_STYLE.AoE4;
+                return (
+                  <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded font-bold tracking-wide"
+                    style={{ background: gs.bg, color: gs.text, border: `1px solid ${gs.border}` }}>
+                    {tournament.game}
+                  </span>
+                );
+              })()}
             </div>
             <div className="flex items-center gap-3 text-[10px] text-[#6b6488]">
               <span className="flex items-center gap-1">

@@ -23,6 +23,14 @@ const TIER_COLORS: Record<string, string> = {
   S: '#d4a017', A: '#a78bfa', B: '#60a5fa', C: '#6b6488',
 };
 
+const GAME_STYLE: Record<string, { bg: string; text: string; border: string }> = {
+  AoE4: { bg: 'rgba(212,160,23,0.10)', text: '#f5c842', border: 'rgba(212,160,23,0.25)' },
+  AoE2: { bg: 'rgba(244,114,182,0.10)', text: '#f472b6', border: 'rgba(244,114,182,0.25)' },
+  AoE3: { bg: 'rgba(16,185,129,0.10)', text: '#10b981', border: 'rgba(16,185,129,0.25)' },
+  AoM:  { bg: 'rgba(96,165,250,0.10)', text: '#60a5fa', border: 'rgba(96,165,250,0.25)' },
+  AoE1: { bg: 'rgba(251,146,60,0.10)', text: '#fb923c', border: 'rgba(251,146,60,0.25)' },
+};
+
 function PlayerAvatar({ name, avatarUrl, size = 44 }: { name: string; avatarUrl?: string | null; size?: number }) {
   const hue = name.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % 360;
   return (
@@ -319,10 +327,15 @@ export default function MatchesPage() {
                 <div className="flex items-center gap-3 px-5 py-3 border-b" style={{ borderColor: '#1e1a30', background: 'rgba(0,0,0,0.2)' }}>
                   <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: TIER_COLORS[g.tier] ?? '#6b6488' }} />
                   <span className="text-[11px] font-cinzel font-semibold truncate" style={{ color: TIER_COLORS[g.tier] ?? '#6b6488' }}>{g.name}</span>
-                  <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded font-bold tracking-wide"
-                    style={{ background: 'rgba(212,160,23,0.08)', color: '#d4a017', border: '1px solid rgba(212,160,23,0.15)' }}>
-                    {g.game}
-                  </span>
+                  {(() => {
+                    const gs = GAME_STYLE[g.game] ?? GAME_STYLE.AoE4;
+                    return (
+                      <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded font-bold tracking-wide"
+                        style={{ background: gs.bg, color: gs.text, border: `1px solid ${gs.border}` }}>
+                        {g.game}
+                      </span>
+                    );
+                  })()}
                   <span className="text-[10px] text-[#3d3860] ml-auto shrink-0 font-cinzel">{g.format} · {g.matches.length} {t('nav_matches').toLowerCase()}</span>
                 </div>
                 {g.matches.map(m => <MatchRow key={m.id} match={m} />)}
