@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { apiClient, setAuthToken } from '@/lib/api';
-import { Shield, Crown, Sword, ShieldCheck, X, Copy, Check } from 'lucide-react';
+import { Shield, Crown, Target, ShieldCheck, X, Copy, Check } from 'lucide-react';
 import { playWololo, playTick, playWin, playLose, playEmperorWin } from '@/lib/rouletteSounds';
 import dynamic from 'next/dynamic';
 // react-roulette-pro is client-only; dynamic import avoids SSR issues
@@ -16,7 +16,7 @@ import 'react-roulette-pro/dist/index.css';
 const ZONES = {
   KNIGHTS: { label: 'CHEVALIERS', multiplier: 2,  color: '#94a3b8', glow: 'rgba(148,163,184,0.4)', border: '#475569',    bg: 'rgba(71,85,105,0.3)',      icon: Shield },
   EMPEROR: { label: 'EMPEROR',    multiplier: 14, color: '#f5c842', glow: 'rgba(245,200,66,0.55)',  border: '#d4a01780',  bg: 'rgba(212,160,23,0.15)',    icon: Crown  },
-  ARCHERS: { label: 'ARCHERS',    multiplier: 2,  color: '#fb923c', glow: 'rgba(251,146,60,0.45)',  border: '#c2410c80',  bg: 'rgba(194,65,12,0.15)',     icon: Sword  },
+  ARCHERS: { label: 'ARCHERS',    multiplier: 2,  color: '#fb923c', glow: 'rgba(251,146,60,0.45)',  border: '#c2410c80',  bg: 'rgba(194,65,12,0.15)',     icon: Target },
 } as const;
 type Zone = keyof typeof ZONES;
 
