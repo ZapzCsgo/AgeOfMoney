@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { requireAuth } from '../middleware/auth';
 import { placeBet, getUserStats } from '../services/betService';
+import { buildBlendedDistribution, type Bo, type ScoreDistribution } from '../services/exactScoreModel';
 import { prisma } from '../index';
 import { z } from 'zod';
 import logger from '../logger';
@@ -107,50 +108,99 @@ function solvePerGameProb(pMatch: number, format: string): number {
   return (lo + hi) / 2;
 }
 
-function exactScoreOdds(odds1: number, odds2: number, format: string): { score: string; player: 1|2; loserGames: number; odds: number }[] {
-  const MARGIN = 0.15; // 15% house edge on exact scores — esport industry standard
+const EXACT_SCORE_MARGIN = 0.15; // 15% house edge — esport industry standard
+
+type ScoreEntry = { score: string; player: 1|2; loserGames: number; odds: number };
+
+/**
+ * Build the theoretical (binomial) probability distribution from the match
+ * odds alone. This is the BASE RATE — no player history, just the maths.
+ */
+function theoreticalDistribution(odds1: number, odds2: number, format: string): ScoreDistribution {
   const raw1 = 1/odds1, raw2 = 1/odds2;
   const norm = raw1 + raw2;
-  const pMatch1 = raw1 / norm; // normalized implied probability for P1
-
+  const pMatch1 = raw1 / norm;
   const p = solvePerGameProb(pMatch1, format);
   const q = 1 - p;
 
-  type ScoreEntry = { score: string; player: 1|2; loserGames: number; prob: number };
-  const scores: ScoreEntry[] = [];
-
+  const dist: ScoreDistribution = {};
   if (format === 'BO1') {
-    scores.push({ score: '1-0', player: 1, loserGames: 0, prob: p });
-    scores.push({ score: '0-1', player: 2, loserGames: 0, prob: q });
+    dist['1-0'] = p;
+    dist['0-1'] = q;
   } else if (format === 'BO3') {
-    scores.push({ score: '2-0', player: 1, loserGames: 0, prob: p*p });
-    scores.push({ score: '2-1', player: 1, loserGames: 1, prob: 2*p*p*q });
-    scores.push({ score: '0-2', player: 2, loserGames: 0, prob: q*q });
-    scores.push({ score: '1-2', player: 2, loserGames: 1, prob: 2*q*q*p });
+    dist['2-0'] = p*p;
+    dist['2-1'] = 2*p*p*q;
+    dist['0-2'] = q*q;
+    dist['1-2'] = 2*q*q*p;
   } else if (format === 'BO5') {
-    scores.push({ score: '3-0', player: 1, loserGames: 0, prob: p*p*p });
-    scores.push({ score: '3-1', player: 1, loserGames: 1, prob: 3*p*p*p*q });
-    scores.push({ score: '3-2', player: 1, loserGames: 2, prob: 6*p*p*p*q*q });
-    scores.push({ score: '0-3', player: 2, loserGames: 0, prob: q*q*q });
-    scores.push({ score: '1-3', player: 2, loserGames: 1, prob: 3*q*q*q*p });
-    scores.push({ score: '2-3', player: 2, loserGames: 2, prob: 6*q*q*q*p*p });
+    dist['3-0'] = p*p*p;
+    dist['3-1'] = 3*p*p*p*q;
+    dist['3-2'] = 6*p*p*p*q*q;
+    dist['0-3'] = q*q*q;
+    dist['1-3'] = 3*q*q*q*p;
+    dist['2-3'] = 6*q*q*q*p*p;
   } else if (format === 'BO7') {
-    scores.push({ score: '4-0', player: 1, loserGames: 0, prob: p*p*p*p });
-    scores.push({ score: '4-1', player: 1, loserGames: 1, prob: 4*p*p*p*p*q });
-    scores.push({ score: '4-2', player: 1, loserGames: 2, prob: 10*p*p*p*p*q*q });
-    scores.push({ score: '4-3', player: 1, loserGames: 3, prob: 20*p*p*p*p*q*q*q });
-    scores.push({ score: '0-4', player: 2, loserGames: 0, prob: q*q*q*q });
-    scores.push({ score: '1-4', player: 2, loserGames: 1, prob: 4*q*q*q*q*p });
-    scores.push({ score: '2-4', player: 2, loserGames: 2, prob: 10*q*q*q*q*p*p });
-    scores.push({ score: '3-4', player: 2, loserGames: 3, prob: 20*q*q*q*q*p*p*p });
+    dist['4-0'] = p*p*p*p;
+    dist['4-1'] = 4*p*p*p*p*q;
+    dist['4-2'] = 10*p*p*p*p*q*q;
+    dist['4-3'] = 20*p*p*p*p*q*q*q;
+    dist['0-4'] = q*q*q*q;
+    dist['1-4'] = 4*q*q*q*q*p;
+    dist['2-4'] = 10*q*q*q*q*p*p;
+    dist['3-4'] = 20*q*q*q*q*p*p*p;
   }
+  return dist;
+}
 
-  return scores.map(s => ({
-    score: s.score,
-    player: s.player,
-    loserGames: s.loserGames,
-    odds: s.prob > 0 ? parseFloat(((1/s.prob) * (1 - MARGIN)).toFixed(2)) : 99,
-  }));
+/** Convert a probability distribution to the entries expected by the API. */
+function distributionToEntries(dist: ScoreDistribution): ScoreEntry[] {
+  const entries: ScoreEntry[] = [];
+  for (const [score, prob] of Object.entries(dist)) {
+    const [a, b] = score.split('-').map(Number);
+    const player: 1|2 = a > b ? 1 : 2;
+    const loserGames = Math.min(a, b);
+    entries.push({
+      score,
+      player,
+      loserGames,
+      odds: prob > 0 ? parseFloat(((1/prob) * (1 - EXACT_SCORE_MARGIN)).toFixed(2)) : 99,
+    });
+  }
+  return entries;
+}
+
+/**
+ * Synchronous fallback (theoretical only) — used when we don't have player
+ * IDs or when the DB blend fails. Keeps older call sites working.
+ */
+function exactScoreOdds(odds1: number, odds2: number, format: string): ScoreEntry[] {
+  return distributionToEntries(theoreticalDistribution(odds1, odds2, format));
+}
+
+/**
+ * Data-driven exact score odds. Blends the theoretical binomial with
+ * observed player history and head-to-head records, then applies the
+ * house margin. Falls back to pure theoretical on any error.
+ */
+async function exactScoreOddsBlended(
+  matchId: string,
+  p1Id: string,
+  p2Id: string,
+  odds1: number,
+  odds2: number,
+  format: string,
+): Promise<ScoreEntry[]> {
+  if (format === 'BO1') return exactScoreOdds(odds1, odds2, format);
+  try {
+    const theoretical = theoreticalDistribution(odds1, odds2, format);
+    const blended = await buildBlendedDistribution(
+      theoretical, matchId, p1Id, p2Id, format as Bo, odds1, odds2,
+    );
+    return distributionToEntries(blended);
+  } catch (err) {
+    logger.warn('[ExactScore] Blend failed, falling back to theoretical:', err);
+    return exactScoreOdds(odds1, odds2, format);
+  }
 }
 
 // GET /exact-scores/:matchId — Compute exact score odds for a match
@@ -158,11 +208,17 @@ router.get('/exact-scores/:matchId', async (req: Request, res: Response): Promis
   try {
     const match = await prisma.match.findUnique({
       where: { id: req.params.matchId },
-      select: { id: true, format: true, odds1: true, odds2: true, status: true, betsOpen: true, scheduledAt: true },
+      select: {
+        id: true, format: true, odds1: true, odds2: true,
+        status: true, betsOpen: true, scheduledAt: true,
+        player1Id: true, player2Id: true,
+      },
     });
     if (!match) { res.status(404).json({ error: 'Match not found' }); return; }
     if (match.format === 'BO1') { res.json({ data: [] }); return; } // no exact score for BO1
-    const scores = exactScoreOdds(match.odds1, match.odds2, match.format);
+    const scores = await exactScoreOddsBlended(
+      match.id, match.player1Id, match.player2Id, match.odds1, match.odds2, match.format,
+    );
     res.json({ data: scores });
   } catch (error) {
     logger.error('GET /bets/exact-scores/:matchId error:', error);
@@ -189,7 +245,14 @@ router.post('/exact', requireAuth, async (req: Request, res: Response): Promise<
     const userId = req.user!.id;
 
     const [match, user] = await Promise.all([
-      prisma.match.findUnique({ where: { id: matchId }, select: { status: true, betsOpen: true, scheduledAt: true, odds1: true, odds2: true, format: true } }),
+      prisma.match.findUnique({
+        where: { id: matchId },
+        select: {
+          status: true, betsOpen: true, scheduledAt: true,
+          odds1: true, odds2: true, format: true,
+          player1Id: true, player2Id: true,
+        },
+      }),
       prisma.user.findUnique({ where: { id: userId }, select: { coins: true, isBanned: true } }),
     ]);
     if (!match) { res.status(404).json({ error: 'Match not found' }); return; }
@@ -199,8 +262,10 @@ router.post('/exact', requireAuth, async (req: Request, res: Response): Promise<
     if (new Date() >= match.scheduledAt) { res.status(400).json({ error: 'Match has started' }); return; }
     if (user.coins < amount) { res.status(400).json({ error: 'Insufficient coins' }); return; }
 
-    // Verify odds are still valid (recompute server-side)
-    const freshScores = exactScoreOdds(match.odds1, match.odds2, match.format);
+    // Verify odds are still valid (recompute server-side with blended model)
+    const freshScores = await exactScoreOddsBlended(
+      matchId, match.player1Id, match.player2Id, match.odds1, match.odds2, match.format,
+    );
     const freshEntry = freshScores.find(s => s.score === score);
     if (!freshEntry) { res.status(400).json({ error: 'Invalid score for this match format' }); return; }
     const oddsAtBet = freshEntry.odds; // always use server-computed odds
