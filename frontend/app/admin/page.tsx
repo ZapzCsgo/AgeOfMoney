@@ -247,6 +247,7 @@ export default function AdminPage() {
   };
 
   const openUserDetail = async (userId: string) => {
+    if (userDetailLoading) return; // guard against double-click
     setUserDetailLoading(true);
     setUserDetail(null);
     try {
