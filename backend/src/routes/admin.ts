@@ -1234,11 +1234,20 @@ router.get('/lp-status', async (_req: Request, res: Response): Promise<void> => 
 // recency decay, and the observed score distribution.
 router.get('/players/:id/records-debug', async (req: Request, res: Response): Promise<void> => {
   try {
-    const player = await prisma.player.findUnique({
-      where: { id: req.params.id },
+    // Accept either a Player.id OR a case-insensitive name — whichever is
+    // easier for the admin looking at the panel.
+    const param = decodeURIComponent(req.params.id);
+    let player = await prisma.player.findUnique({
+      where: { id: param },
       select: { id: true, name: true, game: true },
     });
-    if (!player) { res.status(404).json({ error: 'Player not found' }); return; }
+    if (!player) {
+      player = await prisma.player.findFirst({
+        where: { name: { equals: param, mode: 'insensitive' } },
+        select: { id: true, name: true, game: true },
+      });
+    }
+    if (!player) { res.status(404).json({ error: 'Player not found (tried id and name)' }); return; }
 
     const records = await prisma.playerMatchRecord.findMany({
       where: { playerId: player.id },
