@@ -109,6 +109,11 @@ function solvePerGameProb(pMatch: number, format: string): number {
 }
 
 const EXACT_SCORE_MARGIN = 0.15; // 15% house edge — esport industry standard
+// Hard max odds on exact-score bets. At launch we prefer to never pay more
+// than 15x the stake on a rare score, even if the model thinks it's that
+// unlikely. This is a final safety net on top of the distribution corridor
+// already enforced in exactScoreModel.ts.
+const EXACT_SCORE_MAX_ODDS = 15;
 
 type ScoreEntry = { score: string; player: 1|2; loserGames: number; odds: number };
 
@@ -159,11 +164,14 @@ function distributionToEntries(dist: ScoreDistribution): ScoreEntry[] {
     const [a, b] = score.split('-').map(Number);
     const player: 1|2 = a > b ? 1 : 2;
     const loserGames = Math.min(a, b);
+    // Cap the maximum payout so a single rare-score bet can't blow up the book
+    const raw = prob > 0 ? (1/prob) * (1 - EXACT_SCORE_MARGIN) : EXACT_SCORE_MAX_ODDS;
+    const capped = Math.min(raw, EXACT_SCORE_MAX_ODDS);
     entries.push({
       score,
       player,
       loserGames,
-      odds: prob > 0 ? parseFloat(((1/prob) * (1 - EXACT_SCORE_MARGIN)).toFixed(2)) : 99,
+      odds: parseFloat(capped.toFixed(2)),
     });
   }
   return entries;

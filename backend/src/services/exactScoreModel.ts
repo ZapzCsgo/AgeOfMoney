@@ -221,9 +221,17 @@ export async function buildBlendedDistribution(
     getPlayerDistribution(p2Id, format),
   ]);
 
-  const h2hWeight = Math.min(0.40, (h2h.sample / 10) * 0.40);
-  const p1Weight = Math.min(0.20, (p1Stats.sample / 20) * 0.20);
-  const p2Weight = Math.min(0.20, (p2Stats.sample / 20) * 0.20);
+  // ── SAFETY RAMP ──────────────────────────────────────────────────────────
+  // Soft transition instead of a hard "6 samples = full weight" cliff.
+  // Below 5 effective samples → 0% (handled upstream by MIN_EFFECTIVE_SAMPLE).
+  // 5-15 samples → linear ramp from 0 to 100% of the ceiling.
+  // 15+ samples → full capped weight.
+  // This avoids over-weighting sparse data right at the threshold.
+  const rampMult = (sample: number) => Math.max(0, Math.min(1, (sample - 5) / 10));
+
+  const h2hWeight = Math.min(0.40, (h2h.sample / 10) * 0.40) * rampMult(h2h.sample);
+  const p1Weight = Math.min(0.20, (p1Stats.sample / 20) * 0.20) * rampMult(p1Stats.sample);
+  const p2Weight = Math.min(0.20, (p2Stats.sample / 20) * 0.20) * rampMult(p2Stats.sample);
   const theoreticalWeight = 1 - h2hWeight - p1Weight - p2Weight;
 
   // p2Stats is from p2's perspective — flip each key so it's all from p1's POV
@@ -246,7 +254,23 @@ export async function buildBlendedDistribution(
     blended[k] = th * theoreticalWeight + hh * h2hWeight + p1 * p1Weight + p2 * p2Weight;
   }
 
-  // Renormalize (small rounding error can drift the sum)
+  // ── SAFETY CORRIDOR ──────────────────────────────────────────────────────
+  // The blended probability for any score must stay within a band around the
+  // theoretical value. Prevents "data outliers" from producing wild odds that
+  // could bankrupt us if an unlucky whale hits the right number.
+  //   - Floor: theoretical × 0.60  (probability can't drop below 60% of theory)
+  //   - Ceil:  theoretical × 1.60  (probability can't rise above 160% of theory)
+  // After clamping, we renormalize so the distribution sums to 1.
+  const CORRIDOR_FLOOR = 0.60;
+  const CORRIDOR_CEIL  = 1.60;
+  for (const k of Object.keys(blended)) {
+    const th = theoretical[k] ?? 0;
+    if (th > 0) {
+      blended[k] = Math.max(th * CORRIDOR_FLOOR, Math.min(th * CORRIDOR_CEIL, blended[k]));
+    }
+  }
+
+  // Renormalize after the corridor clamp so the distribution still sums to 1
   const total = Object.values(blended).reduce((a, b) => a + b, 0);
   if (total > 0) {
     for (const k of Object.keys(blended)) blended[k] /= total;
