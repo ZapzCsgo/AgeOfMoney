@@ -155,26 +155,44 @@ async function resolveRound(roundId: string, winZone: string, multiplier: number
 
   const bets = await prisma.rouletteBet.findMany({ where: { roundId } });
 
-  // Distribute payouts
-  for (const bet of bets) {
+  // Compute outcomes + aggregate winner increments per user
+  const resolved = bets.map(bet => {
     const won = bet.zone === winZone;
     const payout = won ? Math.floor(bet.amount * multiplier) : 0;
-
-    await prisma.rouletteBet.update({
-      where: { id: bet.id },
-      data: { won, payout },
-    });
-
+    return { bet, won, payout };
+  });
+  const winnerCoinIncrements = new Map<string, number>();
+  for (const { bet, won, payout } of resolved) {
     if (won && payout > 0) {
-      const updatedUser = await prisma.user.update({
-        where: { id: bet.userId },
-        data: { coins: { increment: payout } },
-        select: { coins: true },
-      });
-      io?.to(`user:${bet.userId}`).emit('coinsUpdate', { coins: updatedUser.coins, direction: 'up' });
+      winnerCoinIncrements.set(bet.userId, (winnerCoinIncrements.get(bet.userId) ?? 0) + payout);
     }
+  }
 
-    // Credit affiliate revshare on net outcome
+  // Batch ALL writes in one transaction (was N × 2 serial queries)
+  if (resolved.length > 0) {
+    await prisma.$transaction([
+      ...resolved.map(({ bet, won, payout }) =>
+        prisma.rouletteBet.update({ where: { id: bet.id }, data: { won, payout } })
+      ),
+      ...[...winnerCoinIncrements.entries()].map(([userId, totalIncrement]) =>
+        prisma.user.update({ where: { id: userId }, data: { coins: { increment: totalIncrement } } })
+      ),
+    ]);
+  }
+
+  // Fetch winner balances in ONE query for socket notifications
+  const winnerUserIds = [...winnerCoinIncrements.keys()];
+  const winnerUsers = winnerUserIds.length > 0
+    ? await prisma.user.findMany({ where: { id: { in: winnerUserIds } }, select: { id: true, coins: true } })
+    : [];
+  const winnerUserMap = new Map(winnerUsers.map(u => [u.id, u]));
+  for (const userId of winnerUserIds) {
+    const u = winnerUserMap.get(userId);
+    if (u) io?.to(`user:${userId}`).emit('coinsUpdate', { coins: u.coins, direction: 'up' });
+  }
+
+  // Credit affiliate revshare on each bet (fire and forget)
+  for (const { bet, won, payout } of resolved) {
     const netDelta = won ? -(payout - bet.amount) : bet.amount;
     creditAffiliateOnBetResolved(bet.userId, bet.amount, netDelta)
       .catch(err => logger.warn('[Affiliate] credit failed:', err));
