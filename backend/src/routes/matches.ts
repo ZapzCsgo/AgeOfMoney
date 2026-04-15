@@ -31,6 +31,7 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
 
     // Serve from cache for default queries (home page polls every 30s)
     if (!status && !tournamentId && offset === 0 && matchListCache && matchListCache.key === `${limit}_${hours}` && Date.now() - matchListCache.ts < MATCH_CACHE_TTL) {
+      res.set('Cache-Control', 'public, max-age=10, stale-while-revalidate=30');
       res.json(matchListCache.data);
       return;
     }
@@ -159,6 +160,8 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
     if (!status && !tournamentId && offset === 0) {
       matchListCache = { key: `${limit}_${hours}`, data: result, ts: Date.now() };
     }
+    // Client-side cache: 10s fresh + 30s stale-while-revalidate
+    res.set('Cache-Control', 'public, max-age=10, stale-while-revalidate=30');
     res.json(result);
   } catch (error) {
     logger.error('GET /matches error:', error);
@@ -244,6 +247,14 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
         },
       }),
     ]);
+
+    // Completed matches are immutable → cache aggressively.
+    // Live/Upcoming matches change → short cache with stale-while-revalidate.
+    if (match.status === 'COMPLETED' || match.status === 'CANCELLED') {
+      res.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=7200');
+    } else {
+      res.set('Cache-Control', 'public, max-age=10, stale-while-revalidate=30');
+    }
 
     res.json({
       data: {
