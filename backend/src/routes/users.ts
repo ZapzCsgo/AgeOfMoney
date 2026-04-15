@@ -346,11 +346,22 @@ router.get('/leaderboard', async (_req: Request, res: Response): Promise<void> =
         coins: true,
         totalWagered: true,
         createdAt: true,
-        _count: { select: { bets: true } },
+        // Count BOTH match bets and roulette bets so the displayed "paris"
+        // matches what the user actually played across the site.
+        _count: { select: { bets: true, rouletteBets: true } },
       },
     });
 
-    const result = { data: users };
+    // Flatten: expose _count.bets = matchBets + rouletteBets so the frontend
+    // doesn't need to know about the split.
+    const data = users.map(u => ({
+      ...u,
+      _count: {
+        bets: u._count.bets + u._count.rouletteBets,
+      },
+    }));
+
+    const result = { data };
     lbCache = { data: result, ts: Date.now() };
     res.set('Cache-Control', 'public, max-age=60');
     res.json(result);
