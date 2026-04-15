@@ -17,6 +17,8 @@ const MIN_WITHDRAW  = 169;    // 169 coins minimum (= $0.99)
 
 // Affiliate tiers and commission logic live in services/affiliateService.ts.
 // Revshare runs on net losses (at bet resolution time), not on deposits.
+// Flat deposit bonus for any valid affiliate code (decoupled from revshare rate).
+const AFFILIATE_DEPOSIT_BONUS_PCT = 5; // +5% coins on deposit when a code is applied
 
 // ── OxaPay API client ─────────────────────────────────────────────────────────
 const OXAPAY_API = 'https://api.oxapay.com/v1';
@@ -96,7 +98,7 @@ router.post('/crypto/create', requireAuth, async (req: Request, res: Response): 
         res.status(400).json({ error: 'Vous avez déjà utilisé un code affilié' }); return;
       }
 
-      bonusMultiplier = 1 + aff.commissionRate;
+      bonusMultiplier = 1 + AFFILIATE_DEPOSIT_BONUS_PCT / 100;
       affiliateCodeId = aff.id;
     }
 

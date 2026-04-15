@@ -218,7 +218,8 @@ router.get('/validate/:code', requireAuth, async (req: Request, res: Response): 
     }
 
     // Bonus percentage = commission rate of referrer
-    const bonusPct = Math.round(aff.commissionRate * 100);
+    // Flat deposit bonus for users applying any affiliate code
+    const bonusPct = 5;
     res.json({ valid: true, bonusPct, code: aff.code });
   } catch (err) {
     logger.error('GET /affiliate/validate error:', err);

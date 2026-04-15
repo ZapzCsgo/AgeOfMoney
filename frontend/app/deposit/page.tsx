@@ -420,7 +420,7 @@ export default function DepositPage() {
               {!promoApplied && (
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold normal-case"
                   style={{ background: 'rgba(52,211,153,0.12)', color: '#34d399', border: '1px solid rgba(52,211,153,0.35)' }}>
-                  +25% à 35% bonus
+                  +5% bonus coins
                 </span>
               )}
             </div>
