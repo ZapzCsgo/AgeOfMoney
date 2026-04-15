@@ -302,13 +302,6 @@ export default function RoulettePage() {
       setFairnessRound(prev => prev ? { ...prev, roundHash: d.roundHash, serverSeed: null, result: null, winZone: null } : null);
       // Don't reset wheel here — keep showing last result until next spin
       fetchAll();
-      // Schedule Wololo 150ms before spin
-      const msUntilSpin = new Date(d.endsAt).getTime() - Date.now() - 150;
-      if (msUntilSpin > 0) {
-        setTimeout(() => {
-          if (!wololoPlayedRef.current) { wololoPlayedRef.current = true; playWololo(0.3); }
-        }, msUntilSpin);
-      }
     });
     s.on('roulette:betsUpdate', (d: { roundId: string; bets: RoundBet[] }) => {
       setRound(prev => prev?.id === d.roundId ? { ...prev, bets: d.bets } : prev);
@@ -316,9 +309,9 @@ export default function RoulettePage() {
     s.on('roulette:spin', (d: { winZone: Zone; multiplier: number; result?: number }) => {
       setPhase('spinning');
       setRound(prev => prev ? { ...prev, status: 'SPINNING' } : prev);
-      animateSpin(d.winZone, d.result);
-      // Fallback wololo if not already played
+      // Play Wololo the instant the spin actually starts (not 150ms early)
       if (!wololoPlayedRef.current) { wololoPlayedRef.current = true; playWololo(0.3); }
+      animateSpin(d.winZone, d.result);
     });
     s.on('roulette:result', (d: { winZone: Zone; multiplier: number; serverSeed?: string; roundHash?: string; result?: number; roundId: string; source?: 'random.org' | 'crypto' }) => {
       // If the tab is hidden, store the result and flush it on visibility change
