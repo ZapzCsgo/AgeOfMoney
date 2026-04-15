@@ -820,26 +820,11 @@ export default function RoulettePage() {
               style={{ background:'#13111f',border:'1px solid #1e1a30' }}>CLR</button>
           </div>
           <button onClick={placeBet} disabled={!isBetting||!selectedZone||!betAmount}
-            className="w-full py-3.5 rounded-lg font-bold transition-all disabled:opacity-40 relative overflow-hidden"
+            className="w-full py-3 rounded-lg text-[14px] font-bold font-cinzel tracking-wider transition-all disabled:opacity-40"
             style={{ background:selectedZone ? ZONES[selectedZone].color : '#f5c842', color:'#07060f' }}>
-            {!isBetting ? (
-              <span className="text-[14px] font-cinzel tracking-widest uppercase">{t('bet_closed')}</span>
-            ) : !selectedZone ? (
-              <span className="text-[14px] font-cinzel tracking-widest uppercase">{t('roulette_select_zone')}</span>
-            ) : (
-              <span className="flex items-center justify-center gap-3">
-                {(() => { const Icon = ZONES[selectedZone].icon; return <Icon size={20} strokeWidth={2.5} />; })()}
-                <span className="text-[15px] font-cinzel font-black tracking-wider uppercase">
-                  {t('roulette_bet')}
-                </span>
-                <span className="text-[17px] font-black tabular-nums" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.25)' }}>
-                  {betAmount ? parseInt(betAmount).toLocaleString('fr-FR') : '...'} ⚜
-                </span>
-                <span className="text-[12px] font-bold tracking-[0.2em] uppercase opacity-75">
-                  sur {zoneLabel(selectedZone)}
-                </span>
-              </span>
-            )}
+            {!isBetting ? t('bet_closed') :
+              !selectedZone ? t('roulette_select_zone') :
+              `${t('roulette_bet')} ${betAmount ? parseInt(betAmount).toLocaleString('fr-FR') : '...'} ⚜`}
           </button>
           {myZoneBet && isBetting && (
             <p className="text-center text-[11px] mt-2" style={{ color:'#6b6488' }}>
