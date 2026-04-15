@@ -125,10 +125,21 @@ async function spinRound(roundId: string): Promise<void> {
     source     = 'random.org';
     logger.info(`[Roulette] Round ${roundId} — random.org serial #${roundHash}, result=${result}`);
   } else {
-    // Fallback: crypto-based deterministic result
+    // Fallback: crypto-based deterministic result with rejection sampling
+    // to guarantee uniform distribution over 1..15 (zero modulo bias).
     const seed = crypto.randomBytes(32).toString('hex');
     const hash = crypto.createHash('sha256').update(seed).digest('hex');
-    result     = (parseInt(hash.slice(0, 8), 16) % 15) + 1;
+    // Use 16 hex chars (64 bits) and rejection-sample. 2^64 / 15 leaves
+    // a tiny "tail" we discard by walking forward in the hash if needed.
+    const MAX = 15n * (BigInt('0xffffffffffffffff') / 15n);
+    let pick = 0n;
+    let cursor = 0;
+    while (cursor + 16 <= hash.length) {
+      pick = BigInt('0x' + hash.slice(cursor, cursor + 16));
+      if (pick < MAX) break;
+      cursor += 16;
+    }
+    result     = Number(pick % 15n) + 1;
     serverSeed = seed;
     roundHash  = hash;
     source     = 'crypto';
