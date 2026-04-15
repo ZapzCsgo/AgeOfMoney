@@ -94,8 +94,8 @@ router.post('/me/create', requireAuth, async (req: Request, res: Response): Prom
       res.status(400).json({ error: 'Tu dois choisir ton code' }); return;
     }
     const code = customCode.trim().toUpperCase();
-    if (!/^[A-Z0-9]{3,16}$/.test(code)) {
-      res.status(400).json({ error: 'Le code doit contenir 3 à 16 caractères alphanumériques' }); return;
+    if (!/^[A-Z0-9]{4,16}$/.test(code)) {
+      res.status(400).json({ error: 'Le code doit contenir 4 à 16 caractères alphanumériques' }); return;
     }
     const conflict = await prisma.affiliateCode.findUnique({ where: { code } });
     if (conflict) { res.status(409).json({ error: `Le code "${code}" est déjà pris` }); return; }
@@ -127,8 +127,8 @@ router.patch('/me/code', requireAuth, async (req: Request, res: Response): Promi
       res.status(400).json({ error: 'Nouveau code requis' }); return;
     }
     const newCode = customCode.trim().toUpperCase();
-    if (!/^[A-Z0-9]{3,16}$/.test(newCode)) {
-      res.status(400).json({ error: 'Le code doit contenir 3 à 16 caractères alphanumériques' }); return;
+    if (!/^[A-Z0-9]{4,16}$/.test(newCode)) {
+      res.status(400).json({ error: 'Le code doit contenir 4 à 16 caractères alphanumériques' }); return;
     }
 
     const existing = await prisma.affiliateCode.findUnique({ where: { userId } });

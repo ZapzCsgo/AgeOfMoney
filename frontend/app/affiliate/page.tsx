@@ -119,8 +119,8 @@ export default function AffiliatePage() {
       setCreateErr('Choisis un code');
       return;
     }
-    if (!/^[A-Za-z0-9]{3,16}$/.test(trimmed)) {
-      setCreateErr('3 à 16 caractères alphanumériques');
+    if (!/^[A-Za-z0-9]{4,16}$/.test(trimmed)) {
+      setCreateErr('4 à 16 caractères alphanumériques');
       return;
     }
     setCreating(true);
@@ -139,8 +139,8 @@ export default function AffiliatePage() {
   async function changeCode() {
     setChangeErr(null);
     const trimmed = newCodeInput.trim();
-    if (!/^[A-Za-z0-9]{3,16}$/.test(trimmed)) {
-      setChangeErr('3 à 16 caractères alphanumériques');
+    if (!/^[A-Za-z0-9]{4,16}$/.test(trimmed)) {
+      setChangeErr('4 à 16 caractères alphanumériques');
       return;
     }
     setChanging(true);
@@ -327,7 +327,7 @@ export default function AffiliatePage() {
                   const daysLeft = Math.ceil((unlocksAt!.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
                   return (
                     <span className="text-[11px] px-3 py-2 rounded-lg" style={{ background: '#13111f', color: '#6b6488', border: '1px solid #1a1730' }}>
-                      🔒 modifiable dans {daysLeft}j
+                      modifiable dans {daysLeft}j
                     </span>
                   );
                 })()}

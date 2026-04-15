@@ -28,7 +28,8 @@ function SteamIcon() {
 
 const COINS_PER_USD = 1.69;
 const USD_TO_EUR    = 0.92;
-const VALID_CODES: Record<string, number> = { EMPIRE: 5, AOE4BET: 10, VIP: 15 };
+// Once a user applies an affiliate code, lock it for 14 days before they can swap.
+const PROMO_LOCK_DAYS = 14;
 
 // Packages — pensés pour maximiser la valeur perçue
 
@@ -104,18 +105,25 @@ export default function DepositPage() {
   const [promoCode, setPromoCode]              = useState('');
   const [promoApplied, setPromoApplied]        = useState(false);
   const [promoError, setPromoError]            = useState('');
+  const [promoBonusPct, setPromoBonusPct]      = useState(0);
+  const [promoLockedUntil, setPromoLockedUntil] = useState<number | null>(null);
+  const [promoLoading, setPromoLoading]         = useState(false);
 
-  // Load saved affiliate code from localStorage (valid 15 days)
+  // Load saved affiliate code from localStorage (locked 14 days)
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('affiliateCode');
+      const saved  = localStorage.getItem('affiliateCode');
       const expiry = localStorage.getItem('affiliateCodeExpiry');
+      const pctStr = localStorage.getItem('affiliateBonusPct');
       if (saved && expiry && Date.now() < parseInt(expiry)) {
         setPromoCode(saved);
         setPromoApplied(true);
+        setPromoBonusPct(pctStr ? parseInt(pctStr) : 0);
+        setPromoLockedUntil(parseInt(expiry));
       } else {
         localStorage.removeItem('affiliateCode');
         localStorage.removeItem('affiliateCodeExpiry');
+        localStorage.removeItem('affiliateBonusPct');
       }
     } catch {}
   }, []);
@@ -124,28 +132,48 @@ export default function DepositPage() {
   const [error, setError]                      = useState<string | null>(null);
 
   const baseCoins  = parseInt(customCoins) || 0;
-  const bonusPct   = promoApplied ? (VALID_CODES[promoCode.toUpperCase()] ?? 0) : 0;
+  const bonusPct   = promoApplied ? promoBonusPct : 0;
   const bonusCoins = Math.floor(baseCoins * bonusPct / 100);
   const totalCoins = baseCoins + bonusCoins;
   const usdCost    = useMemo(() => baseCoins > 0 ? (baseCoins / COINS_PER_USD) : 0, [baseCoins]);
   const eurCost    = useMemo(() => usdCost * USD_TO_EUR, [usdCost]);
 
-  const applyPromo = () => {
+  const applyPromo = async () => {
     const code = promoCode.trim().toUpperCase();
-    if (!code) { setPromoError(t('common_error')); return; }
-    if (VALID_CODES[code]) {
+    if (!code) { setPromoError('Code requis'); return; }
+    if (!session) { setPromoError('Connecte-toi pour utiliser un code'); return; }
+    setPromoLoading(true);
+    setPromoError('');
+    try {
+      const r = await fetch(`/api/v1/affiliate/validate/${encodeURIComponent(code)}`, {
+        headers: { Authorization: `Bearer ${session.user.accessToken}` },
+      });
+      const data = await r.json();
+      if (!r.ok || !data.valid) {
+        setPromoError(data.error || 'Code invalide');
+        setPromoApplied(false);
+        return;
+      }
+      const bonus = data.bonusPct ?? 0;
+      setPromoBonusPct(bonus);
       setPromoApplied(true);
-      setPromoError('');
-      // Save affiliate code for 15 days
+      const expiry = Date.now() + PROMO_LOCK_DAYS * 24 * 60 * 60 * 1000;
+      setPromoLockedUntil(expiry);
       try {
         localStorage.setItem('affiliateCode', code);
-        localStorage.setItem('affiliateCodeExpiry', String(Date.now() + 15 * 24 * 60 * 60 * 1000));
+        localStorage.setItem('affiliateCodeExpiry', String(expiry));
+        localStorage.setItem('affiliateBonusPct', String(bonus));
       } catch {}
-    } else {
-      setPromoError(t('common_error'));
-      setPromoApplied(false);
+    } catch {
+      setPromoError('Erreur réseau');
+    } finally {
+      setPromoLoading(false);
     }
   };
+
+  const daysLeftOnPromo = promoLockedUntil
+    ? Math.max(0, Math.ceil((promoLockedUntil - Date.now()) / (24 * 60 * 60 * 1000)))
+    : 0;
 
   const handleDeposit = async () => {
     if (!session) { handleSteamLogin(); return; }
@@ -402,25 +430,32 @@ export default function DepositPage() {
                 />
                 <button
                   onClick={applyPromo}
-                  className="px-5 h-10 rounded-sm text-[11px] font-cinzel font-black tracking-[0.15em] uppercase shrink-0 transition-colors border-2 border-[#d4a017] bg-transparent text-[#d4a017] hover:bg-[#d4a017]/15"
+                  disabled={promoLoading}
+                  className="px-5 h-10 rounded-sm text-[11px] font-cinzel font-black tracking-[0.15em] uppercase shrink-0 transition-colors border-2 border-[#d4a017] bg-transparent text-[#d4a017] hover:bg-[#d4a017]/15 disabled:opacity-50"
                 >
-                  {t('deposit_promo_apply')}
+                  {promoLoading ? '...' : t('deposit_promo_apply')}
                 </button>
               </div>
             ) : (
-              <div className="flex items-center justify-between p-3 rounded-xl" style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.25)' }}>
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                    <Check size={11} className="text-emerald-400" />
+              <div className="p-3 rounded-xl" style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.25)' }}>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+                      <Check size={11} className="text-emerald-400" />
+                    </div>
+                    <span className="text-emerald-400 text-sm font-cinzel font-bold truncate">{promoCode.toUpperCase()}</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                      +{promoBonusPct}% coins
+                    </span>
                   </div>
-                  <span className="text-emerald-400 text-sm font-cinzel font-bold">{promoCode.toUpperCase()}</span>
-                  <span className="text-emerald-400/70 text-xs">{t('deposit_bonus_applied', { pct: VALID_CODES[promoCode.toUpperCase()] })}</span>
+                  <span className="text-emerald-400/60 text-[10px] shrink-0">
+                    verrouillé {daysLeftOnPromo}j
+                  </span>
                 </div>
-                <button onClick={() => {
-                  setPromoApplied(false);
-                  setPromoCode('');
-                  try { localStorage.removeItem('affiliateCode'); localStorage.removeItem('affiliateCodeExpiry'); } catch {}
-                }} className="text-aoe-parchment-muted text-xs hover:text-red-400 transition-colors">✕</button>
+                <p className="text-[10px] mt-1.5 text-emerald-400/60">
+                  Tu recevras <span className="font-bold text-emerald-300">+{bonusCoins}⚜ bonus</span> sur ce dépôt.
+                  Code modifiable dans {daysLeftOnPromo} jour{daysLeftOnPromo > 1 ? 's' : ''}.
+                </p>
               </div>
             )}
             {promoError && <p className="text-red-400 text-xs mt-1.5">{promoError}</p>}
