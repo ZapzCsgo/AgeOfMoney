@@ -293,11 +293,19 @@ async function distributePayouts(): Promise<void> {
     take: 20,
   });
 
-  for (const match of completed) {
-    if (match.winnerId) {
-      await distributePayout(match.id, match.winnerId);
-      logger.info(`[Tick] Payouts distributed for ${match.id}`);
-      io?.to(`matchRoom:${match.id}`).emit('payoutsDistributed', { matchId: match.id, winnerId: match.winnerId });
-    }
-  }
+  // Distribute payouts in parallel — matches are independent.
+  // Previously serial: 20 matches × ~50ms each = up to 1s event-loop block.
+  await Promise.all(
+    completed
+      .filter(m => m.winnerId)
+      .map(async (match) => {
+        try {
+          await distributePayout(match.id, match.winnerId!);
+          logger.info(`[Tick] Payouts distributed for ${match.id}`);
+          io?.to(`matchRoom:${match.id}`).emit('payoutsDistributed', { matchId: match.id, winnerId: match.winnerId });
+        } catch (err) {
+          logger.error(`[Tick] distributePayout failed for ${match.id}:`, err);
+        }
+      })
+  );
 }
