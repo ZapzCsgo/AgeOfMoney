@@ -86,12 +86,18 @@ const MAINTENANCE_HTML = `<!DOCTYPE html>
 export function middleware(req: NextRequest) {
   const { pathname, searchParams } = req.nextUrl;
 
-  // Always allow static assets and API routes (no lang cookie either,
-  // these never render HTML)
+  // Always allow static assets, API routes and SEO metadata files.
+  // Crawlers (Google, Bing) must be able to fetch these even when the
+  // maintenance gate is active, otherwise they see the maintenance HTML
+  // and reject the sitemap ("le sitemap est un fichier HTML").
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||
-    pathname.startsWith('/api/')
+    pathname.startsWith('/api/') ||
+    pathname === '/robots.txt' ||
+    pathname === '/sitemap.xml' ||
+    pathname === '/manifest.webmanifest' ||
+    pathname === '/sitemap-0.xml'
   ) {
     return NextResponse.next();
   }
