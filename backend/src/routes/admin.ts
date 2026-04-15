@@ -421,6 +421,8 @@ router.get('/users', async (req: Request, res: Response): Promise<void> => {
     const limit = Math.min(parseInt(req.query.limit as string || '50'), 200);
     const offset = parseInt(req.query.offset as string || '0');
     const search = req.query.search as string | undefined;
+    const sortBy = (req.query.sortBy as string) || 'createdAt';
+    const filter = req.query.filter as string | undefined;
 
     const whereClause: Record<string, unknown> = {};
     if (search) {
@@ -429,11 +431,20 @@ router.get('/users', async (req: Request, res: Response): Promise<void> => {
         { email: { contains: search, mode: 'insensitive' } },
       ];
     }
+    if (filter === 'banned') whereClause.isBanned = true;
+    if (filter === 'muted') whereClause.mutedUntil = { gt: new Date() };
+    if (filter === 'whales') whereClause.totalWagered = { gte: 10000 };
+
+    const orderBy: Record<string, 'asc' | 'desc'> =
+      sortBy === 'coins' ? { coins: 'desc' } :
+      sortBy === 'wagered' ? { totalWagered: 'desc' } :
+      sortBy === 'active' ? { lastActiveAt: 'desc' } :
+      { createdAt: 'desc' };
 
     const [users, total] = await Promise.all([
       prisma.user.findMany({
         where: whereClause,
-        orderBy: { createdAt: 'desc' },
+        orderBy,
         take: limit,
         skip: offset,
         select: {
@@ -442,10 +453,14 @@ router.get('/users', async (req: Request, res: Response): Promise<void> => {
           email: true,
           avatar: true,
           coins: true,
+          totalWagered: true,
           isAdmin: true,
           isMod: true,
+          isPartner: true,
           isBanned: true,
+          mutedUntil: true,
           provider: true,
+          steamId: true,
           lastActiveAt: true,
           createdAt: true,
           _count: { select: { bets: true } },
@@ -458,6 +473,211 @@ router.get('/users', async (req: Request, res: Response): Promise<void> => {
   } catch (error) {
     logger.error('GET /admin/users error:', error);
     res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// GET /users/:id - Full user profile for admin (stats, bets, transactions, risk flags)
+router.get('/users/:id', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const user = await prisma.user.findUnique({
+      where: { id },
+      include: {
+        _count: { select: { bets: true, transactions: true, rouletteBets: true } },
+      },
+    });
+    if (!user) { res.status(404).json({ error: 'User not found' }); return; }
+
+    // Recent bets (last 50)
+    const recentBets = await prisma.bet.findMany({
+      where: { userId: id },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      include: {
+        match: {
+          select: {
+            id: true, status: true, winnerId: true, resultScore: true, scheduledAt: true,
+            player1: { select: { id: true, name: true } },
+            player2: { select: { id: true, name: true } },
+          },
+        },
+      },
+    });
+
+    // Recent transactions (deposits/withdrawals)
+    const recentTransactions = await prisma.transaction.findMany({
+      where: { userId: id },
+      orderBy: { createdAt: 'desc' },
+      take: 30,
+    });
+
+    // Aggregate stats
+    const allBets = await prisma.bet.findMany({
+      where: { userId: id, status: { in: ['WON', 'LOST'] } },
+      select: { amount: true, payout: true, status: true, createdAt: true },
+    });
+
+    const wonBets = allBets.filter(b => b.status === 'WON');
+    const lostBets = allBets.filter(b => b.status === 'LOST');
+    const totalWagered = allBets.reduce((s, b) => s + b.amount, 0);
+    const totalWon = wonBets.reduce((s, b) => s + (b.payout ?? 0), 0);
+    const netProfit = totalWon - totalWagered;
+    const winrate = allBets.length > 0 ? wonBets.length / allBets.length : 0;
+
+    // Last 24h / 7d activity
+    const now = Date.now();
+    const day = 24 * 3600 * 1000;
+    const bets24h = allBets.filter(b => now - b.createdAt.getTime() < day).length;
+    const bets7d = allBets.filter(b => now - b.createdAt.getTime() < 7 * day).length;
+
+    // Risk flags
+    const flags: { type: string; severity: 'low' | 'med' | 'high'; message: string }[] = [];
+    if (winrate > 0.80 && allBets.length >= 10) {
+      flags.push({ type: 'HIGH_WINRATE', severity: 'high', message: `Winrate ${(winrate * 100).toFixed(0)}% sur ${allBets.length} paris` });
+    }
+    if (netProfit > 50000) {
+      flags.push({ type: 'LARGE_PROFIT', severity: 'med', message: `Profit net: +${netProfit.toLocaleString()} ⚜` });
+    }
+    if (bets24h > 50) {
+      flags.push({ type: 'BET_FLOOD', severity: 'med', message: `${bets24h} paris en 24h` });
+    }
+    const pendingWithdrawals = recentTransactions.filter(t => t.type === 'withdrawal' && t.status === 'pending').length;
+    if (pendingWithdrawals > 0) {
+      flags.push({ type: 'PENDING_WITHDRAWAL', severity: 'low', message: `${pendingWithdrawals} retrait(s) en attente` });
+    }
+    if (user.isBanned) {
+      flags.push({ type: 'BANNED', severity: 'high', message: 'Utilisateur banni' });
+    }
+    if (user.mutedUntil && user.mutedUntil > new Date()) {
+      flags.push({ type: 'MUTED', severity: 'low', message: `Mute jusqu'à ${user.mutedUntil.toISOString()}` });
+    }
+
+    res.json({
+      data: {
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          avatar: user.avatar,
+          bio: user.bio,
+          steamId: user.steamId,
+          coins: user.coins,
+          totalWagered: user.totalWagered,
+          isAdmin: user.isAdmin,
+          isMod: user.isMod,
+          isPartner: user.isPartner,
+          isBanned: user.isBanned,
+          mutedUntil: user.mutedUntil,
+          totpEnabled: user.totpEnabled,
+          provider: user.provider,
+          createdAt: user.createdAt,
+          lastActiveAt: user.lastActiveAt,
+          counts: user._count,
+        },
+        stats: {
+          totalBets: allBets.length,
+          wonBets: wonBets.length,
+          lostBets: lostBets.length,
+          winrate,
+          totalWagered,
+          totalWon,
+          netProfit,
+          bets24h,
+          bets7d,
+        },
+        flags,
+        recentBets,
+        recentTransactions,
+      },
+    });
+  } catch (error) {
+    logger.error('GET /admin/users/:id error:', error);
+    res.status(500).json({ error: 'Failed to fetch user details' });
+  }
+});
+
+// GET /suspicious - List users with risk flags (whales, high winrate, flood betting)
+router.get('/suspicious', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    // Aggregate bet stats per user
+    const stats = await prisma.bet.groupBy({
+      by: ['userId', 'status'],
+      where: { status: { in: ['WON', 'LOST'] } },
+      _count: true,
+      _sum: { amount: true, payout: true },
+    });
+
+    const byUser = new Map<string, { won: number; lost: number; wagered: number; payout: number }>();
+    for (const s of stats) {
+      const entry = byUser.get(s.userId) ?? { won: 0, lost: 0, wagered: 0, payout: 0 };
+      if (s.status === 'WON') entry.won += s._count;
+      else entry.lost += s._count;
+      entry.wagered += s._sum.amount ?? 0;
+      entry.payout += s._sum.payout ?? 0;
+      byUser.set(s.userId, entry);
+    }
+
+    // Filter suspicious: >=10 bets AND (winrate >75% OR profit >20k)
+    const suspiciousIds: string[] = [];
+    for (const [userId, s] of byUser) {
+      const total = s.won + s.lost;
+      if (total < 10) continue;
+      const winrate = s.won / total;
+      const netProfit = s.payout - s.wagered;
+      if (winrate > 0.75 || netProfit > 20000) suspiciousIds.push(userId);
+    }
+
+    const suspiciousUsers = await prisma.user.findMany({
+      where: { id: { in: suspiciousIds } },
+      select: {
+        id: true, username: true, avatar: true, coins: true, totalWagered: true,
+        isBanned: true, createdAt: true, lastActiveAt: true,
+      },
+    });
+
+    const enriched = suspiciousUsers.map(u => {
+      const s = byUser.get(u.id)!;
+      const total = s.won + s.lost;
+      return {
+        ...u,
+        totalBets: total,
+        wonBets: s.won,
+        winrate: total > 0 ? s.won / total : 0,
+        netProfit: s.payout - s.wagered,
+      };
+    }).sort((a, b) => b.netProfit - a.netProfit);
+
+    res.json({ data: enriched });
+  } catch (error) {
+    logger.error('GET /admin/suspicious error:', error);
+    res.status(500).json({ error: 'Failed to fetch suspicious users' });
+  }
+});
+
+// GET /transactions - Pending/recent withdrawals & deposits queue
+router.get('/transactions', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const type = req.query.type as string | undefined;
+    const status = req.query.status as string | undefined;
+    const limit = Math.min(parseInt(req.query.limit as string || '50'), 200);
+
+    const where: Record<string, unknown> = {};
+    if (type) where.type = type;
+    if (status) where.status = status;
+
+    const transactions = await prisma.transaction.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: {
+        user: { select: { id: true, username: true, avatar: true, coins: true, isBanned: true } },
+      },
+    });
+
+    res.json({ data: transactions });
+  } catch (error) {
+    logger.error('GET /admin/transactions error:', error);
+    res.status(500).json({ error: 'Failed to fetch transactions' });
   }
 });
 

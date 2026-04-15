@@ -17,7 +17,7 @@ import {
   Eye, X as XIcon, TrendingUp, Receipt,
 } from 'lucide-react';
 
-type TabType = 'matches' | 'flagged' | 'players' | 'users' | 'scrapers';
+type TabType = 'users' | 'risk' | 'transactions' | 'matches' | 'flagged' | 'players' | 'scrapers';
 
 interface AdminPlayer {
   id: string;
@@ -70,10 +70,60 @@ interface ScoreModal {
   currentP2: number;
 }
 
+interface SuspiciousUser {
+  id: string;
+  username: string;
+  avatar: string | null;
+  coins: number;
+  totalWagered: number;
+  totalBets: number;
+  wonBets: number;
+  winrate: number;
+  netProfit: number;
+  isBanned: boolean;
+  createdAt: string;
+  lastActiveAt: string | null;
+}
+
+interface AdminTransaction {
+  id: string;
+  userId: string;
+  type: string;
+  amount: number;
+  coins: number;
+  status: string;
+  createdAt: string;
+  user: { id: string; username: string; avatar: string | null; coins: number; isBanned: boolean };
+}
+
+interface UserDetail {
+  user: {
+    id: string; username: string; email: string | null; avatar: string | null; bio: string | null;
+    steamId: string | null; coins: number; totalWagered: number;
+    isAdmin: boolean; isMod: boolean; isPartner: boolean; isBanned: boolean;
+    mutedUntil: string | null; totpEnabled: boolean; provider: string;
+    createdAt: string; lastActiveAt: string | null;
+    counts: { bets: number; transactions: number; rouletteBets: number };
+  };
+  stats: {
+    totalBets: number; wonBets: number; lostBets: number; winrate: number;
+    totalWagered: number; totalWon: number; netProfit: number;
+    bets24h: number; bets7d: number;
+  };
+  flags: Array<{ type: string; severity: 'low' | 'med' | 'high'; message: string }>;
+  recentBets: Array<{
+    id: string; amount: number; oddsAtBet: number; status: string; payout: number | null;
+    selectedPlayer: number; createdAt: string;
+    match: { id: string; status: string; winnerId: string | null; resultScore: string | null; scheduledAt: string;
+      player1: { id: string; name: string }; player2: { id: string; name: string } };
+  }>;
+  recentTransactions: Array<{ id: string; type: string; amount: number; coins: number; status: string; createdAt: string }>;
+}
+
 export default function AdminPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [tab, setTab] = useState<TabType>('matches');
+  const [tab, setTab] = useState<TabType>('users');
   const [matches, setMatches] = useState<AdminMatch[]>([]);
   const [flagged, setFlagged] = useState<AdminMatch[]>([]);
   const [players, setPlayers] = useState<AdminPlayer[]>([]);
@@ -96,6 +146,11 @@ export default function AdminPage() {
   const [scoreP1, setScoreP1] = useState('0');
   const [scoreP2, setScoreP2] = useState('0');
   const [lpDebug, setLpDebug] = useState<Record<string, unknown> | null>(null);
+  const [suspiciousUsers, setSuspiciousUsers] = useState<SuspiciousUser[]>([]);
+  const [adminTransactions, setAdminTransactions] = useState<AdminTransaction[]>([]);
+  const [userDetail, setUserDetail] = useState<UserDetail | null>(null);
+  const [userDetailLoading, setUserDetailLoading] = useState(false);
+  const [txFilter, setTxFilter] = useState<'all' | 'pending' | 'deposit' | 'withdrawal'>('pending');
 
   const showMsg = (type: 'success' | 'error', text: string) => {
     setMsg({ type, text });
@@ -124,20 +179,52 @@ export default function AdminPage() {
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [mRes, fRes, pRes, uRes] = await Promise.allSettled([
+      const [mRes, fRes, pRes, uRes, sRes, tRes] = await Promise.allSettled([
         apiClient.get('/admin/matches'),
         apiClient.get('/admin/matches/flagged'),
         apiClient.get('/admin/players'),
         getAdminUsers({ limit: 50 }),
+        apiClient.get('/admin/suspicious'),
+        apiClient.get('/admin/transactions?status=pending&limit=100'),
       ]);
       if (mRes.status === 'fulfilled') setMatches(mRes.value.data.data ?? []);
       if (fRes.status === 'fulfilled') setFlagged(fRes.value.data.data ?? []);
       if (pRes.status === 'fulfilled') setPlayers(pRes.value.data.data ?? []);
       if (uRes.status === 'fulfilled') { setUsers(uRes.value.data); setUsersTotal(uRes.value.total); }
+      if (sRes.status === 'fulfilled') setSuspiciousUsers(sRes.value.data.data ?? []);
+      if (tRes.status === 'fulfilled') setAdminTransactions(tRes.value.data.data ?? []);
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const openUserDetail = async (userId: string) => {
+    setUserDetailLoading(true);
+    setUserDetail(null);
+    try {
+      const res = await apiClient.get(`/admin/users/${userId}`);
+      setUserDetail(res.data.data);
+    } catch {
+      showMsg('error', 'Impossible de charger le profil utilisateur');
+    } finally {
+      setUserDetailLoading(false);
+    }
+  };
+
+  const loadTransactions = async (filter: typeof txFilter) => {
+    setTxFilter(filter);
+    const params = new URLSearchParams();
+    if (filter === 'pending') params.set('status', 'pending');
+    if (filter === 'deposit') params.set('type', 'deposit');
+    if (filter === 'withdrawal') params.set('type', 'withdrawal');
+    params.set('limit', '100');
+    try {
+      const res = await apiClient.get(`/admin/transactions?${params}`);
+      setAdminTransactions(res.data.data ?? []);
+    } catch {
+      showMsg('error', 'Erreur chargement transactions');
+    }
+  };
 
   const handleSetResult = async () => {
     if (!resultModal || !resultForm.winnerId || !resultForm.score) return;
@@ -297,10 +384,12 @@ export default function AdminPage() {
   if (!session?.user.isAdmin) return null;
 
   const tabs: { id: TabType; label: string; icon: React.ElementType; count?: number }[] = [
+    { id: 'users', label: 'Utilisateurs', icon: UsersIcon, count: usersTotal },
+    { id: 'risk', label: 'Risque', icon: AlertTriangle, count: suspiciousUsers.length },
+    { id: 'transactions', label: 'Transactions', icon: Receipt, count: adminTransactions.filter(t => t.status === 'pending').length },
     { id: 'matches', label: 'Matchs', icon: Swords, count: matches.length },
     { id: 'flagged', label: 'Flaggés', icon: Flag, count: flagged.length },
     { id: 'players', label: 'Joueurs', icon: Database, count: players.length },
-    { id: 'users', label: 'Utilisateurs', icon: UsersIcon, count: usersTotal },
     { id: 'scrapers', label: 'Scrapers', icon: Activity },
   ];
 
@@ -771,13 +860,13 @@ export default function AdminPage() {
                   {filteredUsers.map(u => (
                     <tr key={u.id} className="hover:bg-[#13111f] transition-colors" style={{ borderBottom: '1px solid #1e1a3022' }}>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
+                        <button onClick={() => openUserDetail(u.id)} className="flex items-center gap-2 hover:opacity-80 transition-opacity text-left">
                           {u.avatar && <img src={u.avatar} alt="" className="w-7 h-7 rounded-full" />}
                           <div>
-                            <p className="font-semibold text-[#e8e2f5]">{u.username}</p>
+                            <p className="font-semibold text-[#e8e2f5] hover:text-[#d4a017] transition-colors">{u.username}</p>
                             <p className="text-[10px] text-[#6b6488] capitalize">{u.provider}</p>
                           </div>
-                        </div>
+                        </button>
                       </td>
                       <td className="px-4 py-3">
                         <span className="font-bold text-[#d4a017]">{new Intl.NumberFormat('fr-FR').format(u.coins)} ⚜</span>
@@ -843,9 +932,322 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* ── RISK TAB ──────────────────────────────────────────────────── */}
+        {tab === 'risk' && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <AlertTriangle size={16} className="text-red-400" />
+              <h2 className="font-bold text-[14px] text-[#e8e2f5]">Utilisateurs à risque</h2>
+              <span className="text-[11px] text-[#6b6488]">· Winrate &gt; 75% ou profit net &gt; 20 000 ⚜</span>
+            </div>
+            {suspiciousUsers.length === 0 ? (
+              <div className="rounded-lg p-6 text-center" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+                <CheckCircle size={24} className="text-emerald-400 mx-auto mb-2" />
+                <p className="text-[#6b6488] text-[13px]">Aucun utilisateur suspect détecté</p>
+              </div>
+            ) : (
+              <div className="rounded-lg overflow-hidden" style={{ border: '1px solid #1e1a30', background: '#0d0b1a' }}>
+                <table className="w-full text-[12px]">
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid #1e1a30' }}>
+                      {['Utilisateur', 'Paris', 'Winrate', 'Misé', 'Profit net', 'Solde', 'Statut', 'Actions'].map(h => (
+                        <th key={h} className="text-left px-4 py-2.5 text-[11px] text-[#6b6488] uppercase tracking-wider font-medium">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {suspiciousUsers.map(u => (
+                      <tr key={u.id} className="hover:bg-[#13111f] transition-colors" style={{ borderBottom: '1px solid #1e1a3022' }}>
+                        <td className="px-4 py-3">
+                          <button onClick={() => openUserDetail(u.id)} className="flex items-center gap-2 hover:opacity-80">
+                            {u.avatar && <img src={u.avatar} alt="" className="w-7 h-7 rounded-full" />}
+                            <p className="font-semibold text-[#e8e2f5] hover:text-[#d4a017]">{u.username}</p>
+                          </button>
+                        </td>
+                        <td className="px-4 py-3 text-[#e8e2f5]">{u.totalBets}</td>
+                        <td className="px-4 py-3">
+                          <span className={cn('font-bold', u.winrate > 0.80 ? 'text-red-400' : u.winrate > 0.70 ? 'text-orange-400' : 'text-[#e8e2f5]')}>
+                            {(u.winrate * 100).toFixed(0)}%
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-[#6b6488]">{new Intl.NumberFormat('fr-FR').format(u.totalWagered)} ⚜</td>
+                        <td className="px-4 py-3">
+                          <span className={cn('font-bold', u.netProfit > 50000 ? 'text-red-400' : u.netProfit > 0 ? 'text-emerald-400' : 'text-[#6b6488]')}>
+                            {u.netProfit > 0 ? '+' : ''}{new Intl.NumberFormat('fr-FR').format(u.netProfit)} ⚜
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-[#d4a017] font-bold">{new Intl.NumberFormat('fr-FR').format(u.coins)} ⚜</td>
+                        <td className="px-4 py-3">
+                          <span className={cn('px-2 py-0.5 rounded text-[10px] font-bold',
+                            u.isBanned ? 'bg-red-950 border border-red-800/40 text-red-400' : 'bg-emerald-950 border border-emerald-800/40 text-emerald-400'
+                          )}>
+                            {u.isBanned ? 'Banni' : 'Actif'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <button onClick={() => openUserDetail(u.id)}
+                            className="px-2 py-1 rounded text-[10px] font-medium" style={{ background: '#d4a01715', border: '1px solid #d4a01730', color: '#d4a017' }}>
+                            <Eye size={11} className="inline -mt-0.5" /> Inspecter
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── TRANSACTIONS TAB ──────────────────────────────────────────── */}
+        {tab === 'transactions' && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1 p-0.5 rounded" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
+                {(['pending', 'all', 'deposit', 'withdrawal'] as const).map(f => (
+                  <button key={f} onClick={() => loadTransactions(f)}
+                    className={cn('px-3 py-1 rounded text-[11px] font-medium transition-colors',
+                      txFilter === f ? 'bg-[#d4a017] text-black' : 'text-[#9990b8] hover:text-[#e8e2f5]'
+                    )}>
+                    {f === 'pending' ? 'En attente' : f === 'all' ? 'Toutes' : f === 'deposit' ? 'Dépôts' : 'Retraits'}
+                  </button>
+                ))}
+              </div>
+              <span className="text-[12px] text-[#6b6488]">{adminTransactions.length} transaction(s)</span>
+            </div>
+            <div className="rounded-lg overflow-hidden" style={{ border: '1px solid #1e1a30', background: '#0d0b1a' }}>
+              <table className="w-full text-[12px]">
+                <thead>
+                  <tr style={{ borderBottom: '1px solid #1e1a30' }}>
+                    {['Utilisateur', 'Type', 'Montant USD', 'Coins', 'Statut', 'Date'].map(h => (
+                      <th key={h} className="text-left px-4 py-2.5 text-[11px] text-[#6b6488] uppercase tracking-wider font-medium">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {adminTransactions.length === 0 ? (
+                    <tr><td colSpan={6} className="text-center text-[#6b6488] py-8">Aucune transaction</td></tr>
+                  ) : adminTransactions.map(tx => (
+                    <tr key={tx.id} className="hover:bg-[#13111f]" style={{ borderBottom: '1px solid #1e1a3022' }}>
+                      <td className="px-4 py-3">
+                        <button onClick={() => openUserDetail(tx.user.id)} className="flex items-center gap-2 hover:opacity-80">
+                          {tx.user.avatar && <img src={tx.user.avatar} alt="" className="w-6 h-6 rounded-full" />}
+                          <span className="font-semibold text-[#e8e2f5] hover:text-[#d4a017]">{tx.user.username}</span>
+                          {tx.user.isBanned && <span className="text-[9px] text-red-400">BANNI</span>}
+                        </button>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={cn('px-2 py-0.5 rounded text-[10px] font-bold uppercase',
+                          tx.type === 'deposit' ? 'bg-emerald-950 border border-emerald-800/40 text-emerald-400' :
+                          tx.type === 'withdrawal' ? 'bg-orange-950 border border-orange-800/40 text-orange-400' :
+                          'bg-blue-950 border border-blue-800/40 text-blue-400'
+                        )}>
+                          {tx.type}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-[#e8e2f5]">${(tx.amount / 100).toFixed(2)}</td>
+                      <td className="px-4 py-3 text-[#d4a017] font-bold">{tx.coins > 0 ? '+' : ''}{new Intl.NumberFormat('fr-FR').format(tx.coins)} ⚜</td>
+                      <td className="px-4 py-3">
+                        <span className={cn('px-2 py-0.5 rounded text-[10px] font-bold',
+                          tx.status === 'completed' ? 'bg-emerald-950 border border-emerald-800/40 text-emerald-400' :
+                          tx.status === 'pending' ? 'bg-amber-950 border border-amber-800/40 text-amber-400' :
+                          'bg-red-950 border border-red-800/40 text-red-400'
+                        )}>
+                          {tx.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-[#6b6488] whitespace-nowrap">{formatDateTime(tx.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {/* ── SCRAPERS TAB ──────────────────────────────────────────────── */}
         {tab === 'scrapers' && <ScrapersPanel showMsg={showMsg} />}
       </div>
+
+      {/* ── USER DETAIL MODAL ───────────────────────────────────────────── */}
+      {(userDetail || userDetailLoading) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={() => { setUserDetail(null); }}>
+          <div className="rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+            style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }} onClick={e => e.stopPropagation()}>
+            {userDetailLoading ? (
+              <div className="p-12 text-center text-[#6b6488]">Chargement...</div>
+            ) : userDetail && (
+              <>
+                <div className="flex items-start justify-between gap-4 p-5" style={{ borderBottom: '1px solid #1e1a30' }}>
+                  <div className="flex items-center gap-3">
+                    {userDetail.user.avatar && <img src={userDetail.user.avatar} alt="" className="w-12 h-12 rounded-full" />}
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h2 className="font-bold text-[16px] text-[#e8e2f5]">{userDetail.user.username}</h2>
+                        {userDetail.user.isAdmin && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-950 border border-red-800/40 text-red-400">ADMIN</span>}
+                        {userDetail.user.isMod && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold" style={{ background: '#1e3a5f', border: '1px solid #3b82f640', color: '#60a5fa' }}>MOD</span>}
+                        {userDetail.user.isPartner && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold" style={{ background: '#2d1b4e', border: '1px solid #a855f740', color: '#c084fc' }}>PARTNER</span>}
+                        {userDetail.user.isBanned && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-950 border border-red-800/40 text-red-400">BANNI</span>}
+                        {userDetail.user.totpEnabled && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-950 border border-emerald-800/40 text-emerald-400">2FA</span>}
+                      </div>
+                      <p className="text-[11px] text-[#6b6488]">
+                        {userDetail.user.email ?? '—'} · {userDetail.user.provider} · Membre depuis {formatDateTime(userDetail.user.createdAt)}
+                      </p>
+                      {userDetail.user.steamId && <p className="text-[10px] text-[#4a4468] font-mono">Steam: {userDetail.user.steamId}</p>}
+                    </div>
+                  </div>
+                  <button onClick={() => setUserDetail(null)} className="text-[#6b6488] hover:text-[#e8e2f5]">
+                    <XIcon size={18} />
+                  </button>
+                </div>
+
+                <div className="overflow-y-auto flex-1 p-5 space-y-4">
+                  {/* Flags */}
+                  {userDetail.flags.length > 0 && (
+                    <div className="rounded-lg p-3" style={{ background: '#13111f', border: '1px solid #ef444430' }}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <AlertTriangle size={13} className="text-red-400" />
+                        <span className="text-[11px] font-bold text-red-400 uppercase">Alertes</span>
+                      </div>
+                      <div className="space-y-1">
+                        {userDetail.flags.map((f, i) => (
+                          <div key={i} className="flex items-center gap-2 text-[11px]">
+                            <span className={cn('w-1.5 h-1.5 rounded-full',
+                              f.severity === 'high' ? 'bg-red-400' : f.severity === 'med' ? 'bg-orange-400' : 'bg-yellow-400'
+                            )} />
+                            <span className="text-[#e8e2f5]">{f.message}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Stats grid */}
+                  <div className="grid grid-cols-4 gap-2">
+                    {[
+                      { label: 'Solde', value: `${new Intl.NumberFormat('fr-FR').format(userDetail.user.coins)} ⚜`, color: '#d4a017' },
+                      { label: 'Total misé', value: `${new Intl.NumberFormat('fr-FR').format(userDetail.user.totalWagered)} ⚜`, color: '#e8e2f5' },
+                      { label: 'Profit net', value: `${userDetail.stats.netProfit >= 0 ? '+' : ''}${new Intl.NumberFormat('fr-FR').format(userDetail.stats.netProfit)} ⚜`, color: userDetail.stats.netProfit >= 0 ? '#10b981' : '#ef4444' },
+                      { label: 'Winrate', value: `${(userDetail.stats.winrate * 100).toFixed(0)}%`, color: userDetail.stats.winrate > 0.75 ? '#ef4444' : '#e8e2f5' },
+                    ].map((s, i) => (
+                      <div key={i} className="rounded-lg p-3" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
+                        <p className="text-[9px] text-[#6b6488] uppercase tracking-wider">{s.label}</p>
+                        <p className="font-bold text-[14px] mt-1" style={{ color: s.color }}>{s.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { label: 'Paris 24h', value: userDetail.stats.bets24h },
+                      { label: 'Paris 7j', value: userDetail.stats.bets7d },
+                      { label: 'Total paris', value: userDetail.stats.totalBets },
+                    ].map((s, i) => (
+                      <div key={i} className="rounded-lg p-2 text-center" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
+                        <p className="text-[9px] text-[#6b6488] uppercase">{s.label}</p>
+                        <p className="font-bold text-[13px] text-[#e8e2f5]">{s.value}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Recent bets */}
+                  <div>
+                    <h3 className="text-[11px] font-bold text-[#6b6488] uppercase mb-2">Derniers paris ({userDetail.recentBets.length})</h3>
+                    <div className="rounded-lg overflow-hidden" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
+                      <table className="w-full text-[11px]">
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid #1e1a30' }}>
+                            {['Match', 'Pick', 'Cote', 'Mise', 'Gain', 'Statut', 'Date'].map(h => (
+                              <th key={h} className="text-left px-3 py-2 text-[10px] text-[#6b6488] uppercase">{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {userDetail.recentBets.slice(0, 20).map(b => {
+                            const pick = b.selectedPlayer === 1 ? b.match.player1.name : b.selectedPlayer === 2 ? b.match.player2.name : 'Draw';
+                            return (
+                              <tr key={b.id} style={{ borderBottom: '1px solid #1e1a3022' }}>
+                                <td className="px-3 py-2 text-[#e8e2f5]">{b.match.player1.name} vs {b.match.player2.name}</td>
+                                <td className="px-3 py-2 text-[#9990b8]">{pick}</td>
+                                <td className="px-3 py-2 text-[#9990b8]">{b.oddsAtBet.toFixed(2)}</td>
+                                <td className="px-3 py-2 text-[#d4a017]">{b.amount} ⚜</td>
+                                <td className="px-3 py-2" style={{ color: b.status === 'WON' ? '#10b981' : b.status === 'LOST' ? '#ef4444' : '#6b6488' }}>
+                                  {b.payout ? `+${b.payout}` : '—'}
+                                </td>
+                                <td className="px-3 py-2">
+                                  <span className={cn('px-1.5 py-0.5 rounded text-[9px] font-bold',
+                                    b.status === 'WON' ? 'text-emerald-400 bg-emerald-950/50' :
+                                    b.status === 'LOST' ? 'text-red-400 bg-red-950/50' :
+                                    b.status === 'REFUNDED' ? 'text-blue-400 bg-blue-950/50' :
+                                    'text-[#6b6488] bg-[#1e1a30]'
+                                  )}>{b.status}</span>
+                                </td>
+                                <td className="px-3 py-2 text-[#6b6488] whitespace-nowrap">{formatDateTime(b.createdAt)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Recent transactions */}
+                  {userDetail.recentTransactions.length > 0 && (
+                    <div>
+                      <h3 className="text-[11px] font-bold text-[#6b6488] uppercase mb-2">Transactions ({userDetail.recentTransactions.length})</h3>
+                      <div className="rounded-lg overflow-hidden" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
+                        <table className="w-full text-[11px]">
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid #1e1a30' }}>
+                              {['Type', 'Montant USD', 'Coins', 'Statut', 'Date'].map(h => (
+                                <th key={h} className="text-left px-3 py-2 text-[10px] text-[#6b6488] uppercase">{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {userDetail.recentTransactions.map(tx => (
+                              <tr key={tx.id} style={{ borderBottom: '1px solid #1e1a3022' }}>
+                                <td className="px-3 py-2 text-[#e8e2f5] capitalize">{tx.type}</td>
+                                <td className="px-3 py-2 text-[#9990b8]">${(tx.amount / 100).toFixed(2)}</td>
+                                <td className="px-3 py-2 text-[#d4a017]">{tx.coins > 0 ? '+' : ''}{tx.coins} ⚜</td>
+                                <td className="px-3 py-2">
+                                  <span className={cn('px-1.5 py-0.5 rounded text-[9px] font-bold',
+                                    tx.status === 'completed' ? 'text-emerald-400 bg-emerald-950/50' :
+                                    tx.status === 'pending' ? 'text-amber-400 bg-amber-950/50' :
+                                    'text-red-400 bg-red-950/50'
+                                  )}>{tx.status}</span>
+                                </td>
+                                <td className="px-3 py-2 text-[#6b6488] whitespace-nowrap">{formatDateTime(tx.createdAt)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Quick actions */}
+                  <div className="flex items-center gap-2 pt-2" style={{ borderTop: '1px solid #1e1a30' }}>
+                    <button onClick={() => { handleBan(userDetail.user.id, userDetail.user.isBanned); setUserDetail(null); }}
+                      className={cn('px-3 py-1.5 rounded text-[11px] font-medium',
+                        userDetail.user.isBanned ? 'bg-emerald-950 border border-emerald-800/40 text-emerald-400' : 'bg-red-950 border border-red-800/40 text-red-400'
+                      )}>
+                      {userDetail.user.isBanned ? 'Débannir' : 'Bannir'}
+                    </button>
+                    <button onClick={() => { setAdjustModal({ userId: userDetail.user.id, username: userDetail.user.username }); setUserDetail(null); }}
+                      className="px-3 py-1.5 rounded text-[11px] font-medium" style={{ background: '#d4a01715', border: '1px solid #d4a01730', color: '#d4a017' }}>
+                      <Coins size={11} className="inline -mt-0.5 mr-1" /> Ajuster coins
+                    </button>
+                    <button onClick={() => { setMuteModal({ userId: userDetail.user.id, username: userDetail.user.username }); setUserDetail(null); }}
+                      className="px-3 py-1.5 rounded text-[11px] font-medium" style={{ background: '#13111f', border: '1px solid #2a2640', color: '#9990b8' }}>
+                      <VolumeX size={11} className="inline -mt-0.5 mr-1" /> Muter
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── SCORE MODAL ──────────────────────────────────────────────────── */}
       {scoreModal && (
