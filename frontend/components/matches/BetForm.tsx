@@ -174,15 +174,26 @@ export function BetForm({ match, onBetPlaced, initialPlayer = null }: BetFormPro
             <label className="text-aoe-parchment-dim text-xs uppercase tracking-wider font-cinzel mb-2 block">
               {t('bet_amount')}
             </label>
-            <div className="aoe-input flex items-center gap-2 p-0">
-              <span className="pl-3 text-aoe-gold">⚜</span>
+            <div
+              className="flex items-center gap-2 rounded-lg transition-colors cursor-text focus-within:border-[#d4a017] hover:border-[#d4a017]/60"
+              style={{
+                background: '#13111f',
+                border: '1.5px solid #2a2640',
+                padding: '2px 4px',
+              }}
+              onClick={(e) => {
+                const input = (e.currentTarget as HTMLElement).querySelector('input');
+                if (input) input.focus();
+              }}
+            >
+              <span className="pl-3 text-[#d4a017] text-base">⚜</span>
               <input
-                type="number"
-                min={5}
-                max={500}
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 value={customAmount || amount}
-                onChange={(e) => handleAmountChange(e.target.value)}
-                className="flex-1 bg-transparent border-none outline-none text-aoe-parchment py-2.5 pr-3"
+                onChange={(e) => handleAmountChange(e.target.value.replace(/\D/g, ''))}
+                className="flex-1 bg-transparent border-none outline-none text-[#e8e2f5] py-3 pr-3 text-base font-bold tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 placeholder="50"
               />
             </div>
