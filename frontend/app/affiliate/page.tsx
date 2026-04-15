@@ -555,13 +555,6 @@ export default function AffiliatePage() {
                 </div>
               );
             })}
-            <div className="rounded-xl p-4 mt-2" style={{ background: '#13111f', border: '1px solid #1a1730' }}>
-              <p className="text-[11px]" style={{ color: '#8a82a8' }}>
-                💡 <span className="font-bold" style={{ color: '#e8e2f5' }}>Revshare à vie</span> :
-                tu touches ta commission tant que ton filleul joue. Pas de date d&apos;expiration, pas de plafond.
-                Les sites comme Stake ou Bet365 font pareil à 20-30% — nous on démarre à 25% et monte à 35%.
-              </p>
-            </div>
           </div>
         )}
 
