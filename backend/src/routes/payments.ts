@@ -212,7 +212,13 @@ router.post('/crypto/webhook', async (req: Request, res: Response): Promise<void
 
     const rawBody = JSON.stringify(req.body);
     const expected = crypto.createHmac('sha512', secret).update(rawBody).digest('hex');
-    if (hmacHeader !== expected) {
+
+    // Constant-time comparison to defeat timing attacks.
+    // timingSafeEqual throws on length mismatch, so bail out early
+    // with a generic 401 (same response as valid-length-wrong-sig).
+    const hmacBuf = Buffer.from(hmacHeader, 'hex');
+    const expectedBuf = Buffer.from(expected, 'hex');
+    if (hmacBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(hmacBuf, expectedBuf)) {
       logger.warn(`[Webhook] Invalid HMAC signature (type=${webhookType}) — rejecting`);
       res.status(401).send('ok'); return;
     }
