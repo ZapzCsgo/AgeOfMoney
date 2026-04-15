@@ -34,6 +34,33 @@ function cacheKey(matchId: string, format: string, odds1: number, odds2: number)
   return `${matchId}:${format}:${odds1.toFixed(2)}:${odds2.toFixed(2)}`;
 }
 
+// ── Recency weighting ──────────────────────────────────────────────────────
+// A player who played 20 games in the last 3 months is much more informative
+// than a player who played 20 games spread over 5 years (meta changes, skill
+// evolution, etc.). We weight each record by recency and drop very old ones.
+
+const MAX_AGE_DAYS = 720;       // 24 months — ignore anything older than this
+const FRESH_WINDOW_DAYS = 90;   // matches within 3 months = full weight (1.0)
+const MIN_WEIGHT = 0.25;        // matches at the edge of MAX_AGE still count 25%
+const MIN_EFFECTIVE_SAMPLE = 6; // below this, we don't trust the data at all
+
+/**
+ * Weight a record based on how recent it is.
+ * - Within 3 months: 1.0
+ * - Linearly decays from 1.0 → 0.25 between 3 and 24 months
+ * - Older than 24 months or no date: 0 (dropped)
+ */
+function recencyWeight(matchDate: Date | null): number {
+  if (!matchDate) return 0.5; // neutral weight for undated records
+  const ageDays = (Date.now() - matchDate.getTime()) / (1000 * 60 * 60 * 24);
+  if (ageDays < 0) return 1.0;
+  if (ageDays <= FRESH_WINDOW_DAYS) return 1.0;
+  if (ageDays >= MAX_AGE_DAYS) return 0;
+  // Linear decay from 1.0 (at FRESH_WINDOW_DAYS) to MIN_WEIGHT (at MAX_AGE_DAYS)
+  const t = (ageDays - FRESH_WINDOW_DAYS) / (MAX_AGE_DAYS - FRESH_WINDOW_DAYS);
+  return 1.0 - (1.0 - MIN_WEIGHT) * t;
+}
+
 // ── Score parsing ──────────────────────────────────────────────────────────
 
 /**
@@ -77,31 +104,35 @@ async function getPlayerDistribution(playerId: string, format: Bo): Promise<Scor
         confidence: { gte: 0.5 },
         OR: [{ format }, { format: null }], // include records where format wasn't tagged
       },
-      select: { won: true, score: true },
+      select: { won: true, score: true, matchDate: true },
       orderBy: { matchDate: 'desc' },
       take: 100,
     });
 
     const needed = neededWins(format);
     const counts: Record<string, number> = {};
-    let total = 0;
+    let effectiveSample = 0;
 
     for (const r of records) {
       if (!r.score) continue;
       const parsed = parseScore(r.score, r.won);
       if (!parsed) continue;
       // Only keep scores where the winner reached exactly `needed` games —
-      // this filters out BO-format mismatches (e.g. a BO3 score in a BO5 list).
+      // this filters out BO-format mismatches.
       if (Math.max(parsed.my, parsed.opp) !== needed) continue;
+      const weight = recencyWeight(r.matchDate);
+      if (weight <= 0) continue; // too old, ignored entirely
       const key = `${parsed.my}-${parsed.opp}`;
-      counts[key] = (counts[key] ?? 0) + 1;
-      total++;
+      counts[key] = (counts[key] ?? 0) + weight;
+      effectiveSample += weight;
     }
 
-    if (total === 0) return { dist: {}, sample: 0 };
+    // If we have too little recent data, treat as no data — fall back to theory
+    if (effectiveSample < MIN_EFFECTIVE_SAMPLE) return { dist: {}, sample: 0 };
+
     const dist: ScoreDistribution = {};
-    for (const [k, v] of Object.entries(counts)) dist[k] = v / total;
-    return { dist, sample: total };
+    for (const [k, v] of Object.entries(counts)) dist[k] = v / effectiveSample;
+    return { dist, sample: effectiveSample };
   } catch (err) {
     logger.warn(`[ExactScore] getPlayerDistribution failed for ${playerId}:`, err);
     return { dist: {}, sample: 0 };
@@ -122,29 +153,33 @@ async function getH2HDistribution(p1Id: string, p2Id: string, format: Bo): Promi
         confidence: { gte: 0.5 },
         OR: [{ format }, { format: null }],
       },
-      select: { won: true, score: true },
+      select: { won: true, score: true, matchDate: true },
       orderBy: { matchDate: 'desc' },
       take: 50,
     });
 
     const needed = neededWins(format);
     const counts: Record<string, number> = {};
-    let total = 0;
+    let effectiveSample = 0;
 
     for (const r of records) {
       if (!r.score) continue;
       const parsed = parseScore(r.score, r.won);
       if (!parsed) continue;
       if (Math.max(parsed.my, parsed.opp) !== needed) continue;
+      const weight = recencyWeight(r.matchDate);
+      if (weight <= 0) continue;
       const key = `${parsed.my}-${parsed.opp}`;
-      counts[key] = (counts[key] ?? 0) + 1;
-      total++;
+      counts[key] = (counts[key] ?? 0) + weight;
+      effectiveSample += weight;
     }
 
-    if (total === 0) return { dist: {}, sample: 0 };
+    // H2H is special — we want at least 3 effective recent matches to trust it
+    if (effectiveSample < 3) return { dist: {}, sample: 0 };
+
     const dist: ScoreDistribution = {};
-    for (const [k, v] of Object.entries(counts)) dist[k] = v / total;
-    return { dist, sample: total };
+    for (const [k, v] of Object.entries(counts)) dist[k] = v / effectiveSample;
+    return { dist, sample: effectiveSample };
   } catch (err) {
     logger.warn(`[ExactScore] getH2HDistribution failed for ${p1Id} vs ${p2Id}:`, err);
     return { dist: {}, sample: 0 };
