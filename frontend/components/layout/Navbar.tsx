@@ -83,11 +83,11 @@ export function Navbar() {
       {/* Gold accent line at top */}
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-aoe-gold to-transparent opacity-60" />
 
-      <div className="flex items-center w-full px-4 gap-6">
+      <div className="flex items-center w-full px-3 md:px-4 gap-2 md:gap-6">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 group shrink-0">
-          <Crown size={24} className="text-aoe-gold group-hover:drop-shadow-[0_0_8px_rgba(201,162,39,0.8)] transition-all" />
-          <span className="font-cinzel font-bold text-lg tracking-[0.2em] text-aoe-gold group-hover:text-aoe-gold-bright transition-colors uppercase">
+          <Crown size={22} className="text-aoe-gold group-hover:drop-shadow-[0_0_8px_rgba(201,162,39,0.8)] transition-all" />
+          <span className="font-cinzel font-bold text-[15px] md:text-lg tracking-[0.15em] md:tracking-[0.2em] text-aoe-gold group-hover:text-aoe-gold-bright transition-colors uppercase hidden xs:inline sm:inline">
             AgeOfMoney
           </span>
         </Link>
@@ -128,7 +128,7 @@ export function Navbar() {
         </div>
 
         {/* Right side */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 md:gap-2 shrink-0 ml-auto">
           {session ? (
             <>
               {/* Notification bell */}
@@ -220,11 +220,11 @@ export function Navbar() {
                   className="flex items-center gap-0 rounded border border-aoe-border bg-aoe-stone/30 hover:border-aoe-border-gold transition-colors h-9 overflow-hidden"
                 >
                   {/* Coins badge */}
-                  <div className="flex items-center gap-1.5 px-3 h-full border-r border-aoe-border"
+                  <div className="flex items-center gap-1 md:gap-1.5 px-2 md:px-3 h-full border-r border-aoe-border"
                     style={{ background: 'rgba(212,160,23,0.08)' }}>
-                    <Wallet size={12} className="text-aoe-gold" />
+                    <Wallet size={12} className="text-aoe-gold shrink-0" />
                     <span className={cn(
-                      'font-bold font-cinzel text-sm tabular-nums transition-colors duration-300',
+                      'font-bold font-cinzel text-[12px] md:text-sm tabular-nums transition-colors duration-300',
                       coinFlash === 'up' ? 'text-green-400 drop-shadow-[0_0_8px_rgba(74,222,128,0.9)]' :
                       coinFlash === 'down' ? 'text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.9)]' :
                       'text-aoe-gold'
@@ -233,7 +233,7 @@ export function Navbar() {
                     </span>
                   </div>
                   {/* Avatar + name */}
-                  <div className="flex items-center gap-2 px-2.5">
+                  <div className="flex items-center gap-1.5 md:gap-2 px-2 md:px-2.5">
                     <Avatar className="w-6 h-6">
                       {session.user.image ? (
                         <AvatarImage src={session.user.image} alt="Avatar" />
@@ -242,10 +242,10 @@ export function Navbar() {
                         {(session.user.name || 'U').slice(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="text-aoe-parchment text-sm font-medium max-w-[80px] truncate hidden sm:block">
+                    <span className="text-aoe-parchment text-sm font-medium max-w-[80px] truncate hidden md:block">
                       {session.user.name}
                     </span>
-                    <ChevronDown size={12} className="text-aoe-parchment-dim" />
+                    <ChevronDown size={12} className="text-aoe-parchment-dim hidden md:block" />
                   </div>
                 </button>
 

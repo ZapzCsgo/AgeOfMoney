@@ -48,9 +48,9 @@ export function MyBetsPanel() {
 
   return (
     <div
-      className="fixed bottom-4 z-[65] flex flex-col items-end pointer-events-none
-        left-1/2 -translate-x-1/2
-        md:left-auto md:translate-x-0 md:right-4
+      className="fixed z-[65] flex flex-col items-end pointer-events-none
+        bottom-20 right-4
+        md:bottom-4 md:right-4
         lg:right-[296px]"
     >
       {/* ── Floating panel — only this has pointer-events ─────────────────── */}

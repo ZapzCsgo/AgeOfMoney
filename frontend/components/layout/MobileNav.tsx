@@ -2,23 +2,21 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useSession } from 'next-auth/react';
-import { Home, Swords, Dices, Trophy, User, TrendingUp } from 'lucide-react';
+import { Home, Swords, Dices, Trophy, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/i18n';
 
 export function MobileNav() {
   const pathname = usePathname();
-  const { data: session } = useSession();
   const { t } = useT();
 
+  // 5 main nav items (exactly 5 — no more, no less — so nothing gets cut off)
   const items = [
-    { href: '/',            icon: Home,       label: t('nav_home') },
-    { href: '/matches',     icon: Swords,     label: t('nav_matches') },
-    { href: '/roulette',    icon: Dices,      label: t('nav_roulette') },
-    { href: '/leaderboard', icon: TrendingUp, label: t('nav_leaderboard') },
-    { href: '/tournaments', icon: Trophy,     label: t('nav_tournaments') },
-    ...(session ? [{ href: '/profile', icon: User, label: t('nav_profile') }] : []),
+    { href: '/',            icon: Home,     label: t('nav_home') },
+    { href: '/matches',     icon: Swords,   label: t('nav_matches') },
+    { href: '/roulette',    icon: Dices,    label: t('nav_roulette') },
+    { href: '/tournaments', icon: Trophy,   label: t('nav_tournaments') },
+    { href: '/deposit',     icon: Wallet,   label: t('nav_deposit') },
   ];
 
   return (
