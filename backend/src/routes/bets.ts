@@ -104,7 +104,7 @@ function solvePerGameProb(pMatch: number, format: string): number {
 }
 
 function exactScoreOdds(odds1: number, odds2: number, format: string): { score: string; player: 1|2; loserGames: number; odds: number }[] {
-  const MARGIN = 0.10; // 10% house edge on exact scores
+  const MARGIN = 0.15; // 15% house edge on exact scores — esport industry standard
   const raw1 = 1/odds1, raw2 = 1/odds2;
   const norm = raw1 + raw2;
   const pMatch1 = raw1 / norm; // normalized implied probability for P1
