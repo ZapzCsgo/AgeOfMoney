@@ -167,20 +167,21 @@ router.get('/exact-scores/:matchId', async (req: Request, res: Response): Promis
 });
 
 // POST /exact — Place an exact score bet
+// NOTE: odds are intentionally NOT accepted from the client. The server
+// recomputes them from the match state to prevent any forging attempt.
 const exactBetSchema = z.object({
   matchId: z.string().min(1),
   amount: z.number().int().min(10).max(500),
   score: z.string().min(3),         // e.g. "2-1"
   player: z.union([z.literal(1), z.literal(2)]),
   loserGames: z.number().int().min(0),
-  odds: z.number().positive(),
-});
+}).strict();
 
 router.post('/exact', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const parsed = exactBetSchema.safeParse(req.body);
     if (!parsed.success) { res.status(400).json({ error: 'Invalid bet data' }); return; }
-    const { matchId, amount, score, player, loserGames, odds } = parsed.data;
+    const { matchId, amount, score, player, loserGames } = parsed.data;
     const userId = req.user!.id;
 
     const [match, user] = await Promise.all([
