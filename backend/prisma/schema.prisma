@@ -26,6 +26,8 @@ model User {
   mutedUntil    DateTime?
   totpSecret    String?                         // TOTP secret for 2FA (null = not set up)
   totpEnabled   Boolean       @default(false)   // true = 2FA active
+  lastIpHash    String?                         // SHA-256 of client IP (for self-referral fraud detection)
+  lastIpAt      DateTime?
   lastActiveAt  DateTime      @default(now())
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
@@ -267,6 +269,10 @@ model AffiliateReferral {
   // pending commission. Negative = user is net-positive (carryover protects house).
   netLossBalance  Int           @default(0)
   isActive        Boolean       @default(false)  // active = has wagered ≥ once
+  // Anti-fraud: flagged if referrer and referred user share an IP (self-referral suspicion)
+  suspicious        Boolean     @default(false)
+  suspiciousReason  String?
+  reviewed          Boolean     @default(false)  // admin cleared the flag after review
   joinedAt        DateTime      @default(now())
   lastActiveAt    DateTime?
 }

@@ -3,6 +3,7 @@ import axios from 'axios';
 import crypto from 'crypto';
 import { prisma } from '../index';
 import { requireAuth } from '../middleware/auth';
+import { touchUserIp } from '../services/affiliateService';
 import logger from '../logger';
 import { getIo } from '../socket';
 
@@ -68,6 +69,9 @@ router.post('/crypto/create', requireAuth, async (req: Request, res: Response): 
     if (!usdAmount || usdAmount < MIN_DEPOSIT) {
       res.status(400).json({ error: `Montant minimum: $${MIN_DEPOSIT}` }); return;
     }
+
+    // Capture depositor's IP for self-referral detection later
+    touchUserIp(userId, req.ip).catch(() => {});
 
     // ── Validate affiliate code from DB ────────────────────────────────────────
     let bonusMultiplier = 1;
@@ -269,19 +273,39 @@ router.post('/crypto/webhook', async (req: Request, res: Response): Promise<void
         if (affCode) {
           const depositedCoins = transaction.coins;
 
+          // Self-referral detection: compare IP hashes of referrer and referred user.
+          // If they match, flag the referral as suspicious for admin review.
+          const [referrer, referredUser] = await Promise.all([
+            prisma.user.findUnique({ where: { id: affCode.userId }, select: { lastIpHash: true } }),
+            prisma.user.findUnique({ where: { id: transaction.userId }, select: { lastIpHash: true } }),
+          ]);
+          const sameIp =
+            referrer?.lastIpHash &&
+            referredUser?.lastIpHash &&
+            referrer.lastIpHash === referredUser.lastIpHash;
+          const suspicious = !!sameIp;
+          const suspiciousReason = sameIp ? 'Même IP que le parrain au moment du dépôt' : null;
+
           await prisma.affiliateReferral.upsert({
             where: { referredUserId: transaction.userId },
             update: {
               totalDeposited: { increment: depositedCoins },
               lastActiveAt:   new Date(),
+              ...(suspicious ? { suspicious: true, suspiciousReason } : {}),
             },
             create: {
               affiliateCodeId: affCode.id,
               referredUserId:  transaction.userId,
               totalDeposited:  depositedCoins,
               isActive:        false, // activates on first wager, not on deposit
+              suspicious,
+              suspiciousReason,
             },
           });
+
+          if (suspicious) {
+            logger.warn(`[Affiliate] SELF-REFERRAL SUSPECTED: code=${affCode.code}, user=${transaction.userId} (same IP as referrer)`);
+          }
 
           // Re-evaluate tier based on aggregate referrals/deposits
           const fresh = await prisma.affiliateCode.findUnique({

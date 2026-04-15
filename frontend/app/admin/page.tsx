@@ -17,7 +17,22 @@ import {
   Eye, X as XIcon, TrendingUp, Receipt,
 } from 'lucide-react';
 
-type TabType = 'users' | 'risk' | 'transactions' | 'matches' | 'flagged' | 'players' | 'scrapers';
+type TabType = 'users' | 'risk' | 'transactions' | 'affiliates' | 'matches' | 'flagged' | 'players' | 'scrapers';
+
+interface SuspiciousReferral {
+  id: string;
+  referredUser: { id: string; username: string; avatar: string | null; coins: number; isBanned: boolean } | null;
+  referrer:     { id: string; username: string; avatar: string | null; coins: number; isBanned: boolean } | null;
+  code: string;
+  totalDeposited: number;
+  totalWagered: number;
+  commission: number;
+  isActive: boolean;
+  suspicious: boolean;
+  suspiciousReason: string | null;
+  reviewed: boolean;
+  joinedAt: string;
+}
 
 interface AdminPlayer {
   id: string;
@@ -147,6 +162,8 @@ export default function AdminPage() {
   const [scoreP2, setScoreP2] = useState('0');
   const [lpDebug, setLpDebug] = useState<Record<string, unknown> | null>(null);
   const [suspiciousUsers, setSuspiciousUsers] = useState<SuspiciousUser[]>([]);
+  const [suspiciousReferrals, setSuspiciousReferrals] = useState<SuspiciousReferral[]>([]);
+  const [affiliateFilter, setAffiliateFilter] = useState<'suspicious' | 'pending' | 'all'>('pending');
   const [adminTransactions, setAdminTransactions] = useState<AdminTransaction[]>([]);
   const [userDetail, setUserDetail] = useState<UserDetail | null>(null);
   const [userDetailLoading, setUserDetailLoading] = useState(false);
@@ -179,13 +196,14 @@ export default function AdminPage() {
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [mRes, fRes, pRes, uRes, sRes, tRes] = await Promise.allSettled([
+      const [mRes, fRes, pRes, uRes, sRes, tRes, aRes] = await Promise.allSettled([
         apiClient.get('/admin/matches'),
         apiClient.get('/admin/matches/flagged'),
         apiClient.get('/admin/players'),
         getAdminUsers({ limit: 50 }),
         apiClient.get('/admin/suspicious'),
         apiClient.get('/admin/transactions?status=pending&limit=100'),
+        apiClient.get('/admin/affiliate/referrals?filter=pending'),
       ]);
       if (mRes.status === 'fulfilled') setMatches(mRes.value.data.data ?? []);
       if (fRes.status === 'fulfilled') setFlagged(fRes.value.data.data ?? []);
@@ -193,10 +211,40 @@ export default function AdminPage() {
       if (uRes.status === 'fulfilled') { setUsers(uRes.value.data); setUsersTotal(uRes.value.total); }
       if (sRes.status === 'fulfilled') setSuspiciousUsers(sRes.value.data.data ?? []);
       if (tRes.status === 'fulfilled') setAdminTransactions(tRes.value.data.data ?? []);
+      if (aRes.status === 'fulfilled') setSuspiciousReferrals(aRes.value.data.data ?? []);
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const loadAffiliateReferrals = async (filter: typeof affiliateFilter) => {
+    setAffiliateFilter(filter);
+    try {
+      const res = await apiClient.get(`/admin/affiliate/referrals?filter=${filter}`);
+      setSuspiciousReferrals(res.data.data ?? []);
+    } catch { /* ignore */ }
+  };
+
+  const reviewReferral = async (id: string) => {
+    try {
+      await apiClient.post(`/admin/affiliate/referrals/${id}/review`, {});
+      showMsg('success', 'Parrainage marqué comme validé');
+      loadAffiliateReferrals(affiliateFilter);
+    } catch {
+      showMsg('error', 'Erreur');
+    }
+  };
+
+  const revokeReferral = async (id: string) => {
+    if (!confirm('Confisquer toute la commission gagnée sur ce filleul ?')) return;
+    try {
+      const res = await apiClient.post(`/admin/affiliate/referrals/${id}/revoke`, {});
+      showMsg('success', `${res.data.revoked}⚜ confisqués`);
+      loadAffiliateReferrals(affiliateFilter);
+    } catch {
+      showMsg('error', 'Erreur');
+    }
+  };
 
   const openUserDetail = async (userId: string) => {
     setUserDetailLoading(true);
@@ -387,6 +435,7 @@ export default function AdminPage() {
     { id: 'users', label: 'Utilisateurs', icon: UsersIcon, count: usersTotal },
     { id: 'risk', label: 'Risque', icon: AlertTriangle, count: suspiciousUsers.length },
     { id: 'transactions', label: 'Transactions', icon: Receipt, count: adminTransactions.filter(t => t.status === 'pending').length },
+    { id: 'affiliates', label: 'Affiliés', icon: Zap, count: suspiciousReferrals.filter(r => !r.reviewed).length },
     { id: 'matches', label: 'Matchs', icon: Swords, count: matches.length },
     { id: 'flagged', label: 'Flaggés', icon: Flag, count: flagged.length },
     { id: 'players', label: 'Joueurs', icon: Database, count: players.length },
@@ -1063,6 +1112,95 @@ export default function AdminPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-[#6b6488] whitespace-nowrap">{formatDateTime(tx.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ── AFFILIATES TAB ────────────────────────────────────────────── */}
+        {tab === 'affiliates' && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-1 p-0.5 rounded" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
+                {(['pending', 'suspicious', 'all'] as const).map(f => (
+                  <button key={f} onClick={() => loadAffiliateReferrals(f)}
+                    className={cn('px-3 py-1 rounded text-[11px] font-medium transition-colors',
+                      affiliateFilter === f ? 'bg-[#d4a017] text-black' : 'text-[#9990b8] hover:text-[#e8e2f5]'
+                    )}>
+                    {f === 'pending' ? 'À review' : f === 'suspicious' ? 'Tous suspects' : 'Tous'}
+                  </button>
+                ))}
+              </div>
+              <span className="text-[12px] text-[#6b6488]">{suspiciousReferrals.length} parrainage(s)</span>
+              <p className="text-[10px] text-[#4a4468] flex-1">
+                🚩 Flag automatique : parrain et filleul partagent une IP (possible double compte)
+              </p>
+            </div>
+            <div className="rounded-lg overflow-hidden" style={{ border: '1px solid #1e1a30', background: '#0d0b1a' }}>
+              <table className="w-full text-[12px]">
+                <thead>
+                  <tr style={{ borderBottom: '1px solid #1e1a30' }}>
+                    {['Parrain', 'Filleul', 'Code', 'Déposé', 'Misé', 'Commission', 'Raison', 'Actions'].map(h => (
+                      <th key={h} className="text-left px-3 py-2.5 text-[11px] text-[#6b6488] uppercase tracking-wider font-medium">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {suspiciousReferrals.length === 0 ? (
+                    <tr><td colSpan={8} className="text-center text-[#6b6488] py-8">Aucun parrainage suspect 👌</td></tr>
+                  ) : suspiciousReferrals.map(r => (
+                    <tr key={r.id} className="hover:bg-[#13111f]" style={{ borderBottom: '1px solid #1e1a3022' }}>
+                      <td className="px-3 py-3">
+                        {r.referrer ? (
+                          <button onClick={() => openUserDetail(r.referrer!.id)} className="flex items-center gap-2 hover:opacity-80">
+                            {r.referrer.avatar && <img src={r.referrer.avatar} alt="" className="w-6 h-6 rounded-full" />}
+                            <span className="text-[#e8e2f5] hover:text-[#d4a017]">{r.referrer.username}</span>
+                            {r.referrer.isBanned && <span className="text-[9px] text-red-400">BANNI</span>}
+                          </button>
+                        ) : '—'}
+                      </td>
+                      <td className="px-3 py-3">
+                        {r.referredUser ? (
+                          <button onClick={() => openUserDetail(r.referredUser!.id)} className="flex items-center gap-2 hover:opacity-80">
+                            {r.referredUser.avatar && <img src={r.referredUser.avatar} alt="" className="w-6 h-6 rounded-full" />}
+                            <span className="text-[#e8e2f5] hover:text-[#d4a017]">{r.referredUser.username}</span>
+                            {r.referredUser.isBanned && <span className="text-[9px] text-red-400">BANNI</span>}
+                          </button>
+                        ) : '—'}
+                      </td>
+                      <td className="px-3 py-3 font-mono text-[#d4a017]">{r.code}</td>
+                      <td className="px-3 py-3 text-[#e8e2f5]">{r.totalDeposited.toLocaleString('fr-FR')}⚜</td>
+                      <td className="px-3 py-3 text-[#8a82a8]">{r.totalWagered.toLocaleString('fr-FR')}⚜</td>
+                      <td className="px-3 py-3 text-[#d4a017] font-bold">{r.commission.toLocaleString('fr-FR')}⚜</td>
+                      <td className="px-3 py-3 text-[11px]">
+                        {r.suspicious && !r.reviewed && (
+                          <span className="px-2 py-0.5 rounded bg-red-950 border border-red-800/40 text-red-400 text-[10px] font-bold">
+                            🚩 {r.suspiciousReason ?? 'Suspect'}
+                          </span>
+                        )}
+                        {r.suspicious && r.reviewed && (
+                          <span className="px-2 py-0.5 rounded bg-emerald-950 border border-emerald-800/40 text-emerald-400 text-[10px] font-bold">
+                            ✓ Validé
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-3">
+                        {!r.reviewed && (
+                          <div className="flex gap-1">
+                            <button onClick={() => reviewReferral(r.id)}
+                              className="px-2 py-1 rounded text-[10px] font-bold bg-emerald-950 border border-emerald-800/40 text-emerald-400 hover:bg-emerald-900">
+                              Valider
+                            </button>
+                            <button onClick={() => revokeReferral(r.id)}
+                              className="px-2 py-1 rounded text-[10px] font-bold bg-red-950 border border-red-800/40 text-red-400 hover:bg-red-900">
+                              Confisquer
+                            </button>
+                          </div>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

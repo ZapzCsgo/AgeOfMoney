@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { requireAuth, requireAdmin } from '../middleware/auth';
 import { prisma } from '../index';
+import { touchUserIp } from '../services/affiliateService';
 import crypto from 'crypto';
 import logger from '../logger';
 
@@ -102,6 +103,9 @@ router.post('/me/create', requireAuth, async (req: Request, res: Response): Prom
     const aff = await prisma.affiliateCode.create({
       data: { userId, code, commissionRate: 0.25 },
     });
+
+    // Record the creator's IP for self-referral detection later
+    touchUserIp(userId, req.ip).catch(() => {});
 
     logger.info(`Self-service affiliate code created: ${code} for user ${userId}`);
     res.json({ data: aff });

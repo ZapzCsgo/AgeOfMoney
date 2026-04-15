@@ -1228,4 +1228,100 @@ router.get('/lp-status', async (_req: Request, res: Response): Promise<void> => 
   }
 });
 
+// ── Affiliate fraud review ──────────────────────────────────────────────────
+// GET /admin/affiliate/referrals — list suspicious (or all) referrals
+router.get('/affiliate/referrals', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const filter = (req.query.filter as string) || 'suspicious';
+    const where: Record<string, unknown> = {};
+    if (filter === 'suspicious') where.suspicious = true;
+    else if (filter === 'pending') { where.suspicious = true; where.reviewed = false; }
+
+    const referrals = await prisma.affiliateReferral.findMany({
+      where,
+      orderBy: { joinedAt: 'desc' },
+      take: 200,
+      include: { affiliateCode: true },
+    });
+
+    const userIds = new Set<string>();
+    for (const r of referrals) {
+      userIds.add(r.referredUserId);
+      userIds.add(r.affiliateCode.userId);
+    }
+    const users = await prisma.user.findMany({
+      where: { id: { in: [...userIds] } },
+      select: { id: true, username: true, avatar: true, coins: true, isBanned: true, lastIpAt: true },
+    });
+    const userMap = Object.fromEntries(users.map(u => [u.id, u]));
+
+    const data = referrals.map(r => ({
+      id: r.id,
+      referredUser: userMap[r.referredUserId] ?? null,
+      referrer:     userMap[r.affiliateCode.userId] ?? null,
+      code:         r.affiliateCode.code,
+      totalDeposited: r.totalDeposited,
+      totalWagered:   r.totalWagered,
+      commission:     r.commission,
+      isActive:       r.isActive,
+      suspicious:     r.suspicious,
+      suspiciousReason: r.suspiciousReason,
+      reviewed:       r.reviewed,
+      joinedAt:       r.joinedAt,
+    }));
+
+    res.json({ data });
+  } catch (err) {
+    logger.error('GET /admin/affiliate/referrals error:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// POST /admin/affiliate/referrals/:id/review — mark a flagged referral as reviewed OK
+router.post('/affiliate/referrals/:id/review', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const ref = await prisma.affiliateReferral.update({
+      where: { id: req.params.id },
+      data:  { reviewed: true },
+    });
+    res.json({ data: ref });
+  } catch (err) {
+    logger.error('POST review error:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// POST /admin/affiliate/referrals/:id/revoke — confiscate commission earned from this referral
+// Deducts the commission from the affiliate's balances and marks the referral as reviewed.
+router.post('/affiliate/referrals/:id/revoke', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const ref = await prisma.affiliateReferral.findUnique({
+      where: { id: req.params.id },
+      include: { affiliateCode: true },
+    });
+    if (!ref) { res.status(404).json({ error: 'Referral introuvable' }); return; }
+
+    const toRevoke = ref.commission;
+    await prisma.$transaction([
+      prisma.affiliateCode.update({
+        where: { id: ref.affiliateCodeId },
+        data: {
+          available:     { decrement: Math.min(toRevoke, ref.affiliateCode.available) },
+          totalEarnings: { decrement: toRevoke },
+        },
+      }),
+      prisma.affiliateReferral.update({
+        where: { id: ref.id },
+        data: { commission: 0, netLossBalance: 0, reviewed: true },
+      }),
+    ]);
+
+    logger.warn(`[Admin] Revoked ${toRevoke}⚜ commission from referral ${ref.id} (code=${ref.affiliateCode.code})`);
+    res.json({ ok: true, revoked: toRevoke });
+  } catch (err) {
+    logger.error('POST revoke error:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 export default router;

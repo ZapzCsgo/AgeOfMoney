@@ -1,5 +1,29 @@
+import crypto from 'crypto';
 import { prisma } from '../index';
 import logger from '../logger';
+
+/** SHA-256 hex of a raw IP (stored instead of plain IP for privacy/GDPR). */
+export function hashIp(ip: string | undefined): string | null {
+  if (!ip) return null;
+  // Normalize IPv4-in-IPv6 (::ffff:1.2.3.4 → 1.2.3.4)
+  const clean = ip.replace(/^::ffff:/, '').trim();
+  if (!clean) return null;
+  return crypto.createHash('sha256').update(clean).digest('hex');
+}
+
+/** Fire-and-forget: update the user's latest known IP hash. */
+export async function touchUserIp(userId: string, rawIp: string | undefined): Promise<void> {
+  const hash = hashIp(rawIp);
+  if (!hash) return;
+  try {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { lastIpHash: hash, lastIpAt: new Date() },
+    });
+  } catch (err) {
+    logger.warn('[Affiliate] touchUserIp failed:', err);
+  }
+}
 
 // Tier progression — revshare on net losses (not deposits).
 // Impossible to lose money: we always share a % of an already-positive amount.
