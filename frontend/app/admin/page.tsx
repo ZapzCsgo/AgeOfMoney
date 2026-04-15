@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useDeferredValue, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Match, User } from '@/types';
@@ -421,8 +421,15 @@ export default function AdminPage() {
     }
   };
 
-  const filteredUsers = users.filter(u =>
-    !userSearch || u.username.toLowerCase().includes(userSearch.toLowerCase())
+  // Defer the search value so typing stays responsive while the table
+  // re-renders at a lower priority. Memoize the filtered list to avoid
+  // re-computing on unrelated state updates.
+  const deferredUserSearch = useDeferredValue(userSearch);
+  const filteredUsers = useMemo(
+    () => users.filter(u =>
+      !deferredUserSearch || u.username.toLowerCase().includes(deferredUserSearch.toLowerCase())
+    ),
+    [users, deferredUserSearch]
   );
 
   if (status === 'loading') return (
