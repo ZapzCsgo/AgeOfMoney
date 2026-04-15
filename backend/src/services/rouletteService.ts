@@ -230,9 +230,9 @@ async function resolveRound(roundId: string, winZone: string, multiplier: number
     source: isRandomOrg ? 'random.org' : 'crypto',
   });
 
-  // Start next round after 4s
+  // Start next round after 1.5s
   currentRoundId = null;
-  roundTimer = setTimeout(startRound, 4_000);
+  roundTimer = setTimeout(startRound, 1_500);
 }
 
 export async function placeBet(userId: string, zone: Zone, amount: number): Promise<{ ok: boolean; error?: string }> {

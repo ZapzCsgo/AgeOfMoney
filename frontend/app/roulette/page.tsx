@@ -107,6 +107,13 @@ export default function RoulettePage() {
   // default 205px which would offset everything wrong.
   const [wheelStart, setWheelStart] = useState(false);
   const [wheelPrizeIndex, setWheelPrizeIndex] = useState(0);
+  // When true, the lib skips the spin animation and jumps straight to the
+  // prize — used when the tab was backgrounded during the spin so we don't
+  // spoil the result by animating after the burst/flash.
+  const [wheelSkipAnim, setWheelSkipAnim] = useState(false);
+  // Stored pending result when the tab is hidden — flushed on visibility change
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pendingResultRef = useRef<any | null>(null);
 
   // Prize list: BASE_PATTERN repeated REPEATS times. id must be unique.
   // image is a 1x1 transparent gif so the lib never tries to load anything.
@@ -204,18 +211,75 @@ export default function RoulettePage() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  // Clear ticks if user comes back to the tab after spin already finished
+  // Flush a pending result (set when the tab was hidden) — snaps the wheel
+  // to the final prize without animation, plays the post-result effects.
+  const applyPendingResult = useCallback(() => {
+    const d = pendingResultRef.current;
+    if (!d) return;
+    pendingResultRef.current = null;
+    if (tickIntervalRef.current) clearInterval(tickIntervalRef.current);
+    hasAnimatedRef.current = false;
+
+    // Recompute the landing index for the current prizeList so the snap lands
+    // on the correct slot (the animateSpin version may not have run).
+    const target = Math.floor(prizeList.length * 0.78);
+    let landIdx = target;
+    for (let i = 0; i < 60; i++) {
+      const idx = (target + i) % prizeList.length;
+      const slot = prizeList[idx];
+      if (d.result != null) {
+        if (slot.num === d.result) { landIdx = idx; break; }
+      } else if (slot.zone === d.winZone) { landIdx = idx; break; }
+    }
+
+    // Snap the wheel to the final slot without animation
+    setWheelSkipAnim(true);
+    setWheelStart(false);
+    setWheelPrizeIndex(landIdx);
+    setTimeout(() => setWheelStart(true), 10);
+    // Clear skip after a short while so the next real spin animates normally
+    setTimeout(() => setWheelSkipAnim(false), 300);
+
+    setAnticipation(false);
+    setPhase('result');
+    setWinZone(d.winZone);
+    setBurstKey(k => k + 1);
+    setFairnessRound({ id: d.roundId, roundHash: d.roundHash ?? null, serverSeed: d.serverSeed ?? null, result: d.result ?? null, winZone: d.winZone, source: d.source });
+    setRound(prev => prev ? { ...prev, status: 'COMPLETED', winZone: d.winZone } : prev);
+
+    // Win / lose sound + payout using the current round's bets
+    setRound(prev => {
+      if (!prev) return prev;
+      const userId = (session?.user as { id?: string })?.id;
+      const myBetOnWin = prev.bets.find(b => b.zone === d.winZone && b.user.id === userId);
+      const didBet = prev.bets.some(b => b.user.id === userId);
+      if (myBetOnWin) {
+        setUserWon(true);
+        const p = Math.floor(myBetOnWin.amount * d.multiplier);
+        setPayout(p); animatePayout(p);
+        if (d.winZone === 'EMPEROR') playEmperorWin();
+        else playWin();
+      } else if (didBet) {
+        setUserWon(false);
+        playLose();
+      }
+      return prev;
+    });
+    fetchAll();
+  }, [prizeList, session, fetchAll]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // When user comes back to the tab, flush any pending result immediately
   useEffect(() => {
     const handleVisibility = () => {
       if (document.hidden) return;
-      const now = Date.now();
-      if (spinEndsAtRef.current > 0 && now >= spinEndsAtRef.current) {
-        if (tickIntervalRef.current) clearInterval(tickIntervalRef.current);
+      if (tickIntervalRef.current) clearInterval(tickIntervalRef.current);
+      if (pendingResultRef.current) {
+        applyPendingResult();
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, []);
+  }, [applyPendingResult]);
 
   // Countdown
   useEffect(() => {
@@ -257,11 +321,22 @@ export default function RoulettePage() {
       if (!wololoPlayedRef.current) { wololoPlayedRef.current = true; playWololo(0.3); }
     });
     s.on('roulette:result', (d: { winZone: Zone; multiplier: number; serverSeed?: string; roundHash?: string; result?: number; roundId: string; source?: 'random.org' | 'crypto' }) => {
+      // If the tab is hidden, store the result and flush it on visibility change
+      // so the user doesn't get spoiled by a delayed animation.
+      if (document.hidden) {
+        pendingResultRef.current = d;
+        return;
+      }
       // Wait for spin animation to finish before showing result
       const remaining = spinEndsAtRef.current - Date.now();
       const delay = Math.max(0, remaining + 300); // +300ms buffer after animation
 
       setTimeout(() => {
+        // If tab went hidden between the scheduling and the fire, defer again
+        if (document.hidden) {
+          pendingResultRef.current = d;
+          return;
+        }
         if (tickIntervalRef.current) clearInterval(tickIntervalRef.current);
         hasAnimatedRef.current = false;
         setPhase('result'); setWinZone(d.winZone);
@@ -664,6 +739,7 @@ export default function RoulettePage() {
                   prizeIndex={wheelPrizeIndex}
                   spinningTime={6.5}
                   designPlugin={wheelDesignPlugin}
+                  options={{ withoutAnimation: wheelSkipAnim }}
                   onPrizeDefined={() => {
                     setBurstKey((k) => k + 1);
                     setAnticipation(false);
