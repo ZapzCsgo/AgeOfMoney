@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useDeferredValue, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Match, User } from '@/types';
 import { setAuthToken, apiClient } from '@/lib/api';
 import {
@@ -918,7 +919,7 @@ export default function AdminPage() {
                     <tr key={u.id} className="hover:bg-[#13111f] transition-colors" style={{ borderBottom: '1px solid #1e1a3022' }}>
                       <td className="px-4 py-3">
                         <button onClick={() => openUserDetail(u.id)} className="flex items-center gap-2 hover:opacity-80 transition-opacity text-left">
-                          {u.avatar && <img src={u.avatar} alt="" className="w-7 h-7 rounded-full" />}
+                          {u.avatar && <Image src={u.avatar} alt="" width={28} height={28} unoptimized className="w-7 h-7 rounded-full" />}
                           <div>
                             <p className="font-semibold text-[#e8e2f5] hover:text-[#d4a017] transition-colors">{u.username}</p>
                             <p className="text-[10px] text-[#6b6488] capitalize">{u.provider}</p>
@@ -1023,7 +1024,7 @@ export default function AdminPage() {
                       <tr key={u.id} className="hover:bg-[#13111f] transition-colors" style={{ borderBottom: '1px solid #1e1a3022' }}>
                         <td className="px-4 py-3">
                           <button onClick={() => openUserDetail(u.id)} className="flex items-center gap-2 hover:opacity-80">
-                            {u.avatar && <img src={u.avatar} alt="" className="w-7 h-7 rounded-full" />}
+                            {u.avatar && <Image src={u.avatar} alt="" width={28} height={28} unoptimized className="w-7 h-7 rounded-full" />}
                             <p className="font-semibold text-[#e8e2f5] hover:text-[#d4a017]">{u.username}</p>
                           </button>
                         </td>
@@ -1094,7 +1095,7 @@ export default function AdminPage() {
                     <tr key={tx.id} className="hover:bg-[#13111f]" style={{ borderBottom: '1px solid #1e1a3022' }}>
                       <td className="px-4 py-3">
                         <button onClick={() => openUserDetail(tx.user.id)} className="flex items-center gap-2 hover:opacity-80">
-                          {tx.user.avatar && <img src={tx.user.avatar} alt="" className="w-6 h-6 rounded-full" />}
+                          {tx.user.avatar && <Image src={tx.user.avatar} alt="" width={24} height={24} unoptimized className="w-6 h-6 rounded-full" />}
                           <span className="font-semibold text-[#e8e2f5] hover:text-[#d4a017]">{tx.user.username}</span>
                           {tx.user.isBanned && <span className="text-[9px] text-red-400">BANNI</span>}
                         </button>
@@ -1164,7 +1165,7 @@ export default function AdminPage() {
                       <td className="px-3 py-3">
                         {r.referrer ? (
                           <button onClick={() => openUserDetail(r.referrer!.id)} className="flex items-center gap-2 hover:opacity-80">
-                            {r.referrer.avatar && <img src={r.referrer.avatar} alt="" className="w-6 h-6 rounded-full" />}
+                            {r.referrer.avatar && <Image src={r.referrer.avatar} alt="" width={24} height={24} unoptimized className="w-6 h-6 rounded-full" />}
                             <span className="text-[#e8e2f5] hover:text-[#d4a017]">{r.referrer.username}</span>
                             {r.referrer.isBanned && <span className="text-[9px] text-red-400">BANNI</span>}
                           </button>
@@ -1173,7 +1174,7 @@ export default function AdminPage() {
                       <td className="px-3 py-3">
                         {r.referredUser ? (
                           <button onClick={() => openUserDetail(r.referredUser!.id)} className="flex items-center gap-2 hover:opacity-80">
-                            {r.referredUser.avatar && <img src={r.referredUser.avatar} alt="" className="w-6 h-6 rounded-full" />}
+                            {r.referredUser.avatar && <Image src={r.referredUser.avatar} alt="" width={24} height={24} unoptimized className="w-6 h-6 rounded-full" />}
                             <span className="text-[#e8e2f5] hover:text-[#d4a017]">{r.referredUser.username}</span>
                             {r.referredUser.isBanned && <span className="text-[9px] text-red-400">BANNI</span>}
                           </button>
@@ -1232,7 +1233,7 @@ export default function AdminPage() {
               <>
                 <div className="flex items-start justify-between gap-4 p-5" style={{ borderBottom: '1px solid #1e1a30' }}>
                   <div className="flex items-center gap-3">
-                    {userDetail.user.avatar && <img src={userDetail.user.avatar} alt="" className="w-12 h-12 rounded-full" />}
+                    {userDetail.user.avatar && <Image src={userDetail.user.avatar} alt="" width={48} height={48} unoptimized className="w-12 h-12 rounded-full" />}
                     <div>
                       <div className="flex items-center gap-2">
                         <h2 className="font-bold text-[16px] text-[#e8e2f5]">{userDetail.user.username}</h2>
@@ -1473,7 +1474,7 @@ export default function AdminPage() {
                     <td className="px-3 py-2.5">
                       <div className="flex items-center gap-2">
                         {bet.user.avatar
-                          ? <img src={bet.user.avatar} alt="" className="w-6 h-6 rounded-full object-cover" />
+                          ? <Image src={bet.user.avatar} alt="" width={24} height={24} unoptimized className="w-6 h-6 rounded-full object-cover" />
                           : <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold" style={{ background: '#1e1a30', color: '#d4a017' }}>{bet.user.username[0]?.toUpperCase()}</div>
                         }
                         <span className="text-[12px] font-semibold text-[#e8e2f5]">{bet.user.username}</span>
