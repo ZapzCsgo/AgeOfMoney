@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, memo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -224,7 +224,7 @@ function formatCiv(civ?: string | null): string {
 }
 
 // ── Match Card ────────────────────────────────────────────────────────────────
-function MatchCard({ match, activeMatchId, onSelect }: {
+const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
   match: Match;
   activeMatchId: string | null;
   onSelect: (matchId: string | null, player: 0 | 1 | 2 | null) => void;
@@ -526,7 +526,7 @@ function MatchCard({ match, activeMatchId, onSelect }: {
 
     </div>
   );
-}
+});
 
 // ── Skeleton Card ─────────────────────────────────────────────────────────────
 function SkeletonCard() {
@@ -721,6 +721,11 @@ export default function HomePage() {
   const [upcomingTourneys, setUpcomingTourneys] = useState<Tournament[]>([]);
   const [activeMatchId, setActiveMatchId] = useState<string | null>(null);
 
+  // Stable handler so MatchCard's React.memo actually prevents re-renders
+  const handleMatchSelect = useCallback((mid: string | null, p: 0 | 1 | 2 | null) => {
+    setActiveMatchId(p === null ? null : mid);
+  }, []);
+
   const FILTERS = FILTER_IDS.map((f) => ({ ...f, label: t(f.key) }));
 
   const fetchMatches = useCallback(async () => {
@@ -907,7 +912,7 @@ export default function HomePage() {
                 key={match.id}
                 match={match}
                 activeMatchId={activeMatchId}
-                onSelect={(mid, p) => setActiveMatchId(p === null ? null : mid)}
+                onSelect={handleMatchSelect}
               />
             ))}
           </div>
