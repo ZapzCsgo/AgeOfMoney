@@ -111,9 +111,10 @@ export default function RoulettePage() {
   // prize — used when the tab was backgrounded during the spin so we don't
   // spoil the result by animating after the burst/flash.
   const [wheelSkipAnim, setWheelSkipAnim] = useState(false);
-  // Stored pending result when the tab is hidden — flushed on visibility change
+  // Stored pending events when the tab is hidden — flushed on visibility change
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pendingResultRef = useRef<any | null>(null);
+  const pendingSpinRef = useRef<{ wz: Zone; resultNum?: number; at: number } | null>(null);
 
   // Prize list: BASE_PATTERN repeated REPEATS times. id must be unique.
   // image is a 1x1 transparent gif so the lib never tries to load anything.
@@ -268,18 +269,32 @@ export default function RoulettePage() {
     fetchAll();
   }, [prizeList, session, fetchAll]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // When user comes back to the tab, flush any pending result immediately
+  // When user comes back to the tab, decide how to flush buffered events
   useEffect(() => {
     const handleVisibility = () => {
       if (document.hidden) return;
-      if (tickIntervalRef.current) clearInterval(tickIntervalRef.current);
+
+      // Priority #1: a result has already arrived while hidden
+      //   → snap wheel to final slot, play burst/sound immediately
       if (pendingResultRef.current) {
+        if (tickIntervalRef.current) clearInterval(tickIntervalRef.current);
+        pendingSpinRef.current = null; // result supersedes spin
         applyPendingResult();
+        return;
+      }
+
+      // Priority #2: spin was buffered, result hasn't arrived yet
+      //   → start a fresh animation now, the result handler will fire later
+      if (pendingSpinRef.current) {
+        const { wz, resultNum } = pendingSpinRef.current;
+        pendingSpinRef.current = null;
+        if (!wololoPlayedRef.current) { wololoPlayedRef.current = true; playWololo(0.3); }
+        animateSpin(wz, resultNum);
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [applyPendingResult]);
+  }, [applyPendingResult]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Countdown
   useEffect(() => {
@@ -309,7 +324,14 @@ export default function RoulettePage() {
     s.on('roulette:spin', (d: { winZone: Zone; multiplier: number; result?: number }) => {
       setPhase('spinning');
       setRound(prev => prev ? { ...prev, status: 'SPINNING' } : prev);
-      // Play Wololo the instant the spin actually starts (not 150ms early)
+      // If the tab is hidden, buffer the spin. It will either:
+      //  - be flushed into a real animation when the user comes back early, OR
+      //  - be overridden by pendingResultRef and snap to the result at the end.
+      if (document.hidden) {
+        pendingSpinRef.current = { wz: d.winZone, resultNum: d.result, at: Date.now() };
+        return;
+      }
+      // Play Wololo the instant the spin actually starts
       if (!wololoPlayedRef.current) { wololoPlayedRef.current = true; playWololo(0.3); }
       animateSpin(d.winZone, d.result);
     });
