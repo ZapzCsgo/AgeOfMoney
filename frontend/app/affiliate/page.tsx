@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSession, signIn } from 'next-auth/react';
 import { apiClient, setAuthToken } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import {
@@ -239,9 +239,22 @@ export default function AffiliatePage() {
             </p>
 
             {!session ? (
-              <div className="text-[12px]" style={{ color: '#6b6488' }}>
-                Connecte-toi avec Steam pour creer ton code en 1 clic.
-              </div>
+              <button
+                onClick={() => signIn('steam')}
+                className="group inline-flex items-center gap-3 px-6 py-3.5 rounded-xl font-bold text-[14px] transition-all hover:scale-[1.02] hover:shadow-lg"
+                style={{
+                  background: 'linear-gradient(135deg, #d4a017 0%, #f5c842 100%)',
+                  color: '#07060f',
+                  boxShadow: '0 4px 20px rgba(212,160,23,0.35)',
+                }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C6.48 2 2 6.48 2 12c0 4.41 2.87 8.14 6.84 9.47l3.72-4.82-.62-.2c-.89-.29-1.63-.92-2.09-1.77l3.34 1.37c.45.19.96.29 1.48.29 2.21 0 4-1.79 4-4s-1.79-4-4-4c-.31 0-.61.04-.9.1l-2.65-3.82C11.5 4.24 11.74 4 12 4c4.41 0 8 3.59 8 8s-3.59 8-8 8-8-3.59-8-8 3.59-8 8-8zm3.79 8c.88 0 1.6.72 1.6 1.6 0 .88-.72 1.6-1.6 1.6-.88 0-1.6-.72-1.6-1.6 0-.88.72-1.6 1.6-1.6z"/>
+                </svg>
+                Connecte-toi avec Steam pour créer ton code en 1 clic
+                <svg className="transition-transform group-hover:translate-x-0.5" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                  <path d="M5 12h14M13 6l6 6-6 6"/>
+                </svg>
+              </button>
             ) : !aff ? (
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                 <input
