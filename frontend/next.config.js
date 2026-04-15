@@ -30,6 +30,8 @@ const securityHeaders = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  compress: true,
+  poweredByHeader: false,
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -38,6 +40,8 @@ const nextConfig = {
   },
   experimental: {
     externalDir: true,
+    // Tree-shake imports from these libraries so we only ship what's used
+    optimizePackageImports: ['lucide-react', 'date-fns', '@radix-ui/react-avatar', '@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-tabs'],
   },
   async headers() {
     return [{ source: '/(.*)', headers: securityHeaders }];
