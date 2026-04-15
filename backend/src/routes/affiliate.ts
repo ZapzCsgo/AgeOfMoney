@@ -279,8 +279,13 @@ router.post('/admin/create', requireAuth, requireAdmin, async (req: Request, res
 // ── GET /affiliate/admin/list — list all affiliate codes ──────────────────────
 router.get('/admin/list', requireAuth, requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
+    const limit  = Math.min(parseInt(req.query.limit as string) || 100, 200);
+    const offset = parseInt(req.query.offset as string) || 0;
+
     const codes = await prisma.affiliateCode.findMany({
       orderBy: { totalEarnings: 'desc' },
+      take: limit,
+      skip: offset,
       include: { referrals: { select: { id: true, isActive: true, totalDeposited: true } } },
     });
 
