@@ -3,6 +3,38 @@ import { NextRequest, NextResponse } from 'next/server';
 const SECRET = process.env.MAINTENANCE_SECRET;
 const COOKIE  = 'aom_access';
 
+// ── Language auto-detection ────────────────────────────────────────────────
+const SUPPORTED_LANGS = ['fr', 'en', 'es'] as const;
+type Lang = (typeof SUPPORTED_LANGS)[number];
+
+function pickLanguage(acceptLanguage: string): Lang {
+  // Accept-Language: "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7"
+  const candidates = acceptLanguage
+    .split(',')
+    .map(part => {
+      const [tag, qStr] = part.trim().split(';q=');
+      const q = qStr ? parseFloat(qStr) : 1;
+      return { tag: tag.toLowerCase().slice(0, 2), q };
+    })
+    .sort((a, b) => b.q - a.q);
+  for (const c of candidates) {
+    if ((SUPPORTED_LANGS as readonly string[]).includes(c.tag)) return c.tag as Lang;
+  }
+  return 'fr';
+}
+
+function applyLangCookie(req: NextRequest, res: NextResponse) {
+  const existing = req.cookies.get('aom_lang')?.value;
+  if (existing && (SUPPORTED_LANGS as readonly string[]).includes(existing)) return;
+  const accept = req.headers.get('accept-language') ?? '';
+  const lang = pickLanguage(accept);
+  res.cookies.set('aom_lang', lang, {
+    maxAge: 60 * 60 * 24 * 365, // 1 year
+    path: '/',
+    sameSite: 'lax',
+  });
+}
+
 const MAINTENANCE_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -51,11 +83,10 @@ const MAINTENANCE_HTML = `<!DOCTYPE html>
 </html>`;
 
 export function middleware(req: NextRequest) {
-  if (!SECRET) return NextResponse.next();
-
   const { pathname, searchParams } = req.nextUrl;
 
-  // Always allow static assets and API routes
+  // Always allow static assets and API routes (no lang cookie either,
+  // these never render HTML)
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||
@@ -64,29 +95,37 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // ?unlock=SECRET → set access cookie and redirect to home
-  const unlockParam = searchParams.get('unlock');
-  if (unlockParam === SECRET) {
-    const res = NextResponse.redirect(new URL('/', req.url));
-    res.cookies.set(COOKIE, SECRET, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30,
-      path: '/',
-    });
-    return res;
+  // ── Maintenance gate (only if SECRET is configured) ──────────────────────
+  if (SECRET) {
+    // ?unlock=SECRET → set access cookie and redirect to home
+    const unlockParam = searchParams.get('unlock');
+    if (unlockParam === SECRET) {
+      const res = NextResponse.redirect(new URL('/', req.url));
+      res.cookies.set(COOKIE, SECRET, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 30,
+        path: '/',
+      });
+      applyLangCookie(req, res);
+      return res;
+    }
+
+    // No valid access cookie → maintenance page
+    const cookie = req.cookies.get(COOKIE);
+    if (cookie?.value !== SECRET) {
+      return new NextResponse(MAINTENANCE_HTML, {
+        status: 200,
+        headers: { 'Content-Type': 'text/html; charset=utf-8' },
+      });
+    }
   }
 
-  // Valid cookie → allow through
-  const cookie = req.cookies.get(COOKIE);
-  if (cookie?.value === SECRET) return NextResponse.next();
-
-  // Blocked → return raw HTML, no Next.js layout at all
-  return new NextResponse(MAINTENANCE_HTML, {
-    status: 200,
-    headers: { 'Content-Type': 'text/html; charset=utf-8' },
-  });
+  // ── Pass-through + auto language cookie ──────────────────────────────────
+  const res = NextResponse.next();
+  applyLangCookie(req, res);
+  return res;
 }
 
 export const config = {

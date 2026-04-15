@@ -1456,13 +1456,22 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>('fr');
 
   useEffect(() => {
-    // 1. Respect explicit user preference stored in localStorage
+    // 1. Respect explicit user preference stored in localStorage (picker clicks)
     const saved = localStorage.getItem('aom_lang') as Lang | null;
     if (saved && (saved === 'fr' || saved === 'en' || saved === 'es')) {
       setLangState(saved);
       return;
     }
-    // 2. Auto-detect from browser locale (navigator.language = "fr-FR", "en-US", "es-ES"…)
+    // 2. Read the aom_lang cookie set by the middleware from Accept-Language
+    const cookieMatch = document.cookie.match(/(?:^|;\s*)aom_lang=([^;]+)/);
+    if (cookieMatch) {
+      const val = cookieMatch[1];
+      if (val === 'fr' || val === 'en' || val === 'es') {
+        setLangState(val);
+        return;
+      }
+    }
+    // 3. Final client-side fallback — navigator.language ("fr-FR", "en-US", …)
     const browserLang = (navigator.language || 'fr').toLowerCase().slice(0, 2);
     const detected: Lang = browserLang === 'es' ? 'es' : browserLang === 'en' ? 'en' : 'fr';
     setLangState(detected);
