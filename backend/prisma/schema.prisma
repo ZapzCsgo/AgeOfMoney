@@ -263,6 +263,9 @@ model AffiliateReferral {
   totalDeposited  Int           @default(0)
   totalWagered    Int           @default(0)
   commission      Int           @default(0)
+  // Running net loss balance for true revshare. Positive = user has net losses
+  // pending commission. Negative = user is net-positive (carryover protects house).
+  netLossBalance  Int           @default(0)
   isActive        Boolean       @default(false)  // active = has wagered ≥ once
   joinedAt        DateTime      @default(now())
   lastActiveAt    DateTime?

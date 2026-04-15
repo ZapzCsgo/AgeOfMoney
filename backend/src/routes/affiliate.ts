@@ -70,6 +70,48 @@ router.get('/me', requireAuth, async (req: Request, res: Response): Promise<void
   }
 });
 
+// POST /affiliate/me/create — self-service code generation (Bronze 20%)
+router.post('/me/create', requireAuth, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user!.id;
+    const { customCode } = (req.body ?? {}) as { customCode?: string };
+
+    const existing = await prisma.affiliateCode.findUnique({ where: { userId } });
+    if (existing) { res.json({ data: existing }); return; }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) { res.status(404).json({ error: 'Utilisateur introuvable' }); return; }
+
+    let code: string;
+    if (customCode && typeof customCode === 'string' && customCode.trim()) {
+      code = customCode.trim().toUpperCase();
+      if (!/^[A-Z0-9]{3,16}$/.test(code)) {
+        res.status(400).json({ error: 'Le code doit contenir 3 à 16 caractères alphanumériques' }); return;
+      }
+      const conflict = await prisma.affiliateCode.findUnique({ where: { code } });
+      if (conflict) { res.status(409).json({ error: `Le code "${code}" est déjà pris` }); return; }
+    } else {
+      let attempts = 0;
+      do {
+        code = generateCode(user.username);
+        const conflict = await prisma.affiliateCode.findUnique({ where: { code } });
+        if (!conflict) break;
+        attempts++;
+      } while (attempts < 5);
+    }
+
+    const aff = await prisma.affiliateCode.create({
+      data: { userId, code: code!, commissionRate: 0.25 },
+    });
+
+    logger.info(`Self-service affiliate code created: ${code!} for user ${userId}`);
+    res.json({ data: aff });
+  } catch (err) {
+    logger.error('POST /affiliate/me/create error:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 // POST /affiliate/claim — claim available earnings
 router.post('/claim', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
@@ -168,7 +210,7 @@ router.post('/admin/create', requireAuth, requireAdmin, async (req: Request, res
     }
 
     const aff = await prisma.affiliateCode.create({
-      data: { userId, code, commissionRate: 0.005 }, // start at Tier 1 (0.5%)
+      data: { userId, code, commissionRate: 0.25 }, // Bronze tier (25%)
     });
 
     logger.info(`Admin created affiliate code ${code} for user ${userId}`);

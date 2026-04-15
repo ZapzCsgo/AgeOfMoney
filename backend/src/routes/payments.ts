@@ -14,29 +14,8 @@ const WITHDRAW_RATE = 0.585;  // 1 coin = $0.585 (1.69 coins = $0.99)
 const MIN_DEPOSIT   = 3;      // $3 minimum
 const MIN_WITHDRAW  = 169;    // 169 coins minimum (= $0.99)
 
-// ── Affiliate tier progression ─────────────────────────────────────────────────
-const TIERS = [
-  { rate: 0.005, referrals:   0, deposited:       0 }, // Tier 1 — 0.5%
-  { rate: 0.010, referrals:  15, deposited:   15000 }, // Tier 2 — 1%
-  { rate: 0.015, referrals:  30, deposited:   30000 }, // Tier 3 — 1.5%
-  { rate: 0.020, referrals:  50, deposited:   60000 }, // Tier 4 — 2%
-  { rate: 0.025, referrals:  75, deposited:  100000 }, // Tier 5 — 2.5%
-  { rate: 0.030, referrals: 100, deposited:  150000 }, // Tier 6 — 3%
-  { rate: 0.035, referrals: 150, deposited:  250000 }, // Tier 7 — 3.5%
-  { rate: 0.040, referrals: 200, deposited:  400000 }, // Tier 8 — 4%
-  { rate: 0.045, referrals: 300, deposited:  600000 }, // Tier 9 — 4.5%
-  { rate: 0.050, referrals: 500, deposited: 1000000 }, // Tier 10 — 5%
-];
-
-function computeTierRate(totalReferrals: number, totalDeposited: number): number {
-  let rate = TIERS[0].rate;
-  for (const tier of TIERS) {
-    if (totalReferrals >= tier.referrals && totalDeposited >= tier.deposited) {
-      rate = tier.rate;
-    }
-  }
-  return rate;
-}
+// Affiliate tiers and commission logic live in services/affiliateService.ts.
+// Revshare runs on net losses (at bet resolution time), not on deposits.
 
 // ── OxaPay API client ─────────────────────────────────────────────────────────
 const OXAPAY_API = 'https://api.oxapay.com/v1';
@@ -277,75 +256,56 @@ router.post('/crypto/webhook', async (req: Request, res: Response): Promise<void
     logger.info(`[Deposit] Credited ${transaction.coins} coins to user ${transaction.userId} (OxaPay order ${order_id})`);
 
     // ── Process affiliate commission ───────────────────────────────────────────
+    // ── Affiliate referral tracking ────────────────────────────────────────────
+    // We do NOT pay commission on deposits. Commission is paid as revshare
+    // on the user's NET LOSSES at bet resolution time (see affiliateService.ts).
+    // Here we just record/update the referral link and tier progression.
     if (transaction.affiliateCodeId) {
       try {
         const affCode = await prisma.affiliateCode.findUnique({
           where: { id: transaction.affiliateCodeId },
-          include: { referrals: true },
         });
 
         if (affCode) {
-          const referrerId = affCode.userId;
           const depositedCoins = transaction.coins;
-          const commission = Math.floor(depositedCoins * affCode.commissionRate);
 
-          const existingReferral = await prisma.affiliateReferral.findUnique({
+          await prisma.affiliateReferral.upsert({
             where: { referredUserId: transaction.userId },
-          });
-
-          if (existingReferral) {
-            await prisma.affiliateReferral.update({
-              where: { referredUserId: transaction.userId },
-              data: {
-                totalDeposited: { increment: depositedCoins },
-                commission:     { increment: commission },
-                isActive:       true,
-                lastActiveAt:   new Date(),
-              },
-            });
-          } else {
-            await prisma.affiliateReferral.create({
-              data: {
-                affiliateCodeId: affCode.id,
-                referredUserId:  transaction.userId,
-                totalDeposited:  depositedCoins,
-                commission,
-                isActive:        true,
-                lastActiveAt:    new Date(),
-              },
-            });
-          }
-
-          await prisma.affiliateCode.update({
-            where: { id: affCode.id },
-            data: {
-              available:     { increment: commission },
-              totalEarnings: { increment: commission },
+            update: {
+              totalDeposited: { increment: depositedCoins },
+              lastActiveAt:   new Date(),
+            },
+            create: {
+              affiliateCodeId: affCode.id,
+              referredUserId:  transaction.userId,
+              totalDeposited:  depositedCoins,
+              isActive:        false, // activates on first wager, not on deposit
             },
           });
 
-          // Auto-update commission tier
-          const updatedAff = await prisma.affiliateCode.findUnique({
+          // Re-evaluate tier based on aggregate referrals/deposits
+          const fresh = await prisma.affiliateCode.findUnique({
             where: { id: affCode.id },
             include: { referrals: true },
           });
-          if (updatedAff) {
-            const totalReferrals = updatedAff.referrals.length;
-            const totalDeposited = updatedAff.referrals.reduce((s, r) => s + r.totalDeposited, 0);
-            const newRate = computeTierRate(totalReferrals, totalDeposited);
-            if (newRate !== updatedAff.commissionRate) {
+          if (fresh) {
+            const { computeTierRate } = await import('../services/affiliateService');
+            const totalRefs = fresh.referrals.length;
+            const totalDep  = fresh.referrals.reduce((s, r) => s + r.totalDeposited, 0);
+            const newRate   = computeTierRate(totalRefs, totalDep);
+            if (newRate !== fresh.commissionRate) {
               await prisma.affiliateCode.update({
-                where: { id: affCode.id },
+                where: { id: fresh.id },
                 data:  { commissionRate: newRate },
               });
-              logger.info(`Affiliate ${affCode.code} upgraded to rate ${newRate}`);
+              logger.info(`[Affiliate] ${fresh.code} tier upgraded to ${(newRate * 100).toFixed(0)}%`);
             }
           }
 
-          logger.info(`[Affiliate] Commission: ${commission} coins → referrer ${referrerId} (code ${affCode.code})`);
+          logger.info(`[Affiliate] Referral tracked: code=${affCode.code}, user=${transaction.userId}, deposit=${depositedCoins}`);
         }
       } catch (affErr) {
-        logger.error('[Affiliate] Commission processing error:', affErr);
+        logger.error('[Affiliate] Referral tracking error:', affErr);
       }
     }
 

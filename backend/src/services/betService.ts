@@ -1,6 +1,7 @@
 import { prisma } from '../index';
 import { BetStatus, MatchStatus } from '@prisma/client';
 import { adjustOddsAdvanced, BetRecord } from './oddsEngine';
+import { creditAffiliateOnBetResolved } from './affiliateService';
 import { getIo } from '../socket';
 import logger from '../logger';
 
@@ -256,6 +257,12 @@ export async function distributePayout(matchId: string, winnerId: string): Promi
       if (io && updatedUser) io.to(`user:${bet.userId}`).emit('coinsUpdate', { coins: updatedUser.coins, direction: 'up' });
     }
 
+    // Credit affiliate revshare on net outcome
+    // loss → +stake (positive = loss); win → -(profit) (negative = user gained)
+    const netDelta = won ? -(payout - bet.amount) : bet.amount;
+    creditAffiliateOnBetResolved(bet.userId, bet.amount, netDelta)
+      .catch(err => logger.warn('[Affiliate] credit failed:', err));
+
     // Notify user via their private socket room
     if (io) {
       io.to(`user:${bet.userId}`).emit('betResult', {
@@ -317,6 +324,12 @@ export async function distributeDrawPayout(matchId: string): Promise<void> {
     ]);
 
     if (won) { payoutsDistributed++; totalPaid += payout; }
+
+    // Credit affiliate revshare on net outcome
+    const netDelta = won ? -(payout - bet.amount) : bet.amount;
+    creditAffiliateOnBetResolved(bet.userId, bet.amount, netDelta)
+      .catch(err => logger.warn('[Affiliate] credit failed:', err));
+
     if (io) {
       if (won) {
         const updatedUser = await prisma.user.findUnique({ where: { id: bet.userId }, select: { coins: true } });

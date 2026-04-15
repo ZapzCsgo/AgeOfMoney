@@ -13,6 +13,7 @@ import crypto from 'crypto';
 import axios from 'axios';
 import { prisma } from '../index';
 import { getIo } from '../socket';
+import { creditAffiliateOnBetResolved } from './affiliateService';
 import logger from '../logger';
 
 /** Fetch a cryptographically verified random integer 1-15 from random.org.
@@ -172,6 +173,11 @@ async function resolveRound(roundId: string, winZone: string, multiplier: number
       });
       io?.to(`user:${bet.userId}`).emit('coinsUpdate', { coins: updatedUser.coins, direction: 'up' });
     }
+
+    // Credit affiliate revshare on net outcome
+    const netDelta = won ? -(payout - bet.amount) : bet.amount;
+    creditAffiliateOnBetResolved(bet.userId, bet.amount, netDelta)
+      .catch(err => logger.warn('[Affiliate] credit failed:', err));
   }
 
   await prisma.rouletteRound.update({
