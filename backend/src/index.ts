@@ -147,6 +147,24 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Temporary: get outbound IP (for OxaPay/NOWPayments whitelist setup)
+// TODO: remove after IP whitelisting is done
+app.get('/api/v1/admin-outbound-ip', async (_req, res) => {
+  try {
+    const axios = (await import('axios')).default;
+    const [a, b] = await Promise.allSettled([
+      axios.get('https://api.ipify.org?format=json', { timeout: 5000 }),
+      axios.get('https://ifconfig.me/ip', { timeout: 5000 }),
+    ]);
+    res.json({
+      ipify: a.status === 'fulfilled' ? a.value.data.ip : null,
+      ifconfig: b.status === 'fulfilled' ? String(b.value.data).trim() : null,
+    });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 // 404 handler
 app.use((_req, res) => {
   res.status(404).json({ error: 'Route not found' });
