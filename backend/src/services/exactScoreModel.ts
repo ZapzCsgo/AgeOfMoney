@@ -97,16 +97,19 @@ function neededWins(format: Bo): number {
  */
 async function getPlayerDistribution(playerId: string, format: Bo): Promise<ScoreStats> {
   try {
+    // NOTE: We intentionally DON'T filter on the `format` field in SQL.
+    // The Liquipedia scraper mislabels some records (a 0-3 score stored
+    // with format='BO3' even though 3 games means it's a BO5). We derive
+    // the real format from the score itself below via neededWins(format).
     const records = await prisma.playerMatchRecord.findMany({
       where: {
         playerId,
         score: { not: null },
         confidence: { gte: 0.5 },
-        OR: [{ format }, { format: null }], // include records where format wasn't tagged
       },
       select: { won: true, score: true, matchDate: true },
       orderBy: { matchDate: 'desc' },
-      take: 100,
+      take: 200, // doubled — we'll filter by score, so more candidates is fine
     });
 
     const needed = neededWins(format);
@@ -145,17 +148,17 @@ async function getPlayerDistribution(playerId: string, format: Bo): Promise<Scor
  */
 async function getH2HDistribution(p1Id: string, p2Id: string, format: Bo): Promise<ScoreStats> {
   try {
+    // Same reasoning: don't trust the stored format field, derive from score.
     const records = await prisma.playerMatchRecord.findMany({
       where: {
         playerId: p1Id,
         opponentId: p2Id,
         score: { not: null },
         confidence: { gte: 0.5 },
-        OR: [{ format }, { format: null }],
       },
       select: { won: true, score: true, matchDate: true },
       orderBy: { matchDate: 'desc' },
-      take: 50,
+      take: 100,
     });
 
     const needed = neededWins(format);

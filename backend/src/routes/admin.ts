@@ -1296,6 +1296,9 @@ router.get('/players/:id/records-debug', async (req: Request, res: Response): Pr
     }
 
     // BO5 distribution with recency decay
+    // IMPORTANT: we infer the format from the SCORE, not from the stored
+    // format field — the Liquipedia scraper sometimes mislabels BO5 matches
+    // as BO3 so we can't trust that field.
     type Dist = Record<string, { rawCount: number; weightedCount: number }>;
     const bo5Dist: Dist = {};
     let bo5EffectiveSample = 0;
@@ -1303,11 +1306,11 @@ router.get('/players/:id/records-debug', async (req: Request, res: Response): Pr
     for (const r of records) {
       if (!r.score) continue;
       if (r.confidence < 0.5) continue;
-      if (r.format && r.format !== 'BO5') continue;
       const parts = r.score.split('-').map(s => parseInt(s.trim(), 10));
       if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) continue;
       const [a, b] = parts;
-      if (Math.max(a, b) !== 3) continue; // not a BO5 final score
+      // A score with max==3 IS a BO5 regardless of what r.format says
+      if (Math.max(a, b) !== 3) continue;
       // Normalize to player's POV
       let my: number, opp: number;
       if (r.won && a > b) { my = a; opp = b; }
