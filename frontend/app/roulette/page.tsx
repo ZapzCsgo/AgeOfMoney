@@ -672,47 +672,25 @@ export default function RoulettePage() {
               </div>
             </div>
 
-            {/* Win/lose */}
+            {/* Win/lose — payout number removed per design.
+                The wallet in the navbar now shows the count-up instead. */}
             {isResult && winZone && (
               <div className="mt-5 text-center" style={{ animation:'rl-win-in 0.5s cubic-bezier(0.2,1.4,0.4,1) both' }}>
                 {userWon && payout ? (
-                  <div
-                    className="inline-block px-8 py-5 rounded-2xl"
-                    style={{
-                      background: `radial-gradient(ellipse at center, ${ZONES[winZone].glow} 0%, transparent 70%)`,
-                      border: `2px solid ${ZONES[winZone].color}60`,
-                      boxShadow: `0 0 40px ${ZONES[winZone].glow}, inset 0 0 20px ${ZONES[winZone].glow}`,
-                    }}
-                  >
-                    <p className="text-[12px] uppercase tracking-[0.3em] mb-2 font-bold" style={{ color: ZONES[winZone].color }}>
-                      🏆 {t('bet_result').toUpperCase()}
-                    </p>
-                    <p
-                      className="text-6xl md:text-7xl font-black leading-none"
+                  <div className="inline-flex items-center gap-2">
+                    <span className="text-[13px] font-bold uppercase tracking-wider" style={{ color: ZONES[winZone].color, opacity: 0.9, fontFamily: 'Cinzel,serif' }}>
+                      {zoneLabel(winZone)}
+                    </span>
+                    <span
+                      className="text-[14px] font-black px-2 py-0.5 rounded"
                       style={{
+                        background: `${ZONES[winZone].color}22`,
                         color: ZONES[winZone].color,
-                        fontFamily: 'Cinzel,serif',
-                        textShadow: `0 0 40px ${ZONES[winZone].glow}, 0 0 80px ${ZONES[winZone].glow}, 0 2px 4px rgba(0,0,0,0.5)`,
-                        letterSpacing: '0.02em',
+                        border: `1px solid ${ZONES[winZone].color}60`,
                       }}
                     >
-                      +{displayedPayout.toLocaleString('fr-FR')} ⚜
-                    </p>
-                    <div className="mt-3 flex items-center justify-center gap-2">
-                      <span className="text-[13px] font-bold uppercase tracking-wider" style={{ color: ZONES[winZone].color, opacity: 0.9 }}>
-                        {zoneLabel(winZone)}
-                      </span>
-                      <span
-                        className="text-[14px] font-black px-2 py-0.5 rounded"
-                        style={{
-                          background: `${ZONES[winZone].color}22`,
-                          color: ZONES[winZone].color,
-                          border: `1px solid ${ZONES[winZone].color}60`,
-                        }}
-                      >
-                        ×{ZONES[winZone].multiplier}
-                      </span>
-                    </div>
+                      ×{ZONES[winZone].multiplier}
+                    </span>
                   </div>
                 ) : userWon === false ? (
                   <div className="rl-shaking">
