@@ -1,12 +1,17 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { apiClient, setAuthToken } from '@/lib/api';
 import { Shield, Crown, Sword, ShieldCheck, X, Copy, Check } from 'lucide-react';
 import { playWololo, playTick, playWin, playLose, playEmperorWin } from '@/lib/rouletteSounds';
+import dynamic from 'next/dynamic';
+// react-roulette-pro is client-only; dynamic import avoids SSR issues
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const RoulettePro = dynamic<any>(() => import('react-roulette-pro'), { ssr: false });
+import 'react-roulette-pro/dist/index.css';
 
 const ZONES = {
   KNIGHTS: { label: 'CHEVALIERS', multiplier: 2,  color: '#94a3b8', glow: 'rgba(148,163,184,0.4)', border: '#475569',    bg: 'rgba(71,85,105,0.3)',      icon: Shield },
@@ -83,7 +88,6 @@ export default function RoulettePage() {
   const [userWon, setUserWon] = useState<boolean | null>(null);
   const [payout, setPayout] = useState<number | null>(null);
   const [displayedPayout, setDisplayedPayout] = useState(0);
-  const [centerIdx, setCenterIdx] = useState(4);
   const [anticipation, setAnticipation] = useState(false);
   const [burstKey, setBurstKey] = useState(0); // re-trigger burst on each new result
   const [showFairness, setShowFairness] = useState(false);
@@ -91,15 +95,30 @@ export default function RoulettePage() {
   const [fairnessRound, setFairnessRound] = useState<{ id: string; roundHash: string | null; serverSeed: string | null; result: number | null; winZone: Zone | null; source?: 'random.org' | 'crypto' } | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
 
-  const wheelRef = useRef<HTMLDivElement>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const tickIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const lastTickIdx = useRef(-1);
   const wololoPlayedRef = useRef(false);
   const spinEndsAtRef = useRef<number>(0); // timestamp when current spin animation ends
   const hasAnimatedRef = useRef(false); // true once animateSpin has been called this session
 
-  const displayStrip = Array.from({ length: REPEATS }, () => BASE_PATTERN).flat();
+  // ── react-roulette-pro state ─────────────────────────────────────────────
+  // We feed the lib a long flat list of prizes (BASE_PATTERN repeated REPEATS times)
+  // and pick a target prizeIndex when the result comes in.
+  const [wheelStart, setWheelStart] = useState(false);
+  const [wheelPrizeIndex, setWheelPrizeIndex] = useState(0);
+
+  // Stable prize list — derived once from BASE_PATTERN, identity preserved across renders
+  const prizeList = useMemo(() => {
+    const items: { id: string; image: string; zone: Zone; num: number }[] = [];
+    for (let r = 0; r < REPEATS; r++) {
+      for (let i = 0; i < BASE_PATTERN.length; i++) {
+        const slot = BASE_PATTERN[i];
+        items.push({ id: `r${r}-${i}-${slot.num}`, image: '', zone: slot.zone, num: slot.num });
+      }
+    }
+    return items;
+  }, []);
+
 
   useEffect(() => {
     if (session?.user.accessToken) setAuthToken(session.user.accessToken);
@@ -136,27 +155,12 @@ export default function RoulettePage() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  // On mount: ensure wheel is visible at center position
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (wheelRef.current) {
-        wheelRef.current.style.transition = 'none';
-        wheelRef.current.style.transform = 'translateX(0px)';
-        void wheelRef.current.offsetHeight; // force reflow
-        setCenterIdx(4);
-      }
-    }, 50);
-    return () => clearTimeout(timer);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Handle tab visibility changes during spin — snap to result if spin already ended
+  // Handle tab visibility changes during spin — clear ticks if spin already ended
   useEffect(() => {
     const handleVisibility = () => {
-      if (document.hidden || !wheelRef.current) return;
-      // User came back — check if spin should have ended
+      if (document.hidden) return;
       const now = Date.now();
       if (spinEndsAtRef.current > 0 && now >= spinEndsAtRef.current) {
-        // Spin animation should be done — snap wheel to final position
         if (tickIntervalRef.current) clearInterval(tickIntervalRef.current);
       }
     };
@@ -240,90 +244,59 @@ export default function RoulettePage() {
     return () => { s.off('roulette:roundStart'); s.off('roulette:betsUpdate'); s.off('roulette:spin'); s.off('roulette:result'); };
   }, [fetchAll, session]);
 
-  function resetWheel() {
-    if (tickIntervalRef.current) clearInterval(tickIntervalRef.current);
-    if (!wheelRef.current) return;
-    wheelRef.current.style.transition = 'none';
-    wheelRef.current.style.transform = 'translateX(0px)';
-    void wheelRef.current.offsetHeight; // force browser reflow before next transition
-    setCenterIdx(4);
-    lastTickIdx.current = 4;
-  }
-
   function animateSpin(wz: Zone, resultNum?: number) {
-    if (!wheelRef.current) return;
-    // Reset wheel position before starting new spin
-    resetWheel();
     hasAnimatedRef.current = true;
     if (tickIntervalRef.current) clearInterval(tickIntervalRef.current);
     setAnticipation(false);
 
-    const full = displayStrip;
-    const target = Math.floor(full.length * 0.68);
-    // If we have the exact result number, land on that specific numbered slot
-    // Otherwise fall back to any slot of the winning zone
-    const occurrences: number[] = [];
-    for (let i = 0; i < 80; i++) {
-      const idx = target + i;
-      const slot = full[idx % full.length];
+    // Pick a target index in prizeList that matches the result number (or fallback to zone)
+    // Aim for ~80% into the array so the wheel has plenty of runway.
+    const target = Math.floor(prizeList.length * 0.78);
+    let landIdx = target;
+    for (let i = 0; i < 60; i++) {
+      const idx = (target + i) % prizeList.length;
+      const slot = prizeList[idx];
       if (resultNum != null) {
-        // Match exact number
-        if (slot.num === resultNum) occurrences.push(idx);
-      } else {
-        // Fall back to zone match
-        if (slot.zone === wz) occurrences.push(idx);
+        if (slot.num === resultNum) { landIdx = idx; break; }
+      } else if (slot.zone === wz) {
+        landIdx = idx; break;
       }
     }
-    const landIdx = occurrences.length > 0
-      ? occurrences[Math.floor(Math.random() * occurrences.length)]
-      : target;
-    // No sub-pixel offset — keeps centerIdx tracking in sync with visual position
-    const finalX = -(landIdx * ITEM_SLOT - CENTER_OFFSET + ITEM_W / 2);
-    const spinDuration = 6500;
+
+    const spinDuration = 6500; // ms
     const startTime = Date.now();
     spinEndsAtRef.current = startTime + spinDuration;
+
+    // Reset → next-tick start (so the lib re-spins even if start was already true)
+    setWheelStart(false);
+    setWheelPrizeIndex(landIdx);
+    setTimeout(() => setWheelStart(true), 30);
+
+    // Parallel tick + anticipation timer (ticks aren't synced to actual slot crossings
+    // anymore, but the audio progression still feels right relative to elapsed time).
     let lastTick = -1;
     let anticipationTriggered = false;
-
     tickIntervalRef.current = setInterval(() => {
       const elapsed = Date.now() - startTime;
       const progress = Math.min(1, elapsed / spinDuration);
-      // Stronger deceleration: power 3.4 → really long, slow tail
       const eased = 1 - Math.pow(1 - progress, 3.4);
-      const currentX = finalX * eased;
-      const ci = Math.round((CENTER_OFFSET - currentX) / ITEM_SLOT);
-      const wrapped = ((ci % full.length) + full.length) % full.length;
-      setCenterIdx(wrapped);
+      const slotsTraveled = Math.floor(eased * 60);
 
-      // Anticipation phase — last ~28% of the spin
       if (!anticipationTriggered && progress > 0.72) {
         anticipationTriggered = true;
         setAnticipation(true);
       }
-
-      // Play tick sound on each new slot — pitch + gain rise as we slow down
-      if (wrapped !== lastTick) {
-        lastTick = wrapped;
+      if (slotsTraveled !== lastTick) {
+        lastTick = slotsTraveled;
         const speedFactor = 1 - eased;
         if (speedFactor > 0.04) playTick(progress);
       }
-
       if (progress >= 1) {
         clearInterval(tickIntervalRef.current!);
-        setCenterIdx(landIdx % full.length);
         setAnticipation(false);
         setBurstKey(k => k + 1);
       }
     }, 30);
-
-    wheelRef.current.style.transition = 'none';
-    wheelRef.current.style.transform = 'translateX(0px)';
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      if (!wheelRef.current) return;
-      // More dramatic ease-out — lingers longer at the end
-      wheelRef.current.style.transition = `transform ${spinDuration}ms cubic-bezier(0.05,0.65,0.18,1)`;
-      wheelRef.current.style.transform = `translateX(${finalX}px)`;
-    }));
   }
 
   function animatePayout(target: number) {
@@ -545,28 +518,50 @@ export default function RoulettePage() {
               <div className="absolute inset-y-0 left-0 w-10 z-10 pointer-events-none" style={{ background:'linear-gradient(to right,rgba(13,11,26,0.85),transparent)' }} />
               <div className="absolute inset-y-0 right-0 w-10 z-10 pointer-events-none" style={{ background:'linear-gradient(to left,rgba(13,11,26,0.85),transparent)' }} />
 
-              {/* Strip — ALWAYS fully colored */}
-              <div ref={wheelRef} className="flex" style={{ gap:ITEM_GAP, transform: 'translateX(0px)' }}>
-                {displayStrip.map((slot, i) => {
-                  const z = ZONES[slot.zone]; const Icon = z.icon;
-                  const isCenter = i === centerIdx;
-                  const isWinCenter = isResult && isCenter && slot.zone === winZone;
-                  return (
-                    <div key={i}
-                      className="flex-shrink-0 flex flex-col items-center justify-center rounded-xl relative"
-                      style={{
-                        width:ITEM_W, height:ITEM_W,
-                        background: z.bg,
-                        border:`1.5px solid ${isCenter ? z.color : z.border}`,
-                        boxShadow: isWinCenter ? `0 0 24px ${z.glow}` : isCenter && isSpinning ? `0 0 14px ${z.glow}` : 'none',
-                        transform: isCenter ? 'scale(1.06)' : 'scale(1)',
-                        transition:'transform 0.08s,box-shadow 0.08s',
-                      }}>
-                      <Icon size={24} style={{ color: z.color }} />
-                      <span className="text-[11px] font-bold mt-0.5 tabular-nums" style={{ color: z.color, opacity: 0.7 }}>{slot.num}</span>
-                    </div>
-                  );
-                })}
+              {/* Wheel powered by react-roulette-pro — keeps our KNIGHTS/EMPEROR/ARCHERS look */}
+              <div className="rl-wheel-host" style={{ height: ITEM_W + 6 }}>
+                <RoulettePro
+                  type="horizontal"
+                  start={wheelStart}
+                  prizes={prizeList}
+                  prizeIndex={wheelPrizeIndex}
+                  spinningTime={6.5}
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  prizeItemRenderFunction={(prize: any) => {
+                    const slot = prize as { zone: Zone; num: number };
+                    const z = ZONES[slot.zone];
+                    const Icon = z.icon;
+                    return (
+                      <div
+                        className="rl-slot"
+                        style={{
+                          width: ITEM_W,
+                          height: ITEM_W,
+                          background: z.bg,
+                          border: `1.5px solid ${z.border}`,
+                          borderRadius: 12,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          margin: `0 ${ITEM_GAP / 2}px`,
+                        }}
+                      >
+                        <Icon size={24} style={{ color: z.color }} />
+                        <span
+                          className="text-[11px] font-bold mt-0.5 tabular-nums"
+                          style={{ color: z.color, opacity: 0.7 }}
+                        >
+                          {slot.num}
+                        </span>
+                      </div>
+                    );
+                  }}
+                  onPrizeDefined={() => {
+                    setBurstKey((k) => k + 1);
+                    setAnticipation(false);
+                  }}
+                />
               </div>
             </div>
 
