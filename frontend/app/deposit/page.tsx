@@ -412,11 +412,17 @@ export default function DepositPage() {
 
           {/* PROMO CODE */}
           <div>
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
               <Gift size={12} className="text-aoe-parchment-dim" />
               <p className="text-[10px] font-cinzel tracking-widest text-aoe-parchment-dim uppercase">
                 {t('deposit_affiliate_code')} <span className="text-aoe-parchment-muted normal-case font-sans tracking-normal">{t('deposit_affiliate_optional')}</span>
               </p>
+              {!promoApplied && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold normal-case"
+                  style={{ background: 'rgba(52,211,153,0.12)', color: '#34d399', border: '1px solid rgba(52,211,153,0.35)' }}>
+                  +25% à 35% bonus
+                </span>
+              )}
             </div>
             {!promoApplied ? (
               <div className="flex gap-2">
