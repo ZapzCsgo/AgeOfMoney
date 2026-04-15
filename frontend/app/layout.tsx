@@ -24,43 +24,54 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'AgeOfMoney — #1 Age of Empires 4 Match Betting Platform',
+  title: {
+    default: 'AgeOfMoney — Paris esport Age of Empires',
+    template: '%s · AgeOfMoney',
+  },
   description:
-    'The premier Age of Empires 4 match betting platform. Bet pro match outcomes, follow live tournaments and compete in the AoE4 esports community. La première plateforme de match betting dédiée à la scène compétitive Age of Empires 4.',
+    "Paris en ligne sur les matchs pro Age of Empires (AoE4, AoE2, AoE3, AoM). Cotes en temps réel, roulette provably fair, tournois cash, dépôts crypto. La plateforme dédiée à la communauté AoE.",
   keywords: [
-    // English
-    'Age of Empires 4 betting', 'AoE4 betting', 'AoE4 esports betting', 'Age of Empires 4 esports',
-    'AoE4 match betting', 'AoE4 tournament betting', 'Age of Empires 4 match betting',
-    'AoE4 pro matches', 'AoE4 competitive', 'esports betting', 'AoE4 betting platform',
-    // French
-    'paris Age of Empires 4', 'paris AoE4', 'paris esports', 'paris matchs AoE4',
-    'plateforme paris virtuels', 'tournoi Age of Empires 4', 'paris compétitif AoE4',
-    // German
-    'Age of Empires 4 Wetten', 'AoE4 Wetten', 'AoE4 esports Wetten',
-    // Spanish
-    'apuestas Age of Empires 4', 'apuestas AoE4', 'apuestas esports',
-    // General
-    'AgeOfMoney', 'ageof.money', 'AoE4 world', 'aoe4world betting',
+    // FR — priority audience
+    'paris esport Age of Empires', 'paris AoE4', 'paris AoE2', 'paris Age of Empires',
+    'paris matchs AoE4', 'plateforme paris AoE', 'tournois AoE4', 'cotes AoE4',
+    'roulette AoE', 'paris crypto esport', 'AgeOfMoney',
+    // EN
+    'Age of Empires betting', 'AoE4 betting', 'AoE2 betting', 'AoE esports betting',
+    'Age of Empires 4 match betting', 'AoE tournament betting', 'AoE pro matches',
+    'Age of Empires esports', 'AoE crypto betting', 'provably fair roulette',
+    // ES
+    'apuestas Age of Empires', 'apuestas AoE4', 'apuestas esports AoE',
   ],
   applicationName: 'AgeOfMoney',
   authors: [{ name: 'AgeOfMoney', url: 'https://ageof.money' }],
   creator: 'AgeOfMoney',
+  publisher: 'AgeOfMoney',
   metadataBase: new URL('https://ageof.money'),
   alternates: {
     canonical: 'https://ageof.money',
     languages: {
-      'en': 'https://ageof.money',
       'fr': 'https://ageof.money',
+      'en': 'https://ageof.money',
+      'es': 'https://ageof.money',
+      'x-default': 'https://ageof.money',
     },
   },
   robots: {
     index: true,
     follow: true,
-    googleBot: { index: true, follow: true, 'max-snippet': -1, 'max-image-preview': 'large' },
+    nocache: false,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-snippet': -1,
+      'max-image-preview': 'large',
+      'max-video-preview': -1,
+    },
   },
   openGraph: {
-    title: 'AgeOfMoney — #1 Age of Empires 4 Match Betting Platform',
-    description: 'Bet AoE4 pro match outcomes & follow live tournaments. La première plateforme de match betting dédiée à la scène compétitive Age of Empires 4.',
+    title: 'AgeOfMoney — Paris esport Age of Empires',
+    description:
+      "Paris en ligne sur les matchs pro Age of Empires (AoE4, AoE2, AoE3, AoM). Cotes live, roulette provably fair, tournois cash, dépôts crypto.",
     type: 'website',
     url: 'https://ageof.money',
     siteName: 'AgeOfMoney',
@@ -69,26 +80,76 @@ export const metadata: Metadata = {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'AgeOfMoney — Age of Empires 4 Match Betting',
+        alt: 'AgeOfMoney — Paris esport Age of Empires',
       },
     ],
-    locale: 'en_US',
+    locale: 'fr_FR',
+    alternateLocale: ['en_US', 'es_ES'],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'AgeOfMoney — #1 AoE4 Match Betting Platform',
-    description: 'Bet AoE4 pro match outcomes & follow live tournaments.',
+    title: 'AgeOfMoney — Paris esport Age of Empires',
+    description:
+      "Paris sur les matchs pro Age of Empires. Cotes live, roulette, tournois cash.",
     images: ['/og-image.png'],
+    site: '@ageofmoney',
+    creator: '@ageofmoney',
   },
   category: 'esports betting',
+  formatDetection: {
+    telephone: false,
+    email: false,
+    address: false,
+  },
+  other: {
+    'theme-color': '#07060f',
+  },
+};
+
+// Structured data for Google Rich Results — WebSite + Organization schema
+const structuredData = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Organization',
+      '@id': 'https://ageof.money/#organization',
+      name: 'AgeOfMoney',
+      url: 'https://ageof.money',
+      logo: {
+        '@type': 'ImageObject',
+        url: 'https://ageof.money/og-image.png',
+        width: 1200,
+        height: 630,
+      },
+      sameAs: [],
+    },
+    {
+      '@type': 'WebSite',
+      '@id': 'https://ageof.money/#website',
+      url: 'https://ageof.money',
+      name: 'AgeOfMoney',
+      description: 'Paris esport Age of Empires — matchs pro, roulette, tournois cash',
+      publisher: { '@id': 'https://ageof.money/#organization' },
+      inLanguage: ['fr-FR', 'en-US', 'es-ES'],
+      potentialAction: {
+        '@type': 'SearchAction',
+        target: 'https://ageof.money/matches?search={search_term_string}',
+        'query-input': 'required name=search_term_string',
+      },
+    },
+  ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${cinzel.variable} ${inter.variable} dark`} suppressHydrationWarning>
+    <html lang="fr" className={`${cinzel.variable} ${inter.variable} dark`} suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        />
       </head>
       <body className="min-h-screen bg-aoe overflow-hidden">
         <Providers>
