@@ -1369,6 +1369,58 @@ router.get('/players/:id/records-debug', async (req: Request, res: Response): Pr
   }
 });
 
+// POST /admin/players/fix-record-formats — one-shot migration that re-derives
+// the `format` field of every PlayerMatchRecord from its score string.
+//
+// Bug: scrapers previously used `totalGames = playerScore + opponentScore`
+// and mapped `totalGames <= 3 → BO3`, which mislabels BO5 sweeps (3-0, 0-3)
+// as BO3. This corrupts the exact-score model. We now derive format from
+// the winner's game count (= games needed to win the series).
+router.post('/players/fix-record-formats', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const dryRun = req.query.dryRun === 'true';
+    const records = await prisma.playerMatchRecord.findMany({
+      where: { score: { not: null } },
+      select: { id: true, score: true, won: true, format: true },
+    });
+
+    let scanned = 0, updated = 0, unparseable = 0;
+    const transitions: Record<string, number> = {};
+
+    for (const r of records) {
+      scanned++;
+      if (!r.score) continue;
+      const parts = r.score.split('-').map(s => parseInt(s.trim(), 10));
+      if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) { unparseable++; continue; }
+      const winnerGames = Math.max(parts[0], parts[1]);
+      if (winnerGames < 1) { unparseable++; continue; }
+      const correctFormat =
+        winnerGames <= 1 ? 'BO1' :
+        winnerGames === 2 ? 'BO3' :
+        winnerGames === 3 ? 'BO5' :
+        winnerGames === 4 ? 'BO7' : `BO${winnerGames * 2 - 1}`;
+      if (r.format === correctFormat) continue;
+      const key = `${r.format ?? 'null'}→${correctFormat}`;
+      transitions[key] = (transitions[key] ?? 0) + 1;
+      updated++;
+      if (!dryRun) {
+        await prisma.playerMatchRecord.update({
+          where: { id: r.id },
+          data: { format: correctFormat },
+        });
+      }
+    }
+
+    logger.info(`[FixFormats] scanned=${scanned} updated=${updated} unparseable=${unparseable} dryRun=${dryRun}`);
+    res.json({
+      data: { scanned, updated, unparseable, transitions, dryRun },
+    });
+  } catch (err) {
+    logger.error('POST /admin/players/fix-record-formats error:', err);
+    res.status(500).json({ error: 'Failed to fix record formats' });
+  }
+});
+
 // ── Affiliate fraud review ──────────────────────────────────────────────────
 // GET /admin/affiliate/referrals — list suspicious (or all) referrals
 router.get('/affiliate/referrals', async (req: Request, res: Response): Promise<void> => {

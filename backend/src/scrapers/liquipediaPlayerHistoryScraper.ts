@@ -270,12 +270,18 @@ export async function scrapePlayerHistoryFromLiquipedia(
   let stored = 0;
   for (const m of matches) {
     try {
-      // Determine the BO format from scores
-      const totalGames = m.playerScore + m.opponentScore;
-      const format = totalGames <= 1 ? 'BO1' :
-                     totalGames <= 3 ? 'BO3' :
-                     totalGames <= 5 ? 'BO5' :
-                     totalGames <= 7 ? 'BO7' : `BO${totalGames * 2 - 1}`;
+      // Derive the BO format from the WINNER's game count, not the total.
+      // A sweep like 3-0 has totalGames = 3 but is a BO5 (winner needed 3
+      // wins) — the previous logic incorrectly labeled it as BO3.
+      //   winner has 1 → BO1
+      //   winner has 2 → BO3
+      //   winner has 3 → BO5
+      //   winner has 4 → BO7
+      const winnerGames = Math.max(m.playerScore, m.opponentScore);
+      const format = winnerGames <= 1 ? 'BO1' :
+                     winnerGames === 2 ? 'BO3' :
+                     winnerGames === 3 ? 'BO5' :
+                     winnerGames === 4 ? 'BO7' : `BO${winnerGames * 2 - 1}`;
 
       // Try to find the opponent in our DB
       const opponent = await prisma.player.findFirst({

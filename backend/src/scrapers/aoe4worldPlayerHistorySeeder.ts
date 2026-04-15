@@ -156,8 +156,14 @@ async function upsertBoMatches(
     const opponentId = idMap.get(match.opponentAoe4Id) ?? undefined;
     const won = match.playerWins > match.opponentWins;
     const score = `${match.playerWins}-${match.opponentWins}`;
+    // Derive BO from the WINNER's game count, not the total.
+    // A sweep 3-0 has total=3 but winner needed 3 wins → BO5, not BO3.
+    const winnerGames = Math.max(match.playerWins, match.opponentWins);
     const format =
-      match.games <= 1 ? 'BO1' : match.games <= 3 ? 'BO3' : match.games <= 5 ? 'BO5' : 'BO7';
+      winnerGames <= 1 ? 'BO1' :
+      winnerGames === 2 ? 'BO3' :
+      winnerGames === 3 ? 'BO5' :
+      winnerGames === 4 ? 'BO7' : `BO${winnerGames * 2 - 1}`;
 
     try {
       await prisma.playerMatchRecord.upsert({
