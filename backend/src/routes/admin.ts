@@ -1228,6 +1228,135 @@ router.get('/lp-status', async (_req: Request, res: Response): Promise<void> => 
   }
 });
 
+// ── Player exact-score debug ────────────────────────────────────────────────
+// GET /admin/players/:id/records-debug — full diagnostic of a player's history
+// used by the exact score model. Shows raw records, effective sample after
+// recency decay, and the observed score distribution.
+router.get('/players/:id/records-debug', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const player = await prisma.player.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, name: true, game: true },
+    });
+    if (!player) { res.status(404).json({ error: 'Player not found' }); return; }
+
+    const records = await prisma.playerMatchRecord.findMany({
+      where: { playerId: player.id },
+      orderBy: { matchDate: 'desc' },
+      select: {
+        id: true,
+        opponentName: true,
+        opponentId: true,
+        tournamentName: true,
+        matchDate: true,
+        won: true,
+        score: true,
+        format: true,
+        confidence: true,
+        source: true,
+      },
+    });
+
+    // Recency weight same as exactScoreModel.ts
+    const MAX_AGE_DAYS = 720;
+    const FRESH_WINDOW_DAYS = 90;
+    const MIN_WEIGHT = 0.25;
+    const recencyWeight = (matchDate: Date | null): number => {
+      if (!matchDate) return 0.5;
+      const ageDays = (Date.now() - matchDate.getTime()) / (1000 * 60 * 60 * 24);
+      if (ageDays < 0) return 1.0;
+      if (ageDays <= FRESH_WINDOW_DAYS) return 1.0;
+      if (ageDays >= MAX_AGE_DAYS) return 0;
+      const t = (ageDays - FRESH_WINDOW_DAYS) / (MAX_AGE_DAYS - FRESH_WINDOW_DAYS);
+      return 1.0 - (1.0 - MIN_WEIGHT) * t;
+    };
+
+    // Classify and aggregate
+    const byFormat: Record<string, { raw: number; withScore: number; withOpponentId: number }> = {};
+    let totalWithScore = 0;
+    let totalWithOpponentId = 0;
+    let totalConfidenceOk = 0;
+
+    for (const r of records) {
+      const fmt = r.format || 'unknown';
+      if (!byFormat[fmt]) byFormat[fmt] = { raw: 0, withScore: 0, withOpponentId: 0 };
+      byFormat[fmt].raw++;
+      if (r.score) { byFormat[fmt].withScore++; totalWithScore++; }
+      if (r.opponentId) { byFormat[fmt].withOpponentId++; totalWithOpponentId++; }
+      if (r.confidence >= 0.5) totalConfidenceOk++;
+    }
+
+    // BO5 distribution with recency decay
+    type Dist = Record<string, { rawCount: number; weightedCount: number }>;
+    const bo5Dist: Dist = {};
+    let bo5EffectiveSample = 0;
+    let bo5Raw = 0;
+    for (const r of records) {
+      if (!r.score) continue;
+      if (r.confidence < 0.5) continue;
+      if (r.format && r.format !== 'BO5') continue;
+      const parts = r.score.split('-').map(s => parseInt(s.trim(), 10));
+      if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) continue;
+      const [a, b] = parts;
+      if (Math.max(a, b) !== 3) continue; // not a BO5 final score
+      // Normalize to player's POV
+      let my: number, opp: number;
+      if (r.won && a > b) { my = a; opp = b; }
+      else if (!r.won && a < b) { my = a; opp = b; }
+      else continue; // corrupt
+      const key = `${my}-${opp}`;
+      const w = recencyWeight(r.matchDate);
+      if (!bo5Dist[key]) bo5Dist[key] = { rawCount: 0, weightedCount: 0 };
+      bo5Dist[key].rawCount++;
+      bo5Dist[key].weightedCount += w;
+      bo5Raw++;
+      if (w > 0) bo5EffectiveSample += w;
+    }
+
+    // Compute percentages
+    const distPercent: Record<string, { raw: string; weighted: string }> = {};
+    for (const [k, v] of Object.entries(bo5Dist)) {
+      distPercent[k] = {
+        raw: bo5Raw > 0 ? `${((v.rawCount / bo5Raw) * 100).toFixed(1)}% (${v.rawCount})` : '0%',
+        weighted: bo5EffectiveSample > 0 ? `${((v.weightedCount / bo5EffectiveSample) * 100).toFixed(1)}% (${v.weightedCount.toFixed(1)})` : '0%',
+      };
+    }
+
+    res.json({
+      data: {
+        player: { id: player.id, name: player.name, game: player.game },
+        totals: {
+          totalRecords: records.length,
+          withScore: totalWithScore,
+          withOpponentId: totalWithOpponentId,
+          confidenceOk: totalConfidenceOk,
+        },
+        byFormat,
+        bo5Analysis: {
+          rawCount: bo5Raw,
+          effectiveSampleAfterRecencyDecay: parseFloat(bo5EffectiveSample.toFixed(2)),
+          wouldGetFullBlendWeight: bo5EffectiveSample >= 15,
+          distribution: distPercent,
+        },
+        recentRecords: records.slice(0, 30).map(r => ({
+          date: r.matchDate,
+          opponent: r.opponentName,
+          opponentIdPresent: !!r.opponentId,
+          score: r.score,
+          won: r.won,
+          format: r.format,
+          confidence: r.confidence,
+          recencyWeight: parseFloat(recencyWeight(r.matchDate).toFixed(3)),
+          source: r.source,
+        })),
+      },
+    });
+  } catch (err) {
+    logger.error('GET /admin/players/:id/records-debug error:', err);
+    res.status(500).json({ error: 'Failed to build debug report' });
+  }
+});
+
 // ── Affiliate fraud review ──────────────────────────────────────────────────
 // GET /admin/affiliate/referrals — list suspicious (or all) referrals
 router.get('/affiliate/referrals', async (req: Request, res: Response): Promise<void> => {
