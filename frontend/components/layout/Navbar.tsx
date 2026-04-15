@@ -49,26 +49,51 @@ export function Navbar() {
   const [walletOpen, setWalletOpen]     = useState(false);
   const [notifOpen, setNotifOpen]       = useState(false);
   const [localCoins, setLocalCoins]     = useState<number | null>(null);
+  const [animatedCoins, setAnimatedCoins] = useState<number | null>(null);
   const [coinFlash, setCoinFlash]       = useState<'up' | 'down' | null>(null);
   const flashTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rampRaf = useRef<number | null>(null);
   const { t } = useT();
   const { notifications, unreadCount, markAllRead } = useNotifications();
+
+  // Count-up animation for coin increases — 2.5s ease-out from old to new value
+  const rampTo = (from: number, to: number) => {
+    if (rampRaf.current) cancelAnimationFrame(rampRaf.current);
+    if (from === to) { setAnimatedCoins(to); return; }
+    const start = performance.now();
+    const duration = 2500;
+    const delta = to - from;
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+      setAnimatedCoins(Math.round(from + delta * eased));
+      if (t < 1) rampRaf.current = requestAnimationFrame(step);
+      else rampRaf.current = null;
+    };
+    rampRaf.current = requestAnimationFrame(step);
+  };
 
   useEffect(() => {
     if (!session?.user?.accessToken) return;
     const s = getSocket(session.user.accessToken);
     const handler = ({ coins, direction }: { coins: number; direction?: 'up' | 'down' }) => {
+      const previous = localCoins ?? session?.user?.coins ?? 0;
       setLocalCoins(coins);
-      setCoinFlash(direction ?? 'up');
+      setCoinFlash(direction ?? (coins > previous ? 'up' : 'down'));
+      // Keep the green glow for the full animation duration on increases
+      const flashDuration = coins > previous ? 2800 : 1200;
       if (flashTimeout.current) clearTimeout(flashTimeout.current);
-      flashTimeout.current = setTimeout(() => setCoinFlash(null), 1200);
+      flashTimeout.current = setTimeout(() => setCoinFlash(null), flashDuration);
+      // Ramp the displayed number from previous to new
+      rampTo(previous, coins);
       update();
     };
     s.on('coinsUpdate', handler);
     return () => { s.off('coinsUpdate', handler); };
-  }, [session?.user?.accessToken, update]);
+  }, [session?.user?.accessToken, update]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const displayCoins = localCoins ?? session?.user?.coins ?? 0;
+  const rawCoins = localCoins ?? session?.user?.coins ?? 0;
+  const displayCoins = animatedCoins ?? rawCoins;
 
   const navLinks = [
     { href: '/', label: t('nav_home') },

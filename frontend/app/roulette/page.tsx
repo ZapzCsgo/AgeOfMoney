@@ -349,14 +349,17 @@ export default function RoulettePage() {
   }
 
   function animatePayout(target: number) {
-    const steps = 45;
+    // Slower ramp (2.2s) so the user can actually read the number ticking up
+    const duration = 2200;
+    const steps = 60;
     let step = 0;
     const interval = setInterval(() => {
       step++;
       const t = step / steps;
+      // Ease-out cubic for satisfying deceleration
       setDisplayedPayout(Math.floor((1 - Math.pow(1 - t, 3)) * target));
       if (step >= steps) { clearInterval(interval); setDisplayedPayout(target); }
-    }, 1200 / steps);
+    }, duration / steps);
   }
 
   async function placeBet() {
@@ -673,12 +676,43 @@ export default function RoulettePage() {
             {isResult && winZone && (
               <div className="mt-5 text-center" style={{ animation:'rl-win-in 0.5s cubic-bezier(0.2,1.4,0.4,1) both' }}>
                 {userWon && payout ? (
-                  <div>
-                    <p className="text-[11px] uppercase tracking-widest mb-1 font-bold" style={{ color:ZONES[winZone].color }}>{t('bet_result').toUpperCase()} !</p>
-                    <p className="text-5xl font-black" style={{ color:ZONES[winZone].color, fontFamily:'Cinzel,serif', textShadow:`0 0 30px ${ZONES[winZone].glow}` }}>
+                  <div
+                    className="inline-block px-8 py-5 rounded-2xl"
+                    style={{
+                      background: `radial-gradient(ellipse at center, ${ZONES[winZone].glow} 0%, transparent 70%)`,
+                      border: `2px solid ${ZONES[winZone].color}60`,
+                      boxShadow: `0 0 40px ${ZONES[winZone].glow}, inset 0 0 20px ${ZONES[winZone].glow}`,
+                    }}
+                  >
+                    <p className="text-[12px] uppercase tracking-[0.3em] mb-2 font-bold" style={{ color: ZONES[winZone].color }}>
+                      🏆 {t('bet_result').toUpperCase()}
+                    </p>
+                    <p
+                      className="text-6xl md:text-7xl font-black leading-none"
+                      style={{
+                        color: ZONES[winZone].color,
+                        fontFamily: 'Cinzel,serif',
+                        textShadow: `0 0 40px ${ZONES[winZone].glow}, 0 0 80px ${ZONES[winZone].glow}, 0 2px 4px rgba(0,0,0,0.5)`,
+                        letterSpacing: '0.02em',
+                      }}
+                    >
                       +{displayedPayout.toLocaleString('fr-FR')} ⚜
                     </p>
-                    <p className="text-[12px] mt-1.5" style={{ color:'#6b6488' }}>{zoneLabel(winZone)} ×{ZONES[winZone].multiplier}</p>
+                    <div className="mt-3 flex items-center justify-center gap-2">
+                      <span className="text-[13px] font-bold uppercase tracking-wider" style={{ color: ZONES[winZone].color, opacity: 0.9 }}>
+                        {zoneLabel(winZone)}
+                      </span>
+                      <span
+                        className="text-[14px] font-black px-2 py-0.5 rounded"
+                        style={{
+                          background: `${ZONES[winZone].color}22`,
+                          color: ZONES[winZone].color,
+                          border: `1px solid ${ZONES[winZone].color}60`,
+                        }}
+                      >
+                        ×{ZONES[winZone].multiplier}
+                      </span>
+                    </div>
                   </div>
                 ) : userWon === false ? (
                   <div className="rl-shaking">
