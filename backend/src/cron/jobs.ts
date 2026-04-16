@@ -8,6 +8,9 @@ import { distributePayout, refundBets } from '../services/betService';
 import { getIo } from '../socket';
 import logger from '../logger';
 
+// Guard against concurrent enrichment / recalc runs
+let enrichmentRunning = false;
+
 export function initCronJobs(): void {
   logger.info('Initializing cron jobs');
 
@@ -30,8 +33,12 @@ export function initCronJobs(): void {
     }
   });
 
-  // ── Every 10 minutes: fast odds recalc from existing DB data (no API calls) ─
-  cron.schedule('*/10 * * * *', async () => {
+  // ── Every 10 minutes (offset by 5): fast odds recalc from DB only ──────────
+  // Offset to minutes 5,15,25,35,45,55 so it never collides with the */30
+  // full enrichment — both compute odds, running them together doubles DB
+  // queries and LP requests for no benefit.
+  cron.schedule('5,15,25,35,45,55 * * * *', async () => {
+    if (enrichmentRunning) { logger.info('[FastRecalc] Skipped — enrichment in progress'); return; }
     try {
       await recalcActiveMatchOdds();
     } catch (err) {
@@ -41,10 +48,14 @@ export function initCronJobs(): void {
 
   // ── Every 30 minutes: full enrichment (player stats from aoe4world + H2H) ──
   cron.schedule('*/30 * * * *', async () => {
+    if (enrichmentRunning) return;
+    enrichmentRunning = true;
     try {
       await enrichAllUpcomingMatches();
     } catch (err) {
       logger.error('[CRON] enrichOdds failed:', err);
+    } finally {
+      enrichmentRunning = false;
     }
   });
 
@@ -86,13 +97,15 @@ export function initCronJobs(): void {
       logger.info('[Startup] Immediate status sync...');
       await tickMatchStatuses();
       await distributePayouts();
-      // Non-blocking startup tasks
+      // Non-blocking startup tasks — guard enrichment to prevent overlap with cron
       syncAoeEventCalendar()
         .then(() => scrapeUpcomingMatches())
         .catch(err => logger.error('[Startup] Calendar + Liquipedia scrape:', err));
+      enrichmentRunning = true;
       scrapeAoe4WorldTournaments()
         .then(() => enrichAllUpcomingMatches())
-        .catch(err => logger.error('[Startup] aoe4world tourn + enrichOdds:', err));
+        .catch(err => logger.error('[Startup] aoe4world tourn + enrichOdds:', err))
+        .finally(() => { enrichmentRunning = false; });
     } catch (err) {
       logger.error('[Startup] Immediate sync failed:', err);
     }
