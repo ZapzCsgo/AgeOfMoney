@@ -613,6 +613,43 @@ export async function scrapeUpcomingMatches(): Promise<void> {
         });
         if (completedMatch) continue;
 
+        // ── Postponement detection ──────────────────────────────────────────────
+        // If Liquipedia now shows a FUTURE scheduledAt (≥30 min from now) for these
+        // players but a LIVE match already exists with a past scheduledAt, it means
+        // the match was postponed/rescheduled. We update the existing record rather
+        // than creating a duplicate, which would cause the LIVE match to be
+        // auto-cancelled after 8h with no result.
+        if (m.scheduledAt > new Date(Date.now() + 30 * 60 * 1000)) {
+          const livePostponed = await prisma.match.findFirst({
+            where: {
+              OR: [{ player1Id: p1.id, player2Id: p2.id }, { player1Id: p2.id, player2Id: p1.id }],
+              tournamentId: tournament.id,
+              status: 'LIVE',
+              winnerId: null,
+              scheduledAt: { lt: new Date() },
+            },
+            select: { id: true, scheduledAt: true },
+          });
+          if (livePostponed) {
+            await prisma.match.update({
+              where: { id: livePostponed.id },
+              data: {
+                status: 'UPCOMING',
+                scheduledAt: m.scheduledAt,
+                betsClosedAt: new Date(m.scheduledAt.getTime() - 5 * 60 * 1000),
+                betsOpen: true,
+                verificationFlag: false,
+              },
+            });
+            const { getIo } = require('../socket');
+            const io = getIo();
+            io?.to(`matchRoom:${livePostponed.id}`).emit('matchStatusUpdate', { matchId: livePostponed.id, status: 'UPCOMING' });
+            io?.emit('matchUpdate', { matchId: livePostponed.id, status: 'UPCOMING', scheduledAt: m.scheduledAt.toISOString() });
+            logger.info(`[Liquipedia] Postponement detected: match ${livePostponed.id} reverted LIVE→UPCOMING, new time: ${m.scheduledAt.toISOString()} (was ${livePostponed.scheduledAt.toISOString()})`);
+            continue;
+          }
+        }
+
         // If an UPCOMING/LIVE match already exists for these players within ±2h,
         // make sure its game/tournament link reflects what we just (re-)detected
         // — old matches from a wrong wiki classification get healed here.
