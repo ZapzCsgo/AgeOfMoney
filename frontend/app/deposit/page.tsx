@@ -480,7 +480,7 @@ export default function DepositPage() {
             <button
               onClick={handleDeposit}
               disabled={loading}
-              className="w-full py-3.5 rounded-md font-medium text-sm flex items-center justify-center gap-2 transition-colors bg-[#d4a017] text-black hover:bg-[#e0ad1f] disabled:opacity-50 disabled:hover:bg-[#d4a017]"
+              className="w-full py-3.5 rounded-md font-bold text-base flex items-center justify-center gap-2 transition-colors bg-[#d4a017] text-black hover:bg-[#e0ad1f] disabled:opacity-50 disabled:hover:bg-[#d4a017]"
             >
               {loading
                 ? <><RefreshCw size={15} className="animate-spin" /> {t('common_processing')}</>
@@ -489,7 +489,7 @@ export default function DepositPage() {
                   : baseCoins < 1
                     ? t('deposit_select_crypto')
                     : <>
-                        <ArrowDownToLine size={14} />
+                        <ArrowDownToLine size={16} />
                         {t('deposit_get_coins', { coins: totalCoins.toLocaleString('fr-FR'), amount: usdCost.toFixed(2) })}
                       </>
               }
