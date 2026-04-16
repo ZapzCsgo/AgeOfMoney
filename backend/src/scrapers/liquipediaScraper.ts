@@ -87,7 +87,7 @@ export async function fetchPlayersAvatars(): Promise<void> {
 /**
  * Fetch a player's Liquipedia page rendered HTML via the MediaWiki API.
  * Uses the same auth + gzip pattern as the live scorer — API key avoids rate limits.
- * Returns rendered HTML or null.
+ * Returns rendered HTML, null (page not found), or 'BLOCKED' (rate limited).
  */
 async function fetchPlayerPageHtml(slug: string, wiki: string): Promise<string | null> {
   const apiUrl = `https://liquipedia.net/${wiki}/api.php`;
@@ -126,8 +126,8 @@ async function fetchPlayerPageHtml(slug: string, wiki: string): Promise<string |
   } catch (err: any) {
     const status = err?.response?.status;
     if (status === 429 || status === 503) {
-      logger.warn(`[Liquipedia] Avatar API ${status} for ${slug} on ${wiki}`);
-      return null;
+      logger.warn(`[Liquipedia] Avatar API ${status} for ${slug} on ${wiki} — stopping`);
+      return 'BLOCKED';
     }
     // 404 = page doesn't exist on this wiki (normal for cross-wiki fallback)
     if (status !== 404) {
@@ -147,6 +147,7 @@ async function fetchLiquipediaPlayerAvatar(slug: string, wiki = 'ageofempires'):
   if (isLpBlocked()) return 'BLOCKED';
 
   const html = await fetchPlayerPageHtml(slug, wiki);
+  if (html === 'BLOCKED') return 'BLOCKED';
   if (!html) return null; // page not found on this wiki — try next
   const $ = cheerio.load(html);
 
