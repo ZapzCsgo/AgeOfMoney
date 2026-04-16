@@ -96,6 +96,7 @@ export default function RoulettePage() {
   const [copied, setCopied] = useState<string | null>(null);
 
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const countdownMaxRef = useRef(30); // total betting window duration for the ring arc
   const tickIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const wololoPlayedRef = useRef(false);
   const spinEndsAtRef = useRef<number>(0); // timestamp when current spin animation ends
@@ -300,6 +301,9 @@ export default function RoulettePage() {
   useEffect(() => {
     if (countdownRef.current) clearInterval(countdownRef.current);
     if (!round?.endsAt || round.status !== 'BETTING') { setCountdown(0); return; }
+    // Capture the total window duration once per round for the arc fill ratio
+    const initial = Math.ceil((new Date(round.endsAt!).getTime() - Date.now()) / 1000);
+    if (initial > 0) countdownMaxRef.current = initial;
     const tick = () => setCountdown(Math.max(0, Math.ceil((new Date(round.endsAt!).getTime() - Date.now()) / 1000)));
     tick();
     countdownRef.current = setInterval(tick, 200);
@@ -604,14 +608,48 @@ export default function RoulettePage() {
           {/* Wheel */}
           <div className="py-6 flex flex-col items-center">
 
-            {/* Timer — centré au-dessus de la roue */}
-            <div className="h-10 flex items-center justify-center mb-3">
-              {isBetting && countdown > 0 && (
-                <span className={cn('text-3xl font-bold tabular-nums', countdown <= 3 && 'rl-urgent')}
-                  style={{ fontFamily:'Cinzel,serif', color: countdown <= 3 ? '#f87171' : '#f5c842' }}>
-                  {countdown}s
-                </span>
-              )}
+            {/* Timer — circular progress ring */}
+            <div className="h-16 flex items-center justify-center mb-3">
+              {isBetting && countdown > 0 && (() => {
+                const max = countdownMaxRef.current;
+                const progress = max > 0 ? countdown / max : 0;
+                const SIZE = 52;
+                const SW = 3;
+                const R = (SIZE - SW) / 2;
+                const CIRC = 2 * Math.PI * R;
+                const dashOffset = CIRC * (1 - progress);
+                const isUrgent  = countdown <= 3;
+                const isWarning = countdown <= 10;
+                const color = isUrgent ? '#f87171' : isWarning ? '#fb923c' : '#f5c842';
+                const glow  = isUrgent ? 'rgba(248,113,113,0.75)' : isWarning ? 'rgba(251,146,60,0.65)' : 'rgba(245,200,66,0.55)';
+                return (
+                  <div className={cn('relative flex items-center justify-center', isUrgent && 'rl-urgent')}
+                    style={{ width: SIZE, height: SIZE }}>
+                    <svg width={SIZE} height={SIZE} className="absolute" style={{ transform: 'rotate(-90deg)' }}>
+                      {/* Track */}
+                      <circle cx={SIZE/2} cy={SIZE/2} r={R} fill="none" stroke="#1e1a30" strokeWidth={SW} />
+                      {/* Arc */}
+                      <circle
+                        cx={SIZE/2} cy={SIZE/2} r={R}
+                        fill="none"
+                        stroke={color}
+                        strokeWidth={SW}
+                        strokeDasharray={CIRC}
+                        strokeDashoffset={dashOffset}
+                        strokeLinecap="round"
+                        style={{
+                          transition: 'stroke-dashoffset 0.22s linear, stroke 0.35s',
+                          filter: `drop-shadow(0 0 5px ${glow})`,
+                        }}
+                      />
+                    </svg>
+                    <span className="relative z-10 font-bold tabular-nums"
+                      style={{ fontSize: 14, color, fontFamily: 'Cinzel,serif', lineHeight: 1 }}>
+                      {countdown}
+                    </span>
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="relative" style={{ width:WHEEL_W, overflow:'hidden' }}>
