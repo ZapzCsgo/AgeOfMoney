@@ -83,15 +83,29 @@ async function fetchLiquipediaPlayerAvatar(slug: string, wiki = 'ageofempires'):
   if (!html) return null;
   await sleep(1500); // respect rate limit between player page fetches
   const $ = cheerio.load(html);
-  // Try common Liquipedia player page image selectors
-  const img = (
-    $('.infobox-image-image img').first().attr('src') ||
-    $('.image-box img').first().attr('src') ||
-    $('div.player-info img').first().attr('src') ||
-    $('figure.image img').first().attr('src')
-  );
-  if (!img) return null;
-  return img.startsWith('http') ? img : `https://liquipedia.net${img}`;
+
+  // Liquipedia infobox image — try multiple selector patterns.
+  // The API (action=parse) returns rendered HTML where images may use data-src (lazy).
+  // Priority: specific infobox containers → broad infobox fallback.
+  const selectors = [
+    '.infobox-image-image img',
+    '.infobox-image img',
+    'td.infobox-image img',
+    '.image-box img',
+    '.fo-nttax-infobox img',
+    'div.player-info img',
+    'figure.image img',
+  ];
+
+  for (const sel of selectors) {
+    const el = $(sel).first();
+    if (!el.length) continue;
+    // Support both eager src and lazy data-src
+    const src = el.attr('src') || el.attr('data-src') || el.attr('data-lazy-src');
+    if (!src || src.includes('noimageyet') || src.includes('placeholder')) continue;
+    return src.startsWith('http') ? src : `https://liquipedia.net${src}`;
+  }
+  return null;
 }
 
 // Honest User-Agent per Liquipedia policy — identifies the project + contact
