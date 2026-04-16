@@ -33,8 +33,16 @@ function applyLangCookie(req: NextRequest, res: NextResponse) {
   });
 }
 
+// ── Maintenance mode ──────────────────────────────────────────────────────────
+// Enable by setting MAINTENANCE_MODE=1 in Railway / Vercel env vars.
+// Bypass: visit any page with ?_dev=<MAINTENANCE_BYPASS_KEY> to set a cookie
+// that grants access. The key never appears in the HTML — server-side only.
+const MAINTENANCE_ACTIVE = process.env.MAINTENANCE_MODE === '1';
+const BYPASS_KEY         = process.env.MAINTENANCE_BYPASS_KEY ?? '';
+const BYPASS_COOKIE      = 'aom_dev_bypass';
+
 export function middleware(req: NextRequest) {
-  const { pathname } = req.nextUrl;
+  const { pathname, searchParams } = req.nextUrl;
 
   // Always allow static assets, API routes and SEO metadata files.
   if (
@@ -47,6 +55,31 @@ export function middleware(req: NextRequest) {
     pathname === '/sitemap-0.xml'
   ) {
     return NextResponse.next();
+  }
+
+  // ── Bypass activation ──────────────────────────────────────────────────────
+  // Visiting ?_dev=<key> sets the bypass cookie then strips the param from URL.
+  const devParam = searchParams.get('_dev');
+  if (BYPASS_KEY && devParam === BYPASS_KEY) {
+    const clean = req.nextUrl.clone();
+    clean.searchParams.delete('_dev');
+    const res = NextResponse.redirect(clean);
+    res.cookies.set(BYPASS_COOKIE, BYPASS_KEY, {
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+      path: '/',
+      sameSite: 'strict',
+      httpOnly: true,
+    });
+    return res;
+  }
+
+  // ── Maintenance gate ───────────────────────────────────────────────────────
+  if (MAINTENANCE_ACTIVE) {
+    const hasBypass = req.cookies.get(BYPASS_COOKIE)?.value === BYPASS_KEY;
+    if (!hasBypass && pathname !== '/maintenance') {
+      return NextResponse.redirect(new URL('/maintenance', req.url));
+    }
+    // Bypass holder or already on /maintenance — let through
   }
 
   // Pass-through + auto language cookie
