@@ -17,7 +17,7 @@ const securityHeaders = [
       "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // unsafe-inline/eval needed by Next.js
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
-      "img-src 'self' data: blob: https://avatars.steamstatic.com https://avatars.akamai.steamstatic.com https://aoe4world.com https://liquipedia.net https://cdn.discordapp.com https://avatars.githubusercontent.com https://lh3.googleusercontent.com",
+      "img-src 'self' data: blob: " + (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000') + " https://avatars.steamstatic.com https://avatars.akamai.steamstatic.com https://aoe4world.com https://liquipedia.net https://cdn.discordapp.com https://avatars.githubusercontent.com https://lh3.googleusercontent.com",
       "connect-src 'self' " + (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000') + ' ' + (process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:4000') + ' https://player.twitch.tv https://www.twitch.tv wss://pubsub-edge.twitch.tv',
       "frame-src 'self' https://player.twitch.tv https://www.twitch.tv",
       "media-src 'self' blob: https://*.twitch.tv https://*.jtvnw.net",
