@@ -6,6 +6,8 @@ import logger from '../logger';
 // In-memory cache for proxied avatars (Buffer + content-type)
 const avatarCache = new Map<string, { data: Buffer; contentType: string; fetchedAt: number }>();
 const AVATAR_CACHE_TTL = 24 * 60 * 60 * 1000; // 24h
+// 1x1 transparent PNG — returned on error/missing avatar to prevent broken image icons
+const TRANSPARENT_PIXEL = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIABQABNjN9GQAAAAlwSFlzAAAWJQAAFiUBSVIk8AAAAA0lEQVQI12P4z8BQDwAEgAF/QualzQAAAABJRU5ErkJggg==', 'base64');
 
 const router = Router();
 
@@ -143,7 +145,10 @@ router.get('/avatar/:playerId', async (req: Request, res: Response): Promise<voi
     });
 
     if (!player?.avatarUrl || player.avatarUrl === '') {
-      res.status(404).send('No avatar');
+      // Return 1x1 transparent PNG instead of text error — prevents broken image icon
+      res.set('Content-Type', 'image/png');
+      res.set('Cache-Control', 'public, max-age=3600');
+      res.send(TRANSPARENT_PIXEL);
       return;
     }
 
@@ -170,7 +175,10 @@ router.get('/avatar/:playerId', async (req: Request, res: Response): Promise<voi
     res.set('Cache-Control', 'public, max-age=86400');
     res.send(data);
   } catch (err) {
-    res.status(404).send('Avatar not found');
+    // Return transparent pixel on error — prevents broken image icon
+    res.set('Content-Type', 'image/png');
+    res.set('Cache-Control', 'public, max-age=300'); // short cache on errors
+    res.send(TRANSPARENT_PIXEL);
   }
 });
 
