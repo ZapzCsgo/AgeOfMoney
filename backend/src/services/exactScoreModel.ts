@@ -44,6 +44,29 @@ const FRESH_WINDOW_DAYS = 90;   // matches within 3 months = full weight (1.0)
 const MIN_WEIGHT = 0.25;        // matches at the edge of MAX_AGE still count 25%
 const MIN_EFFECTIVE_SAMPLE = 6; // below this, we don't trust the data at all
 
+// Tier weights — mirror oddsEngine.ts so score patterns from top events count more.
+// For an S-tier match, an observed 3-1 at S-tier is 2× more informative than a 3-1
+// at A-tier, and 4× more than a B-tier result.
+const SCORE_TIER_WEIGHT: Record<string, number> = {
+  S: 4.0, A: 2.0, Qualifier: 1.5, B: 1.0, C: 0.5, Misc: 0.3,
+};
+
+/**
+ * Compute a combined recency × tier weight for a score record.
+ * When a matchTier is provided, records from that same tier are
+ * upweighted (their natural tier weight is applied in full); all other
+ * tiers are still used but at 75% of their base weight to avoid discarding
+ * potentially useful data from neighbouring tiers.
+ */
+function scoreRecordWeight(matchDate: Date | null, tier: string | null, matchTier?: string): number {
+  const rw = recencyWeight(matchDate);
+  if (rw <= 0) return 0;
+  const tierW = SCORE_TIER_WEIGHT[tier ?? 'B'] ?? 1.0;
+  // When we know the current match's tier, discount records from other tiers
+  const tierMatch = !matchTier || tier === matchTier;
+  return rw * (tierMatch ? tierW : tierW * 0.75);
+}
+
 /**
  * Weight a record based on how recent it is.
  * - Within 3 months: 1.0
@@ -95,7 +118,7 @@ function neededWins(format: Bo): number {
  * matches in the requested format. Returns scores from the player's own POV
  * (so a "3-1" means the player won 3-1).
  */
-async function getPlayerDistribution(playerId: string, format: Bo): Promise<ScoreStats> {
+async function getPlayerDistribution(playerId: string, format: Bo, matchTier?: string): Promise<ScoreStats> {
   try {
     // NOTE: We intentionally DON'T filter on the `format` field in SQL.
     // The Liquipedia scraper mislabels some records (a 0-3 score stored
@@ -107,7 +130,7 @@ async function getPlayerDistribution(playerId: string, format: Bo): Promise<Scor
         score: { not: null },
         confidence: { gte: 0.5 },
       },
-      select: { won: true, score: true, matchDate: true },
+      select: { won: true, score: true, matchDate: true, tier: true },
       orderBy: { matchDate: 'desc' },
       take: 200, // doubled — we'll filter by score, so more candidates is fine
     });
@@ -123,8 +146,8 @@ async function getPlayerDistribution(playerId: string, format: Bo): Promise<Scor
       // Only keep scores where the winner reached exactly `needed` games —
       // this filters out BO-format mismatches.
       if (Math.max(parsed.my, parsed.opp) !== needed) continue;
-      const weight = recencyWeight(r.matchDate);
-      if (weight <= 0) continue; // too old, ignored entirely
+      const weight = scoreRecordWeight(r.matchDate, r.tier, matchTier);
+      if (weight <= 0) continue; // too old or irrelevant, ignored entirely
       const key = `${parsed.my}-${parsed.opp}`;
       counts[key] = (counts[key] ?? 0) + weight;
       effectiveSample += weight;
@@ -146,7 +169,7 @@ async function getPlayerDistribution(playerId: string, format: Bo): Promise<Scor
  * Pull head-to-head records between two specific players. Returns the
  * distribution from player1's perspective.
  */
-async function getH2HDistribution(p1Id: string, p2Id: string, format: Bo): Promise<ScoreStats> {
+async function getH2HDistribution(p1Id: string, p2Id: string, format: Bo, matchTier?: string): Promise<ScoreStats> {
   try {
     // Same reasoning: don't trust the stored format field, derive from score.
     const records = await prisma.playerMatchRecord.findMany({
@@ -156,7 +179,7 @@ async function getH2HDistribution(p1Id: string, p2Id: string, format: Bo): Promi
         score: { not: null },
         confidence: { gte: 0.5 },
       },
-      select: { won: true, score: true, matchDate: true },
+      select: { won: true, score: true, matchDate: true, tier: true },
       orderBy: { matchDate: 'desc' },
       take: 100,
     });
@@ -170,7 +193,7 @@ async function getH2HDistribution(p1Id: string, p2Id: string, format: Bo): Promi
       const parsed = parseScore(r.score, r.won);
       if (!parsed) continue;
       if (Math.max(parsed.my, parsed.opp) !== needed) continue;
-      const weight = recencyWeight(r.matchDate);
+      const weight = scoreRecordWeight(r.matchDate, r.tier, matchTier);
       if (weight <= 0) continue;
       const key = `${parsed.my}-${parsed.opp}`;
       counts[key] = (counts[key] ?? 0) + weight;
@@ -210,18 +233,19 @@ export async function buildBlendedDistribution(
   format: Bo,
   odds1: number,
   odds2: number,
+  matchTier?: string,
 ): Promise<ScoreDistribution> {
-  // Cache hit?
-  const key = cacheKey(matchId, format, odds1, odds2);
+  // Cache hit? Include matchTier in key so S-tier vs A-tier get distinct caches.
+  const key = cacheKey(matchId, `${format}:${matchTier ?? ''}`, odds1, odds2);
   const cached = blendCache.get(key);
   if (cached && Date.now() - cached.ts < BLEND_CACHE_TTL) {
     return cached.data;
   }
 
   const [h2h, p1Stats, p2Stats] = await Promise.all([
-    getH2HDistribution(p1Id, p2Id, format),
-    getPlayerDistribution(p1Id, format),
-    getPlayerDistribution(p2Id, format),
+    getH2HDistribution(p1Id, p2Id, format, matchTier),
+    getPlayerDistribution(p1Id, format, matchTier),
+    getPlayerDistribution(p2Id, format, matchTier),
   ]);
 
   // ── SAFETY RAMP ──────────────────────────────────────────────────────────
@@ -284,10 +308,10 @@ export async function buildBlendedDistribution(
   // Lightweight log so we can see the blend in action during early days
   if (h2h.sample > 0 || p1Stats.sample > 5 || p2Stats.sample > 5) {
     logger.info(
-      `[ExactScore] ${matchId} blend: theory=${(theoreticalWeight*100).toFixed(0)}% ` +
-      `h2h=${(h2hWeight*100).toFixed(0)}%(${h2h.sample}) ` +
-      `p1=${(p1Weight*100).toFixed(0)}%(${p1Stats.sample}) ` +
-      `p2=${(p2Weight*100).toFixed(0)}%(${p2Stats.sample})`
+      `[ExactScore] ${matchId} blend(tier=${matchTier ?? '?'}): theory=${(theoreticalWeight*100).toFixed(0)}% ` +
+      `h2h=${(h2hWeight*100).toFixed(0)}%(${h2h.sample.toFixed(1)}) ` +
+      `p1=${(p1Weight*100).toFixed(0)}%(${p1Stats.sample.toFixed(1)}) ` +
+      `p2=${(p2Weight*100).toFixed(0)}%(${p2Stats.sample.toFixed(1)})`
     );
   }
 

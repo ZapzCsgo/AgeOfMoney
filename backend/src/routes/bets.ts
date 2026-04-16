@@ -197,12 +197,13 @@ async function exactScoreOddsBlended(
   odds1: number,
   odds2: number,
   format: string,
+  matchTier?: string,
 ): Promise<ScoreEntry[]> {
   if (format === 'BO1') return exactScoreOdds(odds1, odds2, format);
   try {
     const theoretical = theoreticalDistribution(odds1, odds2, format);
     const blended = await buildBlendedDistribution(
-      theoretical, matchId, p1Id, p2Id, format as Bo, odds1, odds2,
+      theoretical, matchId, p1Id, p2Id, format as Bo, odds1, odds2, matchTier,
     );
     return distributionToEntries(blended);
   } catch (err) {
@@ -220,12 +221,14 @@ router.get('/exact-scores/:matchId', async (req: Request, res: Response): Promis
         id: true, format: true, odds1: true, odds2: true,
         status: true, betsOpen: true, scheduledAt: true,
         player1Id: true, player2Id: true,
+        tournament: { select: { tier: true } },
       },
     });
     if (!match) { res.status(404).json({ error: 'Match not found' }); return; }
     if (match.format === 'BO1') { res.json({ data: [] }); return; } // no exact score for BO1
     const scores = await exactScoreOddsBlended(
       match.id, match.player1Id, match.player2Id, match.odds1, match.odds2, match.format,
+      match.tournament?.tier ?? undefined,
     );
     res.json({ data: scores });
   } catch (error) {
@@ -259,6 +262,7 @@ router.post('/exact', requireAuth, async (req: Request, res: Response): Promise<
           status: true, betsOpen: true, scheduledAt: true,
           odds1: true, odds2: true, format: true,
           player1Id: true, player2Id: true,
+          tournament: { select: { tier: true } },
         },
       }),
       prisma.user.findUnique({ where: { id: userId }, select: { coins: true, isBanned: true } }),
@@ -273,6 +277,7 @@ router.post('/exact', requireAuth, async (req: Request, res: Response): Promise<
     // Verify odds are still valid (recompute server-side with blended model)
     const freshScores = await exactScoreOddsBlended(
       matchId, match.player1Id, match.player2Id, match.odds1, match.odds2, match.format,
+      match.tournament?.tier ?? undefined,
     );
     const freshEntry = freshScores.find(s => s.score === score);
     if (!freshEntry) { res.status(400).json({ error: 'Invalid score for this match format' }); return; }
