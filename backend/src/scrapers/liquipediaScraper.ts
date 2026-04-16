@@ -84,17 +84,14 @@ async function fetchLiquipediaPlayerAvatar(slug: string, wiki = 'ageofempires'):
   await sleep(1500); // respect rate limit between player page fetches
   const $ = cheerio.load(html);
 
-  // Liquipedia infobox image — try multiple selector patterns.
-  // The API (action=parse) returns rendered HTML where images may use data-src (lazy).
-  // Priority: specific infobox containers → broad infobox fallback.
+  // Liquipedia infobox uses div.infobox-image-wrapper > div.infobox-image (lightmode/darkmode).
+  // The player photo is inside that wrapper — other images (flags, team logos) are elsewhere
+  // in the infobox, so we must target the wrapper specifically to avoid false matches.
   const selectors = [
-    '.infobox-image-image img',
-    '.infobox-image img',
-    'td.infobox-image img',
-    '.image-box img',
-    '.fo-nttax-infobox img',
-    'div.player-info img',
-    'figure.image img',
+    '.infobox-image-wrapper .infobox-image img',  // current LP structure (div-based)
+    '.infobox-image-wrapper img',                  // fallback if inner div changes
+    '.infobox-image-image img',                    // older LP format
+    '.infobox-image img',                          // generic fallback
   ];
 
   for (const sel of selectors) {
