@@ -5,7 +5,6 @@ import { distributePayout, refundBets } from '../services/betService';
 import { getIo } from '../socket';
 import { z } from 'zod';
 import logger from '../logger';
-import { fetchPlayersAvatars } from '../scrapers/liquipediaScraper';
 
 const router = Router();
 
@@ -1325,22 +1324,5 @@ router.post('/affiliate/referrals/:id/revoke', async (req: Request, res: Respons
   }
 });
 
-// POST /admin/players/reset-avatars — reset all '' sentinels back to null and re-fetch
-// Use this after fixing avatar logic to force a re-check for all players.
-router.post('/players/reset-avatars', async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const { count } = await prisma.player.updateMany({
-      where: { avatarUrl: '' },
-      data: { avatarUrl: null },
-    });
-    logger.info(`[Admin] Reset ${count} player avatar sentinels to null — starting re-fetch`);
-    res.json({ ok: true, reset: count, message: `Reset ${count} players, fetching avatars in background...` });
-    // Run in background — don't block the response
-    fetchPlayersAvatars().catch(err => logger.error('[Admin] reset-avatars fetch error:', err));
-  } catch (err) {
-    logger.error('POST reset-avatars error:', err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
 
 export default router;
