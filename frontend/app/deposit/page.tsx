@@ -491,7 +491,7 @@ export default function DepositPage() {
                     : <>
                         <ArrowDownToLine size={16} />
                         {totalCoins.toLocaleString('fr-FR')}
-                        <span style={{ fontSize: '1.3em', lineHeight: 1 }}>⚜</span>
+                        <span style={{ fontSize: '1.4em', lineHeight: 1, color: '#07060f' }}>⚜︎</span>
                         for ${usdCost.toFixed(2)}
                       </>
               }
