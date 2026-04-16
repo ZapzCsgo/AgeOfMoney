@@ -21,21 +21,40 @@ function sleep(ms: number) {
   return new Promise(r => setTimeout(r, ms));
 }
 
+/** Map our internal game code to the Liquipedia wiki path for player pages. */
+function wikiForGame(game: string): string {
+  switch (game) {
+    case 'AoE2': return 'ageofempires2';
+    case 'AoE3': return 'ageofempires3';
+    case 'AoM':  return 'ageofmythology';
+    default:     return 'ageofempires'; // AoE4, AoE1
+  }
+}
+
 /**
  * Fetch missing player avatars from Liquipedia — run once a day, not during main scrape.
- * Processes max 20 players per run to stay well under rate limits.
+ * Processes max 50 players per run to stay well under rate limits.
+ * Players with no avatar on Liquipedia are marked with avatarUrl='' to avoid
+ * re-fetching them on every run (null = unchecked, '' = checked/no avatar).
  */
 export async function fetchPlayersAvatars(): Promise<void> {
+  // Only pick players that haven't been checked yet (avatarUrl is null)
   const players = await prisma.player.findMany({
     where: { avatarUrl: null },
-    select: { id: true, liquipediaSlug: true },
-    take: 20,
+    select: { id: true, name: true, liquipediaSlug: true, game: true },
+    take: 50,
   });
+  logger.info(`[Liquipedia] Fetching avatars for ${players.length} unchecked players`);
   for (const player of players) {
-    const avatarUrl = await fetchLiquipediaPlayerAvatar(player.liquipediaSlug);
+    const wiki = wikiForGame(player.game);
+    const avatarUrl = await fetchLiquipediaPlayerAvatar(player.liquipediaSlug, wiki);
     if (avatarUrl) {
       await prisma.player.update({ where: { id: player.id }, data: { avatarUrl } });
-      logger.info(`[Liquipedia] Avatar saved for ${player.liquipediaSlug}`);
+      logger.info(`[Liquipedia] Avatar saved for ${player.name} (${wiki})`);
+    } else {
+      // Mark as checked so we don't keep retrying on every run
+      await prisma.player.update({ where: { id: player.id }, data: { avatarUrl: '' } });
+      logger.info(`[Liquipedia] No avatar for ${player.name} (${wiki}) — marked as checked`);
     }
     await sleep(2000);
   }
@@ -44,9 +63,10 @@ export async function fetchPlayersAvatars(): Promise<void> {
 /**
  * Scrape a player's Liquipedia page to get their profile photo.
  * Rate-limited — only call if avatarUrl is null.
+ * Returns null if no image found (caller should store '' as sentinel).
  */
-async function fetchLiquipediaPlayerAvatar(slug: string): Promise<string | null> {
-  const html = await fetchHtml(`https://liquipedia.net/ageofempires/${encodeURIComponent(slug)}`);
+async function fetchLiquipediaPlayerAvatar(slug: string, wiki = 'ageofempires'): Promise<string | null> {
+  const html = await fetchHtml(`https://liquipedia.net/${wiki}/${encodeURIComponent(slug)}`);
   if (!html) return null;
   await sleep(1500); // respect rate limit between player page fetches
   const $ = cheerio.load(html);

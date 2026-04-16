@@ -8,7 +8,7 @@ export function cn(...inputs: ClassValue[]): string {
 }
 
 export function formatCoins(amount: number): string {
-  return new Intl.NumberFormat('fr-FR').format(amount) + ' ⚜';
+  return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount) + ' ⚜';
 }
 
 export function formatOdds(odds: number): string {

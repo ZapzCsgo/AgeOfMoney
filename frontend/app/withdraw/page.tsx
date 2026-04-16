@@ -464,7 +464,7 @@ export default function WithdrawPage() {
         {coins > 0 && coins < minCoins && (
           <p className="text-red-400 text-xs mt-2 flex items-center gap-1">
             <AlertTriangle size={12} />
-            {t('deposit_min')} : {minCoins.toLocaleString('fr-FR')} ⚜ (${crypto.minUsd} min pour {crypto.symbol})
+            {t('deposit_min')} : {minCoins.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ⚜ (${crypto.minUsd} min pour {crypto.symbol})
           </p>
         )}
         {coins > userCoins && (

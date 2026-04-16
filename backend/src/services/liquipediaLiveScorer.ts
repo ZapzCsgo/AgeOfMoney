@@ -509,16 +509,27 @@ function parseMatches(wikitext: string): LpMatch[] {
       }
     }
 
-    // Signal 3: count |winner=1 / |winner=2 occurrences anywhere in the block.
-    // Catches both legacy `|map=X|...|winner=N` and modern
-    // `|mapN={{Map|...|winner=X}}` formats in one shot.
+    // Signal 3: count |winner=1 / |winner=2 INSIDE nested templates only (depth≥2).
+    // The {{Match}} block itself has a top-level |winner=N marking the overall winner —
+    // counting it alongside map winners inflates the score by 1 (3-0 shows as 4-0).
+    // depth≥2 means we're inside a nested {{Map}}, {{Game}}, etc. sub-template.
     let countedWinner1 = 0;
     let countedWinner2 = 0;
-    const winnerRe = /\|winner\s*=\s*(\d)/g;
-    let wm: RegExpExecArray | null;
-    while ((wm = winnerRe.exec(block)) !== null) {
-      if (wm[1] === '1') countedWinner1++;
-      else if (wm[1] === '2') countedWinner2++;
+    {
+      let depth = 0;
+      for (let i = 0; i < block.length; i++) {
+        if (block[i] === '{' && block[i + 1] === '{') { depth++; i++; continue; }
+        if (block[i] === '}' && block[i + 1] === '}') { depth--; i++; continue; }
+        // depth 1 = top-level Match params; depth≥2 = inside a map sub-template
+        if (depth >= 2 && block[i] === '|') {
+          const sub = block.slice(i + 1, i + 25);
+          const wm = sub.match(/^winner\s*=\s*([12])/);
+          if (wm) {
+            if (wm[1] === '1') countedWinner1++;
+            else countedWinner2++;
+          }
+        }
+      }
     }
     const sigCounted = { p1: countedWinner1, p2: countedWinner2 };
 

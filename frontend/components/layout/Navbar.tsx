@@ -254,7 +254,7 @@ export function Navbar() {
                       coinFlash === 'down' ? 'text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.9)]' :
                       'text-aoe-gold'
                     )}>
-                      {new Intl.NumberFormat('fr-FR').format(displayCoins)} ⚜
+                      {new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(displayCoins)} ⚜
                     </span>
                   </div>
                   {/* Avatar + name */}
@@ -286,7 +286,7 @@ export function Navbar() {
                           {session.user.name}
                         </p>
                         <p className="text-xs text-aoe-gold font-cinzel font-bold mt-0.5">
-                          ⚜ {new Intl.NumberFormat('fr-FR').format(displayCoins)} coins
+                          ⚜ {new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(displayCoins)} coins
                         </p>
                         <p className="text-[10px] text-[#6b6488] mt-0.5">
                           ≈ ${(displayCoins / 1.69).toFixed(2)}

@@ -314,10 +314,10 @@ export default function DepositPage() {
         <div className="text-center flex-1">
           <p className="text-aoe-parchment-muted text-[10px] font-cinzel tracking-wider uppercase mb-1">{t('deposit_amount_coins')}</p>
           <p className="font-cinzel font-black text-2xl text-aoe-gold">
-            {totalCoins > 0 ? `${totalCoins.toLocaleString('fr-FR')} ⚜` : '— ⚜'}
+            {totalCoins > 0 ? `${totalCoins.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ⚜` : '— ⚜'}
           </p>
           {bonusCoins > 0 && (
-            <p className="text-emerald-400 text-[10px] mt-0.5">dont +{bonusCoins.toLocaleString('fr-FR')} ⚜ offerts</p>
+            <p className="text-emerald-400 text-[10px] mt-0.5">dont +{bonusCoins.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ⚜ offerts</p>
           )}
         </div>
         <div className="text-aoe-parchment-muted text-xl font-light">=</div>
@@ -490,7 +490,7 @@ export default function DepositPage() {
                     ? t('deposit_select_crypto')
                     : <>
                         <ArrowDownToLine size={16} />
-                        {totalCoins.toLocaleString('fr-FR')}
+                        {totalCoins.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         <span style={{ fontSize: '1.4em', lineHeight: 1, color: '#07060f' }}>⚜︎</span>
                         for ${usdCost.toFixed(2)}
                       </>
