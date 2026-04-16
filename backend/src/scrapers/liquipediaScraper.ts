@@ -45,32 +45,43 @@ export async function fetchPlayersAvatars(): Promise<void> {
     take: 50,
   });
   logger.info(`[Liquipedia] Fetching avatars for ${players.length} unchecked players`);
+  let saved = 0;
+  let checked = 0;
   for (const player of players) {
     const primaryWiki = wikiForGame(player.game);
-    // Try the game-specific wiki first, then fall back to the main ageofempires wiki.
-    // Many players (e.g. AoE2 pros) have their page on ageofempires even if primaryWiki differs.
     const wikisToTry = primaryWiki === 'ageofempires'
       ? ['ageofempires']
       : [primaryWiki, 'ageofempires'];
 
     let avatarUrl: string | null = null;
+    let blocked = false;
     let usedWiki = primaryWiki;
     for (const wiki of wikisToTry) {
-      avatarUrl = await fetchLiquipediaPlayerAvatar(player.liquipediaSlug, wiki);
-      if (avatarUrl) { usedWiki = wiki; break; }
+      const result = await fetchLiquipediaPlayerAvatar(player.liquipediaSlug, wiki);
+      if (result === 'BLOCKED') { blocked = true; break; }
+      if (result) { avatarUrl = result; usedWiki = wiki; break; }
       await sleep(1500);
+    }
+
+    // If Liquipedia blocked us, stop the entire batch — don't mark remaining as checked
+    if (blocked) {
+      logger.warn(`[Liquipedia] Rate limited — stopping avatar batch (${saved} saved, ${checked} checked so far)`);
+      break;
     }
 
     if (avatarUrl) {
       await prisma.player.update({ where: { id: player.id }, data: { avatarUrl } });
       logger.info(`[Liquipedia] Avatar saved for ${player.name} (${usedWiki})`);
+      saved++;
     } else {
       // Mark as checked so we don't keep retrying on every run
       await prisma.player.update({ where: { id: player.id }, data: { avatarUrl: '' } });
       logger.info(`[Liquipedia] No avatar for ${player.name} (tried: ${wikisToTry.join(', ')}) — marked as checked`);
+      checked++;
     }
     await sleep(2000);
   }
+  logger.info(`[Liquipedia] Avatar batch done: ${saved} saved, ${checked} checked`);
 }
 
 /**
@@ -79,29 +90,51 @@ export async function fetchPlayersAvatars(): Promise<void> {
  * Returns null if no image found (caller should store '' as sentinel).
  */
 async function fetchLiquipediaPlayerAvatar(slug: string, wiki = 'ageofempires'): Promise<string | null> {
+  // Use 'BLOCKED' sentinel to distinguish "couldn't fetch" from "fetched, no image"
+  const { isLpBlocked } = require('../services/liquipediaLiveScorer');
+  if (isLpBlocked()) return 'BLOCKED';
+
   const html = await fetchHtml(`https://liquipedia.net/${wiki}/${encodeURIComponent(slug)}`);
-  if (!html) return null;
-  await sleep(1500); // respect rate limit between player page fetches
+  if (!html) return 'BLOCKED'; // fetch failed — don't mark as checked
+  await sleep(1500);
   const $ = cheerio.load(html);
 
-  // Liquipedia infobox uses div.infobox-image-wrapper > div.infobox-image (lightmode/darkmode).
-  // The player photo is inside that wrapper — other images (flags, team logos) are elsewhere
-  // in the infobox, so we must target the wrapper specifically to avoid false matches.
-  const selectors = [
-    '.infobox-image-wrapper .infobox-image img',  // current LP structure (div-based)
-    '.infobox-image-wrapper img',                  // fallback if inner div changes
-    '.infobox-image-image img',                    // older LP format
-    '.infobox-image img',                          // generic fallback
-  ];
+  // Strategy: find ANY <img> inside the infobox that's large enough to be a player
+  // photo (width >= 80px). Flags/icons are 16-32px. This is more robust than brittle
+  // CSS class selectors that change across Liquipedia wikis.
+  const infobox = $('.fo-nttax-infobox').first();
+  if (infobox.length) {
+    const imgs = infobox.find('img');
+    for (let i = 0; i < imgs.length; i++) {
+      const el = $(imgs.eq(i));
+      const src = el.attr('src') || el.attr('data-src') || '';
+      const w = parseInt(el.attr('width') || '0', 10);
+      // Skip tiny images (flags, icons, logos) and placeholders
+      if (w > 0 && w < 80) continue;
+      if (!src || src.includes('noimageyet') || src.includes('placeholder')) continue;
+      if (src.includes('Flag_of_')) continue;
+      // Heuristic: player photos use /commons/images/ or /ageofempires*/images/
+      if (src.includes('/images/') || src.includes('/commons/')) {
+        logger.info(`[Liquipedia] Found avatar for ${slug}: ${src.slice(0, 80)}... (w=${w})`);
+        return src.startsWith('http') ? src : `https://liquipedia.net${src}`;
+      }
+    }
+  }
 
+  // Fallback: try direct selectors in case infobox structure changed
+  const selectors = [
+    '.infobox-image-wrapper .infobox-image img',
+    '.infobox-image-wrapper img',
+    '.infobox-image img',
+  ];
   for (const sel of selectors) {
     const el = $(sel).first();
     if (!el.length) continue;
-    // Support both eager src and lazy data-src
-    const src = el.attr('src') || el.attr('data-src') || el.attr('data-lazy-src');
+    const src = el.attr('src') || el.attr('data-src') || '';
     if (!src || src.includes('noimageyet') || src.includes('placeholder')) continue;
     return src.startsWith('http') ? src : `https://liquipedia.net${src}`;
   }
+
   return null;
 }
 
