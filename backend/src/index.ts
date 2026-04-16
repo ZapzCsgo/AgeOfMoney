@@ -204,6 +204,15 @@ setTimeout(() => {
 setTimeout(() => startMatchVerifier(), 4000);
 setTimeout(() => startLiquipediaLiveScorer(), 6000);
 
+// Startup: fetch missing player avatars — run once 30s after boot so it doesn't
+// compete with the main scrapers for the Liquipedia rate limit window.
+setTimeout(async () => {
+  try {
+    const { fetchPlayersAvatars } = await import('./scrapers/liquipediaScraper');
+    await fetchPlayersAvatars();
+  } catch (err) { logger.warn('[Startup] Avatar fetch failed:', err); }
+}, 30_000);
+
 // Startup: clean up duplicate matches — delayed 10s to avoid saturating
 // the Supabase connection pool at boot (scorer, cron, roulette all start first)
 setTimeout(async () => {
