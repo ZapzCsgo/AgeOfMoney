@@ -203,6 +203,7 @@ async function recalcActiveMatchOdds(): Promise<void> {
     include: {
       player1: { select: { id: true, lastMatchAt: true } },
       player2: { select: { id: true, lastMatchAt: true } },
+      tournament: { select: { tier: true } },
     },
   });
 
@@ -251,6 +252,8 @@ async function recalcActiveMatchOdds(): Promise<void> {
         h2h,
         daysSinceLastMatch1: days1,
         daysSinceLastMatch2: days2,
+        matchTier: match.tournament?.tier ?? undefined,
+        format: match.format,
       });
 
       const modelChanged = Math.abs(modelOdds.odds1 - match.odds1) > 0.005 || Math.abs(modelOdds.odds2 - match.odds2) > 0.005;

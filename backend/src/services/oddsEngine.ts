@@ -29,9 +29,9 @@ const HOUSE_MARGIN_3WAY = 0.10;  // 10% overround for 3-way markets (BO2/4 with 
 const MIN_ODDS = 1.05;
 const MAX_ODDS = 20.0;
 
-// Tier weights — a S-tier win counts 3× as much as a B-tier win
+// Tier weights — a S-tier win counts 4× as much as a B-tier win (2× A-tier)
 const TIER_WEIGHT: Record<string, number> = {
-  S: 3.0,
+  S: 4.0,
   A: 2.0,
   Qualifier: 1.5,
   B: 1.0,
@@ -121,6 +121,18 @@ export function calculateDrawProbability(prob1: number, boNum: number): number {
     binom = binom * (boNum - i) / (i + 1);
   }
   return binom * Math.pow(prob1, half) * Math.pow(1 - prob1, half);
+}
+
+// ── Core: Tier-specific winrate ───────────────────────────────────────────────
+/**
+ * Compute win rate at a specific tier level.
+ * Returns null when fewer than MIN_RECORDS records exist at that tier — not enough
+ * data to draw a meaningful conclusion.
+ */
+function computeTierSpecificWinrate(records: MatchRecord[], tier: string, minRecords = 4): number | null {
+  const filtered = records.filter(r => r.tier === tier);
+  if (filtered.length < minRecords) return null;
+  return filtered.filter(r => r.won).length / filtered.length;
 }
 
 // ── Core: Competitive Winrate ──────────────────────────────────────────────────
@@ -291,20 +303,40 @@ export function calculateOddsV2(input: OddsInputV2): OddsResult {
   const rust1 = computeRustPenalty(input.daysSinceLastMatch1);
   const rust2 = computeRustPenalty(input.daysSinceLastMatch2);
 
+  // ── Factor 4: Tier-context performance (10%) ────────────────────────────
+  // When the current match has a known tier, compare each player's winrate
+  // specifically at that tier vs their overall winrate.
+  // E.g., a player who performs at 75% in S-tier but only 60% overall gets
+  // a positive boost for S-tier matches — captures "big-stage players".
+  let tierContextLogit = 0;
+  if (input.matchTier) {
+    const p1TierWr = computeTierSpecificWinrate(input.p1Records, input.matchTier);
+    const p2TierWr = computeTierSpecificWinrate(input.p2Records, input.matchTier);
+    // Use tier-specific WR where we have enough data, otherwise fall back to overall
+    const eff1 = p1TierWr ?? wr1.winrate;
+    const eff2 = p2TierWr ?? wr2.winrate;
+    if (p1TierWr !== null || p2TierWr !== null) {
+      // 0.5× dampening: prevents overcorrection from small tier-specific samples
+      tierContextLogit = (logit(eff1) - logit(eff2)) * 0.5;
+    }
+  }
+
   // ── Adaptive blending in logit space ────────────────────────────────────
   // H2H weight scales with confidence (0 H2H → 0%, 12+ H2H → 25%)
   const h2hWeight = h2hResult.confidence * 0.25;
   // Winrate weight scales with data confidence (max 35%)
   const wrWeight = Math.max(0.15, wrConfidence * 0.35);
-  // Form weight (20%)
+  // Form weight (20%), tier-context weight (10%)
   const formWeight = 0.20;
+  const tierCtxWeight = input.matchTier ? 0.10 : 0;
   // Remaining goes to base (50/50 prior)
-  const remainingWeight = Math.max(0, 1 - h2hWeight - wrWeight - formWeight);
+  const remainingWeight = Math.max(0, 1 - h2hWeight - wrWeight - formWeight - tierCtxWeight);
 
   const blendedLogit =
     logit(wrProb1)        * wrWeight +
     logit(h2hResult.prob) * h2hWeight +
     (form1 - form2)       * formWeight * 5 + // scale form to logit magnitude
+    tierContextLogit      * tierCtxWeight +   // tier-specific performance at this level
     0.0                   * remainingWeight;  // logit(0.5) = 0 = no info
 
   let prob1 = sigmoid(blendedLogit);
