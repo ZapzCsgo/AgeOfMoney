@@ -349,6 +349,139 @@ async function fetchWikitext(wikiPath: string, page: string): Promise<string | n
   }
 }
 
+// ── Rendered HTML fallback ─────────────────────────────────────────────────
+// Bracket-based pages use Lua modules that store scores in data sub-pages.
+// The raw wikitext has {{Match}} placeholders with 0-0 scores, while the
+// rendered HTML shows the real scores. When wikitext parsing finds nothing
+// useful, we fall back to parsing the rendered bracket HTML.
+
+const htmlCache: Record<string, { text: string; fetchedAt: number }> = {};
+
+async function fetchRenderedHtml(wikiPath: string, page: string): Promise<string | null> {
+  if (Date.now() < lpBlockedUntil) return null;
+  const cacheKey = `html:${wikiPath}:${page}`;
+  const now = Date.now();
+  if (htmlCache[cacheKey] && now - htmlCache[cacheKey].fetchedAt < CACHE_TTL) {
+    return htmlCache[cacheKey].text;
+  }
+  try {
+    const res = await lpLimiter.schedule(() => axios.get(LP_API_FOR(wikiPath), {
+      params: { action: 'parse', page, prop: 'text', format: 'json' },
+      headers: buildHeaders(),
+      timeout: 20000,
+      responseType: 'arraybuffer',
+      decompress: false,
+    }));
+    if (res.status === 429) { tripCircuitBreaker(); return null; }
+    let jsonStr: string;
+    try {
+      const decompressed = await gunzip(res.data as Buffer);
+      jsonStr = decompressed.toString('utf-8');
+    } catch {
+      jsonStr = Buffer.from(res.data as Buffer).toString('utf-8');
+    }
+    const parsed = JSON.parse(jsonStr);
+    const html = parsed?.parse?.text?.['*'] ?? null;
+    if (html) htmlCache[cacheKey] = { text: html, fetchedAt: Date.now() };
+    resetCircuitBreaker();
+    return html;
+  } catch (err) {
+    if (axios.isAxiosError(err) && err.response?.status === 429) tripCircuitBreaker();
+    return null;
+  }
+}
+
+/**
+ * Parse bracket scores from the rendered HTML. The bracket renders as nested
+ * divs with class "bracket-game" containing player names and scores.
+ * Returns the same LpMatch shape for compatibility with the rest of the scorer.
+ */
+function parseBracketHtml(html: string): LpMatch[] {
+  const results: LpMatch[] = [];
+
+  // LP bracket cells: each match is a <div class="bracket-popup-wrapper"> or
+  // the bracket row has two opponent divs. We look for the simplified bracket
+  // row pattern: pairs of opponent-name + score inside the bracket table.
+  //
+  // Pattern: bracket cells contain:
+  //   <span class="name">PlayerName</span> ... <span class="...score...">3</span>
+  //   <span class="name">PlayerName</span> ... <span class="...score...">0</span>
+  //
+  // We also handle the common LP bracket HTML structure where each match row has:
+  //   <div ...> <span>Player1</span> <span>score1</span> </div>
+  //   <div ...> <span>Player2</span> <span>score2</span> </div>
+
+  // Strategy: find all bracket-game blocks, each containing two opponents with scores
+  // LP uses .bracket-cell-r* and .bracket-cell-l* classes for bracket entries.
+  // Each match pair has the structure:
+  //   <span class="team-template-text"><a ...>Name</a></span> ... score
+  // Simplified: extract all player+score pairs from bracket rows.
+
+  // Regex approach: find opponent rows in bracket HTML
+  // Each bracket entry has: team-template-text with player name, then a score nearby
+  const bracketRowRegex = /<span[^>]*class="[^"]*team-template-text[^"]*"[^>]*>.*?<a[^>]*>([^<]+)<\/a>.*?<\/span>.*?<span[^>]*class="[^"]*bracket-score[^"]*"[^>]*>(\d+|W|L|FF)?<\/span>/gs;
+
+  const pairs: Array<{ name: string; score: number }> = [];
+  let rm;
+  while ((rm = bracketRowRegex.exec(html)) !== null) {
+    const name = rm[1].trim();
+    const scoreStr = rm[2]?.trim() ?? '';
+    const score = /^\d+$/.test(scoreStr) ? parseInt(scoreStr, 10) : 0;
+    pairs.push({ name, score });
+  }
+
+  // Group into consecutive pairs (each match = 2 consecutive entries)
+  for (let i = 0; i + 1 < pairs.length; i += 2) {
+    const a = pairs[i];
+    const b = pairs[i + 1];
+    if (!a.name || !b.name) continue;
+    const bestof = Math.max(a.score, b.score) > 0 ? (Math.max(a.score, b.score) * 2 - 1) : 5;
+    results.push({
+      opponent1: a.name,
+      opponent2: b.name,
+      date: '',
+      bestof,
+      maps: [],
+      p1Score: a.score,
+      p2Score: b.score,
+      finishedMaps: a.score + b.score,
+      walkover: false,
+    });
+  }
+
+  // Fallback: try simpler table-based bracket format (some LP pages use tables)
+  if (results.length === 0) {
+    // Look for bracket table cells with player names and scores
+    // Pattern: <td ...>PlayerName</td> ... <td ...>score</td>
+    const cellRegex = /<span[^>]*class="[^"]*name[^"]*"[^>]*>.*?<a[^>]*>([^<]+)<\/a>.*?<\/span>/gs;
+    const scoreRegex = /<span[^>]*class="[^"]*score[^"]*"[^>]*>(\d+|W|L|FF)?<\/span>/gs;
+    const names: string[] = [];
+    const scores: number[] = [];
+    let cm;
+    while ((cm = cellRegex.exec(html)) !== null) names.push(cm[1].trim());
+    while ((cm = scoreRegex.exec(html)) !== null) {
+      const s = cm[1]?.trim() ?? '';
+      scores.push(/^\d+$/.test(s) ? parseInt(s, 10) : 0);
+    }
+    for (let i = 0; i + 1 < names.length && i + 1 < scores.length; i += 2) {
+      if (!names[i] || !names[i + 1]) continue;
+      results.push({
+        opponent1: names[i],
+        opponent2: names[i + 1],
+        date: '',
+        bestof: 5,
+        maps: [],
+        p1Score: scores[i] ?? 0,
+        p2Score: scores[i + 1] ?? 0,
+        finishedMaps: (scores[i] ?? 0) + (scores[i + 1] ?? 0),
+        walkover: false,
+      });
+    }
+  }
+
+  return results;
+}
+
 /**
  * Parse all {{Match ...}} blocks from wikitext and return structured data.
  * Each block contains opponent names, date, bestof, and map results.
@@ -627,14 +760,36 @@ async function syncMatchScore(matchId: string): Promise<void> {
     return;
   }
 
-  const lpMatches = parseMatches(wikitext);
+  let lpMatches = parseMatches(wikitext);
   logger.info(`[LPScorer] Match ${matchId}: parsed ${lpMatches.length} match blocks from "${page}"`);
 
   // Find the match that corresponds to our DB match
-  const lpMatch = lpMatches.find(lm =>
+  let lpMatch = lpMatches.find(lm =>
     (namesMatch(lm.opponent1, match.player1.name) && namesMatch(lm.opponent2, match.player2.name)) ||
     (namesMatch(lm.opponent1, match.player2.name) && namesMatch(lm.opponent2, match.player1.name))
   );
+
+  // ── HTML fallback for bracket pages ──────────────────────────────────────
+  // If we found the match in wikitext but both scores are 0, the page likely
+  // uses a Lua bracket module with scores in data sub-pages. Try the rendered
+  // HTML which has the actual scores after Lua expansion.
+  if (lpMatch && lpMatch.p1Score === 0 && lpMatch.p2Score === 0) {
+    const wikiPath2 = urlWikiPath;
+    const renderedHtml = await fetchRenderedHtml(wikiPath2, page);
+    if (renderedHtml) {
+      const htmlMatches = parseBracketHtml(renderedHtml);
+      if (htmlMatches.length > 0) {
+        const htmlMatch = htmlMatches.find(lm =>
+          (namesMatch(lm.opponent1, match.player1.name) && namesMatch(lm.opponent2, match.player2.name)) ||
+          (namesMatch(lm.opponent1, match.player2.name) && namesMatch(lm.opponent2, match.player1.name))
+        );
+        if (htmlMatch && (htmlMatch.p1Score + htmlMatch.p2Score > 0)) {
+          logger.info(`[LPScorer] Match ${matchId}: wikitext had 0-0, HTML fallback found ${htmlMatch.p1Score}-${htmlMatch.p2Score} (${htmlMatch.opponent1} vs ${htmlMatch.opponent2})`);
+          lpMatch = htmlMatch;
+        }
+      }
+    }
+  }
 
   if (!lpMatch) {
     // Log ALL opponent pairs from the wikitext so we can diagnose name mismatches
