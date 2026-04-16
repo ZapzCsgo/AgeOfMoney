@@ -85,70 +85,31 @@ export async function fetchPlayersAvatars(): Promise<void> {
 }
 
 /**
- * Fetch a player's Liquipedia page rendered HTML via the MediaWiki API.
- * Uses the same auth + gzip pattern as the live scorer — API key avoids rate limits.
- * Returns rendered HTML, null (page not found), or 'BLOCKED' (rate limited).
- */
-async function fetchPlayerPageHtml(slug: string, wiki: string): Promise<string | null> {
-  const apiUrl = `https://liquipedia.net/${wiki}/api.php`;
-  const LP_API_KEY = process.env.LIQUIPEDIA_API_KEY;
-  const headers: Record<string, string> = {
-    'User-Agent': 'AgeOfMoney/1.0 (contact@ageofmoney.com)',
-    'Accept-Encoding': 'gzip',
-  };
-  if (LP_API_KEY) headers.Authorization = `Apikey ${LP_API_KEY}`;
-
-  try {
-    const res = await axios.get(apiUrl, {
-      params: { action: 'parse', page: slug, format: 'json', prop: 'text' },
-      headers,
-      timeout: 15000,
-      responseType: 'arraybuffer',
-      decompress: false,
-    });
-
-    // Decompress gzip manually (same as live scorer)
-    let jsonStr: string;
-    try {
-      const zlib = require('zlib');
-      const { promisify } = require('util');
-      const gunzip = promisify(zlib.gunzip);
-      const decompressed = await gunzip(res.data as Buffer);
-      jsonStr = decompressed.toString('utf-8');
-    } catch {
-      jsonStr = Buffer.from(res.data as Buffer).toString('utf-8');
-    }
-
-    const parsed = JSON.parse(jsonStr);
-    const html = parsed?.parse?.text?.['*'];
-    if (html && typeof html === 'string' && html.length > 100) return html;
-    return null;
-  } catch (err: any) {
-    const status = err?.response?.status;
-    if (status === 429 || status === 503) {
-      logger.warn(`[Liquipedia] Avatar API ${status} for ${slug} on ${wiki} — stopping`);
-      return 'BLOCKED';
-    }
-    // 404 = page doesn't exist on this wiki (normal for cross-wiki fallback)
-    if (status !== 404) {
-      logger.warn(`[Liquipedia] Avatar API error for ${slug} on ${wiki}: ${err.message}`);
-    }
-    return null;
-  }
-}
-
-/**
  * Scrape a player's Liquipedia page to get their profile photo.
- * Uses the MediaWiki API directly with API key + gzip (same as live scorer).
- * Returns the image URL, null (no image), or 'BLOCKED' (fetch failed).
+ * Uses the same fetchHtml as the match scraper — MediaWiki API + direct HTML
+ * fallback + 2captcha auto-unblock on 429.
+ * Returns the image URL, null (no image), or 'BLOCKED' (couldn't fetch).
  */
 async function fetchLiquipediaPlayerAvatar(slug: string, wiki = 'ageofempires'): Promise<string | null> {
   const { isLpBlocked } = require('../services/liquipediaLiveScorer');
   if (isLpBlocked()) return 'BLOCKED';
 
-  const html = await fetchPlayerPageHtml(slug, wiki);
-  if (html === 'BLOCKED') return 'BLOCKED';
-  if (!html) return null; // page not found on this wiki — try next
+  const url = `https://liquipedia.net/${wiki}/${encodeURIComponent(slug)}`;
+  let html = await fetchHtml(url);
+
+  // If blocked, wait for 2captcha auto-unblock (~30s) and retry once
+  if (!html && isLpBlocked()) {
+    logger.info(`[Liquipedia] Avatar: blocked after ${slug} — waiting 45s for auto-unblock...`);
+    await sleep(45000);
+    if (isLpBlocked()) return 'BLOCKED'; // still blocked after wait
+    html = await fetchHtml(url);
+  }
+
+  if (!html) {
+    // Check if this was a block or a genuine 404
+    return isLpBlocked() ? 'BLOCKED' : null;
+  }
+
   const $ = cheerio.load(html);
 
   // Strategy: find ANY <img> inside the infobox that's large enough to be a player
