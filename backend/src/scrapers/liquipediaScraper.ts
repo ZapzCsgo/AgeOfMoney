@@ -92,16 +92,28 @@ export async function fetchPlayersAvatars(): Promise<void> {
  */
 async function fetchLiquipediaPlayerAvatar(slug: string, wiki = 'ageofempires'): Promise<string | null> {
   const { isLpBlocked } = require('../services/liquipediaLiveScorer');
-  if (isLpBlocked()) return 'BLOCKED';
+
+  // Wait for any existing block to clear (2captcha auto-unblock runs in background)
+  if (isLpBlocked()) {
+    logger.info(`[Liquipedia] Avatar: waiting for LP unblock before fetching ${slug}...`);
+    for (let i = 0; i < 24; i++) { // up to 2 min
+      await sleep(5000);
+      if (!isLpBlocked()) break;
+    }
+    if (isLpBlocked()) return 'BLOCKED';
+  }
 
   const url = `https://liquipedia.net/${wiki}/${encodeURIComponent(slug)}`;
   let html = await fetchHtml(url);
 
-  // If blocked, wait for 2captcha auto-unblock (~30s) and retry once
+  // If we just got blocked, wait for 2captcha auto-unblock and retry
   if (!html && isLpBlocked()) {
-    logger.info(`[Liquipedia] Avatar: blocked after ${slug} — waiting 45s for auto-unblock...`);
-    await sleep(45000);
-    if (isLpBlocked()) return 'BLOCKED'; // still blocked after wait
+    logger.info(`[Liquipedia] Avatar: blocked on ${slug} — waiting for auto-unblock...`);
+    for (let i = 0; i < 24; i++) {
+      await sleep(5000);
+      if (!isLpBlocked()) break;
+    }
+    if (isLpBlocked()) return 'BLOCKED';
     html = await fetchHtml(url);
   }
 

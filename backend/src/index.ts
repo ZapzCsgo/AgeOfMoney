@@ -204,8 +204,8 @@ setTimeout(() => {
 setTimeout(() => startMatchVerifier(), 4000);
 setTimeout(() => startLiquipediaLiveScorer(), 6000);
 
-// Startup: fetch missing player avatars — run once 30s after boot so it doesn't
-// compete with the main scrapers for the Liquipedia rate limit window.
+// Startup: fetch missing player avatars — run 90s after boot so the main
+// scrapers (Liquipedia matches, AoE calendar) finish first and don't compete.
 // Also resets '' sentinels back to null so players marked "no avatar" in a
 // previous run with broken selectors get re-checked with the fixed code.
 setTimeout(async () => {
@@ -219,7 +219,7 @@ setTimeout(async () => {
     const { fetchPlayersAvatars } = await import('./scrapers/liquipediaScraper');
     await fetchPlayersAvatars();
   } catch (err) { logger.warn('[Startup] Avatar fetch failed:', err); }
-}, 30_000);
+}, 90_000);
 
 // Startup: clean up duplicate matches — delayed 10s to avoid saturating
 // the Supabase connection pool at boot (scorer, cron, roulette all start first)
