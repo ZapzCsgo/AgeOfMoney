@@ -45,7 +45,7 @@ function PlayerAvatar({ name, playerId, avatarUrl, size = 44 }: { name: string; 
     >
       {imgSrc ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={imgSrc} alt={name} className="w-full h-full object-cover" />
+        <img src={imgSrc} alt={name} className="w-full h-full object-cover object-top" />
       ) : (
         <svg viewBox="0 0 24 24" fill="none" style={{ width: size * 0.6, height: size * 0.6 }}>
           <circle cx="12" cy="8" r="4" fill={`hsl(${hue},45%,55%)`} />

@@ -81,7 +81,7 @@ function PlayerAvatar({
     >
       {imgSrc ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={imgSrc} alt={name} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+        <img src={imgSrc} alt={name} className="w-full h-full object-cover object-top" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
       ) : (
         <svg viewBox="0 0 24 24" fill="none" style={{ width: size * 0.65, height: size * 0.65 }}>
           <circle cx="12" cy="8" r="4" fill={`hsl(${hue},45%,55%)`} />
