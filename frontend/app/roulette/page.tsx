@@ -54,7 +54,7 @@ const GLOBAL_CSS = `
 @keyframes rl-shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-7px)} 40%{transform:translateX(7px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
 @keyframes rl-win-in { 0%{opacity:0;transform:scale(0.5) translateY(8px)} 60%{transform:scale(1.1) translateY(-2px)} 100%{opacity:1;transform:scale(1) translateY(0)} }
 @keyframes rl-edge-flash { 0%,100%{opacity:0} 10%,40%{opacity:1} }
-@keyframes rl-urgent { 0%,100%{transform:scale(1)} 50%{transform:scale(1.2)} }
+@keyframes rl-urgent { 0%,100%{opacity:1} 50%{opacity:0.6} }
 @keyframes rl-win-border { 0%,100%{box-shadow:0 0 12px var(--gz),inset 0 0 8px var(--gz)} 50%{box-shadow:0 0 40px var(--gz),inset 0 0 20px var(--gz)} }
 @keyframes rl-amount { 0%{opacity:0;transform:translateY(14px) scale(0.8)} 100%{opacity:1;transform:translateY(0) scale(1)} }
 @keyframes rl-item-pop { 0%{transform:scale(1)} 50%{transform:scale(1.15)} 100%{transform:scale(1)} }
@@ -65,7 +65,7 @@ const GLOBAL_CSS = `
 @keyframes rl-page-shake { 0%,100%{transform:translate(0,0)} 25%{transform:translate(-3px,2px)} 50%{transform:translate(3px,-2px)} 75%{transform:translate(-2px,-2px)} }
 .rl-winning     { animation:rl-win-border 0.65s ease-in-out infinite; }
 .rl-shaking     { animation:rl-shake 0.55s ease-in-out; }
-.rl-urgent      { animation:rl-urgent 0.35s ease-in-out infinite; }
+.rl-urgent      { animation:rl-urgent 1s ease-in-out infinite; }
 .rl-glow-p      { animation:rl-glow-pulse 0.8s ease-in-out infinite; }
 .rl-anticipate  { animation:rl-anticipate 0.5s ease-in-out infinite; }
 .rl-burst       { animation:rl-burst 0.85s cubic-bezier(0.16,0.84,0.44,1) forwards; }
@@ -83,6 +83,7 @@ export default function RoulettePage() {
   const [betAmount, setBetAmount] = useState('');
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [countdown, setCountdown] = useState(0);
+  const [countdownExact, setCountdownExact] = useState(0); // float for smooth arc
   const [phase, setPhase] = useState<'idle' | 'betting' | 'spinning' | 'result'>('idle');
   const [winZone, setWinZone] = useState<Zone | null>(null);
   const [userWon, setUserWon] = useState<boolean | null>(null);
@@ -300,13 +301,17 @@ export default function RoulettePage() {
   // Countdown
   useEffect(() => {
     if (countdownRef.current) clearInterval(countdownRef.current);
-    if (!round?.endsAt || round.status !== 'BETTING') { setCountdown(0); return; }
+    if (!round?.endsAt || round.status !== 'BETTING') { setCountdown(0); setCountdownExact(0); return; }
     // Capture the total window duration once per round for the arc fill ratio
-    const initial = Math.ceil((new Date(round.endsAt!).getTime() - Date.now()) / 1000);
+    const initial = Math.max(0, (new Date(round.endsAt!).getTime() - Date.now()) / 1000);
     if (initial > 0) countdownMaxRef.current = initial;
-    const tick = () => setCountdown(Math.max(0, Math.ceil((new Date(round.endsAt!).getTime() - Date.now()) / 1000)));
+    const tick = () => {
+      const remaining = Math.max(0, (new Date(round.endsAt!).getTime() - Date.now()) / 1000);
+      setCountdown(Math.ceil(remaining));    // integer for the number display
+      setCountdownExact(remaining);          // float for smooth arc
+    };
     tick();
-    countdownRef.current = setInterval(tick, 200);
+    countdownRef.current = setInterval(tick, 50); // 50ms → smooth arc
     return () => { if (countdownRef.current) clearInterval(countdownRef.current); };
   }, [round?.endsAt, round?.status]);
 
@@ -612,7 +617,7 @@ export default function RoulettePage() {
             <div className="h-16 flex items-center justify-center mb-3">
               {isBetting && countdown > 0 && (() => {
                 const max = countdownMaxRef.current;
-                const progress = max > 0 ? countdown / max : 0;
+                const progress = max > 0 ? countdownExact / max : 0;
                 const SIZE = 52;
                 const SW = 3;
                 const R = (SIZE - SW) / 2;
@@ -638,7 +643,7 @@ export default function RoulettePage() {
                         strokeDashoffset={dashOffset}
                         strokeLinecap="round"
                         style={{
-                          transition: 'stroke-dashoffset 0.22s linear, stroke 0.35s',
+                          transition: 'stroke 0.35s',
                           filter: `drop-shadow(0 0 5px ${glow})`,
                         }}
                       />
