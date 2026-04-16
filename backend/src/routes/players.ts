@@ -3,11 +3,38 @@ import axios from 'axios';
 import { prisma } from '../index';
 import logger from '../logger';
 
-// In-memory cache for proxied avatars (Buffer + content-type)
-const avatarCache = new Map<string, { data: Buffer; contentType: string; fetchedAt: number }>();
-const AVATAR_CACHE_TTL = 24 * 60 * 60 * 1000; // 24h
-// 1x1 transparent PNG — returned on error/missing avatar to prevent broken image icons
+// 1x1 transparent PNG — returned when no avatar exists
 const TRANSPARENT_PIXEL = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIABQABNjN9GQAAAAlwSFlzAAAWJQAAFiUBSVIk8AAAAA0lEQVQI12P4z8BQDwAEgAF/QualzQAAAABJRU5ErkJggg==', 'base64');
+// In-memory cache to avoid DB hits on every request
+const memCache = new Map<string, { data: Buffer; mime: string }>();
+
+/**
+ * Download an avatar image and store it in the DB (avatarBlob + avatarMime).
+ * Called at scrape time — the image is then served from DB forever.
+ */
+export async function downloadAndStoreAvatar(playerId: string, avatarUrl: string): Promise<void> {
+  try {
+    const imgUrl = avatarUrl.startsWith('http') ? avatarUrl : `https://liquipedia.net${avatarUrl}`;
+    const imgRes = await axios.get(imgUrl, {
+      responseType: 'arraybuffer',
+      timeout: 10000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Referer': 'https://liquipedia.net/',
+      },
+    });
+    const mime = imgRes.headers['content-type'] || 'image/jpeg';
+    const blob = Buffer.from(imgRes.data);
+    await prisma.player.update({
+      where: { id: playerId },
+      data: { avatarBlob: blob, avatarMime: mime },
+    });
+    memCache.set(playerId, { data: blob, mime });
+    logger.info(`[Avatar] Downloaded & stored ${(blob.length / 1024).toFixed(0)}KB for ${playerId}`);
+  } catch (err: any) {
+    logger.warn(`[Avatar] Failed to download image for ${playerId}: ${err.message}`);
+  }
+}
 
 const router = Router();
 
@@ -125,59 +152,70 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
-// GET /avatar/:playerId — proxy Liquipedia avatar to avoid hotlinking block
+// GET /avatar/:playerId — serve stored avatar from DB (no LP requests at runtime)
 router.get('/avatar/:playerId', async (req: Request, res: Response): Promise<void> => {
   try {
     const { playerId } = req.params;
 
-    // Check in-memory cache first
-    const cached = avatarCache.get(playerId);
-    if (cached && Date.now() - cached.fetchedAt < AVATAR_CACHE_TTL) {
-      res.set('Content-Type', cached.contentType);
-      res.set('Cache-Control', 'public, max-age=86400'); // browser caches 24h
+    // 1. Check in-memory cache (avoids DB hit on repeat loads)
+    const cached = memCache.get(playerId);
+    if (cached) {
+      res.set('Content-Type', cached.mime);
+      res.set('Cache-Control', 'public, max-age=604800'); // 7 days
       res.send(cached.data);
       return;
     }
 
+    // 2. Read from DB (avatarBlob persists across redeploys)
     const player = await prisma.player.findUnique({
       where: { id: playerId },
-      select: { avatarUrl: true },
+      select: { avatarBlob: true, avatarMime: true, avatarUrl: true },
     });
 
-    if (!player?.avatarUrl || player.avatarUrl === '') {
-      // Return 1x1 transparent PNG instead of text error — prevents broken image icon
-      res.set('Content-Type', 'image/png');
-      res.set('Cache-Control', 'public, max-age=3600');
-      res.send(TRANSPARENT_PIXEL);
+    if (player?.avatarBlob) {
+      const data = Buffer.from(player.avatarBlob);
+      const mime = player.avatarMime || 'image/jpeg';
+      memCache.set(playerId, { data, mime });
+      res.set('Content-Type', mime);
+      res.set('Cache-Control', 'public, max-age=604800');
+      res.send(data);
       return;
     }
 
-    const imgUrl = player.avatarUrl.startsWith('http')
-      ? player.avatarUrl
-      : `https://liquipedia.net${player.avatarUrl}`;
+    // 3. No blob yet — try live fetch from LP (one-time, then store in DB)
+    if (player?.avatarUrl && player.avatarUrl !== '') {
+      const imgUrl = player.avatarUrl.startsWith('http')
+        ? player.avatarUrl
+        : `https://liquipedia.net${player.avatarUrl}`;
+      const imgRes = await axios.get(imgUrl, {
+        responseType: 'arraybuffer',
+        timeout: 10000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Referer': 'https://liquipedia.net/',
+        },
+      });
+      const mime = imgRes.headers['content-type'] || 'image/jpeg';
+      const data = Buffer.from(imgRes.data);
+      // Store in DB so we never fetch from LP again
+      await prisma.player.update({
+        where: { id: playerId },
+        data: { avatarBlob: data, avatarMime: mime },
+      }).catch(() => {});
+      memCache.set(playerId, { data, mime });
+      res.set('Content-Type', mime);
+      res.set('Cache-Control', 'public, max-age=604800');
+      res.send(data);
+      return;
+    }
 
-    const imgRes = await axios.get(imgUrl, {
-      responseType: 'arraybuffer',
-      timeout: 10000,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Referer': 'https://liquipedia.net/',
-      },
-    });
-
-    const contentType = imgRes.headers['content-type'] || 'image/jpeg';
-    const data = Buffer.from(imgRes.data);
-
-    // Cache in memory
-    avatarCache.set(playerId, { data, contentType, fetchedAt: Date.now() });
-
-    res.set('Content-Type', contentType);
-    res.set('Cache-Control', 'public, max-age=86400');
-    res.send(data);
-  } catch (err) {
-    // Return transparent pixel on error — prevents broken image icon
+    // 4. No avatar at all — transparent pixel
     res.set('Content-Type', 'image/png');
-    res.set('Cache-Control', 'public, max-age=300'); // short cache on errors
+    res.set('Cache-Control', 'public, max-age=3600');
+    res.send(TRANSPARENT_PIXEL);
+  } catch (err) {
+    res.set('Content-Type', 'image/png');
+    res.set('Cache-Control', 'no-cache');
     res.send(TRANSPARENT_PIXEL);
   }
 });

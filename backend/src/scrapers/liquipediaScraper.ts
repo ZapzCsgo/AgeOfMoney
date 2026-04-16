@@ -71,7 +71,10 @@ export async function fetchPlayersAvatars(): Promise<void> {
 
     if (avatarUrl) {
       await prisma.player.update({ where: { id: player.id }, data: { avatarUrl } });
-      logger.info(`[Liquipedia] Avatar saved for ${player.name} (${usedWiki})`);
+      // Download image and store blob in DB — served from DB forever, no LP at runtime
+      const { downloadAndStoreAvatar } = require('../routes/players');
+      await downloadAndStoreAvatar(player.id, avatarUrl);
+      logger.info(`[Liquipedia] Avatar saved + downloaded for ${player.name} (${usedWiki})`);
       saved++;
     } else {
       await prisma.player.update({ where: { id: player.id }, data: { avatarUrl: '' } });

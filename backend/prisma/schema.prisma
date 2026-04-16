@@ -51,6 +51,8 @@ model Player {
   winrate          Float     @default(0.5)
   country          String?
   avatarUrl        String?
+  avatarBlob       Bytes?              // downloaded LP image — served by proxy, survives redeploys
+  avatarMime       String?             // e.g. "image/jpeg"
   totalGames       Int       @default(0)
   currentStreak    Int       @default(0)
   peakElo          Int?
