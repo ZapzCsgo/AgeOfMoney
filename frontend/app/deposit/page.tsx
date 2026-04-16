@@ -490,7 +490,9 @@ export default function DepositPage() {
                     ? t('deposit_select_crypto')
                     : <>
                         <ArrowDownToLine size={16} />
-                        {t('deposit_get_coins', { coins: totalCoins.toLocaleString('fr-FR'), amount: usdCost.toFixed(2) })}
+                        {totalCoins.toLocaleString('fr-FR')}
+                        <span style={{ fontSize: '1.3em', lineHeight: 1 }}>⚜</span>
+                        for ${usdCost.toFixed(2)}
                       </>
               }
             </button>
