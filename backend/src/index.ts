@@ -204,8 +204,29 @@ setTimeout(() => {
 setTimeout(() => startMatchVerifier(), 4000);
 setTimeout(() => startLiquipediaLiveScorer(), 6000);
 
-// Startup: fetch missing player avatars — run 90s after boot so the main
-// scrapers (Liquipedia matches, AoE calendar) finish first and don't compete.
+// Startup: migrate existing avatar URLs into blobs (one-time, 15s after boot).
+// Downloads images from LP one by one and stores in DB so the proxy never hits LP.
+setTimeout(async () => {
+  try {
+    const { downloadAndStoreAvatar } = await import('./routes/players');
+    const players = await prisma.player.findMany({
+      where: { avatarUrl: { not: '' }, avatarBlob: null, NOT: { avatarUrl: null } },
+      select: { id: true, name: true, avatarUrl: true },
+    });
+    if (players.length === 0) { logger.info('[Startup] All avatar blobs up to date'); return; }
+    logger.info(`[Startup] Downloading ${players.length} avatar blobs into DB...`);
+    let ok = 0;
+    for (const p of players) {
+      await downloadAndStoreAvatar(p.id, p.avatarUrl!);
+      ok++;
+      // 3s between downloads to stay under LP rate limit
+      await new Promise(r => setTimeout(r, 3000));
+    }
+    logger.info(`[Startup] Avatar blob migration done: ${ok}/${players.length}`);
+  } catch (err) { logger.warn('[Startup] Avatar blob migration failed:', err); }
+}, 15_000);
+
+// Startup: fetch NEW player avatars — run 90s after boot (after blob migration + scrapers).
 setTimeout(async () => {
   try {
     const { fetchPlayersAvatars } = await import('./scrapers/liquipediaScraper');
