@@ -206,16 +206,8 @@ setTimeout(() => startLiquipediaLiveScorer(), 6000);
 
 // Startup: fetch missing player avatars — run 90s after boot so the main
 // scrapers (Liquipedia matches, AoE calendar) finish first and don't compete.
-// Also resets '' sentinels back to null so players marked "no avatar" in a
-// previous run with broken selectors get re-checked with the fixed code.
 setTimeout(async () => {
   try {
-    // Reset any '' sentinels written by a previous run (selector fix re-check)
-    const { count } = await prisma.player.updateMany({
-      where: { avatarUrl: '' },
-      data: { avatarUrl: null },
-    });
-    if (count > 0) logger.info(`[Startup] Reset ${count} avatar sentinels for re-check`);
     const { fetchPlayersAvatars } = await import('./scrapers/liquipediaScraper');
     await fetchPlayersAvatars();
   } catch (err) { logger.warn('[Startup] Avatar fetch failed:', err); }

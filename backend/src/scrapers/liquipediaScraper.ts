@@ -133,7 +133,7 @@ async function fetchLiquipediaPlayerAvatar(slug: string, wiki = 'ageofempires'):
       const el = $(imgs.eq(i));
       const src = el.attr('src') || el.attr('data-src') || '';
       const w = parseInt(el.attr('width') || '0', 10);
-      if (w > 0 && w < 80) continue;
+      if (w > 0 && w < 150) continue;
       if (!src || src.includes('noimageyet') || src.includes('placeholder')) continue;
       if (src.includes('Flag_of_')) continue;
       if (src.includes('/images/') || src.includes('/commons/')) {
