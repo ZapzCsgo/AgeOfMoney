@@ -1,14 +1,25 @@
 'use client';
 
+import { useEffect } from 'react';
+
 export default function MaintenancePage() {
+  // Lock body scroll so the underlying layout can't be reached
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center"
-      style={{ background: '#07060f', color: '#e8e2f5', fontFamily: 'sans-serif' }}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 9999,
+        background: '#07060f', color: '#e8e2f5', fontFamily: 'sans-serif',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      }}
     >
-      <div className="text-center px-6 max-w-md">
+      <div style={{ textAlign: 'center', padding: '0 1.5rem', maxWidth: 400 }}>
         {/* Crown */}
-        <div className="mb-8">
+        <div style={{ marginBottom: '2rem' }}>
           <svg width="64" height="64" viewBox="0 0 24 24" fill="none" className="mx-auto">
             <path
               d="M3 17L5 9L9 13L12 7L15 13L19 9L21 17H3Z"
@@ -40,10 +51,8 @@ export default function MaintenancePage() {
         </p>
 
         <div
-          className="mt-8"
           style={{
-            width: 40,
-            height: 2,
+            width: 40, height: 2,
             background: 'linear-gradient(90deg, transparent, #d4a017, transparent)',
             margin: '2rem auto 0',
           }}
