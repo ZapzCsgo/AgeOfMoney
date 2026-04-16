@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Match } from '@/types';
 import { getMatches } from '@/lib/api';
-import { cn } from '@/lib/utils';
+import { cn, getAvatarSrc } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Clock, RefreshCw, AlertTriangle, Swords, ChevronRight, Zap, Search } from 'lucide-react';
 import { useT } from '@/lib/i18n';
@@ -31,20 +31,21 @@ const GAME_STYLE: Record<string, { bg: string; text: string; border: string }> =
   AoE1: { bg: 'rgba(251,146,60,0.10)', text: '#fb923c', border: 'rgba(251,146,60,0.40)' },
 };
 
-function PlayerAvatar({ name, avatarUrl, size = 44 }: { name: string; avatarUrl?: string | null; size?: number }) {
+function PlayerAvatar({ name, playerId, avatarUrl, size = 44 }: { name: string; playerId?: string; avatarUrl?: string | null; size?: number }) {
   const hue = name.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % 360;
+  const imgSrc = playerId ? getAvatarSrc(playerId, avatarUrl) : avatarUrl;
   return (
     <div
       className="rounded-full flex items-center justify-center relative overflow-hidden shrink-0"
       style={{
         width: size, height: size,
-        background: avatarUrl ? undefined : `radial-gradient(circle at 40% 35%, hsl(${hue},35%,22%) 0%, hsl(${hue},20%,10%) 100%)`,
+        background: imgSrc ? undefined : `radial-gradient(circle at 40% 35%, hsl(${hue},35%,22%) 0%, hsl(${hue},20%,10%) 100%)`,
         border: '2px solid rgba(212,160,23,0.15)',
       }}
     >
-      {avatarUrl ? (
+      {imgSrc ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />
+        <img src={imgSrc} alt={name} className="w-full h-full object-cover" />
       ) : (
         <svg viewBox="0 0 24 24" fill="none" style={{ width: size * 0.6, height: size * 0.6 }}>
           <circle cx="12" cy="8" r="4" fill={`hsl(${hue},45%,55%)`} />
@@ -88,7 +89,7 @@ function MatchRow({ match }: { match: Match }) {
             p2Won && 'opacity-35'
           )}
         >
-          <PlayerAvatar name={match.player1.name} avatarUrl={match.player1.avatarUrl} size={38} />
+          <PlayerAvatar name={match.player1.name} playerId={match.player1.id} avatarUrl={match.player1.avatarUrl} size={38} />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
               {p1Won && <span className="text-[11px]">👑</span>}
@@ -169,7 +170,7 @@ function MatchRow({ match }: { match: Match }) {
               <p className="text-[10px] text-[#6b6488] mt-1">—</p>
             )}
           </div>
-          <PlayerAvatar name={match.player2.name} avatarUrl={match.player2.avatarUrl} size={38} />
+          <PlayerAvatar name={match.player2.name} playerId={match.player2.id} avatarUrl={match.player2.avatarUrl} size={38} />
         </button>
 
         <ChevronRight size={13} className="shrink-0 text-[#3d3860] group-hover:text-[#d4a017] transition-colors" />

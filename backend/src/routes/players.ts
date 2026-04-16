@@ -1,6 +1,11 @@
 import { Router, Request, Response } from 'express';
+import axios from 'axios';
 import { prisma } from '../index';
 import logger from '../logger';
+
+// In-memory cache for proxied avatars (Buffer + content-type)
+const avatarCache = new Map<string, { data: Buffer; contentType: string; fetchedAt: number }>();
+const AVATAR_CACHE_TTL = 24 * 60 * 60 * 1000; // 24h
 
 const router = Router();
 
@@ -115,6 +120,57 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   } catch (error) {
     logger.error('GET /players/:id error:', error);
     res.status(500).json({ error: 'Failed to fetch player' });
+  }
+});
+
+// GET /avatar/:playerId — proxy Liquipedia avatar to avoid hotlinking block
+router.get('/avatar/:playerId', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { playerId } = req.params;
+
+    // Check in-memory cache first
+    const cached = avatarCache.get(playerId);
+    if (cached && Date.now() - cached.fetchedAt < AVATAR_CACHE_TTL) {
+      res.set('Content-Type', cached.contentType);
+      res.set('Cache-Control', 'public, max-age=86400'); // browser caches 24h
+      res.send(cached.data);
+      return;
+    }
+
+    const player = await prisma.player.findUnique({
+      where: { id: playerId },
+      select: { avatarUrl: true },
+    });
+
+    if (!player?.avatarUrl || player.avatarUrl === '') {
+      res.status(404).send('No avatar');
+      return;
+    }
+
+    const imgUrl = player.avatarUrl.startsWith('http')
+      ? player.avatarUrl
+      : `https://liquipedia.net${player.avatarUrl}`;
+
+    const imgRes = await axios.get(imgUrl, {
+      responseType: 'arraybuffer',
+      timeout: 10000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Referer': 'https://liquipedia.net/',
+      },
+    });
+
+    const contentType = imgRes.headers['content-type'] || 'image/jpeg';
+    const data = Buffer.from(imgRes.data);
+
+    // Cache in memory
+    avatarCache.set(playerId, { data, contentType, fetchedAt: Date.now() });
+
+    res.set('Content-Type', contentType);
+    res.set('Cache-Control', 'public, max-age=86400');
+    res.send(data);
+  } catch (err) {
+    res.status(404).send('Avatar not found');
   }
 });
 

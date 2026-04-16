@@ -11,7 +11,7 @@ import dynamic from 'next/dynamic';
 const Particles = dynamic(() => import('@/components/magicui/particles').then(m => ({ default: m.Particles })), { ssr: false });
 const GridPattern = dynamic(() => import('@/components/magicui/grid-pattern').then(m => ({ default: m.GridPattern })), { ssr: false });
 const Meteors = dynamic(() => import('@/components/magicui/meteors').then(m => ({ default: m.Meteors })), { ssr: false });
-import { cn } from '@/lib/utils';
+import { cn, getAvatarSrc } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Zap, Clock, TrendingUp, ChevronRight, Swords, Trophy,
@@ -47,17 +47,19 @@ function getTierClass(tier?: string): string {
 // ── Player Avatar ─────────────────────────────────────────────────────────────
 function PlayerAvatar({
   name,
+  playerId,
   avatarUrl,
   size = 56,
   selected = false,
 }: {
   name: string;
+  playerId?: string;
   avatarUrl?: string | null;
   size?: number;
   selected?: boolean;
 }) {
-  const initials = name.slice(0, 2).toUpperCase();
   const hue = name.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % 360;
+  const imgSrc = playerId ? getAvatarSrc(playerId, avatarUrl) : avatarUrl;
 
   return (
     <div
@@ -68,7 +70,7 @@ function PlayerAvatar({
       style={{
         width: size,
         height: size,
-        background: avatarUrl
+        background: imgSrc
           ? undefined
           : `radial-gradient(circle at 40% 35%, hsl(${hue},35%,22%) 0%, hsl(${hue},20%,10%) 100%)`,
         border: selected
@@ -77,9 +79,9 @@ function PlayerAvatar({
         boxShadow: selected ? `0 0 18px rgba(212,160,23,0.3)` : 'none',
       }}
     >
-      {avatarUrl ? (
+      {imgSrc ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />
+        <img src={imgSrc} alt={name} className="w-full h-full object-cover" />
       ) : (
         <svg viewBox="0 0 24 24" fill="none" style={{ width: size * 0.65, height: size * 0.65 }}>
           <circle cx="12" cy="8" r="4" fill={`hsl(${hue},45%,55%)`} />
@@ -340,6 +342,7 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
           <div className="relative">
             <PlayerAvatar
               name={match.player1.name}
+              playerId={match.player1.id}
               avatarUrl={match.player1.avatarUrl}
               size={56}
               selected={selected === 1}
@@ -445,6 +448,7 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
           <div className="relative">
             <PlayerAvatar
               name={match.player2.name}
+              playerId={match.player2.id}
               avatarUrl={match.player2.avatarUrl}
               size={56}
               selected={selected === 2}

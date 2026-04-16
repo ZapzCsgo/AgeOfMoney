@@ -15,7 +15,7 @@ import {
   ArrowLeft, Calendar, Zap, Lock, Tv, Shield, Swords, Receipt, TrendingUp, Clock,
 } from 'lucide-react';
 import Link from 'next/link';
-import { cn } from '@/lib/utils';
+import { cn, getAvatarSrc } from '@/lib/utils';
 
 // ── My bets on this match ─────────────────────────────────────────────────────
 function MyMatchBets({ matchId, match, refreshKey }: { matchId: string; match: Match; refreshKey: number }) {
@@ -125,20 +125,21 @@ function formatDuration(seconds?: number | null): string {
 }
 
 // ── Player avatar ─────────────────────────────────────────────────────────────
-function PlayerAvatar({ name, avatarUrl, size = 64 }: { name: string; avatarUrl?: string | null; size?: number }) {
+function PlayerAvatar({ name, playerId, avatarUrl, size = 64 }: { name: string; playerId?: string; avatarUrl?: string | null; size?: number }) {
   const hue = name.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
+  const imgSrc = playerId ? getAvatarSrc(playerId, avatarUrl) : avatarUrl;
   return (
     <div
       className="rounded-full overflow-hidden shrink-0 flex items-center justify-center"
       style={{
         width: size, height: size,
-        background: avatarUrl ? undefined : `radial-gradient(circle, hsl(${hue},30%,20%), hsl(${hue},20%,10%))`,
+        background: imgSrc ? undefined : `radial-gradient(circle, hsl(${hue},30%,20%), hsl(${hue},20%,10%))`,
         border: '2px solid rgba(212,160,23,0.3)',
       }}
     >
-      {avatarUrl ? (
+      {imgSrc ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />
+        <img src={imgSrc} alt={name} className="w-full h-full object-cover" />
       ) : (
         <svg viewBox="0 0 24 24" fill="none" style={{ width: size * 0.65, height: size * 0.65 }}>
           <circle cx="12" cy="8" r="4" fill={`hsl(${hue},45%,55%)`} />
@@ -509,7 +510,7 @@ export default function MatchPage() {
           <div className="flex items-center justify-between flex-wrap gap-4">
             {/* Player 1 */}
             <div className="flex items-center gap-4">
-              <PlayerAvatar name={match.player1.name} avatarUrl={match.player1.avatarUrl} size={64} />
+              <PlayerAvatar name={match.player1.name} playerId={match.player1.id} avatarUrl={match.player1.avatarUrl} size={64} />
               <div>
                 <h1 className="font-cinzel font-black text-xl sm:text-3xl text-aoe-parchment">{match.player1.name}</h1>
                 {gameOngoing && match.p1Civ && (
@@ -537,7 +538,7 @@ export default function MatchPage() {
 
             {/* Player 2 */}
             <div className="flex items-center gap-4 flex-row-reverse">
-              <PlayerAvatar name={match.player2.name} avatarUrl={match.player2.avatarUrl} size={64} />
+              <PlayerAvatar name={match.player2.name} playerId={match.player2.id} avatarUrl={match.player2.avatarUrl} size={64} />
               <div className="text-right">
                 <h1 className="font-cinzel font-black text-3xl text-aoe-parchment">{match.player2.name}</h1>
                 {gameOngoing && match.p2Civ && (

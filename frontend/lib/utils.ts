@@ -128,6 +128,14 @@ export function calculateROI(totalWagered: number, totalPayout: number): number 
   return ((totalPayout - totalWagered) / totalWagered) * 100;
 }
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+/** Build avatar src — proxy through backend to avoid Liquipedia hotlinking block. */
+export function getAvatarSrc(playerId: string, avatarUrl?: string | null): string | null {
+  if (!avatarUrl || avatarUrl === '') return null;
+  return `${API_BASE}/api/v1/players/avatar/${playerId}`;
+}
+
 export function isMatchBettable(
   status: string,
   betsClosedAt: string | null | undefined,
