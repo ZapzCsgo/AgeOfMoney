@@ -61,6 +61,7 @@ app.use(compression());
 // Middleware
 app.use(helmet({
   crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: 'cross-origin' }, // allow frontend (ageof.money) to load images from api.ageof.money
   contentSecurityPolicy: false, // API-only — no HTML served
   hsts: {
     maxAge: 63072000,
