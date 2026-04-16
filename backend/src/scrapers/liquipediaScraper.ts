@@ -46,15 +46,28 @@ export async function fetchPlayersAvatars(): Promise<void> {
   });
   logger.info(`[Liquipedia] Fetching avatars for ${players.length} unchecked players`);
   for (const player of players) {
-    const wiki = wikiForGame(player.game);
-    const avatarUrl = await fetchLiquipediaPlayerAvatar(player.liquipediaSlug, wiki);
+    const primaryWiki = wikiForGame(player.game);
+    // Try the game-specific wiki first, then fall back to the main ageofempires wiki.
+    // Many players (e.g. AoE2 pros) have their page on ageofempires even if primaryWiki differs.
+    const wikisToTry = primaryWiki === 'ageofempires'
+      ? ['ageofempires']
+      : [primaryWiki, 'ageofempires'];
+
+    let avatarUrl: string | null = null;
+    let usedWiki = primaryWiki;
+    for (const wiki of wikisToTry) {
+      avatarUrl = await fetchLiquipediaPlayerAvatar(player.liquipediaSlug, wiki);
+      if (avatarUrl) { usedWiki = wiki; break; }
+      await sleep(1500);
+    }
+
     if (avatarUrl) {
       await prisma.player.update({ where: { id: player.id }, data: { avatarUrl } });
-      logger.info(`[Liquipedia] Avatar saved for ${player.name} (${wiki})`);
+      logger.info(`[Liquipedia] Avatar saved for ${player.name} (${usedWiki})`);
     } else {
       // Mark as checked so we don't keep retrying on every run
       await prisma.player.update({ where: { id: player.id }, data: { avatarUrl: '' } });
-      logger.info(`[Liquipedia] No avatar for ${player.name} (${wiki}) — marked as checked`);
+      logger.info(`[Liquipedia] No avatar for ${player.name} (tried: ${wikisToTry.join(', ')}) — marked as checked`);
     }
     await sleep(2000);
   }
