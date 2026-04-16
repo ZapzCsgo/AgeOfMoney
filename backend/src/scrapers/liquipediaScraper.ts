@@ -85,23 +85,73 @@ export async function fetchPlayersAvatars(): Promise<void> {
 }
 
 /**
+ * Fetch a player's Liquipedia page rendered HTML via the MediaWiki API.
+ * Uses the same auth + gzip pattern as the live scorer — API key avoids rate limits.
+ * Returns rendered HTML or null.
+ */
+async function fetchPlayerPageHtml(slug: string, wiki: string): Promise<string | null> {
+  const apiUrl = `https://liquipedia.net/${wiki}/api.php`;
+  const LP_API_KEY = process.env.LIQUIPEDIA_API_KEY;
+  const headers: Record<string, string> = {
+    'User-Agent': 'AgeOfMoney/1.0 (contact@ageofmoney.com)',
+    'Accept-Encoding': 'gzip',
+  };
+  if (LP_API_KEY) headers.Authorization = `Apikey ${LP_API_KEY}`;
+
+  try {
+    const res = await axios.get(apiUrl, {
+      params: { action: 'parse', page: slug, format: 'json', prop: 'text' },
+      headers,
+      timeout: 15000,
+      responseType: 'arraybuffer',
+      decompress: false,
+    });
+
+    // Decompress gzip manually (same as live scorer)
+    let jsonStr: string;
+    try {
+      const zlib = require('zlib');
+      const { promisify } = require('util');
+      const gunzip = promisify(zlib.gunzip);
+      const decompressed = await gunzip(res.data as Buffer);
+      jsonStr = decompressed.toString('utf-8');
+    } catch {
+      jsonStr = Buffer.from(res.data as Buffer).toString('utf-8');
+    }
+
+    const parsed = JSON.parse(jsonStr);
+    const html = parsed?.parse?.text?.['*'];
+    if (html && typeof html === 'string' && html.length > 100) return html;
+    return null;
+  } catch (err: any) {
+    const status = err?.response?.status;
+    if (status === 429 || status === 503) {
+      logger.warn(`[Liquipedia] Avatar API ${status} for ${slug} on ${wiki}`);
+      return null;
+    }
+    // 404 = page doesn't exist on this wiki (normal for cross-wiki fallback)
+    if (status !== 404) {
+      logger.warn(`[Liquipedia] Avatar API error for ${slug} on ${wiki}: ${err.message}`);
+    }
+    return null;
+  }
+}
+
+/**
  * Scrape a player's Liquipedia page to get their profile photo.
- * Rate-limited — only call if avatarUrl is null.
- * Returns null if no image found (caller should store '' as sentinel).
+ * Uses the MediaWiki API directly with API key + gzip (same as live scorer).
+ * Returns the image URL, null (no image), or 'BLOCKED' (fetch failed).
  */
 async function fetchLiquipediaPlayerAvatar(slug: string, wiki = 'ageofempires'): Promise<string | null> {
-  // Use 'BLOCKED' sentinel to distinguish "couldn't fetch" from "fetched, no image"
   const { isLpBlocked } = require('../services/liquipediaLiveScorer');
   if (isLpBlocked()) return 'BLOCKED';
 
-  const html = await fetchHtml(`https://liquipedia.net/${wiki}/${encodeURIComponent(slug)}`);
-  if (!html) return 'BLOCKED'; // fetch failed — don't mark as checked
-  await sleep(1500);
+  const html = await fetchPlayerPageHtml(slug, wiki);
+  if (!html) return null; // page not found on this wiki — try next
   const $ = cheerio.load(html);
 
   // Strategy: find ANY <img> inside the infobox that's large enough to be a player
-  // photo (width >= 80px). Flags/icons are 16-32px. This is more robust than brittle
-  // CSS class selectors that change across Liquipedia wikis.
+  // photo (width >= 80px). Flags/icons are 16-32px.
   const infobox = $('.fo-nttax-infobox').first();
   if (infobox.length) {
     const imgs = infobox.find('img');
@@ -109,11 +159,9 @@ async function fetchLiquipediaPlayerAvatar(slug: string, wiki = 'ageofempires'):
       const el = $(imgs.eq(i));
       const src = el.attr('src') || el.attr('data-src') || '';
       const w = parseInt(el.attr('width') || '0', 10);
-      // Skip tiny images (flags, icons, logos) and placeholders
       if (w > 0 && w < 80) continue;
       if (!src || src.includes('noimageyet') || src.includes('placeholder')) continue;
       if (src.includes('Flag_of_')) continue;
-      // Heuristic: player photos use /commons/images/ or /ageofempires*/images/
       if (src.includes('/images/') || src.includes('/commons/')) {
         logger.info(`[Liquipedia] Found avatar for ${slug}: ${src.slice(0, 80)}... (w=${w})`);
         return src.startsWith('http') ? src : `https://liquipedia.net${src}`;
@@ -121,17 +169,13 @@ async function fetchLiquipediaPlayerAvatar(slug: string, wiki = 'ageofempires'):
     }
   }
 
-  // Fallback: try direct selectors in case infobox structure changed
-  const selectors = [
-    '.infobox-image-wrapper .infobox-image img',
-    '.infobox-image-wrapper img',
-    '.infobox-image img',
-  ];
-  for (const sel of selectors) {
+  // Fallback: direct selectors
+  for (const sel of ['.infobox-image-wrapper img', '.infobox-image img']) {
     const el = $(sel).first();
     if (!el.length) continue;
     const src = el.attr('src') || el.attr('data-src') || '';
     if (!src || src.includes('noimageyet') || src.includes('placeholder')) continue;
+    logger.info(`[Liquipedia] Found avatar (fallback) for ${slug}: ${src.slice(0, 80)}...`);
     return src.startsWith('http') ? src : `https://liquipedia.net${src}`;
   }
 
