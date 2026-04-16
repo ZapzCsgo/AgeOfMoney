@@ -42,7 +42,7 @@ export async function fetchPlayersAvatars(): Promise<void> {
   const players = await prisma.player.findMany({
     where: { avatarUrl: null },
     select: { id: true, name: true, liquipediaSlug: true, game: true },
-    take: 50,
+    take: 20,
   });
   logger.info(`[Liquipedia] Fetching avatars for ${players.length} unchecked players`);
   let saved = 0;
@@ -60,7 +60,7 @@ export async function fetchPlayersAvatars(): Promise<void> {
       const result = await fetchLiquipediaPlayerAvatar(player.liquipediaSlug, wiki);
       if (result === 'BLOCKED') { blocked = true; break; }
       if (result) { avatarUrl = result; usedWiki = wiki; break; }
-      await sleep(1500);
+      await sleep(5000); // 5s between wiki attempts
     }
 
     // If Liquipedia blocked us, stop the entire batch — don't mark remaining as checked
@@ -74,12 +74,12 @@ export async function fetchPlayersAvatars(): Promise<void> {
       logger.info(`[Liquipedia] Avatar saved for ${player.name} (${usedWiki})`);
       saved++;
     } else {
-      // Mark as checked so we don't keep retrying on every run
       await prisma.player.update({ where: { id: player.id }, data: { avatarUrl: '' } });
       logger.info(`[Liquipedia] No avatar for ${player.name} (tried: ${wikisToTry.join(', ')}) — marked as checked`);
       checked++;
     }
-    await sleep(2000);
+    // 8s between players — LP rate limit is ~2 req/min without API key
+    await sleep(8000);
   }
   logger.info(`[Liquipedia] Avatar batch done: ${saved} saved, ${checked} checked`);
 }
