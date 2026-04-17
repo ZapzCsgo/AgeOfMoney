@@ -216,7 +216,7 @@ export default function TournamentsPage() {
   const [tournaments, setTournaments] = useState<(Tournament & { _count?: { matches: number } })[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'upcoming'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'upcoming' | 'finished'>('all');
   const [gameFilter, setGameFilter] = useState<string>('all');
   const [search, setSearch]   = useState('');
 
@@ -259,10 +259,16 @@ export default function TournamentsPage() {
   const isEnded = (t: Tournament) => !!(t.endDate && new Date(t.endDate) < now);
   const isReallyActive = (t: Tournament) => t.isActive && !isEnded(t);
 
+  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+  const isRecentlyFinished = (t: Tournament) => isEnded(t) && t.endDate && new Date(t.endDate) >= twoHoursAgo;
+
   const filtered = processed
     .filter(t => {
       if (statusFilter === 'active') return isReallyActive(t) && new Date(t.startDate) <= now;
       if (statusFilter === 'upcoming') return new Date(t.startDate) > now && !isEnded(t);
+      if (statusFilter === 'finished') return isEnded(t);
+      // "all" — hide finished tournaments older than 2h
+      if (isEnded(t) && !isRecentlyFinished(t)) return false;
       return true;
     })
     .filter(t => gameFilter === 'all' || t.game === gameFilter)
@@ -359,6 +365,7 @@ export default function TournamentsPage() {
               { id: 'all', label: t('matches_filter_all') },
               { id: 'active', label: t('tourn_active') },
               { id: 'upcoming', label: t('tourn_upcoming') },
+              { id: 'finished', label: t('matches_filter_done') },
             ] as const).map(f => (
               <button
                 key={f.id}
@@ -406,7 +413,7 @@ export default function TournamentsPage() {
           <div className="space-y-6">
             {/* Ongoing section */}
             {(() => {
-              const ongoing = filtered.filter(t => t.isActive && new Date(t.startDate) <= now);
+              const ongoing = filtered.filter(t => isReallyActive(t) && new Date(t.startDate) <= now);
               if (ongoing.length === 0) return null;
               return (
                 <div>
@@ -424,7 +431,7 @@ export default function TournamentsPage() {
             })()}
             {/* Upcoming section */}
             {(() => {
-              const upcoming = filtered.filter(t => new Date(t.startDate) > now);
+              const upcoming = filtered.filter(t => new Date(t.startDate) > now && !isEnded(t));
               if (upcoming.length === 0) return null;
               return (
                 <div>
@@ -442,7 +449,7 @@ export default function TournamentsPage() {
             })()}
             {/* Finished section */}
             {(() => {
-              const finished = filtered.filter(t => !t.isActive && new Date(t.startDate) <= now);
+              const finished = filtered.filter(t => isEnded(t) || (!isReallyActive(t) && new Date(t.startDate) <= now));
               if (finished.length === 0) return null;
               return (
                 <div>
