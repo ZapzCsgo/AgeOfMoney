@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useT } from '@/lib/i18n';
 import { Match, Tournament } from '@/types';
-import { getMatches, placeBet, getTournaments } from '@/lib/api';
+import { getMatches, placeBet, getTournaments, setAuthToken } from '@/lib/api';
 import dynamic from 'next/dynamic';
 const Particles = dynamic(() => import('@/components/magicui/particles').then(m => ({ default: m.Particles })), { ssr: false });
 const GridPattern = dynamic(() => import('@/components/magicui/grid-pattern').then(m => ({ default: m.GridPattern })), { ssr: false });
@@ -115,6 +115,7 @@ function QuickBetBar({
 
   const handleBet = async () => {
     if (!session) return;
+    if (session.user?.accessToken) setAuthToken(session.user.accessToken);
     setLoading(true);
     try {
       await placeBet(match.id, amount, selectedPlayer);
