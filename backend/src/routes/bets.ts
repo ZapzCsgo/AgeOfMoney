@@ -115,7 +115,7 @@ const EXACT_SCORE_MARGIN = 0.15; // 15% house edge — esport industry standard
 // already enforced in exactScoreModel.ts.
 const EXACT_SCORE_MAX_ODDS = 15;
 
-type ScoreEntry = { score: string; player: 1|2; loserGames: number; odds: number };
+type ScoreEntry = { score: string; player: 0|1|2; loserGames: number; odds: number };
 
 /**
  * Build the theoretical (binomial) probability distribution from the match
@@ -132,6 +132,10 @@ function theoreticalDistribution(odds1: number, odds2: number, format: string): 
   if (format === 'BO1') {
     dist['1-0'] = p;
     dist['0-1'] = q;
+  } else if (format === 'BO2') {
+    dist['2-0'] = p*p;
+    dist['1-1'] = 2*p*q;
+    dist['0-2'] = q*q;
   } else if (format === 'BO3') {
     dist['2-0'] = p*p;
     dist['2-1'] = 2*p*p*q;
@@ -162,7 +166,7 @@ function distributionToEntries(dist: ScoreDistribution): ScoreEntry[] {
   const entries: ScoreEntry[] = [];
   for (const [score, prob] of Object.entries(dist)) {
     const [a, b] = score.split('-').map(Number);
-    const player: 1|2 = a > b ? 1 : 2;
+    const player: 0|1|2 = a === b ? 0 : a > b ? 1 : 2;
     const loserGames = Math.min(a, b);
     // Cap the maximum payout so a single rare-score bet can't blow up the book
     const raw = prob > 0 ? (1/prob) * (1 - EXACT_SCORE_MARGIN) : EXACT_SCORE_MAX_ODDS;
@@ -199,7 +203,7 @@ async function exactScoreOddsBlended(
   format: string,
   matchTier?: string,
 ): Promise<ScoreEntry[]> {
-  if (format === 'BO1') return exactScoreOdds(odds1, odds2, format);
+  if (format === 'BO1' || format === 'BO2') return exactScoreOdds(odds1, odds2, format);
   try {
     const theoretical = theoreticalDistribution(odds1, odds2, format);
     const blended = await buildBlendedDistribution(
@@ -225,7 +229,7 @@ router.get('/exact-scores/:matchId', async (req: Request, res: Response): Promis
       },
     });
     if (!match) { res.status(404).json({ error: 'Match not found' }); return; }
-    if (match.format === 'BO1') { res.json({ data: [] }); return; } // no exact score for BO1
+    if (match.format === 'BO1') { res.json({ data: [] }); return; }
     const scores = await exactScoreOddsBlended(
       match.id, match.player1Id, match.player2Id, match.odds1, match.odds2, match.format,
       match.tournament?.tier ?? undefined,

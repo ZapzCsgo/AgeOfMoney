@@ -187,7 +187,7 @@ function BoHistoryCard({ bo, p1Name, p2Name, p1Id }: {
 }
 
 // ── Exact Score Bets ──────────────────────────────────────────────────────────
-interface ExactScoreEntry { score: string; player: 1|2; loserGames: number; odds: number; }
+interface ExactScoreEntry { score: string; player: 0|1|2; loserGames: number; odds: number; }
 
 function ExactScoreBets({ match, onBetPlaced }: { match: Match; onBetPlaced: () => void }) {
   const { data: session } = useSession();
@@ -223,6 +223,8 @@ function ExactScoreBets({ match, onBetPlaced }: { match: Match; onBetPlaced: () 
   if (scores.length === 0) return null;
   const p1Scores = scores.filter(s => s.player === 1);
   const p2Scores = scores.filter(s => s.player === 2);
+  const drawScores = scores.filter(s => s.player === 0);
+  const hasDraw = drawScores.length > 0;
 
   return (
     <div className="aoe-card p-4 space-y-3">
@@ -230,7 +232,7 @@ function ExactScoreBets({ match, onBetPlaced }: { match: Match; onBetPlaced: () 
         <Receipt size={14} className="text-aoe-gold" />
         <h3 className="font-cinzel font-bold text-sm text-aoe-gold tracking-wider uppercase">Score Exact</h3>
       </div>
-      <div className="grid grid-cols-2 gap-2">
+      <div className={`grid gap-2 ${hasDraw ? 'grid-cols-3' : 'grid-cols-2'}`}>
         {/* P1 scores */}
         <div className="space-y-1.5">
           <p className="text-[10px] font-cinzel text-aoe-parchment-muted text-center mb-2 truncate">{match.player1.name}</p>
@@ -243,12 +245,26 @@ function ExactScoreBets({ match, onBetPlaced }: { match: Match; onBetPlaced: () 
             </button>
           ))}
         </div>
+        {/* Draw scores (BO2) */}
+        {hasDraw && (
+          <div className="space-y-1.5">
+            <p className="text-[10px] font-cinzel text-aoe-parchment-muted text-center mb-2">Draw</p>
+            {drawScores.map(s => (
+              <button key={s.score} onClick={() => setSelected(sel => sel?.score === s.score ? null : s)}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-[12px] font-cinzel font-bold transition-all"
+                style={{ background: selected?.score === s.score ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.03)', border: `1px solid ${selected?.score === s.score ? '#10b981' : '#1e1a30'}` }}>
+                <span className={selected?.score === s.score ? 'text-emerald-400' : 'text-aoe-parchment'}>{s.score}</span>
+                <span className="text-aoe-gold">×{s.odds}</span>
+              </button>
+            ))}
+          </div>
+        )}
         {/* P2 scores */}
         <div className="space-y-1.5">
           <p className="text-[10px] font-cinzel text-aoe-parchment-muted text-center mb-2 truncate">{match.player2.name}</p>
           {p2Scores.map(s => (
             <button key={s.score} onClick={() => setSelected(sel => sel?.score === s.score ? null : s)}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-[12px] font-cinzel font-bold transition-all`}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-[12px] font-cinzel font-bold transition-all"
               style={{ background: selected?.score === s.score ? 'rgba(41,128,185,0.15)' : 'rgba(255,255,255,0.03)', border: `1px solid ${selected?.score === s.score ? '#2980b9' : '#1e1a30'}` }}>
               <span className={selected?.score === s.score ? 'text-blue-300' : 'text-aoe-parchment'}>{s.score}</span>
               <span className="text-aoe-gold">×{s.odds}</span>
@@ -622,7 +638,7 @@ export default function MatchPage() {
           {/* Right column */}
           <div className="space-y-4">
             <BetForm match={match} onBetPlaced={() => { refreshMatch(); setBetRefreshKey(k => k + 1); }} initialPlayer={initialPlayer} />
-            {match.status === 'UPCOMING' && match.betsOpen && match.format !== 'BO1' && match.format !== 'BO2' && (
+            {match.status === 'UPCOMING' && match.betsOpen && match.format !== 'BO1' && (
               <ExactScoreBets match={match} onBetPlaced={() => { refreshMatch(); setBetRefreshKey(k => k + 1); }} />
             )}
             <MyMatchBets matchId={match.id} match={match} refreshKey={betRefreshKey} />
