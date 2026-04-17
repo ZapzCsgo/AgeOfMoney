@@ -101,16 +101,17 @@ function TournamentCard({ tournament }: { tournament: Tournament & { _count?: { 
     }
   };
 
-  const isActive  = tournament.isActive;
   const hasStarted = new Date(tournament.startDate) <= new Date();
+  const endDatePassed = tournament.endDate && new Date(tournament.endDate) < new Date();
+  const isActive  = tournament.isActive && !endDatePassed;
   const matchCount = tournament._count?.matches ?? 0;
   const tier = tournament.tier ?? 'C';
   const tierStyle = TIER_STYLE[tier] ?? TIER_STYLE.C;
 
   // Visual status
   const isOngoing = isActive && hasStarted;
-  const isUpcoming = !hasStarted;
-  const isFinished = !isActive || (hasStarted && !isOngoing);
+  const isUpcoming = !hasStarted && !endDatePassed;
+  const isFinished = endDatePassed || (!isActive && hasStarted);
   const statusColor = isOngoing ? '#10b981' : isUpcoming ? '#60a5fa' : '#3d3860';
 
   return (
@@ -255,10 +256,13 @@ export default function TournamentsPage() {
 
   // Apply filters + sort: ongoing first, then upcoming, then finished
   const now = new Date();
+  const isEnded = (t: Tournament) => !!(t.endDate && new Date(t.endDate) < now);
+  const isReallyActive = (t: Tournament) => t.isActive && !isEnded(t);
+
   const filtered = processed
     .filter(t => {
-      if (statusFilter === 'active') return t.isActive && new Date(t.startDate) <= now;
-      if (statusFilter === 'upcoming') return new Date(t.startDate) > now;
+      if (statusFilter === 'active') return isReallyActive(t) && new Date(t.startDate) <= now;
+      if (statusFilter === 'upcoming') return new Date(t.startDate) > now && !isEnded(t);
       return true;
     })
     .filter(t => gameFilter === 'all' || t.game === gameFilter)
@@ -266,20 +270,19 @@ export default function TournamentsPage() {
     .sort((a, b) => {
       const aStarted = new Date(a.startDate) <= now;
       const bStarted = new Date(b.startDate) <= now;
-      const aOngoing = a.isActive && aStarted;
-      const bOngoing = b.isActive && bStarted;
-      const aUpcoming = !aStarted;
-      const bUpcoming = !bStarted;
+      const aOngoing = isReallyActive(a) && aStarted;
+      const bOngoing = isReallyActive(b) && bStarted;
+      const aUpcoming = !aStarted && !isEnded(a);
+      const bUpcoming = !bStarted && !isEnded(b);
       // Ongoing first, then upcoming, then finished
       const aOrder = aOngoing ? 0 : aUpcoming ? 1 : 2;
       const bOrder = bOngoing ? 0 : bUpcoming ? 1 : 2;
       if (aOrder !== bOrder) return aOrder - bOrder;
-      // Within same group: sort by start date (soonest first for upcoming, most recent first for ongoing)
       return new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
     });
 
-  const activeCount  = processed.filter(t => t.isActive && new Date(t.startDate) <= new Date()).length;
-  const upcomingCount = processed.filter(t => new Date(t.startDate) > new Date()).length;
+  const activeCount  = processed.filter(t => isReallyActive(t) && new Date(t.startDate) <= now).length;
+  const upcomingCount = processed.filter(t => new Date(t.startDate) > now && !isEnded(t)).length;
 
   // Available games (only show tabs for games that have tournaments)
   const availableGames = new Set(processed.map(t => t.game).filter(Boolean));
