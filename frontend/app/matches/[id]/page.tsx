@@ -622,7 +622,7 @@ export default function MatchPage() {
           {/* Right column */}
           <div className="space-y-4">
             <BetForm match={match} onBetPlaced={() => { refreshMatch(); setBetRefreshKey(k => k + 1); }} initialPlayer={initialPlayer} />
-            {match.status === 'UPCOMING' && match.betsOpen && match.format !== 'BO1' && (
+            {match.status === 'UPCOMING' && match.betsOpen && match.format !== 'BO1' && match.format !== 'BO2' && (
               <ExactScoreBets match={match} onBetPlaced={() => { refreshMatch(); setBetRefreshKey(k => k + 1); }} />
             )}
             <MyMatchBets matchId={match.id} match={match} refreshKey={betRefreshKey} />

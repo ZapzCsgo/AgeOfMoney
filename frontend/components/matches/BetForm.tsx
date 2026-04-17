@@ -221,7 +221,7 @@ export function BetForm({ match, onBetPlaced, initialPlayer = null }: BetFormPro
           </div>
 
           {/* Potential gain display */}
-          {selectedPlayer && amount >= 1 && (
+          {selectedPlayer !== null && amount >= 1 && (
             <div className="aoe-card p-3 space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-aoe-parchment-dim text-xs">{t('bet_stake')}</span>
