@@ -77,7 +77,7 @@ function CancelOrWait({ gameId, createdAt, onCancel }: { gameId: string; created
   return (
     <div className="w-full py-2 rounded-lg text-[11px] text-center" style={{ color: '#4a4468' }}>
       <Clock size={10} className="inline mr-1 -mt-px" />
-      Cancel in {min}:{sec.toString().padStart(2, '0')}
+      You can cancel in {min}:{sec.toString().padStart(2, '0')}
     </div>
   );
 }
