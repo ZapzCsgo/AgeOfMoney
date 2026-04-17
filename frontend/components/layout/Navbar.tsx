@@ -56,6 +56,12 @@ export function Navbar() {
   const { t } = useT();
   const { notifications, unreadCount, markAllRead } = useNotifications();
 
+  // Close dropdowns on route change
+  useEffect(() => {
+    setNotifOpen(false);
+    setDropdownOpen(false);
+  }, [pathname]);
+
   // Count-up animation for coin increases — 2.5s ease-out from old to new value
   const rampTo = (from: number, to: number) => {
     if (rampRaf.current) cancelAnimationFrame(rampRaf.current);
