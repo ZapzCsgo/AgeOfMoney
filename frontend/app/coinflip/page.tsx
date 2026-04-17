@@ -231,9 +231,8 @@ export default function CoinFlipPage() {
     try {
       await apiClient.post(`/coinflip/${gameId}/cancel`);
       setGames((prev) => prev.filter((g) => g.id !== gameId));
-    } catch (e: unknown) {
-      const err = e as { response?: { data?: { error?: string } }; message?: string };
-      showMsg('error', err?.response?.data?.error ?? err?.message ?? t('common_error'));
+    } catch {
+      // silent — the timer already tells the user when they can cancel
     }
   }
 
