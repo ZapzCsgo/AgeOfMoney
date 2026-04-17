@@ -465,7 +465,8 @@ function parseMatchBlocks(html: string, wikiPath: string, game: string): Array<{
       const player2Slug = decodeURIComponent(rightHref.replace(slugPrefix, '').split('?')[0]);
 
       if (!player1 || !player2 || player1 === player2) return;
-      if (player1.toLowerCase() === 'tbd' || player2.toLowerCase() === 'tbd') return;
+      if (/^(tbd|tba|tbn|bye|n\/a|winner|loser)$/i.test(player1) || /^(tbd|tba|tbn|bye|n\/a|winner|loser)$/i.test(player2)) return;
+      if (/^(winner|loser)\s+(of|from)/i.test(player1) || /^(winner|loser)\s+(of|from)/i.test(player2)) return;
       if (leftEl.find('.block-player').length > 1 || rightEl.find('.block-player').length > 1) return;
       // Skip team org names: "Team X", "X Esports", "X Esports A/B", "Old School B", "Rulers of Rome A"
       const teamPattern = /^team\s+|esports?\s*[ab]?$|\s+esports?$|esports?\s+[ab]$|\s+[AB]$/;
@@ -538,6 +539,17 @@ export async function scrapeUpcomingMatches(): Promise<void> {
     // ── Persist to DB ──────────────────────────────────────────────────────────
     // Cache tournament info fetches to avoid repeated requests for the same URL
     const tournInfoCache = new Map<string, { twitchChannel: string | null; tier: string | null; gameFromInfobox: string | null }>();
+
+    // Track all player slug pairs seen per tournament URL — used to clean up
+    // ghost matches that are no longer on the Liquipedia page.
+    const scrapedSlugPairs = new Map<string, Set<string>>(); // tournamentUrl → Set<"slug1:slug2">
+    for (const m of allMatches) {
+      const key = m.tournamentUrl.split('#')[0];
+      if (!scrapedSlugPairs.has(key)) scrapedSlugPairs.set(key, new Set());
+      // Store both orderings so lookup is direction-agnostic
+      scrapedSlugPairs.get(key)!.add(`${m.player1Slug}::${m.player2Slug}`);
+      scrapedSlugPairs.get(key)!.add(`${m.player2Slug}::${m.player1Slug}`);
+    }
 
     for (const m of allMatches) {
       try {
@@ -815,6 +827,63 @@ export async function scrapeUpcomingMatches(): Promise<void> {
         await sleep(200);
       } catch (err) {
         logger.error(`[Liquipedia] Failed to save match ${m.player1} vs ${m.player2}:`, err);
+      }
+    }
+
+    // ── Ghost match cleanup ────────────────────────────────────────────────────
+    // If a LIVE/UPCOMING match exists in our DB for a tournament we just scraped,
+    // but the player pair is no longer on the Liquipedia page, the match was
+    // created from stale/erroneous data. Cancel it and refund all bets.
+    if (scrapedSlugPairs.size > 0) {
+      const { refundBets } = await import('../services/betService');
+      const { getIo } = require('../socket');
+
+      // Get all tournaments we just scraped (by LP URL)
+      const scrapedTournUrls = [...scrapedSlugPairs.keys()];
+      const scrapedTournaments = await prisma.tournament.findMany({
+        where: { liquipediaUrl: { in: scrapedTournUrls } },
+        select: { id: true, liquipediaUrl: true },
+      });
+      const tournIdToUrl = new Map(scrapedTournaments.map(t => [t.id, t.liquipediaUrl]));
+
+      if (scrapedTournaments.length > 0) {
+        const activeMatches = await prisma.match.findMany({
+          where: {
+            tournamentId: { in: scrapedTournaments.map(t => t.id) },
+            status: { in: ['LIVE', 'UPCOMING'] },
+            winnerId: null,
+          },
+          select: {
+            id: true, tournamentId: true, status: true,
+            player1: { select: { name: true, liquipediaSlug: true } },
+            player2: { select: { name: true, liquipediaSlug: true } },
+          },
+        });
+
+        let cancelled = 0;
+        for (const match of activeMatches) {
+          const tournUrl = tournIdToUrl.get(match.tournamentId!);
+          if (!tournUrl) continue;
+          const slugPairs = scrapedSlugPairs.get(tournUrl);
+          if (!slugPairs) continue;
+
+          const pairKey = `${match.player1.liquipediaSlug}::${match.player2.liquipediaSlug}`;
+          if (slugPairs.has(pairKey)) continue; // still on LP → keep it
+
+          // Match no longer on Liquipedia → cancel + refund
+          logger.warn(`[Liquipedia] Ghost match detected: ${match.player1.name} vs ${match.player2.name} (${match.id}) — no longer on LP page, cancelling + refund`);
+          await prisma.match.update({
+            where: { id: match.id },
+            data: { status: 'CANCELLED', betsOpen: false },
+          });
+          await refundBets(match.id, `Match annulé — données Liquipedia incorrectes (${match.player1.name} vs ${match.player2.name} n'existe pas sur la page du tournoi)`);
+          const io = getIo();
+          io?.emit('matchUpdate', { matchId: match.id, status: 'CANCELLED' });
+          cancelled++;
+        }
+        if (cancelled > 0) {
+          logger.info(`[Liquipedia] Cleaned up ${cancelled} ghost match(es)`);
+        }
       }
     }
 
