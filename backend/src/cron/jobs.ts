@@ -90,6 +90,30 @@ export function initCronJobs(): void {
     }
   });
 
+  // ── Every 10 minutes: deactivate tournaments with all matches completed ────
+  cron.schedule('*/10 * * * *', async () => {
+    try {
+      // Find active tournaments where ALL matches are COMPLETED/CANCELLED (none UPCOMING/LIVE)
+      const activeTournaments = await prisma.tournament.findMany({
+        where: { isActive: true },
+        select: {
+          id: true, name: true,
+          matches: { select: { status: true }, where: { status: { in: ['UPCOMING', 'LIVE'] } } },
+          _count: { select: { matches: true } },
+        },
+      });
+      for (const t of activeTournaments) {
+        // Only deactivate if tournament has matches and none are active
+        if (t._count.matches > 0 && t.matches.length === 0) {
+          await prisma.tournament.update({ where: { id: t.id }, data: { isActive: false } });
+          logger.info(`[Tick] Tournament "${t.name}" → isActive=false (all ${t._count.matches} matches completed)`);
+        }
+      }
+    } catch (err) {
+      logger.error('[CRON] tournament deactivation failed:', err);
+    }
+  });
+
   // ── Every 10 minutes: distribute payouts ──────────────────────────────────
   cron.schedule('*/10 * * * *', async () => {
     try {

@@ -116,7 +116,7 @@ function TournamentCard({ tournament }: { tournament: Tournament & { _count?: { 
 
   return (
     <div
-      className="rounded-lg border overflow-hidden transition-colors relative"
+      className={cn("rounded-lg border overflow-hidden transition-colors relative", expanded && "lg:col-span-2")}
       style={{
         background: isFinished ? '#0a0918' : '#0d0b1a',
         borderColor: isOngoing ? statusColor + '50' : isUpcoming ? '#1e1a30' : '#151325',
