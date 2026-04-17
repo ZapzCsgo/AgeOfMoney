@@ -67,17 +67,20 @@ const CACHE_TTL = 25_000; // 25s — reuse within a poll cycle (min interval is 
 // gracefully without spamming the logs every 5s.
 let lpBlockedUntil = 0;
 let consecutive429s = 0;
+let consecutiveNetErrors = 0;
 const BACKOFF_MIN = [2, 5, 10, 20, 30, 60]; // minutes per consecutive failure (start at 2min)
+const NET_ERROR_THRESHOLD = 5; // trip circuit breaker after this many consecutive network errors
 
 /** Check if Liquipedia is currently blocked by the circuit breaker. */
 export function isLpBlocked(): boolean { return Date.now() < lpBlockedUntil; }
 
-export function tripCircuitBreaker(): void {
+export function tripCircuitBreaker(reason: '429' | 'network' = '429'): void {
   consecutive429s++;
+  consecutiveNetErrors = 0; // reset net counter when breaker trips
   const idx = Math.min(consecutive429s - 1, BACKOFF_MIN.length - 1);
   const minutes = BACKOFF_MIN[idx];
   lpBlockedUntil = Date.now() + minutes * 60_000;
-  logger.warn(`[LPScorer] 429 from Liquipedia (${consecutive429s} consecutive) — circuit breaker open for ${minutes}min, no more LP requests until ${new Date(lpBlockedUntil).toISOString()}`);
+  logger.warn(`[LPScorer] ${reason === '429' ? '429' : 'Too many network errors'} from Liquipedia (${consecutive429s} consecutive) — circuit breaker open for ${minutes}min, no more LP requests until ${new Date(lpBlockedUntil).toISOString()}`);
 
   // Auto-unblock: if 2captcha key is configured, attempt to solve the
   // reCAPTCHA and unblock the IP automatically. The function verifies with
@@ -277,6 +280,7 @@ export function resetCircuitBreaker(): void {
     logger.info('[LPScorer] Liquipedia request succeeded — circuit breaker reset');
   }
   consecutive429s = 0;
+  consecutiveNetErrors = 0;
   lpBlockedUntil = 0;
 }
 
@@ -294,8 +298,18 @@ lpLimiter.on('failed', async (error, jobInfo) => {
   // NEVER retry on 429 — retrying a rate-limited request just makes the IP
   // ban last longer. Only retry transient network errors.
   if (axios.isAxiosError(error) && error.response?.status === 429) return null;
+
+  // Track consecutive network errors — if LP is resetting connections (not 429),
+  // we still need to back off. Trip the circuit breaker after N consecutive failures.
+  consecutiveNetErrors++;
+  if (consecutiveNetErrors >= NET_ERROR_THRESHOLD) {
+    tripCircuitBreaker('network');
+    return null; // don't retry, breaker is open
+  }
+
+  const errMsg = error instanceof Error ? error.message : String(error);
   if (jobInfo.retryCount < 1) {
-    logger.warn(`[LPScorer] Request failed (attempt ${jobInfo.retryCount + 1}), retrying in 5s: ${error.message}`);
+    logger.warn(`[LPScorer] Request failed (attempt ${jobInfo.retryCount + 1}), retrying in 5s: ${errMsg}`);
     return 5000;
   }
   return null;
@@ -341,9 +355,10 @@ async function fetchWikitext(wikiPath: string, page: string): Promise<string | n
     return text;
   } catch (err) {
     if (axios.isAxiosError(err) && err.response?.status === 429) {
-      tripCircuitBreaker();
+      tripCircuitBreaker('429');
     } else {
-      logger.warn(`[LPScorer] Failed to fetch wikitext for "${wikiPath}/${page}":`, err);
+      const errMsg = err instanceof Error ? err.message : String(err);
+      logger.warn(`[LPScorer] Failed to fetch wikitext for "${wikiPath}/${page}": ${errMsg}`);
     }
     return null;
   }
@@ -1004,7 +1019,10 @@ async function runScorer(): Promise<void> {
     // Schedule next cycle
     scorerTimeout = setTimeout(runScorer, interval);
   } catch (err) {
-    logger.error('[LPScorer] runScorer error:', err);
+    // Log message only — passing raw error objects to winston can crash
+    // safe-stable-stringify when the error wraps a TLS socket (circular refs).
+    const errMsg = err instanceof Error ? err.message : String(err);
+    logger.error(`[LPScorer] runScorer error: ${errMsg}`);
     scorerTimeout = setTimeout(runScorer, 30_000);
   }
 }
