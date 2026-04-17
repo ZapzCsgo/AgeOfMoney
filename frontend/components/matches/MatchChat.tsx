@@ -174,7 +174,7 @@ export function MatchChat({ matchId }: MatchChatProps) {
           }
 
           return (
-            <div key={msg.id} className={cn('flex gap-1.5 items-end', isOwn && 'flex-row-reverse')}>
+            <div key={msg.id} className="flex gap-1.5 items-end">
               {/* Avatar */}
               {msg.avatar ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -183,9 +183,9 @@ export function MatchChat({ matchId }: MatchChatProps) {
                 <UserSilhouette size={24} className="shrink-0" />
               )}
 
-              <div className={cn('flex flex-col gap-0.5 max-w-[78%]', isOwn && 'items-end')}>
+              <div className="flex flex-col gap-0.5 max-w-[78%]">
                 {/* Username + level badge */}
-                <div className={cn('flex items-center gap-1', isOwn && 'flex-row-reverse')}>
+                <div className="flex items-center gap-1">
                   {!isSys && <LevelBadge level={level} />}
                   <span className={cn(
                     'text-[10px] font-semibold truncate',
