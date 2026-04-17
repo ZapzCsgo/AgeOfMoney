@@ -7,7 +7,7 @@ import { Match } from '@/types';
 import { getMatches } from '@/lib/api';
 import { cn, getAvatarSrc } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Clock, RefreshCw, AlertTriangle, Swords, ChevronRight, Zap, Search } from 'lucide-react';
+import { Clock, RefreshCw, AlertTriangle, Swords, Search } from 'lucide-react';
 import { useT } from '@/lib/i18n';
 
 function formatCountdown(dateStr: string, t: (k: string) => string): string {
@@ -74,106 +74,125 @@ function MatchRow({ match }: { match: Match }) {
   return (
     <Link href={`/matches/${match.id}`} className="block group">
       <div
-        className="grid items-center gap-3 px-4 py-3 transition-all hover:bg-white/[0.02] border-b"
-        style={{
-          borderColor: '#13111f',
-          gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr) auto',
-        }}
+        className="flex items-center gap-2 px-3 py-2.5 transition-all hover:bg-white/[0.02] rounded-lg"
+        style={{ minHeight: 56 }}
       >
-        {/* Player 1 — left aligned */}
+        {/* Player 1 */}
         <button
           onClick={(e) => { if (!isCompleted && !betClosed) goToMatchWithPlayer(1, e); }}
           className={cn(
-            'flex items-center gap-3 min-w-0 rounded-lg px-2 py-2 -mx-2 transition-all text-left',
+            'flex items-center gap-2 min-w-0 flex-1 rounded-md px-1.5 py-1 transition-all text-left',
             !isCompleted && !betClosed && 'hover:bg-[#d4a017]/[0.06]',
-            p2Won && 'opacity-35'
+            p2Won && 'opacity-30'
           )}
         >
-          <PlayerAvatar name={match.player1.name} playerId={match.player1.id} avatarUrl={match.player1.avatarUrl} size={38} />
+          <div className="relative shrink-0">
+            <PlayerAvatar name={match.player1.name} playerId={match.player1.id} avatarUrl={match.player1.avatarUrl} size={32} />
+            {p1Won && (
+              <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[8px]"
+                style={{ background: '#d4a017', boxShadow: '0 0 6px rgba(212,160,23,0.6)' }}>
+                👑
+              </div>
+            )}
+          </div>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5">
-              {p1Won && <span className="text-[11px]">👑</span>}
-              <p className={cn(
-                'font-cinzel font-bold truncate text-[13px] transition-colors',
-                p1Won ? 'text-[#f5c842]' : 'text-[#e8e2f5] group-hover:text-[#d4a017]'
-              )}>
-                {match.player1.name}
-              </p>
-            </div>
+            <p className={cn(
+              'font-cinzel font-bold truncate text-[12px] leading-tight transition-colors',
+              p1Won ? 'text-[#f5c842]' : 'text-[#e8e2f5]'
+            )}>
+              {match.player1.name}
+            </p>
             {!isCompleted && !betClosed ? (
-              <p className="text-[#d4a017] font-cinzel font-black text-[17px] leading-none mt-1">
-                {match.odds1.toFixed(2)}<span className="text-[11px] opacity-60">×</span>
+              <p className="text-[#d4a017] font-cinzel font-black text-[14px] leading-none mt-0.5">
+                {match.odds1.toFixed(2)}<span className="text-[10px] opacity-60">×</span>
               </p>
             ) : isCompleted && match.resultScore ? (
-              <p className={cn('font-cinzel font-black text-[17px] leading-none mt-1', p1Won ? 'text-[#f5c842]' : 'text-[#4a4570]')}>
+              <p className={cn('font-cinzel font-black text-[14px] leading-none mt-0.5', p1Won ? 'text-[#f5c842]' : 'text-[#3d3860]')}>
                 {match.resultScore.split('-')[0]}
               </p>
             ) : (
-              <p className="text-[10px] text-[#6b6488] mt-1">—</p>
+              <p className="text-[10px] text-[#6b6488] mt-0.5">—</p>
             )}
           </div>
         </button>
 
-        {/* Center — status + countdown */}
-        <div className="flex flex-col items-center gap-1 shrink-0 px-1">
+        {/* Center — score or status */}
+        <div className="flex flex-col items-center gap-0.5 shrink-0 w-12">
           {isLive ? (
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold" style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171' }}>
-              <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
-              LIVE
-            </div>
+            <>
+              {match.p1Score != null && match.p2Score != null && (match.p1Score > 0 || match.p2Score > 0) ? (
+                <p className="font-cinzel font-black text-[14px] text-[#e8e2f5]">
+                  {match.p1Score}<span className="text-[#3d3860] mx-0.5">-</span>{match.p2Score}
+                </p>
+              ) : null}
+              <div className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-bold" style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171' }}>
+                <span className="w-1 h-1 rounded-full bg-red-400 animate-pulse" />
+                LIVE
+              </div>
+            </>
           ) : isCompleted ? (
-            <div className="px-2 py-0.5 rounded text-[9px] font-bold" style={{ background: 'rgba(107,100,136,0.1)', border: '1px solid rgba(107,100,136,0.25)', color: '#6b6488' }}>
-              FIN
-            </div>
-          ) : (
-            <span className="text-[#3d3860] font-cinzel text-[10px] tracking-[0.2em] font-bold">VS</span>
-          )}
-          {!isCompleted && (
-            <div className="flex items-center gap-1 text-[9px] text-[#6b6488] font-medium whitespace-nowrap">
-              {betClosed ? (
-                <span>{t('matches_bets_closed')}</span>
-              ) : (
-                <><Clock size={8} /><span>{formatCountdown(match.scheduledAt, t)}</span></>
+            <>
+              {match.resultScore && (
+                <p className="font-cinzel font-black text-[14px]">
+                  <span className={p1Won ? 'text-[#f5c842]' : 'text-[#3d3860]'}>{match.resultScore.split('-')[0]}</span>
+                  <span className="text-[#3d3860] mx-0.5">-</span>
+                  <span className={p2Won ? 'text-[#f5c842]' : 'text-[#3d3860]'}>{match.resultScore.split('-')[1]}</span>
+                </p>
               )}
-            </div>
+              <span className="text-[8px] font-bold text-[#4a4570] tracking-wider">FIN</span>
+            </>
+          ) : (
+            <>
+              <span className="text-[#3d3860] font-cinzel text-[10px] tracking-[0.15em] font-bold">VS</span>
+              <div className="flex items-center gap-0.5 text-[8px] text-[#6b6488] font-medium whitespace-nowrap">
+                {betClosed ? (
+                  <span>{t('matches_bets_closed')}</span>
+                ) : (
+                  <><Clock size={7} /><span>{formatCountdown(match.scheduledAt, t)}</span></>
+                )}
+              </div>
+            </>
           )}
         </div>
 
-        {/* Player 2 — right aligned */}
+        {/* Player 2 */}
         <button
           onClick={(e) => { if (!isCompleted && !betClosed) goToMatchWithPlayer(2, e); }}
           className={cn(
-            'flex items-center gap-3 min-w-0 rounded-lg px-2 py-2 -mx-2 justify-end transition-all text-right',
+            'flex items-center gap-2 min-w-0 flex-1 rounded-md px-1.5 py-1 justify-end transition-all text-right',
             !isCompleted && !betClosed && 'hover:bg-[#d4a017]/[0.06]',
-            p1Won && 'opacity-35'
+            p1Won && 'opacity-30'
           )}
         >
           <div className="min-w-0 flex-1 text-right">
-            <div className="flex items-center gap-1.5 justify-end">
-              <p className={cn(
-                'font-cinzel font-bold truncate text-[13px] transition-colors',
-                p2Won ? 'text-[#f5c842]' : 'text-[#e8e2f5] group-hover:text-[#d4a017]'
-              )}>
-                {match.player2.name}
-              </p>
-              {p2Won && <span className="text-[11px]">👑</span>}
-            </div>
+            <p className={cn(
+              'font-cinzel font-bold truncate text-[12px] leading-tight transition-colors',
+              p2Won ? 'text-[#f5c842]' : 'text-[#e8e2f5]'
+            )}>
+              {match.player2.name}
+            </p>
             {!isCompleted && !betClosed ? (
-              <p className="text-[#d4a017] font-cinzel font-black text-[17px] leading-none mt-1">
-                {match.odds2.toFixed(2)}<span className="text-[11px] opacity-60">×</span>
+              <p className="text-[#d4a017] font-cinzel font-black text-[14px] leading-none mt-0.5">
+                {match.odds2.toFixed(2)}<span className="text-[10px] opacity-60">×</span>
               </p>
             ) : isCompleted && match.resultScore ? (
-              <p className={cn('font-cinzel font-black text-[17px] leading-none mt-1', p2Won ? 'text-[#f5c842]' : 'text-[#4a4570]')}>
+              <p className={cn('font-cinzel font-black text-[14px] leading-none mt-0.5', p2Won ? 'text-[#f5c842]' : 'text-[#3d3860]')}>
                 {match.resultScore.split('-')[1]}
               </p>
             ) : (
-              <p className="text-[10px] text-[#6b6488] mt-1">—</p>
+              <p className="text-[10px] text-[#6b6488] mt-0.5">—</p>
             )}
           </div>
-          <PlayerAvatar name={match.player2.name} playerId={match.player2.id} avatarUrl={match.player2.avatarUrl} size={38} />
+          <div className="relative shrink-0">
+            <PlayerAvatar name={match.player2.name} playerId={match.player2.id} avatarUrl={match.player2.avatarUrl} size={32} />
+            {p2Won && (
+              <div className="absolute -top-1 -left-1 w-4 h-4 rounded-full flex items-center justify-center text-[8px]"
+                style={{ background: '#d4a017', boxShadow: '0 0 6px rgba(212,160,23,0.6)' }}>
+                👑
+              </div>
+            )}
+          </div>
         </button>
-
-        <ChevronRight size={13} className="shrink-0 text-[#3d3860] group-hover:text-[#d4a017] transition-colors" />
       </div>
     </Link>
   );
@@ -379,7 +398,13 @@ export default function MatchesPage() {
                   })()}
                   <span className="text-[10px] text-[#3d3860] ml-auto shrink-0 font-cinzel">{g.format} · {g.matches.length} {t('nav_matches').toLowerCase()}</span>
                 </div>
-                {g.matches.map(m => <MatchRow key={m.id} match={m} />)}
+                <div className="grid grid-cols-1 lg:grid-cols-2">
+                  {g.matches.map((m, i) => (
+                    <div key={m.id} className="border-b lg:even:border-l" style={{ borderColor: '#13111f' }}>
+                      <MatchRow match={m} />
+                    </div>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
