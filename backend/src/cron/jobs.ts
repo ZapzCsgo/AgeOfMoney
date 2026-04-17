@@ -153,10 +153,10 @@ async function tickMatchStatuses(): Promise<void> {
   });
 
   for (const match of toStart) {
-    await prisma.match.update({ where: { id: match.id }, data: { status: 'LIVE' } });
+    await prisma.match.update({ where: { id: match.id }, data: { status: 'LIVE', betsOpen: false } });
     io?.to(`matchRoom:${match.id}`).emit('matchStatusUpdate', { matchId: match.id, status: 'LIVE' });
-    io?.emit('matchUpdate', { matchId: match.id, status: 'LIVE' });
-    logger.info(`[Tick] ${match.id} → LIVE`);
+    io?.emit('matchUpdate', { matchId: match.id, status: 'LIVE', betsOpen: false });
+    logger.info(`[Tick] ${match.id} → LIVE (bets closed)`);
   }
 
   // ── Stale LIVE → CANCELLED (8h+ no winner, no aoe4world tracking) ─────────
