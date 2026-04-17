@@ -22,6 +22,7 @@ export function BetForm({ match, onBetPlaced, initialPlayer = null }: BetFormPro
   const [amount, setAmount] = useState<number>(10);
   const [customAmount, setCustomAmount] = useState('');
   const [loading, setLoading] = useState(false);
+  const [cooldown, setCooldown] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -66,7 +67,8 @@ export function BetForm({ match, onBetPlaced, initialPlayer = null }: BetFormPro
       await placeBet(match.id, amount, selectedPlayer);
       setSuccess(t('bet_success', { amount }));
       onBetPlaced?.();
-
+      setCooldown(true);
+      setTimeout(() => setCooldown(false), 3000);
       setTimeout(() => setSuccess(null), 4000);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('bet_err_generic'));
@@ -274,7 +276,7 @@ export function BetForm({ match, onBetPlaced, initialPlayer = null }: BetFormPro
           {/* Submit button */}
           <button
             type="submit"
-            disabled={loading || !selectedPlayer || amount < 10 || amount > userBalance}
+            disabled={loading || cooldown || !selectedPlayer || amount < 10 || amount > userBalance}
             className={cn(
               'aoe-btn-gold w-full py-3 text-base relative overflow-hidden',
               loading && 'opacity-70 cursor-not-allowed'

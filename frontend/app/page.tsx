@@ -106,6 +106,7 @@ function QuickBetBar({
   const { data: session } = useSession();
   const [amount, setAmount] = useState(5);
   const [loading, setLoading] = useState(false);
+  const [cooldown, setCooldown] = useState(false);
   const [result, setResult] = useState<'success' | 'error' | null>(null);
   const [errMsg, setErrMsg] = useState('');
 
@@ -120,6 +121,8 @@ function QuickBetBar({
     try {
       await placeBet(match.id, amount, selectedPlayer);
       setResult('success');
+      setCooldown(true);
+      setTimeout(() => setCooldown(false), 3000);
     } catch (e) {
       setErrMsg(e instanceof Error ? e.message : t('common_error'));
       setResult('error');
@@ -222,7 +225,7 @@ function QuickBetBar({
         {/* Bet button */}
         <button
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleBet(); }}
-          disabled={loading}
+          disabled={loading || cooldown}
           className="aom-btn-gold btn-shimmer text-[10px] px-3 py-2 shrink-0 h-8 disabled:opacity-50"
         >
           {loading ? <RefreshCw size={11} className="animate-spin" /> : t('bet_submit')}
