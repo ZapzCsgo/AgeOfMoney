@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useSession, signIn } from 'next-auth/react';
 import { apiClient, setAuthToken } from '@/lib/api';

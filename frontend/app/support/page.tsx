@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState } from 'react';
 import { Send, CheckCircle, ChevronDown } from 'lucide-react';
 import { useT } from '@/lib/i18n';
