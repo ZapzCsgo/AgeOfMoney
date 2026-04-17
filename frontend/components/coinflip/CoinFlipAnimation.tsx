@@ -152,7 +152,7 @@ export function CoinFlipAnimation({
             position: 'relative',
           }}
         >
-          {/* Front face — Crown (gold) */}
+          {/* Front face — Archers (gold) */}
           <div
             className="absolute inset-0 rounded-full flex items-center justify-center"
             style={{
@@ -175,7 +175,7 @@ export function CoinFlipAnimation({
                 border: '1.5px solid rgba(255,230,120,0.3)',
               }}
             />
-            {/* Fleur-de-lis symbol */}
+            {/* Bow symbol */}
             <span
               className="select-none"
               style={{
@@ -186,7 +186,7 @@ export function CoinFlipAnimation({
                 lineHeight: 1,
               }}
             >
-              ⚜
+              🏹
             </span>
             {/* Subtle shine overlay */}
             <div
@@ -197,7 +197,7 @@ export function CoinFlipAnimation({
             />
           </div>
 
-          {/* Back face — Shield (silver) */}
+          {/* Back face — Swords (silver) */}
           <div
             className="absolute inset-0 rounded-full flex items-center justify-center"
             style={{
@@ -221,7 +221,7 @@ export function CoinFlipAnimation({
                 border: '1.5px solid rgba(200,200,220,0.2)',
               }}
             />
-            {/* Shield symbol */}
+            {/* Swords symbol */}
             <span
               className="select-none"
               style={{
@@ -232,7 +232,7 @@ export function CoinFlipAnimation({
                 lineHeight: 1,
               }}
             >
-              🛡
+              ⚔️
             </span>
             {/* Subtle shine overlay */}
             <div

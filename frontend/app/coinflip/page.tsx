@@ -348,14 +348,14 @@ export default function CoinFlipPage() {
                   }`,
                 }}
               >
-                <span style={{ fontSize: 28 }}>⚜</span>
+                <span style={{ fontSize: 28 }}>🏹</span>
                 <span
                   className="text-[11px] font-bold uppercase"
                   style={{
                     color: selectedSide === 'crown' ? '#f5c842' : '#6b6488',
                   }}
                 >
-                  Crown
+                  Archers
                 </span>
               </button>
               <button
@@ -380,14 +380,14 @@ export default function CoinFlipPage() {
                       : 'none',
                 }}
               >
-                <span style={{ fontSize: 28 }}>🛡</span>
+                <span style={{ fontSize: 28 }}>⚔️</span>
                 <span
                   className="text-[11px] font-bold uppercase"
                   style={{
                     color: selectedSide === 'shield' ? '#c0c0c0' : '#6b6488',
                   }}
                 >
-                  Shield
+                  Swords
                 </span>
               </button>
             </div>
@@ -542,7 +542,7 @@ export default function CoinFlipPage() {
                         {game.creator.username}
                       </p>
                       <p className="text-[10px]" style={{ color: '#4a4468' }}>
-                        {game.side === 'crown' ? '⚜ Crown' : '🛡 Shield'}
+                        {game.side === 'crown' ? '🏹 Archers' : '⚔ Swords'}
                       </p>
                     </div>
                     {/* Amount */}
@@ -581,7 +581,7 @@ export default function CoinFlipPage() {
                       }}
                     >
                       {t('coinflip_join')}{' '}
-                      {game.side === 'crown' ? '🛡 Shield' : '⚜ Crown'}
+                      {game.side === 'crown' ? '⚔ Swords' : '🏹 Archers'}
                     </button>
                   )}
                 </div>
@@ -633,7 +633,7 @@ export default function CoinFlipPage() {
                           })`,
                         }}
                       >
-                        {game.result === 'crown' ? '⚜' : '🛡'}
+                        {game.result === 'crown' ? '🏹' : '⚔️'}
                       </span>
                       <p
                         className="text-[12px] font-bold"

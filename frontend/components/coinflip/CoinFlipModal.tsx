@@ -202,7 +202,7 @@ export function CoinFlipModal({
                     }`,
                   }}
                 >
-                  {player1.side === 'crown' ? '⚜ Crown' : '🛡 Shield'}
+                  {player1.side === 'crown' ? '🏹 Archers' : '⚔ Swords'}
                 </span>
               </div>
 
@@ -305,7 +305,7 @@ export function CoinFlipModal({
                     }`,
                   }}
                 >
-                  {player2.side === 'crown' ? '⚜ Crown' : '🛡 Shield'}
+                  {player2.side === 'crown' ? '🏹 Archers' : '⚔ Swords'}
                 </span>
               </div>
             </div>
