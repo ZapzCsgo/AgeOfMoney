@@ -9,10 +9,10 @@ import { cn } from '@/lib/utils';
 import { apiClient, setAuthToken } from '@/lib/api';
 import { Shield, Crown, Target, ShieldCheck, X, Copy, Check } from 'lucide-react';
 import { playWololo, playTick, playWin, playLose, playEmperorWin } from '@/lib/rouletteSounds';
-import dynamic from 'next/dynamic';
+import nextDynamic from 'next/dynamic';
 // react-roulette-pro is client-only; dynamic import avoids SSR issues
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const RoulettePro = dynamic<any>(() => import('react-roulette-pro'), { ssr: false });
+const RoulettePro = nextDynamic<any>(() => import('react-roulette-pro'), { ssr: false });
 import 'react-roulette-pro/dist/index.css';
 
 const ZONES = {
