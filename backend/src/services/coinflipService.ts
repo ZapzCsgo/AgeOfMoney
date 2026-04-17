@@ -15,8 +15,8 @@ import { creditAffiliateOnBetResolved } from './affiliateService';
 import logger from '../logger';
 
 const RAKE_RATE = 0.05; // 5%
-const MIN_BET = 10;
-const MAX_BET = 100_000;
+const MIN_BET = 2;
+const MAX_BET = 500;
 const RESULT_DELAY_MS = 3_500; // delay before revealing result (animation time)
 
 /** Strip serverSeed from a coinflip record for client-safe emission. */
@@ -213,6 +213,13 @@ export async function cancelCoinFlip(
   if (!game) return { ok: false, error: 'Game not found' };
   if (game.status !== 'WAITING') return { ok: false, error: 'Game cannot be cancelled' };
   if (game.creatorId !== userId) return { ok: false, error: 'Only the creator can cancel' };
+
+  // Must wait 15 minutes before manual cancel
+  const elapsed = Date.now() - game.createdAt.getTime();
+  if (elapsed < 15 * 60 * 1000) {
+    const remaining = Math.ceil((15 * 60 * 1000 - elapsed) / 60000);
+    return { ok: false, error: `You can cancel in ${remaining} minute(s)` };
+  }
 
   // Atomic: refund coins + cancel game
   await prisma.$transaction(async (tx) => {

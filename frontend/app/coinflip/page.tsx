@@ -41,6 +41,47 @@ const GLOBAL_CSS = `
 .cf-result-in { animation: cf-result-in 0.3s ease-out both; }
 `;
 
+const CANCEL_DELAY_MS = 15 * 60 * 1000; // 15 minutes
+
+function CancelOrWait({ gameId, createdAt, onCancel }: { gameId: string; createdAt: string; onCancel: (id: string) => void }) {
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const created = new Date(createdAt).getTime();
+  const canCancelAt = created + CANCEL_DELAY_MS;
+  const remaining = canCancelAt - now;
+
+  if (remaining <= 0) {
+    return (
+      <button
+        onClick={() => onCancel(gameId)}
+        className="w-full py-2 rounded-lg text-[12px] font-bold uppercase tracking-wider transition-all hover:opacity-80"
+        style={{
+          background: 'rgba(248,113,113,0.1)',
+          color: '#f87171',
+          border: '1px solid rgba(248,113,113,0.2)',
+        }}
+      >
+        Cancel
+      </button>
+    );
+  }
+
+  const min = Math.floor(remaining / 60000);
+  const sec = Math.floor((remaining % 60000) / 1000);
+
+  return (
+    <div className="w-full py-2 rounded-lg text-[11px] text-center" style={{ color: '#4a4468' }}>
+      <Clock size={10} className="inline mr-1 -mt-px" />
+      Cancel in {min}:{sec.toString().padStart(2, '0')}
+    </div>
+  );
+}
+
 export default function CoinFlipPage() {
   const { data: session } = useSession();
   const { t } = useT();
@@ -136,8 +177,12 @@ export default function CoinFlipPage() {
       return;
     }
     const amount = parseInt(betAmount);
-    if (!amount || amount < 1) {
-      showMsg('error', t('bet_err_min'));
+    if (!amount || amount < 2) {
+      showMsg('error', 'Minimum 2 ⚜');
+      return;
+    }
+    if (amount > 500) {
+      showMsg('error', 'Maximum 500 ⚜');
       return;
     }
     if (amount > userCoins) {
@@ -154,7 +199,6 @@ export default function CoinFlipPage() {
       const game = res.data.data as CoinFlipGame;
       setGames((prev) => [game, ...prev]);
       setBetAmount('');
-      showMsg('success', t('coinflip_created'));
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: string } }; message?: string };
       showMsg('error', err?.response?.data?.error ?? err?.message ?? t('common_error'));
@@ -520,17 +564,7 @@ export default function CoinFlipPage() {
 
                   {/* Join or Cancel button */}
                   {game.creator.id === userId ? (
-                    <button
-                      onClick={() => handleCancel(game.id)}
-                      className="w-full py-2 rounded-lg text-[12px] font-bold uppercase tracking-wider transition-all hover:opacity-80"
-                      style={{
-                        background: 'rgba(248,113,113,0.1)',
-                        color: '#f87171',
-                        border: '1px solid rgba(248,113,113,0.2)',
-                      }}
-                    >
-                      {t('coinflip_cancel')}
-                    </button>
+                    <CancelOrWait gameId={game.id} createdAt={game.createdAt} onCancel={handleCancel} />
                   ) : (
                     <button
                       onClick={() => handleJoin(game)}
