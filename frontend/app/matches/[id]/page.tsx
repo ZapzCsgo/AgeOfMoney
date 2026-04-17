@@ -136,7 +136,7 @@ function PlayerAvatar({ name, playerId, avatarUrl, size = 64 }: { name: string; 
       style={{
         width: size, height: size,
         background: imgSrc ? undefined : `radial-gradient(circle, hsl(${hue},30%,20%), hsl(${hue},20%,10%))`,
-        border: '2px solid rgba(212,160,23,0.3)',
+        border: '2px solid rgba(255,197,66,0.3)',
       }}
     >
       {imgSrc ? (
@@ -240,9 +240,9 @@ function ExactScoreBets({ match, onBetPlaced }: { match: Match; onBetPlaced: () 
           <p className="text-[10px] font-cinzel text-aoe-parchment-muted text-center mb-2 truncate">{match.player1.name}</p>
           {p1Scores.map(s => (
             <button key={s.score} onClick={() => setSelected(sel => sel?.score === s.score ? null : s)}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-[12px] font-cinzel font-bold transition-all ${selected?.score === s.score ? 'border-[#d4a017]' : 'border-aoe-border hover:border-aoe-border-gold'}`}
-              style={{ background: selected?.score === s.score ? 'rgba(212,160,23,0.15)' : 'rgba(255,255,255,0.03)', border: `1px solid ${selected?.score === s.score ? '#d4a017' : '#1e1a30'}` }}>
-              <span className={selected?.score === s.score ? 'text-[#f5c842]' : 'text-aoe-parchment'}>{s.score}</span>
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-[12px] font-cinzel font-bold transition-all ${selected?.score === s.score ? 'border-[#ffc542]' : 'border-aoe-border hover:border-aoe-border-gold'}`}
+              style={{ background: selected?.score === s.score ? 'rgba(255,197,66,0.15)' : 'rgba(255,255,255,0.03)', border: `1px solid ${selected?.score === s.score ? '#ffc542' : '#1e1a30'}` }}>
+              <span className={selected?.score === s.score ? 'text-[#ffd97a]' : 'text-aoe-parchment'}>{s.score}</span>
               <span className="text-aoe-gold">×{s.odds}</span>
             </button>
           ))}
@@ -277,7 +277,7 @@ function ExactScoreBets({ match, onBetPlaced }: { match: Match; onBetPlaced: () 
 
       {selected && session && (
         <div className="pt-2 border-t border-aoe-border space-y-2">
-          <p className="text-[11px] text-aoe-parchment-muted font-cinzel">Score sélectionné : <span className="text-[#f5c842] font-bold">{selected.score} ×{selected.odds}</span></p>
+          <p className="text-[11px] text-aoe-parchment-muted font-cinzel">Score sélectionné : <span className="text-[#ffd97a] font-bold">{selected.score} ×{selected.odds}</span></p>
           <div className="flex gap-2">
             <input type="text" inputMode="numeric" value={amount} onChange={e => setAmount(e.target.value.replace(/\D/g,''))}
               className="flex-1 rounded px-3 py-2 text-sm font-cinzel text-aoe-parchment outline-none"
@@ -285,7 +285,7 @@ function ExactScoreBets({ match, onBetPlaced }: { match: Match; onBetPlaced: () 
             <span className="flex items-center text-aoe-gold text-sm">⚜</span>
             <button onClick={handleBet} disabled={placing || !amount || parseInt(amount) < 10}
               className="px-4 py-2 rounded font-cinzel text-[12px] font-bold disabled:opacity-40 transition-opacity"
-              style={{ background: 'linear-gradient(135deg, #8b6410, #d4a017)', color: '#07060f' }}>
+              style={{ background: 'linear-gradient(135deg, #b8881a, #ffc542)', color: '#07060f' }}>
               {placing ? '…' : 'PARIER'}
             </button>
           </div>
@@ -296,7 +296,7 @@ function ExactScoreBets({ match, onBetPlaced }: { match: Match; onBetPlaced: () 
             return (
               <div className="flex justify-between text-[10px] text-aoe-parchment-muted">
                 <span>Gain potentiel : <span className="text-emerald-400 font-bold">+{profit} ⚜</span></span>
-                <span>Total retour : <span className="text-[#f5c842] font-bold">{total} ⚜</span></span>
+                <span>Total retour : <span className="text-[#ffd97a] font-bold">{total} ⚜</span></span>
               </div>
             );
           })()}
@@ -469,7 +469,7 @@ export default function MatchPage() {
             )}
             {match.tournament?.name && (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-sm font-cinzel font-bold tracking-wide"
-                style={{ background: 'linear-gradient(135deg, rgba(212,160,23,0.15), rgba(212,160,23,0.08))', border: '1px solid rgba(212,160,23,0.4)', color: '#f5c842' }}>
+                style={{ background: 'linear-gradient(135deg, rgba(255,197,66,0.15), rgba(255,197,66,0.08))', border: '1px solid rgba(255,197,66,0.4)', color: '#ffd97a' }}>
                 🏆 {match.tournament.name}
               </span>
             )}

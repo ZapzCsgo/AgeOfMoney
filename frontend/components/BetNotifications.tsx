@@ -27,13 +27,13 @@ export function BetNotifications() {
             }`}
         >
           <div className={`mt-0.5 shrink-0 text-lg leading-none ${
-            n.refunded ? 'text-[#d4a017]' : n.won ? 'text-[#4ade80]' : 'text-[#f87171]'
+            n.refunded ? 'text-[#ffc542]' : n.won ? 'text-[#4ade80]' : 'text-[#f87171]'
           }`}>
             {n.refunded ? '↩️' : n.won ? '🏆' : '💀'}
           </div>
           <div className="flex-1 min-w-0">
             <p className={`font-bold text-sm ${
-              n.refunded ? 'text-[#d4a017]' : n.won ? 'text-[#4ade80]' : 'text-[#f87171]'
+              n.refunded ? 'text-[#ffc542]' : n.won ? 'text-[#4ade80]' : 'text-[#f87171]'
             }`}>
               {n.refunded ? 'Pari remboursé' : n.won ? 'Pari gagné !' : 'Pari perdu'}
             </p>
@@ -44,14 +44,14 @@ export function BetNotifications() {
               <p className="text-[#9988bb] text-xs truncate">{n.tournamentName}</p>
             )}
             <p className="text-xs mt-1">
-              Mise sur <span className="text-[#f5c842] font-semibold">{n.playerBetOn ?? '—'}</span>
+              Mise sur <span className="text-[#ffd97a] font-semibold">{n.playerBetOn ?? '—'}</span>
             </p>
             <div className="mt-1.5 flex items-center gap-2">
               <span className="text-[#9988bb] text-xs">Mise : {n.amount.toFixed(2)} ⚜</span>
               {(n.won || n.refunded) && (
                 <>
                   <span className="text-[#9988bb]">→</span>
-                  <span className={`font-bold text-xs ${n.refunded ? 'text-[#d4a017]' : 'text-[#f5c842]'}`}>
+                  <span className={`font-bold text-xs ${n.refunded ? 'text-[#ffc542]' : 'text-[#ffd97a]'}`}>
                     +{n.payout.toFixed(2)} ⚜ {n.refunded ? '(remboursé)' : ''}
                   </span>
                 </>

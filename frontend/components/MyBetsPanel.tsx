@@ -69,8 +69,8 @@ export function MyBetsPanel() {
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-[#1e1a30] shrink-0">
             <div className="flex items-center gap-2">
-              <Receipt size={13} className="text-[#d4a017]" />
-              <span className="font-cinzel font-bold text-[13px] text-[#d4a017]">{t('mybets_title')}</span>
+              <Receipt size={13} className="text-[#ffc542]" />
+              <span className="font-cinzel font-bold text-[13px] text-[#ffc542]">{t('mybets_title')}</span>
               {pendingCount > 0 && (
                 <span className="text-[10px] font-bold text-amber-400 bg-amber-400/10 border border-amber-400/30 rounded-full px-2 py-0.5">
                   {pendingCount}
@@ -82,7 +82,7 @@ export function MyBetsPanel() {
                 {(['PENDING', 'all'] as const).map(tabKey => (
                   <button key={tabKey} onClick={() => setTab(tabKey)}
                     className={cn('px-2.5 py-1 text-[10px] font-cinzel font-bold transition-colors',
-                      tab === tabKey ? 'bg-[#d4a017] text-black' : 'text-[#6b6488] hover:text-[#e8e2f5]'
+                      tab === tabKey ? 'bg-[#ffc542] text-black' : 'text-[#6b6488] hover:text-[#e8e2f5]'
                     )}
                   >
                     {tabKey === 'PENDING' ? t('mybets_pending') : t('mybets_all')}
@@ -99,7 +99,7 @@ export function MyBetsPanel() {
           <div className="overflow-y-auto flex-1">
             {loading ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 size={20} className="animate-spin text-[#d4a017]" />
+                <Loader2 size={20} className="animate-spin text-[#ffc542]" />
               </div>
             ) : displayBets.length === 0 ? (
               <div className="py-8 text-center text-[#6b6488] text-[12px]">
@@ -137,7 +137,7 @@ export function MyBetsPanel() {
                         ) : bet.status === 'LOST' ? (
                           <div className="text-[12px] font-bold text-red-400">-{bet.amount.toFixed(2)} ⚜</div>
                         ) : (
-                          <div className="text-[12px] font-bold text-[#d4a017]">{(bet.amount * bet.oddsAtBet).toFixed(2)} ⚜</div>
+                          <div className="text-[12px] font-bold text-[#ffc542]">{(bet.amount * bet.oddsAtBet).toFixed(2)} ⚜</div>
                         )}
                         <div className="text-[10px] text-[#6b6488] mt-0.5">{bet.amount.toFixed(2)} × {bet.oddsAtBet.toFixed(2)}</div>
                       </div>
@@ -157,17 +157,17 @@ export function MyBetsPanel() {
           'pointer-events-auto flex items-center gap-2 rounded-full px-4 h-10 transition-all duration-200',
           'border font-cinzel font-bold text-[12px] shadow-xl',
           open
-            ? 'bg-[#0d0b1a] border-[#d4a017] text-[#d4a017]'
-            : 'bg-[#d4a017] border-[#d4a017] text-black hover:bg-[#f5c842]'
+            ? 'bg-[#0d0b1a] border-[#ffc542] text-[#ffc542]'
+            : 'bg-[#ffc542] border-[#ffc542] text-black hover:bg-[#ffd97a]'
         )}
-        style={{ boxShadow: '0 4px 20px rgba(212,160,23,0.3)' }}
+        style={{ boxShadow: '0 4px 20px rgba(255,197,66,0.3)' }}
       >
         <Receipt size={13} />
         {t('mybets_title')}
         {pendingCount > 0 && (
           <span className={cn(
             'rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-black',
-            open ? 'bg-[#d4a017] text-black' : 'bg-black/30 text-black'
+            open ? 'bg-[#ffc542] text-black' : 'bg-black/30 text-black'
           )}>
             {pendingCount}
           </span>

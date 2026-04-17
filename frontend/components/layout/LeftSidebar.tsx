@@ -50,20 +50,20 @@ export function LeftSidebar() {
           'relative flex items-center gap-3 rounded-lg transition-all duration-150 group select-none',
           expanded ? 'px-3 py-2.5' : 'w-10 h-10 justify-center',
           isActive
-            ? 'bg-[#1a1630] text-[#d4a017]'
+            ? 'bg-[#1a1630] text-[#ffc542]'
             : 'text-[#6b6488] hover:text-[#c8c0e0] hover:bg-[#13111f]'
         )}
       >
         {/* Active indicator */}
         {isActive && (
-          <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-[#d4a017] rounded-r" />
+          <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-[#ffc542] rounded-r" />
         )}
         <Icon size={18} className="shrink-0" />
         {expanded && (
           <span className="text-[13px] font-medium truncate">{label}</span>
         )}
         {badge && expanded && (
-          <span className="ml-auto text-[10px] font-bold bg-[#d4a017] text-[#07060f] px-1.5 py-0.5 rounded-full">
+          <span className="ml-auto text-[10px] font-bold bg-[#ffc542] text-[#07060f] px-1.5 py-0.5 rounded-full">
             {badge}
           </span>
         )}

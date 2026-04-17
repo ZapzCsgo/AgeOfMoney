@@ -22,11 +22,11 @@ function formatCountdown(dateStr: string, t: (k: string) => string): string {
 }
 
 const TIER_COLORS: Record<string, string> = {
-  S: '#d4a017', A: '#a78bfa', B: '#60a5fa', C: '#6b6488',
+  S: '#ffc542', A: '#a78bfa', B: '#60a5fa', C: '#6b6488',
 };
 
 const GAME_STYLE: Record<string, { bg: string; text: string; border: string }> = {
-  AoE4: { bg: 'rgba(212,160,23,0.10)', text: '#f5c842', border: 'rgba(212,160,23,0.25)' },
+  AoE4: { bg: 'rgba(255,197,66,0.10)', text: '#ffd97a', border: 'rgba(255,197,66,0.25)' },
   AoE2: { bg: 'rgba(248,113,113,0.10)', text: '#f87171', border: 'rgba(248,113,113,0.40)' },
   AoE3: { bg: 'rgba(96,165,250,0.10)', text: '#60a5fa', border: 'rgba(96,165,250,0.40)' },
   AoM:  { bg: 'rgba(52,211,153,0.10)', text: '#34d399', border: 'rgba(52,211,153,0.40)' },
@@ -42,7 +42,7 @@ function PlayerAvatar({ name, playerId, avatarUrl, size = 44 }: { name: string; 
       style={{
         width: size, height: size,
         background: imgSrc ? undefined : `radial-gradient(circle at 40% 35%, hsl(${hue},35%,22%) 0%, hsl(${hue},20%,10%) 100%)`,
-        border: '2px solid rgba(212,160,23,0.15)',
+        border: '2px solid rgba(255,197,66,0.15)',
       }}
     >
       {imgSrc ? (
@@ -84,7 +84,7 @@ function MatchRow({ match }: { match: Match }) {
           onClick={(e) => { if (!isCompleted && !betClosed) goToMatchWithPlayer(1, e); }}
           className={cn(
             'flex items-center gap-2 min-w-0 flex-1 rounded-md px-1.5 py-1 transition-all text-left',
-            !isCompleted && !betClosed && 'hover:bg-[#d4a017]/[0.06]',
+            !isCompleted && !betClosed && 'hover:bg-[#ffc542]/[0.06]',
             p2Won && 'opacity-30'
           )}
         >
@@ -92,7 +92,7 @@ function MatchRow({ match }: { match: Match }) {
             <PlayerAvatar name={match.player1.name} playerId={match.player1.id} avatarUrl={match.player1.avatarUrl} size={32} />
             {p1Won && (
               <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[8px]"
-                style={{ background: '#d4a017', boxShadow: '0 0 6px rgba(212,160,23,0.6)' }}>
+                style={{ background: '#ffc542', boxShadow: '0 0 6px rgba(255,197,66,0.6)' }}>
                 👑
               </div>
             )}
@@ -100,16 +100,16 @@ function MatchRow({ match }: { match: Match }) {
           <div className="min-w-0 flex-1">
             <p className={cn(
               'font-cinzel font-bold truncate text-[12px] leading-tight transition-colors',
-              p1Won ? 'text-[#f5c842]' : 'text-[#e8e2f5]'
+              p1Won ? 'text-[#ffd97a]' : 'text-[#e8e2f5]'
             )}>
               {match.player1.name}
             </p>
             {!isCompleted && !betClosed ? (
-              <p className="text-[#d4a017] font-cinzel font-black text-[14px] leading-none mt-0.5">
+              <p className="text-[#ffc542] font-cinzel font-black text-[14px] leading-none mt-0.5">
                 {match.odds1.toFixed(2)}<span className="text-[10px] opacity-60">×</span>
               </p>
             ) : isCompleted && match.resultScore ? (
-              <p className={cn('font-cinzel font-black text-[14px] leading-none mt-0.5', p1Won ? 'text-[#f5c842]' : 'text-[#3d3860]')}>
+              <p className={cn('font-cinzel font-black text-[14px] leading-none mt-0.5', p1Won ? 'text-[#ffd97a]' : 'text-[#3d3860]')}>
                 {match.resultScore.split('-')[0]}
               </p>
             ) : (
@@ -136,9 +136,9 @@ function MatchRow({ match }: { match: Match }) {
             <>
               {match.resultScore && (
                 <p className="font-cinzel font-black text-[14px]">
-                  <span className={p1Won ? 'text-[#f5c842]' : 'text-[#3d3860]'}>{match.resultScore.split('-')[0]}</span>
+                  <span className={p1Won ? 'text-[#ffd97a]' : 'text-[#3d3860]'}>{match.resultScore.split('-')[0]}</span>
                   <span className="text-[#3d3860] mx-0.5">-</span>
-                  <span className={p2Won ? 'text-[#f5c842]' : 'text-[#3d3860]'}>{match.resultScore.split('-')[1]}</span>
+                  <span className={p2Won ? 'text-[#ffd97a]' : 'text-[#3d3860]'}>{match.resultScore.split('-')[1]}</span>
                 </p>
               )}
               <span className="text-[8px] font-bold text-[#4a4570] tracking-wider">FIN</span>
@@ -162,23 +162,23 @@ function MatchRow({ match }: { match: Match }) {
           onClick={(e) => { if (!isCompleted && !betClosed) goToMatchWithPlayer(2, e); }}
           className={cn(
             'flex items-center gap-2 min-w-0 flex-1 rounded-md px-1.5 py-1 justify-end transition-all text-right',
-            !isCompleted && !betClosed && 'hover:bg-[#d4a017]/[0.06]',
+            !isCompleted && !betClosed && 'hover:bg-[#ffc542]/[0.06]',
             p1Won && 'opacity-30'
           )}
         >
           <div className="min-w-0 flex-1 text-right">
             <p className={cn(
               'font-cinzel font-bold truncate text-[12px] leading-tight transition-colors',
-              p2Won ? 'text-[#f5c842]' : 'text-[#e8e2f5]'
+              p2Won ? 'text-[#ffd97a]' : 'text-[#e8e2f5]'
             )}>
               {match.player2.name}
             </p>
             {!isCompleted && !betClosed ? (
-              <p className="text-[#d4a017] font-cinzel font-black text-[14px] leading-none mt-0.5">
+              <p className="text-[#ffc542] font-cinzel font-black text-[14px] leading-none mt-0.5">
                 {match.odds2.toFixed(2)}<span className="text-[10px] opacity-60">×</span>
               </p>
             ) : isCompleted && match.resultScore ? (
-              <p className={cn('font-cinzel font-black text-[14px] leading-none mt-0.5', p2Won ? 'text-[#f5c842]' : 'text-[#3d3860]')}>
+              <p className={cn('font-cinzel font-black text-[14px] leading-none mt-0.5', p2Won ? 'text-[#ffd97a]' : 'text-[#3d3860]')}>
                 {match.resultScore.split('-')[1]}
               </p>
             ) : (
@@ -189,7 +189,7 @@ function MatchRow({ match }: { match: Match }) {
             <PlayerAvatar name={match.player2.name} playerId={match.player2.id} avatarUrl={match.player2.avatarUrl} size={32} />
             {p2Won && (
               <div className="absolute -top-1 -left-1 w-4 h-4 rounded-full flex items-center justify-center text-[8px]"
-                style={{ background: '#d4a017', boxShadow: '0 0 6px rgba(212,160,23,0.6)' }}>
+                style={{ background: '#ffc542', boxShadow: '0 0 6px rgba(255,197,66,0.6)' }}>
                 👑
               </div>
             )}
@@ -300,22 +300,22 @@ export default function MatchesPage() {
     <div className="min-h-full">
       {/* Header */}
       <div className="relative border-b border-[#1e1a30] px-6 py-6 overflow-hidden" style={{ background: 'linear-gradient(180deg, #0a0918 0%, #07060f 100%)' }}>
-        <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, #d4a017 40%, #f5c842 50%, #d4a017 60%, transparent)' }} />
+        <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, #ffc542 40%, #ffd97a 50%, #ffc542 60%, transparent)' }} />
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(212,160,23,0.08)', border: '1px solid rgba(212,160,23,0.2)' }}>
-              <Swords size={18} className="text-[#d4a017]" />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(255,197,66,0.08)', border: '1px solid rgba(255,197,66,0.2)' }}>
+              <Swords size={18} className="text-[#ffc542]" />
             </div>
             <div>
-              <h1 className="font-cinzel font-black text-2xl tracking-[0.12em] text-[#f5c842] uppercase">{t('matches_title')}</h1>
+              <h1 className="font-cinzel font-black text-2xl tracking-[0.12em] text-[#ffd97a] uppercase">{t('matches_title')}</h1>
               <div className="flex items-center gap-3 mt-0.5">
                 {liveCount > 0 && <span className="flex items-center gap-1 text-[11px] text-red-400 font-cinzel"><span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse inline-block" />{liveCount} {t('matches_filter_live')}</span>}
                 <span className="text-[11px] text-[#6b6488] font-cinzel">{upcoming} {t('matches_upcoming_label')} · {matches.length} {t('matches_total')}</span>
               </div>
             </div>
           </div>
-          <button onClick={fetchMatches} disabled={loading} className="p-2 rounded-lg border border-[#1e1a30] text-[#6b6488] hover:text-[#d4a017] hover:border-[#d4a017]/20 transition-colors">
-            <RefreshCw size={14} className={loading ? 'animate-spin text-[#d4a017]' : ''} />
+          <button onClick={fetchMatches} disabled={loading} className="p-2 rounded-lg border border-[#1e1a30] text-[#6b6488] hover:text-[#ffc542] hover:border-[#ffc542]/20 transition-colors">
+            <RefreshCw size={14} className={loading ? 'animate-spin text-[#ffc542]' : ''} />
           </button>
         </div>
       </div>
@@ -330,7 +330,7 @@ export default function MatchesPage() {
               className={cn(
                 'shrink-0 px-3 py-1.5 rounded-md text-[11px] font-medium transition-colors border',
                 gameFilter === g.id
-                  ? 'bg-[#d4a017] text-black border-[#d4a017]'
+                  ? 'bg-[#ffc542] text-black border-[#ffc542]'
                   : 'bg-transparent text-[#9990b8] border-[#1e1a30] hover:border-[#3d3860] hover:text-[#e8e2f5]'
               )}
             >
@@ -417,7 +417,7 @@ export default function MatchesPage() {
               {filter !== 'all' ? t('matches_empty_filter') : t('matches_empty')}
             </p>
             {filter !== 'all' && (
-              <button onClick={() => setFilter('all')} className="mt-4 text-xs text-[#d4a017] font-cinzel hover:underline">{t('matches_see_all')}</button>
+              <button onClick={() => setFilter('all')} className="mt-4 text-xs text-[#ffc542] font-cinzel hover:underline">{t('matches_see_all')}</button>
             )}
           </div>
         )}

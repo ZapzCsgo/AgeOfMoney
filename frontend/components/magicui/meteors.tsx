@@ -27,12 +27,12 @@ export function Meteors({ number = 12, className }: MeteorsProps) {
         <span
           key={i}
           className={cn(
-            'pointer-events-none absolute size-0.5 rotate-[215deg] animate-meteor rounded-full shadow-[0_0_0_1px_#d4a01720]',
+            'pointer-events-none absolute size-0.5 rotate-[215deg] animate-meteor rounded-full shadow-[0_0_0_1px_#ffc54220]',
             className
           )}
           style={{
             ...style,
-            background: 'linear-gradient(90deg, #d4a017, transparent)',
+            background: 'linear-gradient(90deg, #ffc542, transparent)',
           }}
         >
           <div className="pointer-events-none absolute top-1/2 -z-10 h-px w-[60px] -translate-y-1/2 bg-gradient-to-r from-aoe-gold to-transparent opacity-60" />

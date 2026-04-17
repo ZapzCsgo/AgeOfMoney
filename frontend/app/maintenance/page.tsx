@@ -25,12 +25,12 @@ export default function MaintenancePage() {
           <svg width="64" height="64" viewBox="0 0 24 24" fill="none" className="mx-auto">
             <path
               d="M3 17L5 9L9 13L12 7L15 13L19 9L21 17H3Z"
-              fill="#d4a017"
-              stroke="#d4a017"
+              fill="#ffc542"
+              stroke="#ffc542"
               strokeWidth="1"
               strokeLinejoin="round"
             />
-            <rect x="3" y="17" width="18" height="2" rx="1" fill="#d4a017" />
+            <rect x="3" y="17" width="18" height="2" rx="1" fill="#ffc542" />
           </svg>
         </div>
 
@@ -40,7 +40,7 @@ export default function MaintenancePage() {
             fontSize: '2rem',
             fontWeight: 700,
             letterSpacing: '0.15em',
-            color: '#d4a017',
+            color: '#ffc542',
             marginBottom: '1rem',
           }}
         >
@@ -55,7 +55,7 @@ export default function MaintenancePage() {
         <div
           style={{
             width: 40, height: 2,
-            background: 'linear-gradient(90deg, transparent, #d4a017, transparent)',
+            background: 'linear-gradient(90deg, transparent, #ffc542, transparent)',
             margin: '2rem auto 0',
           }}
         />

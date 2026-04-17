@@ -66,7 +66,7 @@ export default function PrivacyPage() {
         <button
           onClick={() => setOpen(true)}
           className="px-6 py-3 rounded-lg font-bold text-[13px] transition-all hover:opacity-90"
-          style={{ background: '#d4a017', color: '#07060f' }}>
+          style={{ background: '#ffc542', color: '#07060f' }}>
           Lire la Politique de Confidentialité
         </button>
       )}
@@ -80,8 +80,8 @@ export default function PrivacyPage() {
 
             {/* Header */}
             <div className="flex items-center gap-3 px-6 py-4 shrink-0" style={{ borderBottom: '1px solid #1e1a30', background: '#09080f' }}>
-              <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: '#d4a01720', border: '1px solid #d4a01740' }}>
-                <Shield size={15} style={{ color: '#d4a017' }} />
+              <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: '#ffc54220', border: '1px solid #ffc54240' }}>
+                <Shield size={15} style={{ color: '#ffc542' }} />
               </div>
               <div className="flex-1">
                 <h2 className="text-[15px] font-bold" style={{ color: '#e8e2f5', fontFamily: 'Cinzel, serif' }}>
@@ -104,7 +104,7 @@ export default function PrivacyPage() {
 
               {SECTIONS.map(section => (
                 <div key={section.title}>
-                  <h3 className="text-[13px] font-bold mb-2.5" style={{ color: '#d4a017' }}>
+                  <h3 className="text-[13px] font-bold mb-2.5" style={{ color: '#ffc542' }}>
                     {section.title}
                   </h3>
                   <p className="text-[12px] leading-relaxed whitespace-pre-line" style={{ color: '#9990b8' }}>
@@ -116,7 +116,7 @@ export default function PrivacyPage() {
               <div className="rounded-xl p-4 mt-2" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
                 <p className="text-[11px] leading-relaxed" style={{ color: '#6b6488' }}>
                   Pour toute question relative à cette politique de confidentialité, contactez-nous à{' '}
-                  <a href="mailto:support@ageofmoney.gg" className="hover:opacity-80 transition-opacity" style={{ color: '#d4a017' }}>
+                  <a href="mailto:support@ageofmoney.gg" className="hover:opacity-80 transition-opacity" style={{ color: '#ffc542' }}>
                     support@ageofmoney.gg
                   </a>
                 </p>
@@ -128,7 +128,7 @@ export default function PrivacyPage() {
               <button
                 onClick={() => setOpen(false)}
                 className="px-5 py-2 rounded-lg text-[12px] font-bold transition-all hover:opacity-90"
-                style={{ background: '#d4a017', color: '#07060f' }}>
+                style={{ background: '#ffc542', color: '#07060f' }}>
                 J&apos;ai compris
               </button>
             </div>

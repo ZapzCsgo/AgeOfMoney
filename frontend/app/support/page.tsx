@@ -73,7 +73,7 @@ export default function SupportPage() {
           </p>
           <a href="/"
             className="inline-block px-6 py-2.5 rounded-lg text-[13px] font-bold transition-all hover:opacity-90"
-            style={{ background: '#d4a017', color: '#07060f' }}>
+            style={{ background: '#ffc542', color: '#07060f' }}>
             {t('support_back_home')}
           </a>
         </div>
@@ -88,7 +88,7 @@ export default function SupportPage() {
         {/* Header */}
         <div className="mb-8 text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-4 text-[11px] font-medium uppercase tracking-widest"
-            style={{ background: '#d4a01715', border: '1px solid #d4a01730', color: '#d4a017' }}>
+            style={{ background: '#ffc54215', border: '1px solid #ffc54230', color: '#ffc542' }}>
             {t('support_title')}
           </div>
           <h1 className="text-[28px] font-bold mb-2" style={{ color: '#e8e2f5', fontFamily: 'Cinzel, serif' }}>
@@ -181,7 +181,7 @@ export default function SupportPage() {
             type="submit"
             disabled={loading}
             className="w-full h-11 rounded-lg flex items-center justify-center gap-2 text-[13px] font-bold transition-all disabled:opacity-60 hover:opacity-90"
-            style={{ background: '#d4a017', color: '#07060f' }}>
+            style={{ background: '#ffc542', color: '#07060f' }}>
             {loading ? (
               <span className="animate-spin w-4 h-4 border-2 border-[#07060f]/30 border-t-[#07060f] rounded-full" />
             ) : (

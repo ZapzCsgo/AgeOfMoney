@@ -41,7 +41,7 @@ type TabType = 'dashboard' | 'tiers';
 const TIERS = [
   { level: 'Bronze', rate: 0.25, refs:  0,  color: '#cd7f32', desc: 'Par défaut — dès ton premier code' },
   { level: 'Silver', rate: 0.30, refs: 10,  color: '#c0c0c0', desc: '10 filleuls actifs + 10 000⚜ déposés' },
-  { level: 'Gold',   rate: 0.35, refs: 50,  color: '#d4a017', desc: '50 filleuls actifs + 50 000⚜ déposés' },
+  { level: 'Gold',   rate: 0.35, refs: 50,  color: '#ffc542', desc: '50 filleuls actifs + 50 000⚜ déposés' },
 ];
 
 function EarningsChart({ data }: { data: number[] }) {
@@ -66,12 +66,12 @@ function EarningsChart({ data }: { data: number[] }) {
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full" preserveAspectRatio="none">
       <defs>
         <linearGradient id="aff-grad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#d4a017" stopOpacity="0.3" />
-          <stop offset="100%" stopColor="#d4a017" stopOpacity="0" />
+          <stop offset="0%" stopColor="#ffc542" stopOpacity="0.3" />
+          <stop offset="100%" stopColor="#ffc542" stopOpacity="0" />
         </linearGradient>
       </defs>
       <polygon points={area} fill="url(#aff-grad)" />
-      <polyline points={polyline} fill="none" stroke="#d4a017" strokeWidth="1.5" strokeLinejoin="round" />
+      <polyline points={polyline} fill="none" stroke="#ffc542" strokeWidth="1.5" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -207,7 +207,7 @@ export default function AffiliatePage() {
   if (aff === null && (status === 'loading' || loading)) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#07060f' }}>
-        <div className="w-8 h-8 border-2 border-[#d4a017] border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-[#ffc542] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -218,14 +218,14 @@ export default function AffiliatePage() {
 
         {/* ── Hero ── */}
         <div className="relative rounded-2xl overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
-          <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 80% 50%, rgba(212,160,23,0.1) 0%, transparent 70%)' }} />
+          <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 80% 50%, rgba(255,197,66,0.1) 0%, transparent 70%)' }} />
           <div className="absolute right-0 top-0 bottom-0 w-64 opacity-10"
-            style={{ background: 'repeating-linear-gradient(45deg, #d4a017 0px, #d4a017 1px, transparent 0px, transparent 50%)' }} />
+            style={{ background: 'repeating-linear-gradient(45deg, #ffc542 0px, #ffc542 1px, transparent 0px, transparent 50%)' }} />
 
           <div className="relative px-6 md:px-8 py-8">
             <div className="flex items-start gap-2 mb-3">
               <span className="text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-widest"
-                style={{ background: '#d4a01722', color: '#d4a017', border: '1px solid #d4a01755' }}>
+                style={{ background: '#ffc54222', color: '#ffc542', border: '1px solid #ffc54255' }}>
                 Programme affiliés
               </span>
               <span className="text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-widest"
@@ -235,7 +235,7 @@ export default function AffiliatePage() {
             </div>
             <h1 className="text-2xl md:text-3xl font-black leading-tight mb-3"
               style={{ fontFamily: 'Cinzel,serif', color: '#e8e2f5' }}>
-              Gagne <span style={{ color: '#d4a017' }}>jusqu&apos;à 35%</span> des pertes<br />
+              Gagne <span style={{ color: '#ffc542' }}>jusqu&apos;à 35%</span> des pertes<br />
               de chaque joueur que tu ramènes
             </h1>
             <p className="text-[13px] leading-relaxed mb-5 max-w-xl" style={{ color: '#8a82a8' }}>
@@ -248,9 +248,9 @@ export default function AffiliatePage() {
                 onClick={() => signIn('steam')}
                 className="group inline-flex items-center gap-3 px-6 py-3.5 rounded-xl font-bold text-[14px] transition-all hover:scale-[1.02] hover:shadow-lg"
                 style={{
-                  background: 'linear-gradient(135deg, #d4a017 0%, #f5c842 100%)',
+                  background: 'linear-gradient(135deg, #ffc542 0%, #ffd97a 100%)',
                   color: '#07060f',
-                  boxShadow: '0 4px 20px rgba(212,160,23,0.35)',
+                  boxShadow: '0 4px 20px rgba(255,197,66,0.35)',
                 }}>
                 <Rocket size={16} />
                 Connecte-toi avec Steam pour créer ton code en 1 clic
@@ -273,7 +273,7 @@ export default function AffiliatePage() {
                   onClick={createCode}
                   disabled={creating || !customCode.trim()}
                   className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold text-[13px] transition-opacity hover:opacity-80 disabled:opacity-40 w-full sm:w-auto justify-center"
-                  style={{ background: '#d4a017', color: '#07060f' }}>
+                  style={{ background: '#ffc542', color: '#07060f' }}>
                   <Rocket size={14} />
                   {creating ? 'Création...' : 'Créer mon code'}
                 </button>
@@ -291,7 +291,7 @@ export default function AffiliatePage() {
                 />
                 <button onClick={changeCode} disabled={changing || !newCodeInput.trim()}
                   className="px-5 py-2.5 rounded-lg font-bold text-[13px] disabled:opacity-40"
-                  style={{ background: '#d4a017', color: '#07060f' }}>
+                  style={{ background: '#ffc542', color: '#07060f' }}>
                   {changing ? '...' : 'Confirmer'}
                 </button>
                 <button onClick={() => { setEditingCode(false); setNewCodeInput(''); setChangeErr(null); }}
@@ -305,7 +305,7 @@ export default function AffiliatePage() {
                 <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg"
                   style={{ background: '#13111f', border: '1px solid #2a2640' }}>
                   <span className="text-[11px] uppercase tracking-widest" style={{ color: '#6b6488' }}>Code</span>
-                  <span className="text-[14px] font-mono font-bold tracking-widest" style={{ color: '#d4a017' }}>
+                  <span className="text-[14px] font-mono font-bold tracking-widest" style={{ color: '#ffc542' }}>
                     {aff.code}
                   </span>
                   <button onClick={() => copyText(aff.code, 'code')} className="hover:opacity-70">
@@ -377,7 +377,7 @@ export default function AffiliatePage() {
                       <p className="text-[11px] uppercase tracking-widest" style={{ color: '#6b6488' }}>Commissions gagnées</p>
                       <span className="text-[10px] px-2 py-0.5 rounded" style={{ background: '#1a1630', color: '#6b6488' }}>7 jours</span>
                     </div>
-                    <p className="text-2xl font-bold mb-5" style={{ color: '#d4a017', fontFamily: 'Cinzel,serif' }}>
+                    <p className="text-2xl font-bold mb-5" style={{ color: '#ffc542', fontFamily: 'Cinzel,serif' }}>
                       ⚜ {aff.totalEarnings.toLocaleString('fr-FR')}
                     </p>
                     <div style={{ height: 100 }}>
@@ -389,14 +389,14 @@ export default function AffiliatePage() {
                     <div className="rounded-xl p-4" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-2">
-                          <Coins size={14} style={{ color: '#d4a017' }} />
-                          <span className="text-[18px] font-bold" style={{ color: '#d4a017' }}>
+                          <Coins size={14} style={{ color: '#ffc542' }} />
+                          <span className="text-[18px] font-bold" style={{ color: '#ffc542' }}>
                             {aff.available.toLocaleString('fr-FR')}
                           </span>
                         </div>
                         <button onClick={claim} disabled={claiming || aff.available === 0}
                           className="px-3 py-1.5 rounded-lg text-[11px] font-bold disabled:opacity-40"
-                          style={{ background: '#d4a017', color: '#07060f' }}>
+                          style={{ background: '#ffc542', color: '#07060f' }}>
                           {claiming ? '...' : 'Réclamer'}
                         </button>
                       </div>
@@ -464,7 +464,7 @@ export default function AffiliatePage() {
                       <Users size={24} className="mx-auto mb-3" style={{ color: '#3d3860' }} />
                       <p className="text-[13px]" style={{ color: '#6b6488' }}>Aucun filleul pour le moment</p>
                       <p className="text-[11px] mt-1" style={{ color: '#4a4468' }}>
-                        Partage ton code <span style={{ color: '#d4a017' }}>{aff.code}</span> pour commencer à gagner
+                        Partage ton code <span style={{ color: '#ffc542' }}>{aff.code}</span> pour commencer à gagner
                       </p>
                     </div>
                   ) : (
@@ -493,7 +493,7 @@ export default function AffiliatePage() {
                           <span className="text-[12px]" style={{ color: '#e8e2f5' }}>
                             {r.totalDeposited.toLocaleString('fr-FR')}⚜
                           </span>
-                          <span className="text-[12px] font-bold" style={{ color: '#d4a017' }}>
+                          <span className="text-[12px] font-bold" style={{ color: '#ffc542' }}>
                             {r.commission.toLocaleString('fr-FR')}⚜
                           </span>
                         </div>

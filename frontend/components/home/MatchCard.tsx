@@ -76,16 +76,16 @@ export function MatchCard({ match }: MatchCardProps) {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <div className={`w-9 h-9 rounded-full border flex items-center justify-center flex-shrink-0 text-lg transition-all
-                ${p1Won ? 'bg-[#1a1500] border-[#d4a017]' : 'bg-aoe-stone border-aoe-border'}
+                ${p1Won ? 'bg-[#1a1500] border-[#ffc542]' : 'bg-aoe-stone border-aoe-border'}
                 ${p2Won ? 'opacity-40' : ''}
               `}>
                 🗡️
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-1">
-                  {p1Won && <span className="text-[#d4a017] text-sm leading-none">👑</span>}
+                  {p1Won && <span className="text-[#ffc542] text-sm leading-none">👑</span>}
                   <p className={`font-cinzel font-semibold truncate transition-colors
-                    ${p1Won ? 'text-[#d4a017]' : p2Won ? 'text-[#6b6488]' : 'text-aoe-parchment group-hover:text-aoe-gold'}
+                    ${p1Won ? 'text-[#ffc542]' : p2Won ? 'text-[#6b6488]' : 'text-aoe-parchment group-hover:text-aoe-gold'}
                   `}>
                     {match.player1.name}
                   </p>
@@ -101,11 +101,11 @@ export function MatchCard({ match }: MatchCardProps) {
           <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
             {isCompleted ? (
               <div className="flex items-center gap-2">
-                <span className={`font-cinzel font-black text-2xl leading-none ${p1Won ? 'text-[#d4a017]' : 'text-[#6b6488]'}`}>
+                <span className={`font-cinzel font-black text-2xl leading-none ${p1Won ? 'text-[#ffc542]' : 'text-[#6b6488]'}`}>
                   {match.p1Score ?? 0}
                 </span>
                 <span className="text-[#3a3560] font-bold text-lg">—</span>
-                <span className={`font-cinzel font-black text-2xl leading-none ${p2Won ? 'text-[#d4a017]' : 'text-[#6b6488]'}`}>
+                <span className={`font-cinzel font-black text-2xl leading-none ${p2Won ? 'text-[#ffc542]' : 'text-[#6b6488]'}`}>
                   {match.p2Score ?? 0}
                 </span>
               </div>
@@ -153,18 +153,18 @@ export function MatchCard({ match }: MatchCardProps) {
               <div className="min-w-0 text-right">
                 <div className="flex items-center gap-1 justify-end">
                   <p className={`font-cinzel font-semibold truncate transition-colors
-                    ${p2Won ? 'text-[#d4a017]' : p1Won ? 'text-[#6b6488]' : 'text-aoe-parchment group-hover:text-aoe-gold'}
+                    ${p2Won ? 'text-[#ffc542]' : p1Won ? 'text-[#6b6488]' : 'text-aoe-parchment group-hover:text-aoe-gold'}
                   `}>
                     {match.player2.name}
                   </p>
-                  {p2Won && <span className="text-[#d4a017] text-sm leading-none">👑</span>}
+                  {p2Won && <span className="text-[#ffc542] text-sm leading-none">👑</span>}
                 </div>
                 <p className="text-aoe-parchment-muted text-xs">
                   {match.player2.elo} ELO
                 </p>
               </div>
               <div className={`w-9 h-9 rounded-full border flex items-center justify-center flex-shrink-0 text-lg transition-all
-                ${p2Won ? 'bg-[#1a1500] border-[#d4a017]' : 'bg-aoe-stone border-aoe-border'}
+                ${p2Won ? 'bg-[#1a1500] border-[#ffc542]' : 'bg-aoe-stone border-aoe-border'}
                 ${p1Won ? 'opacity-40' : ''}
               `}>
                 🗡️

@@ -438,7 +438,7 @@ export default function AdminPage() {
   // Only spinner on the very first load (no session resolved yet)
   if (status === 'loading' && !session) return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: '#07060f' }}>
-      <div className="w-8 h-8 border-2 border-[#d4a017] border-t-transparent rounded-full animate-spin" />
+      <div className="w-8 h-8 border-2 border-[#ffc542] border-t-transparent rounded-full animate-spin" />
     </div>
   );
   if (!session?.user.isAdmin) return null;
@@ -502,7 +502,7 @@ export default function AdminPage() {
               className={cn(
                 'flex items-center gap-2 px-4 py-2.5 text-[12px] font-medium transition-all border-b-2 -mb-px',
                 tab === t.id
-                  ? 'border-[#d4a017] text-[#d4a017]'
+                  ? 'border-[#ffc542] text-[#ffc542]'
                   : 'border-transparent text-[#6b6488] hover:text-[#c8c0e0]'
               )}
             >
@@ -510,7 +510,7 @@ export default function AdminPage() {
               {t.label}
               {t.count !== undefined && (
                 <span className="px-1.5 py-0.5 rounded text-[10px] font-bold"
-                  style={{ background: tab === t.id ? '#d4a01722' : '#1e1a30', color: tab === t.id ? '#d4a017' : '#6b6488' }}>
+                  style={{ background: tab === t.id ? '#ffc54222' : '#1e1a30', color: tab === t.id ? '#ffc542' : '#6b6488' }}>
                   {t.count}
                 </span>
               )}
@@ -522,8 +522,8 @@ export default function AdminPage() {
         {tab === 'matches' && (
           <div className="rounded-lg overflow-hidden" style={{ border: '1px solid #1e1a30', background: '#0d0b1a' }}>
             <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: '1px solid #1e1a30' }}>
-              <Swords size={14} className="text-[#d4a017]" />
-              <span className="text-[13px] font-semibold text-[#d4a017]">MATCHS ACTIFS</span>
+              <Swords size={14} className="text-[#ffc542]" />
+              <span className="text-[13px] font-semibold text-[#ffc542]">MATCHS ACTIFS</span>
               <span className="ml-auto text-[11px] text-[#6b6488]">{matches.length} match(s)</span>
             </div>
             <div className="overflow-x-auto">
@@ -544,7 +544,7 @@ export default function AdminPage() {
                       </td>
                       <td className="px-4 py-3 text-[#9990b8]">{m.tournament?.name ?? ''}</td>
                       <td className="px-4 py-3">
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold text-[#d4a017]" style={{ background: '#d4a01715', border: '1px solid #d4a01730' }}>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold text-[#ffc542]" style={{ background: '#ffc54215', border: '1px solid #ffc54230' }}>
                           {m.format}
                         </span>
                       </td>
@@ -620,7 +620,7 @@ export default function AdminPage() {
                           <button
                             onClick={() => setResultModal({ matchId: m.id, player1Id: m.player1Id, player2Id: m.player2Id, player1Name: m.player1.name, player2Name: m.player2.name })}
                             className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium transition-all hover:opacity-90"
-                            style={{ background: '#d4a01720', border: '1px solid #d4a01740', color: '#d4a017' }}
+                            style={{ background: '#ffc54220', border: '1px solid #ffc54240', color: '#ffc542' }}
                           >
                             <Gavel size={11} />
                             Résultat
@@ -677,14 +677,14 @@ export default function AdminPage() {
                       <tr key={m.id} className="hover:bg-[#13111f]" style={{ borderBottom: '1px solid #1e1a3022' }}>
                         <td className="px-4 py-3 font-semibold text-[#e8e2f5]">{m.player1.name} vs {m.player2.name}</td>
                         <td className="px-4 py-3 text-[#9990b8]">{m.tournament?.name ?? ''}</td>
-                        <td className="px-4 py-3 text-[#d4a017] font-bold text-[11px]">{m.format}</td>
+                        <td className="px-4 py-3 text-[#ffc542] font-bold text-[11px]">{m.format}</td>
                         <td className="px-4 py-3 text-[#6b6488]">{formatDateTime(m.scheduledAt)}</td>
                         <td className="px-4 py-3 text-[#9990b8]">{(m as AdminMatch)._count?.bets ?? 0}</td>
                         <td className="px-4 py-3">
                           <button
                             onClick={() => setResultModal({ matchId: m.id, player1Id: m.player1Id, player2Id: m.player2Id, player1Name: m.player1.name, player2Name: m.player2.name })}
                             className="flex items-center gap-1 px-3 py-1.5 rounded text-[11px] font-medium"
-                            style={{ background: '#d4a01720', border: '1px solid #d4a01740', color: '#d4a017' }}
+                            style={{ background: '#ffc54220', border: '1px solid #ffc54240', color: '#ffc542' }}
                           >
                             <Gavel size={11} />
                             Résultat
@@ -710,7 +710,7 @@ export default function AdminPage() {
                 onClick={handleSeedAll}
                 disabled={seeding === 'all'}
                 className="flex items-center gap-2 px-4 py-2 rounded text-[12px] font-medium transition-all disabled:opacity-50"
-                style={{ background: '#d4a01720', border: '1px solid #d4a01740', color: '#d4a017' }}
+                style={{ background: '#ffc54220', border: '1px solid #ffc54240', color: '#ffc542' }}
               >
                 {seeding === 'all' ? <RefreshCw size={13} className="animate-spin" /> : <Zap size={13} />}
                 Seed tous les joueurs
@@ -765,7 +765,7 @@ export default function AdminPage() {
                 <button
                   type="submit"
                   className="px-4 py-2 rounded text-[12px] font-medium"
-                  style={{ background: '#d4a01720', border: '1px solid #d4a01740', color: '#d4a017' }}
+                  style={{ background: '#ffc54220', border: '1px solid #ffc54240', color: '#ffc542' }}
                 >
                   Appliquer
                 </button>
@@ -784,7 +784,7 @@ export default function AdminPage() {
                 <tbody>
                   {players.map(p => {
                     const records = p._count.matchHistory;
-                    const color = records >= 50 ? '#10b981' : records >= 20 ? '#d4a017' : records > 0 ? '#f87171' : '#6b6488';
+                    const color = records >= 50 ? '#10b981' : records >= 20 ? '#ffc542' : records > 0 ? '#f87171' : '#6b6488';
                     const enrichedGames = p.aiEnrichedGames ?? [];
                     const aiDone = enrichedGames.length > 0;
                     return (
@@ -809,7 +809,7 @@ export default function AdminPage() {
                           <p className="text-[10px] text-[#6b6488]">{p.aoe4worldId ?? 'no aoe4world ID'}</p>
                         </td>
                         <td className="px-4 py-3">
-                          <span className={cn('font-bold', (p.winrate ?? 0) >= 0.55 ? 'text-emerald-400' : (p.winrate ?? 0) >= 0.45 ? 'text-[#d4a017]' : 'text-red-400')}>
+                          <span className={cn('font-bold', (p.winrate ?? 0) >= 0.55 ? 'text-emerald-400' : (p.winrate ?? 0) >= 0.45 ? 'text-[#ffc542]' : 'text-red-400')}>
                             {((p.winrate ?? 0) * 100).toFixed(0)}%
                           </span>
                         </td>
@@ -832,7 +832,7 @@ export default function AdminPage() {
                               onClick={() => handleSeedPlayer(p.id, p.name, 'liquipedia')}
                               disabled={seeding === p.id}
                               className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-all disabled:opacity-40"
-                              style={{ background: 'rgba(212,160,23,0.08)', border: '1px solid rgba(212,160,23,0.2)', color: '#d4a017' }}
+                              style={{ background: 'rgba(255,197,66,0.08)', border: '1px solid rgba(255,197,66,0.2)', color: '#ffc542' }}
                               title="Seed via Liquipedia /Matches page (S/A tier tournament results)"
                             >
                               {seeding === p.id ? <RefreshCw size={10} className="animate-spin" /> : <>📖</>}
@@ -924,13 +924,13 @@ export default function AdminPage() {
                         <button onClick={() => openUserDetail(u.id)} className="flex items-center gap-2 hover:opacity-80 transition-opacity text-left">
                           {u.avatar && <Image src={u.avatar} alt="" width={28} height={28} unoptimized className="w-7 h-7 rounded-full" />}
                           <div>
-                            <p className="font-semibold text-[#e8e2f5] hover:text-[#d4a017] transition-colors">{u.username}</p>
+                            <p className="font-semibold text-[#e8e2f5] hover:text-[#ffc542] transition-colors">{u.username}</p>
                             <p className="text-[10px] text-[#6b6488] capitalize">{u.provider}</p>
                           </div>
                         </button>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="font-bold text-[#d4a017]">{new Intl.NumberFormat('fr-FR').format(u.coins)} ⚜</span>
+                        <span className="font-bold text-[#ffc542]">{new Intl.NumberFormat('fr-FR').format(u.coins)} ⚜</span>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-1">
@@ -955,7 +955,7 @@ export default function AdminPage() {
                           <button onClick={() => openUserDetail(u.id)}
                             className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-all"
                             title="Inspecter l'activité complète"
-                            style={{ background: '#d4a01715', border: '1px solid #d4a01740', color: '#d4a017' }}>
+                            style={{ background: '#ffc54215', border: '1px solid #ffc54240', color: '#ffc542' }}>
                             <Eye size={11} /> Inspecter
                           </button>
                           {!u.isAdmin && (
@@ -968,7 +968,7 @@ export default function AdminPage() {
                           )}
                           <button onClick={() => setAdjustModal({ userId: u.id, username: u.username })}
                             className="p-1.5 rounded transition-all" title="Ajuster coins"
-                            style={{ background: '#d4a01715', border: '1px solid #d4a01730', color: '#d4a017' }}>
+                            style={{ background: '#ffc54215', border: '1px solid #ffc54230', color: '#ffc542' }}>
                             <Coins size={11} />
                           </button>
                           {/* Mod toggle */}
@@ -1028,7 +1028,7 @@ export default function AdminPage() {
                         <td className="px-4 py-3">
                           <button onClick={() => openUserDetail(u.id)} className="flex items-center gap-2 hover:opacity-80">
                             {u.avatar && <Image src={u.avatar} alt="" width={28} height={28} unoptimized className="w-7 h-7 rounded-full" />}
-                            <p className="font-semibold text-[#e8e2f5] hover:text-[#d4a017]">{u.username}</p>
+                            <p className="font-semibold text-[#e8e2f5] hover:text-[#ffc542]">{u.username}</p>
                           </button>
                         </td>
                         <td className="px-4 py-3 text-[#e8e2f5]">{u.totalBets}</td>
@@ -1043,7 +1043,7 @@ export default function AdminPage() {
                             {u.netProfit > 0 ? '+' : ''}{new Intl.NumberFormat('fr-FR').format(u.netProfit)} ⚜
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-[#d4a017] font-bold">{new Intl.NumberFormat('fr-FR').format(u.coins)} ⚜</td>
+                        <td className="px-4 py-3 text-[#ffc542] font-bold">{new Intl.NumberFormat('fr-FR').format(u.coins)} ⚜</td>
                         <td className="px-4 py-3">
                           <span className={cn('px-2 py-0.5 rounded text-[10px] font-bold',
                             u.isBanned ? 'bg-red-950 border border-red-800/40 text-red-400' : 'bg-emerald-950 border border-emerald-800/40 text-emerald-400'
@@ -1053,7 +1053,7 @@ export default function AdminPage() {
                         </td>
                         <td className="px-4 py-3">
                           <button onClick={() => openUserDetail(u.id)}
-                            className="px-2 py-1 rounded text-[10px] font-medium" style={{ background: '#d4a01715', border: '1px solid #d4a01730', color: '#d4a017' }}>
+                            className="px-2 py-1 rounded text-[10px] font-medium" style={{ background: '#ffc54215', border: '1px solid #ffc54230', color: '#ffc542' }}>
                             <Eye size={11} className="inline -mt-0.5" /> Inspecter
                           </button>
                         </td>
@@ -1074,7 +1074,7 @@ export default function AdminPage() {
                 {(['pending', 'all', 'deposit', 'withdrawal'] as const).map(f => (
                   <button key={f} onClick={() => loadTransactions(f)}
                     className={cn('px-3 py-1 rounded text-[11px] font-medium transition-colors',
-                      txFilter === f ? 'bg-[#d4a017] text-black' : 'text-[#9990b8] hover:text-[#e8e2f5]'
+                      txFilter === f ? 'bg-[#ffc542] text-black' : 'text-[#9990b8] hover:text-[#e8e2f5]'
                     )}>
                     {f === 'pending' ? 'En attente' : f === 'all' ? 'Toutes' : f === 'deposit' ? 'Dépôts' : 'Retraits'}
                   </button>
@@ -1099,7 +1099,7 @@ export default function AdminPage() {
                       <td className="px-4 py-3">
                         <button onClick={() => openUserDetail(tx.user.id)} className="flex items-center gap-2 hover:opacity-80">
                           {tx.user.avatar && <Image src={tx.user.avatar} alt="" width={24} height={24} unoptimized className="w-6 h-6 rounded-full" />}
-                          <span className="font-semibold text-[#e8e2f5] hover:text-[#d4a017]">{tx.user.username}</span>
+                          <span className="font-semibold text-[#e8e2f5] hover:text-[#ffc542]">{tx.user.username}</span>
                           {tx.user.isBanned && <span className="text-[9px] text-red-400">BANNI</span>}
                         </button>
                       </td>
@@ -1113,7 +1113,7 @@ export default function AdminPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-[#e8e2f5]">${(tx.amount / 100).toFixed(2)}</td>
-                      <td className="px-4 py-3 text-[#d4a017] font-bold">{tx.coins > 0 ? '+' : ''}{new Intl.NumberFormat('fr-FR').format(tx.coins)} ⚜</td>
+                      <td className="px-4 py-3 text-[#ffc542] font-bold">{tx.coins > 0 ? '+' : ''}{new Intl.NumberFormat('fr-FR').format(tx.coins)} ⚜</td>
                       <td className="px-4 py-3">
                         <span className={cn('px-2 py-0.5 rounded text-[10px] font-bold',
                           tx.status === 'completed' ? 'bg-emerald-950 border border-emerald-800/40 text-emerald-400' :
@@ -1140,7 +1140,7 @@ export default function AdminPage() {
                 {(['pending', 'suspicious', 'all'] as const).map(f => (
                   <button key={f} onClick={() => loadAffiliateReferrals(f)}
                     className={cn('px-3 py-1 rounded text-[11px] font-medium transition-colors',
-                      affiliateFilter === f ? 'bg-[#d4a017] text-black' : 'text-[#9990b8] hover:text-[#e8e2f5]'
+                      affiliateFilter === f ? 'bg-[#ffc542] text-black' : 'text-[#9990b8] hover:text-[#e8e2f5]'
                     )}>
                     {f === 'pending' ? 'À review' : f === 'suspicious' ? 'Tous suspects' : 'Tous'}
                   </button>
@@ -1169,7 +1169,7 @@ export default function AdminPage() {
                         {r.referrer ? (
                           <button onClick={() => openUserDetail(r.referrer!.id)} className="flex items-center gap-2 hover:opacity-80">
                             {r.referrer.avatar && <Image src={r.referrer.avatar} alt="" width={24} height={24} unoptimized className="w-6 h-6 rounded-full" />}
-                            <span className="text-[#e8e2f5] hover:text-[#d4a017]">{r.referrer.username}</span>
+                            <span className="text-[#e8e2f5] hover:text-[#ffc542]">{r.referrer.username}</span>
                             {r.referrer.isBanned && <span className="text-[9px] text-red-400">BANNI</span>}
                           </button>
                         ) : '—'}
@@ -1178,15 +1178,15 @@ export default function AdminPage() {
                         {r.referredUser ? (
                           <button onClick={() => openUserDetail(r.referredUser!.id)} className="flex items-center gap-2 hover:opacity-80">
                             {r.referredUser.avatar && <Image src={r.referredUser.avatar} alt="" width={24} height={24} unoptimized className="w-6 h-6 rounded-full" />}
-                            <span className="text-[#e8e2f5] hover:text-[#d4a017]">{r.referredUser.username}</span>
+                            <span className="text-[#e8e2f5] hover:text-[#ffc542]">{r.referredUser.username}</span>
                             {r.referredUser.isBanned && <span className="text-[9px] text-red-400">BANNI</span>}
                           </button>
                         ) : '—'}
                       </td>
-                      <td className="px-3 py-3 font-mono text-[#d4a017]">{r.code}</td>
+                      <td className="px-3 py-3 font-mono text-[#ffc542]">{r.code}</td>
                       <td className="px-3 py-3 text-[#e8e2f5]">{r.totalDeposited.toLocaleString('fr-FR')}⚜</td>
                       <td className="px-3 py-3 text-[#8a82a8]">{r.totalWagered.toLocaleString('fr-FR')}⚜</td>
-                      <td className="px-3 py-3 text-[#d4a017] font-bold">{r.commission.toLocaleString('fr-FR')}⚜</td>
+                      <td className="px-3 py-3 text-[#ffc542] font-bold">{r.commission.toLocaleString('fr-FR')}⚜</td>
                       <td className="px-3 py-3 text-[11px]">
                         {r.suspicious && !r.reviewed && (
                           <span className="px-2 py-0.5 rounded bg-red-950 border border-red-800/40 text-red-400 text-[10px] font-bold">
@@ -1281,7 +1281,7 @@ export default function AdminPage() {
                   {/* Stats grid */}
                   <div className="grid grid-cols-4 gap-2">
                     {[
-                      { label: 'Solde', value: `${new Intl.NumberFormat('fr-FR').format(userDetail.user.coins)} ⚜`, color: '#d4a017' },
+                      { label: 'Solde', value: `${new Intl.NumberFormat('fr-FR').format(userDetail.user.coins)} ⚜`, color: '#ffc542' },
                       { label: 'Total misé', value: `${new Intl.NumberFormat('fr-FR').format(userDetail.user.totalWagered)} ⚜`, color: '#e8e2f5' },
                       { label: 'Profit net', value: `${userDetail.stats.netProfit >= 0 ? '+' : ''}${new Intl.NumberFormat('fr-FR').format(userDetail.stats.netProfit)} ⚜`, color: userDetail.stats.netProfit >= 0 ? '#10b981' : '#ef4444' },
                       { label: 'Winrate', value: `${(userDetail.stats.winrate * 100).toFixed(0)}%`, color: userDetail.stats.winrate > 0.75 ? '#ef4444' : '#e8e2f5' },
@@ -1325,7 +1325,7 @@ export default function AdminPage() {
                                 <td className="px-3 py-2 text-[#e8e2f5]">{b.match.player1.name} vs {b.match.player2.name}</td>
                                 <td className="px-3 py-2 text-[#9990b8]">{pick}</td>
                                 <td className="px-3 py-2 text-[#9990b8]">{b.oddsAtBet.toFixed(2)}</td>
-                                <td className="px-3 py-2 text-[#d4a017]">{b.amount} ⚜</td>
+                                <td className="px-3 py-2 text-[#ffc542]">{b.amount} ⚜</td>
                                 <td className="px-3 py-2" style={{ color: b.status === 'WON' ? '#10b981' : b.status === 'LOST' ? '#ef4444' : '#6b6488' }}>
                                   {b.payout ? `+${b.payout}` : '—'}
                                 </td>
@@ -1364,7 +1364,7 @@ export default function AdminPage() {
                               <tr key={tx.id} style={{ borderBottom: '1px solid #1e1a3022' }}>
                                 <td className="px-3 py-2 text-[#e8e2f5] capitalize">{tx.type}</td>
                                 <td className="px-3 py-2 text-[#9990b8]">${(tx.amount / 100).toFixed(2)}</td>
-                                <td className="px-3 py-2 text-[#d4a017]">{tx.coins > 0 ? '+' : ''}{tx.coins} ⚜</td>
+                                <td className="px-3 py-2 text-[#ffc542]">{tx.coins > 0 ? '+' : ''}{tx.coins} ⚜</td>
                                 <td className="px-3 py-2">
                                   <span className={cn('px-1.5 py-0.5 rounded text-[9px] font-bold',
                                     tx.status === 'completed' ? 'text-emerald-400 bg-emerald-950/50' :
@@ -1390,7 +1390,7 @@ export default function AdminPage() {
                       {userDetail.user.isBanned ? 'Débannir' : 'Bannir'}
                     </button>
                     <button onClick={() => { setAdjustModal({ userId: userDetail.user.id, username: userDetail.user.username }); setUserDetail(null); }}
-                      className="px-3 py-1.5 rounded text-[11px] font-medium" style={{ background: '#d4a01715', border: '1px solid #d4a01730', color: '#d4a017' }}>
+                      className="px-3 py-1.5 rounded text-[11px] font-medium" style={{ background: '#ffc54215', border: '1px solid #ffc54230', color: '#ffc542' }}>
                       <Coins size={11} className="inline -mt-0.5 mr-1" /> Ajuster coins
                     </button>
                     <button onClick={() => { setMuteModal({ userId: userDetail.user.id, username: userDetail.user.username }); setUserDetail(null); }}
@@ -1420,7 +1420,7 @@ export default function AdminPage() {
                   value={scoreP1}
                   onChange={e => setScoreP1(e.target.value)}
                   className="w-full text-center text-2xl font-bold font-cinzel h-14 rounded-lg border outline-none"
-                  style={{ background: '#07060f', borderColor: '#d4a01740', color: '#f5c842' }}
+                  style={{ background: '#07060f', borderColor: '#ffc54240', color: '#ffd97a' }}
                 />
               </div>
               <span className="text-[#6b6488] font-cinzel text-xl mt-5">—</span>
@@ -1462,11 +1462,11 @@ export default function AdminPage() {
           >
             {inspectLoading ? (
               <div className="flex items-center justify-center py-16">
-                <div className="w-8 h-8 border-2 border-[#d4a017] border-t-transparent rounded-full animate-spin" />
+                <div className="w-8 h-8 border-2 border-[#ffc542] border-t-transparent rounded-full animate-spin" />
               </div>
             ) : inspectData ? (() => {
               const { match: m, betsPlayer1, betsPlayer2, stats } = inspectData;
-              const statusColor = m.status === 'LIVE' ? '#10b981' : m.status === 'COMPLETED' ? '#6b6488' : '#d4a017';
+              const statusColor = m.status === 'LIVE' ? '#10b981' : m.status === 'COMPLETED' ? '#6b6488' : '#ffc542';
 
               const BetRow = ({ bet, playerName }: { bet: InspectBet; playerName: string }) => {
                 const statusColors: Record<string, string> = {
@@ -1478,12 +1478,12 @@ export default function AdminPage() {
                       <div className="flex items-center gap-2">
                         {bet.user.avatar
                           ? <Image src={bet.user.avatar} alt="" width={24} height={24} unoptimized className="w-6 h-6 rounded-full object-cover" />
-                          : <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold" style={{ background: '#1e1a30', color: '#d4a017' }}>{bet.user.username[0]?.toUpperCase()}</div>
+                          : <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold" style={{ background: '#1e1a30', color: '#ffc542' }}>{bet.user.username[0]?.toUpperCase()}</div>
                         }
                         <span className="text-[12px] font-semibold text-[#e8e2f5]">{bet.user.username}</span>
                       </div>
                     </td>
-                    <td className="px-3 py-2.5 text-[12px] text-[#d4a017] font-bold font-mono">{bet.amount.toFixed(2)} ⚜</td>
+                    <td className="px-3 py-2.5 text-[12px] text-[#ffc542] font-bold font-mono">{bet.amount.toFixed(2)} ⚜</td>
                     <td className="px-3 py-2.5 text-[11px] text-[#9990b8] font-mono">×{bet.oddsAtBet.toFixed(2)}</td>
                     <td className="px-3 py-2.5 text-[11px] font-mono text-[#9990b8]">{(bet.amount * bet.oddsAtBet).toFixed(2)} ⚜</td>
                     <td className="px-3 py-2.5">
@@ -1524,7 +1524,7 @@ export default function AdminPage() {
                     <div className="grid grid-cols-2 gap-3">
                       <div className="rounded-lg p-3" style={{ background: '#07060f', border: '1px solid #1e1a30' }}>
                         <p className="text-[10px] text-[#6b6488] uppercase tracking-wider mb-2">Cotes</p>
-                        <p className="text-[13px] font-mono font-bold text-[#d4a017]">{m.odds1.toFixed(2)} <span className="text-[#6b6488]">vs</span> {m.odds2.toFixed(2)}</p>
+                        <p className="text-[13px] font-mono font-bold text-[#ffc542]">{m.odds1.toFixed(2)} <span className="text-[#6b6488]">vs</span> {m.odds2.toFixed(2)}</p>
                       </div>
                       <div className="rounded-lg p-3" style={{ background: '#07060f', border: '1px solid #1e1a30' }}>
                         <p className="text-[10px] text-[#6b6488] uppercase tracking-wider mb-2">Score live</p>
@@ -1539,7 +1539,7 @@ export default function AdminPage() {
                         <span className="text-blue-400 font-bold">{stats.pct2}% ({stats.volume2.toLocaleString('fr-FR')} ⚜) — {m.player2.name}</span>
                       </div>
                       <div className="h-2 rounded-full overflow-hidden" style={{ background: '#1e1a30' }}>
-                        <div className="h-full rounded-full" style={{ width: `${stats.pct1}%`, background: 'linear-gradient(90deg, #d4a017, #f5c842)' }} />
+                        <div className="h-full rounded-full" style={{ width: `${stats.pct1}%`, background: 'linear-gradient(90deg, #ffc542, #ffd97a)' }} />
                       </div>
                       <div className="flex justify-between text-[10px] mt-1.5 text-[#6b6488]">
                         <span>{stats.count1} pari(s)</span>
@@ -1551,8 +1551,8 @@ export default function AdminPage() {
                     {/* Bets side by side */}
                     <div className="grid grid-cols-2 gap-4">
                       {/* Player 1 bets */}
-                      <div className="rounded-lg overflow-hidden" style={{ border: '1px solid rgba(212,160,23,0.25)' }}>
-                        <div className="px-3 py-2 flex items-center gap-2" style={{ background: 'rgba(212,160,23,0.08)', borderBottom: '1px solid rgba(212,160,23,0.15)' }}>
+                      <div className="rounded-lg overflow-hidden" style={{ border: '1px solid rgba(255,197,66,0.25)' }}>
+                        <div className="px-3 py-2 flex items-center gap-2" style={{ background: 'rgba(255,197,66,0.08)', borderBottom: '1px solid rgba(255,197,66,0.15)' }}>
                           <TrendingUp size={11} className="text-amber-400" />
                           <span className="text-[11px] font-bold text-amber-400 font-cinzel truncate">{m.player1.name}</span>
                           <span className="ml-auto text-[10px] text-[#6b6488]">{stats.count1}</span>
@@ -1659,7 +1659,7 @@ export default function AdminPage() {
                     {(lpDebug.allOpponentPairs as Array<{ opp1: string; opp2: string; score: string; bestof: number }>).map((pair, i) => (
                       <div key={i} className="flex items-center justify-between rounded px-3 py-2 text-[12px]" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
                         <span className="text-[#e8e2f5]">{pair.opp1} <span className="text-[#6b6488]">vs</span> {pair.opp2}</span>
-                        <span className="text-[#d4a017] font-mono">{pair.score} <span className="text-[#6b6488]">BO{pair.bestof}</span></span>
+                        <span className="text-[#ffc542] font-mono">{pair.score} <span className="text-[#6b6488]">BO{pair.bestof}</span></span>
                       </div>
                     ))}
                   </div>
@@ -1683,8 +1683,8 @@ export default function AdminPage() {
       {/* ── RESULT MODAL ─────────────────────────────────────────────────── */}
       {resultModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="rounded-xl p-6 max-w-md w-full" style={{ background: '#0d0b1a', border: '1px solid #d4a01740' }}>
-            <h3 className="font-bold text-[16px] text-[#d4a017] mb-1" style={{ fontFamily: 'Cinzel, serif' }}>Définir le résultat</h3>
+          <div className="rounded-xl p-6 max-w-md w-full" style={{ background: '#0d0b1a', border: '1px solid #ffc54240' }}>
+            <h3 className="font-bold text-[16px] text-[#ffc542] mb-1" style={{ fontFamily: 'Cinzel, serif' }}>Définir le résultat</h3>
             <p className="text-[12px] text-[#6b6488] mb-5">{resultModal.player1Name} vs {resultModal.player2Name}</p>
 
             <div className="space-y-4">
@@ -1697,9 +1697,9 @@ export default function AdminPage() {
                       onClick={() => setResultForm(f => ({ ...f, winnerId: p.id }))}
                       className="p-3 rounded-lg text-[13px] font-semibold transition-all"
                       style={{
-                        border: `1px solid ${resultForm.winnerId === p.id ? '#d4a017' : '#1e1a30'}`,
-                        background: resultForm.winnerId === p.id ? '#d4a01720' : '#13111f',
-                        color: resultForm.winnerId === p.id ? '#d4a017' : '#9990b8',
+                        border: `1px solid ${resultForm.winnerId === p.id ? '#ffc542' : '#1e1a30'}`,
+                        background: resultForm.winnerId === p.id ? '#ffc54220' : '#13111f',
+                        color: resultForm.winnerId === p.id ? '#ffc542' : '#9990b8',
                       }}
                     >
                       {p.name}
@@ -1733,7 +1733,7 @@ export default function AdminPage() {
                 onClick={handleSetResult}
                 disabled={!resultForm.winnerId || !resultForm.score || submitting}
                 className="flex-1 py-2.5 rounded-lg text-[13px] font-bold transition-all disabled:opacity-40"
-                style={{ background: '#d4a017', color: '#07060f' }}
+                style={{ background: '#ffc542', color: '#07060f' }}
               >
                 {submitting ? <RefreshCw size={14} className="animate-spin mx-auto" /> : 'Confirmer'}
               </button>
@@ -1774,8 +1774,8 @@ export default function AdminPage() {
       {/* ── ADJUST COINS MODAL ───────────────────────────────────────────── */}
       {adjustModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="rounded-xl p-6 max-w-sm w-full" style={{ background: '#0d0b1a', border: '1px solid #d4a01740' }}>
-            <h3 className="font-bold text-[15px] text-[#d4a017] mb-1">Ajuster les coins</h3>
+          <div className="rounded-xl p-6 max-w-sm w-full" style={{ background: '#0d0b1a', border: '1px solid #ffc54240' }}>
+            <h3 className="font-bold text-[15px] text-[#ffc542] mb-1">Ajuster les coins</h3>
             <p className="text-[12px] text-[#6b6488] mb-4">{adjustModal.username}</p>
             <input
               type="number"
@@ -1787,7 +1787,7 @@ export default function AdminPage() {
             />
             <div className="flex gap-3">
               <button onClick={() => setAdjustModal(null)} className="flex-1 py-2 rounded-lg text-[12px] text-[#9990b8]" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>Annuler</button>
-              <button onClick={handleAdjustCoins} className="flex-1 py-2 rounded-lg text-[12px] font-bold" style={{ background: '#d4a017', color: '#07060f' }}>Confirmer</button>
+              <button onClick={handleAdjustCoins} className="flex-1 py-2 rounded-lg text-[12px] font-bold" style={{ background: '#ffc542', color: '#07060f' }}>Confirmer</button>
             </div>
           </div>
         </div>
@@ -1848,7 +1848,7 @@ function ScrapersPanel({ showMsg }: { showMsg: (type: 'success' | 'error', text:
                   onClick={() => trigger(s.id)}
                   disabled={triggering === s.id}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-medium transition-all disabled:opacity-50 shrink-0 ml-2"
-                  style={{ background: '#d4a01720', border: '1px solid #d4a01740', color: '#d4a017' }}
+                  style={{ background: '#ffc54220', border: '1px solid #ffc54240', color: '#ffc542' }}
                 >
                   {triggering === s.id ? <RefreshCw size={11} className="animate-spin" /> : <Play size={11} />}
                   Lancer
@@ -1869,7 +1869,7 @@ function ScrapersPanel({ showMsg }: { showMsg: (type: 'success' | 'error', text:
 
       <div className="rounded-lg overflow-hidden" style={{ border: '1px solid #1e1a30', background: '#0d0b1a' }}>
         <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid #1e1a30' }}>
-          <span className="text-[13px] font-semibold text-[#d4a017]">JOURNAUX</span>
+          <span className="text-[13px] font-semibold text-[#ffc542]">JOURNAUX</span>
           <button onClick={fetchLogs} className="text-[#6b6488] hover:text-[#e8e2f5]">
             <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
           </button>

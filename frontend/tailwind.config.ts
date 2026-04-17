@@ -29,12 +29,20 @@ const config: Config = {
         popover: { DEFAULT: 'hsl(var(--popover))', foreground: 'hsl(var(--popover-foreground))' },
         card: { DEFAULT: 'hsl(var(--card))', foreground: 'hsl(var(--card-foreground))' },
         aoe: {
-          // Gold — le seul accent chaud, doit frapper fort
-          gold:        '#d4a017',
-          'gold-bright':'#f5c842',
-          'gold-dark': '#8b6410',
+          // Gold — accent principal vif (bet CTAs, cotes, balance)
+          gold:        '#ffc542',
+          'gold-bright':'#ffd97a',
+          'gold-dark': '#b8881a',
           'gold-dim':  '#3d2e08',
-          'gold-glow': 'rgba(212,160,23,0.25)',
+          'gold-glow': 'rgba(255,197,66,0.35)',
+
+          // Odds / gambling feedback
+          mint:        '#39ff88',
+          'mint-dim':  'rgba(57,255,136,0.15)',
+          'mint-glow': 'rgba(57,255,136,0.5)',
+          danger:      '#ff3d3d',
+          'danger-dim':'rgba(255,61,61,0.15)',
+          'danger-glow':'rgba(255,61,61,0.5)',
 
           // Backgrounds — near-black with deep indigo tint
           bg:          '#07060f',
@@ -45,14 +53,14 @@ const config: Config = {
           // Borders
           border:      '#1e1a30',
           'border-mid':'#2d2850',
-          'border-gold':'#5a4010',
+          'border-gold':'#7a5814',
 
           // Text
           parchment:       '#e8e2f5',
           'parchment-dim': '#9890b8',
           'parchment-muted':'#4a4468',
 
-          // Accents
+          // Accents (legacy conservés pour compat)
           crimson:       '#c0392b',
           'crimson-bright':'#e74c3c',
           'crimson-dim': '#5a1a14',
@@ -85,8 +93,18 @@ const config: Config = {
           '100%': { backgroundPosition: '200% center' },
         },
         'pulse-gold': {
-          '0%, 100%': { boxShadow: '0 0 6px rgba(212,160,23,0.3)' },
-          '50%':      { boxShadow: '0 0 24px rgba(212,160,23,0.7), 0 0 48px rgba(212,160,23,0.2)' },
+          '0%, 100%': { boxShadow: '0 0 6px rgba(255,197,66,0.3)' },
+          '50%':      { boxShadow: '0 0 24px rgba(255,197,66,0.7), 0 0 48px rgba(255,197,66,0.2)' },
+        },
+        'odds-flash-up': {
+          '0%':   { backgroundColor: 'rgba(57,255,136,0)',    color: 'inherit' },
+          '25%':  { backgroundColor: 'rgba(57,255,136,0.35)', color: '#39ff88' },
+          '100%': { backgroundColor: 'rgba(57,255,136,0)',    color: 'inherit' },
+        },
+        'odds-flash-down': {
+          '0%':   { backgroundColor: 'rgba(255,61,61,0)',     color: 'inherit' },
+          '25%':  { backgroundColor: 'rgba(255,61,61,0.35)',  color: '#ff3d3d' },
+          '100%': { backgroundColor: 'rgba(255,61,61,0)',     color: 'inherit' },
         },
         'pulse-live': {
           '0%, 100%': { opacity: '1' },
@@ -109,8 +127,8 @@ const config: Config = {
           to:   { transform: 'rotate(360deg)' },
         },
         'border-glow': {
-          '0%, 100%': { borderColor: 'rgba(212,160,23,0.3)' },
-          '50%':      { borderColor: 'rgba(212,160,23,0.8)' },
+          '0%, 100%': { borderColor: 'rgba(255,197,66,0.3)' },
+          '50%':      { borderColor: 'rgba(255,197,66,0.8)' },
         },
         meteor: {
           '0%':   { transform: 'rotate(215deg) translateX(0)', opacity: '1' },
@@ -123,6 +141,8 @@ const config: Config = {
         'accordion-up':   'accordion-up 0.2s ease-out',
         shimmer:          'shimmer 2s linear infinite',
         'pulse-gold':     'pulse-gold 2.5s ease-in-out infinite',
+        'odds-flash-up':  'odds-flash-up 0.6s ease-out',
+        'odds-flash-down':'odds-flash-down 0.6s ease-out',
         'pulse-live':     'pulse-live 1.2s ease-in-out infinite',
         ticker:           'ticker 40s linear infinite',
         fadeIn:           'fadeIn 0.25s ease-out',
@@ -132,14 +152,17 @@ const config: Config = {
         meteor:           'meteor 5s linear infinite',
       },
       backgroundImage: {
-        'gold-gradient':  'linear-gradient(135deg, #8b6410 0%, #d4a017 40%, #f5c842 60%, #d4a017 80%, #8b6410 100%)',
+        'gold-gradient':  'linear-gradient(135deg, #b8881a 0%, #ffc542 40%, #ffd97a 60%, #ffc542 80%, #b8881a 100%)',
         'hero-gradient':  'linear-gradient(180deg, #07060f 0%, #0d0b1a 50%, #07060f 100%)',
         'card-gradient':  'linear-gradient(145deg, #0d0b1a 0%, #100e20 100%)',
       },
       boxShadow: {
-        'gold-sm':  '0 0 12px rgba(212,160,23,0.2)',
-        'gold-md':  '0 0 24px rgba(212,160,23,0.35)',
-        'gold-lg':  '0 0 40px rgba(212,160,23,0.45)',
+        'gold-sm':  '0 0 12px rgba(255,197,66,0.25)',
+        'gold-md':  '0 0 24px rgba(255,197,66,0.4)',
+        'gold-lg':  '0 0 40px rgba(255,197,66,0.5)',
+        'mint-sm':  '0 0 12px rgba(57,255,136,0.3)',
+        'mint-md':  '0 0 24px rgba(57,255,136,0.45)',
+        'danger-sm':'0 0 12px rgba(255,61,61,0.3)',
         'live':     '0 0 20px rgba(192,57,43,0.35)',
         'card':     '0 4px 24px rgba(0,0,0,0.6)',
         'elevated': '0 8px 32px rgba(0,0,0,0.8)',

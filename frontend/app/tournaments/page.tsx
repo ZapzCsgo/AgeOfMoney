@@ -20,7 +20,7 @@ const GAME_TABS = [
 ] as const;
 
 const TIER_STYLE: Record<string, { bg: string; text: string; border: string }> = {
-  S: { bg: 'rgba(212,160,23,0.12)', text: '#d4a017', border: 'rgba(212,160,23,0.3)' },
+  S: { bg: 'rgba(255,197,66,0.12)', text: '#ffc542', border: 'rgba(255,197,66,0.3)' },
   A: { bg: 'rgba(167,139,250,0.10)', text: '#a78bfa', border: 'rgba(167,139,250,0.25)' },
   B: { bg: 'rgba(96,165,250,0.08)', text: '#60a5fa', border: 'rgba(96,165,250,0.2)' },
   C: { bg: 'rgba(107,100,136,0.08)', text: '#6b6488', border: 'rgba(107,100,136,0.2)' },
@@ -28,7 +28,7 @@ const TIER_STYLE: Record<string, { bg: string; text: string; border: string }> =
 
 // Per-game badge styles — match home page colors
 const GAME_STYLE: Record<string, { bg: string; text: string; border: string }> = {
-  AoE4: { bg: 'rgba(212,160,23,0.10)', text: '#f5c842', border: 'rgba(212,160,23,0.25)' },  // gold
+  AoE4: { bg: 'rgba(255,197,66,0.10)', text: '#ffd97a', border: 'rgba(255,197,66,0.25)' },  // gold
   AoE2: { bg: 'rgba(248,113,113,0.10)', text: '#f87171', border: 'rgba(248,113,113,0.40)' }, // red-400
   AoE3: { bg: 'rgba(96,165,250,0.10)', text: '#60a5fa', border: 'rgba(96,165,250,0.40)' },   // blue-400
   AoM:  { bg: 'rgba(52,211,153,0.10)', text: '#34d399', border: 'rgba(52,211,153,0.40)' },   // emerald-400
@@ -52,7 +52,7 @@ function MatchMiniRow({ match }: { match: Match }) {
     >
       <span className={cn(
         'flex-1 text-[12px] font-medium truncate text-right',
-        isCompleted && match.winnerId === match.player1.id ? 'text-[#d4a017]' : 'text-[#c8c0e0]'
+        isCompleted && match.winnerId === match.player1.id ? 'text-[#ffc542]' : 'text-[#c8c0e0]'
       )}>
         {match.player1.name}
       </span>
@@ -73,7 +73,7 @@ function MatchMiniRow({ match }: { match: Match }) {
 
       <span className={cn(
         'flex-1 text-[12px] font-medium truncate',
-        isCompleted && match.winnerId === match.player2.id ? 'text-[#d4a017]' : 'text-[#c8c0e0]'
+        isCompleted && match.winnerId === match.player2.id ? 'text-[#ffc542]' : 'text-[#c8c0e0]'
       )}>
         {match.player2.name}
       </span>
@@ -300,13 +300,13 @@ export default function TournamentsPage() {
       {/* Header */}
       <div className="border-b px-6 py-6" style={{ borderColor: '#1e1a30', background: 'linear-gradient(180deg, #0a0918 0%, #07060f 100%)' }}>
         <div className="relative">
-          <div className="absolute top-[-24px] left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, #d4a017 40%, #f5c842 50%, #d4a017 60%, transparent)' }} />
+          <div className="absolute top-[-24px] left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, #ffc542 40%, #ffd97a 50%, #ffc542 60%, transparent)' }} />
         </div>
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <Trophy size={20} className="text-[#d4a017]" />
+            <Trophy size={20} className="text-[#ffc542]" />
             <div>
-              <h1 className="font-cinzel font-bold text-xl tracking-[0.15em] text-[#d4a017] uppercase">{t('tourn_title')}</h1>
+              <h1 className="font-cinzel font-bold text-xl tracking-[0.15em] text-[#ffc542] uppercase">{t('tourn_title')}</h1>
               <div className="flex items-center gap-3 mt-0.5 text-[11px]">
                 {activeCount > 0 && (
                   <span className="flex items-center gap-1 text-emerald-400">
@@ -319,8 +319,8 @@ export default function TournamentsPage() {
             </div>
           </div>
           <button onClick={fetchTournaments} disabled={loading}
-            className="p-2 rounded-lg border border-[#1e1a30] text-[#6b6488] hover:text-[#d4a017] transition-colors">
-            <RefreshCw size={14} className={loading ? 'animate-spin text-[#d4a017]' : ''} />
+            className="p-2 rounded-lg border border-[#1e1a30] text-[#6b6488] hover:text-[#ffc542] transition-colors">
+            <RefreshCw size={14} className={loading ? 'animate-spin text-[#ffc542]' : ''} />
           </button>
         </div>
       </div>
@@ -337,7 +337,7 @@ export default function TournamentsPage() {
                 className={cn(
                   'shrink-0 px-3 py-1.5 rounded-md text-[11px] font-medium transition-colors border',
                   active
-                    ? 'bg-[#d4a017] text-black border-[#d4a017]'
+                    ? 'bg-[#ffc542] text-black border-[#ffc542]'
                     : 'bg-transparent text-[#9990b8] border-[#1e1a30] hover:border-[#3d3860] hover:text-[#e8e2f5]'
                 )}
               >
@@ -477,7 +477,7 @@ export default function TournamentsPage() {
             {(statusFilter !== 'all' || gameFilter !== 'all') && (
               <button
                 onClick={() => { setStatusFilter('all'); setGameFilter('all'); }}
-                className="mt-3 text-[11px] text-[#d4a017] hover:underline"
+                className="mt-3 text-[11px] text-[#ffc542] hover:underline"
               >
                 {t('matches_see_all')}
               </button>

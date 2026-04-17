@@ -51,8 +51,8 @@ function PrivacyModal({ onClose }: { onClose: () => void }) {
 
         {/* Header */}
         <div className="flex items-center gap-3 px-6 py-4 shrink-0" style={{ borderBottom: '1px solid #1e1a30', background: '#09080f' }}>
-          <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: '#d4a01720', border: '1px solid #d4a01740' }}>
-            <Shield size={15} style={{ color: '#d4a017' }} />
+          <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: '#ffc54220', border: '1px solid #ffc54240' }}>
+            <Shield size={15} style={{ color: '#ffc542' }} />
           </div>
           <div className="flex-1">
             <h2 className="text-[15px] font-bold" style={{ color: '#e8e2f5', fontFamily: 'Cinzel, serif' }}>
@@ -74,7 +74,7 @@ function PrivacyModal({ onClose }: { onClose: () => void }) {
 
           {PRIVACY_SECTIONS.map(section => (
             <div key={section.title}>
-              <h3 className="text-[13px] font-bold mb-2" style={{ color: '#d4a017' }}>{section.title}</h3>
+              <h3 className="text-[13px] font-bold mb-2" style={{ color: '#ffc542' }}>{section.title}</h3>
               <p className="text-[12px] leading-relaxed whitespace-pre-line" style={{ color: '#9990b8' }}>{section.content}</p>
             </div>
           ))}
@@ -82,7 +82,7 @@ function PrivacyModal({ onClose }: { onClose: () => void }) {
           <div className="rounded-xl p-4" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
             <p className="text-[11px] leading-relaxed" style={{ color: '#6b6488' }}>
               Pour toute question, contactez-nous à{' '}
-              <a href="mailto:support@ageofmoney.gg" className="hover:opacity-80 transition-opacity" style={{ color: '#d4a017' }}>
+              <a href="mailto:support@ageofmoney.gg" className="hover:opacity-80 transition-opacity" style={{ color: '#ffc542' }}>
                 support@ageofmoney.gg
               </a>
             </p>
@@ -93,7 +93,7 @@ function PrivacyModal({ onClose }: { onClose: () => void }) {
         <div className="px-6 py-4 shrink-0 flex justify-end" style={{ borderTop: '1px solid #1e1a30', background: '#09080f' }}>
           <button onClick={onClose}
             className="px-5 py-2 rounded-lg text-[12px] font-bold transition-all hover:opacity-90"
-            style={{ background: '#d4a017', color: '#07060f' }}>
+            style={{ background: '#ffc542', color: '#07060f' }}>
             J&apos;ai compris
           </button>
         </div>
@@ -126,8 +126,8 @@ function TermsModal({ onClose }: { onClose: () => void }) {
         style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}
         onClick={e => e.stopPropagation()}>
         <div className="flex items-center gap-3 px-6 py-4 shrink-0" style={{ borderBottom: '1px solid #1e1a30', background: '#09080f' }}>
-          <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: '#d4a01720', border: '1px solid #d4a01740' }}>
-            <Shield size={15} style={{ color: '#d4a017' }} />
+          <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: '#ffc54220', border: '1px solid #ffc54240' }}>
+            <Shield size={15} style={{ color: '#ffc542' }} />
           </div>
           <div className="flex-1">
             <h2 className="text-[15px] font-bold" style={{ color: '#e8e2f5', fontFamily: 'Cinzel, serif' }}>
@@ -142,20 +142,20 @@ function TermsModal({ onClose }: { onClose: () => void }) {
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
           {TOS_SECTIONS.map(s => (
             <div key={s.title}>
-              <h3 className="text-[13px] font-bold mb-1.5" style={{ color: '#d4a017' }}>{s.title}</h3>
+              <h3 className="text-[13px] font-bold mb-1.5" style={{ color: '#ffc542' }}>{s.title}</h3>
               <p className="text-[12px] leading-relaxed whitespace-pre-line" style={{ color: '#9990b8' }}>{s.content}</p>
             </div>
           ))}
           <div className="rounded-xl p-4" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
             <p className="text-[11px] leading-relaxed" style={{ color: '#6b6488' }}>
               Pour toute question, contactez-nous a{' '}
-              <a href="mailto:support@ageofmoney.gg" className="hover:opacity-80 transition-opacity" style={{ color: '#d4a017' }}>support@ageofmoney.gg</a>
+              <a href="mailto:support@ageofmoney.gg" className="hover:opacity-80 transition-opacity" style={{ color: '#ffc542' }}>support@ageofmoney.gg</a>
             </p>
           </div>
         </div>
         <div className="px-6 py-4 shrink-0 flex justify-end" style={{ borderTop: '1px solid #1e1a30', background: '#09080f' }}>
           <button onClick={onClose} className="px-5 py-2 rounded-lg text-[12px] font-bold transition-all hover:opacity-90"
-            style={{ background: '#d4a017', color: '#07060f' }}>J&apos;ai compris</button>
+            style={{ background: '#ffc542', color: '#07060f' }}>J&apos;ai compris</button>
         </div>
       </div>
     </div>
@@ -199,7 +199,7 @@ export function Footer() {
                   <circle cx="16" cy="4" r="2" fill="#e8c547"/>
                   <circle cx="30" cy="8" r="2" fill="#e8c547"/>
                 </svg>
-                <span className="font-bold text-[15px] tracking-widest" style={{ fontFamily: 'Cinzel,serif', color: '#f5c842' }}>
+                <span className="font-bold text-[15px] tracking-widest" style={{ fontFamily: 'Cinzel,serif', color: '#ffd97a' }}>
                   AgeOfMoney
                 </span>
               </Link>
@@ -208,7 +208,7 @@ export function Footer() {
                 © 2026 AgeOfMoney | Tous droits réservés.
               </p>
               <p className="text-[11px] leading-relaxed" style={{ color: '#4a4468' }}>
-                AgeOfMoney est opéré avec des coins virtuels uniquement. <strong style={{ color: '#d4a017' }}>18+ only.</strong> Non affilié à Xbox Game Studios.
+                AgeOfMoney est opéré avec des coins virtuels uniquement. <strong style={{ color: '#ffc542' }}>18+ only.</strong> Non affilié à Xbox Game Studios.
               </p>
 
               <div className="flex items-center gap-3 pt-1">
@@ -223,7 +223,7 @@ export function Footer() {
 
             {/* GAMES column */}
             <div>
-              <h4 className="text-[11px] font-bold uppercase tracking-widest mb-4" style={{ color: '#f5c842' }}>{t('footer_games')}</h4>
+              <h4 className="text-[11px] font-bold uppercase tracking-widest mb-4" style={{ color: '#ffd97a' }}>{t('footer_games')}</h4>
               <ul className="space-y-2.5">
                 {GAMES_LINKS.map(l => (
                   <li key={l.href}>
@@ -237,7 +237,7 @@ export function Footer() {
 
             {/* PLATFORM column */}
             <div>
-              <h4 className="text-[11px] font-bold uppercase tracking-widest mb-4" style={{ color: '#f5c842' }}>{t('footer_platform')}</h4>
+              <h4 className="text-[11px] font-bold uppercase tracking-widest mb-4" style={{ color: '#ffd97a' }}>{t('footer_platform')}</h4>
               <ul className="space-y-2.5">
                 {PLATFORM_LINKS.map(l => (
                   <li key={l.href}>
@@ -251,7 +251,7 @@ export function Footer() {
 
             {/* ABOUT US column */}
             <div>
-              <h4 className="text-[11px] font-bold uppercase tracking-widest mb-4" style={{ color: '#f5c842' }}>{t('footer_about')}</h4>
+              <h4 className="text-[11px] font-bold uppercase tracking-widest mb-4" style={{ color: '#ffd97a' }}>{t('footer_about')}</h4>
               <ul className="space-y-2.5">
                 <li>
                   <button onClick={() => setTermsOpen(true)} className="text-[13px] transition-colors hover:text-[#e8e2f5] text-left" style={{ color: '#6b6488' }}>
@@ -319,7 +319,7 @@ export function Footer() {
                         key={l.code}
                         onClick={() => { setLang(l.code); setLangOpen(false); }}
                         className="flex items-center gap-2 w-full px-3 py-2 text-[12px] transition-colors text-left"
-                        style={{ color: l.code === lang ? '#d4a017' : '#9990b8' }}
+                        style={{ color: l.code === lang ? '#ffc542' : '#9990b8' }}
                         onMouseEnter={e => (e.currentTarget.style.background = '#13111f')}
                         onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                       >

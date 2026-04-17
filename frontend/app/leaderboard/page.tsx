@@ -23,7 +23,7 @@ function tierColor(tier: string): string {
     case 'legend':   return '#a855f7';
     case 'diamond':  return '#06b6d4';
     case 'platinum': return '#38bdf8';
-    case 'gold':     return '#d4a017';
+    case 'gold':     return '#ffc542';
     case 'silver':   return '#94a3b8';
     default:         return '#78716c';
   }
@@ -31,7 +31,7 @@ function tierColor(tier: string): string {
 
 function RankBadge({ rank }: { rank: number }) {
   if (rank === 1) return (
-    <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #d4a017, #f5c842)', boxShadow: '0 0 12px #d4a01755' }}>
+    <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #ffc542, #ffd97a)', boxShadow: '0 0 12px #ffc54255' }}>
       <Trophy size={14} style={{ color: '#07060f' }} />
     </div>
   );
@@ -76,7 +76,7 @@ export default function LeaderboardPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-4 text-[11px] font-medium uppercase tracking-widest"
-            style={{ background: '#d4a01715', border: '1px solid #d4a01730', color: '#d4a017' }}>
+            style={{ background: '#ffc54215', border: '1px solid #ffc54230', color: '#ffc542' }}>
             <Trophy size={11} /> {t('lb_title')}
           </div>
           <h1 className="text-[28px] font-bold mb-1" style={{ color: '#e8e2f5', fontFamily: 'Cinzel, serif' }}>
@@ -90,9 +90,9 @@ export default function LeaderboardPage() {
         {/* My rank banner */}
         {myRank > 0 && (
           <div className="rounded-xl px-4 py-3 mb-5 flex items-center justify-between"
-            style={{ background: '#d4a01710', border: '1px solid #d4a01730' }}>
+            style={{ background: '#ffc54210', border: '1px solid #ffc54230' }}>
             <span className="text-[12px]" style={{ color: '#9990b8' }}>{t('lb_rank')}</span>
-            <span className="text-[14px] font-bold" style={{ color: '#d4a017' }}>#{myRank}</span>
+            <span className="text-[14px] font-bold" style={{ color: '#ffc542' }}>#{myRank}</span>
           </div>
         )}
 
@@ -117,7 +117,7 @@ export default function LeaderboardPage() {
                     key={entry.id}
                     className={cn(
                       'flex items-center gap-4 px-5 py-4 transition-colors',
-                      isMe ? 'bg-[#d4a017]/5' : 'hover:bg-[#13111f]'
+                      isMe ? 'bg-[#ffc542]/5' : 'hover:bg-[#13111f]'
                     )}
                     style={{ borderBottom: '1px solid #1e1a3022' }}
                   >
@@ -140,9 +140,9 @@ export default function LeaderboardPage() {
 
                     {/* Name */}
                     <div className="flex-1 min-w-0">
-                      <p className={cn('text-[13px] font-bold truncate', isMe ? 'text-[#d4a017]' : 'text-[#e8e2f5]')}>
+                      <p className={cn('text-[13px] font-bold truncate', isMe ? 'text-[#ffc542]' : 'text-[#e8e2f5]')}>
                         {entry.username}
-                        {isMe && <span className="ml-2 text-[10px] font-normal text-[#d4a017]/60">{t('lb_you_short')}</span>}
+                        {isMe && <span className="ml-2 text-[10px] font-normal text-[#ffc542]/60">{t('lb_you_short')}</span>}
                       </p>
                       <p className="text-[11px]" style={{ color: '#6b6488' }}>
                         {entry._count?.bets ?? 0} {t('lb_bets').toLowerCase()}
@@ -151,7 +151,7 @@ export default function LeaderboardPage() {
 
                     {/* Volume */}
                     <div className="text-right shrink-0">
-                      <p className="text-[13px] font-bold tabular-nums" style={{ color: '#d4a017' }}>
+                      <p className="text-[13px] font-bold tabular-nums" style={{ color: '#ffc542' }}>
                         {new Intl.NumberFormat('fr-FR').format(entry.totalWagered)} ⚜
                       </p>
                       <p className="text-[10px]" style={{ color: '#6b6488' }}>{t('lb_wagered')}</p>

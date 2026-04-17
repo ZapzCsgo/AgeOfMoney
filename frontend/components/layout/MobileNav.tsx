@@ -31,7 +31,7 @@ export function MobileNav() {
               href={href}
               className={cn(
                 'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
-                active ? 'text-[#d4a017]' : 'text-[#4a4468]'
+                active ? 'text-[#ffc542]' : 'text-[#4a4468]'
               )}
             >
               <Icon size={20} />
@@ -39,7 +39,7 @@ export function MobileNav() {
                 {label}
               </span>
               {active && (
-                <span className="absolute bottom-0 w-8 h-0.5 rounded-t bg-[#d4a017]" />
+                <span className="absolute bottom-0 w-8 h-0.5 rounded-t bg-[#ffc542]" />
               )}
             </Link>
           );

@@ -143,12 +143,12 @@ export function BetForm({ match, onBetPlaced, initialPlayer = null }: BetFormPro
                     onClick={() => setSelectedPlayer(p)}
                     className="relative p-3 rounded-lg transition-all duration-150 text-left"
                     style={{
-                      background: isSelected ? 'rgba(212,160,23,0.1)' : 'rgba(255,255,255,0.03)',
-                      border: isSelected ? '2px solid #d4a017' : '2px solid rgba(255,255,255,0.08)',
-                      boxShadow: isSelected ? '0 0 18px rgba(212,160,23,0.2), inset 0 0 10px rgba(212,160,23,0.05)' : 'none',
+                      background: isSelected ? 'rgba(255,197,66,0.1)' : 'rgba(255,255,255,0.03)',
+                      border: isSelected ? '2px solid #ffc542' : '2px solid rgba(255,255,255,0.08)',
+                      boxShadow: isSelected ? '0 0 18px rgba(255,197,66,0.2), inset 0 0 10px rgba(255,197,66,0.05)' : 'none',
                     }}
                   >
-                    <div className="font-cinzel font-bold text-xl" style={{ color: isSelected ? '#f5c842' : '#d4a017' }}>{odds.toFixed(2)}</div>
+                    <div className="font-cinzel font-bold text-xl" style={{ color: isSelected ? '#ffd97a' : '#ffc542' }}>{odds.toFixed(2)}</div>
                     <div className="text-sm font-medium mt-0.5 truncate" style={{ color: isSelected ? '#e8e2f5' : '#9990b8' }}>{name}</div>
                   </button>
                 );
@@ -159,12 +159,12 @@ export function BetForm({ match, onBetPlaced, initialPlayer = null }: BetFormPro
                   onClick={() => setSelectedPlayer(0)}
                   className="relative p-3 rounded-lg transition-all duration-150 text-center"
                   style={{
-                    background: selectedPlayer === 0 ? 'rgba(212,160,23,0.1)' : 'rgba(255,255,255,0.03)',
-                    border: selectedPlayer === 0 ? '2px solid #d4a017' : '2px solid rgba(255,255,255,0.08)',
-                    boxShadow: selectedPlayer === 0 ? '0 0 18px rgba(212,160,23,0.2), inset 0 0 10px rgba(212,160,23,0.05)' : 'none',
+                    background: selectedPlayer === 0 ? 'rgba(255,197,66,0.1)' : 'rgba(255,255,255,0.03)',
+                    border: selectedPlayer === 0 ? '2px solid #ffc542' : '2px solid rgba(255,255,255,0.08)',
+                    boxShadow: selectedPlayer === 0 ? '0 0 18px rgba(255,197,66,0.2), inset 0 0 10px rgba(255,197,66,0.05)' : 'none',
                   }}
                 >
-                  <div className="font-cinzel font-bold text-xl" style={{ color: selectedPlayer === 0 ? '#f5c842' : '#d4a017' }}>{match.oddsDraw!.toFixed(2)}</div>
+                  <div className="font-cinzel font-bold text-xl" style={{ color: selectedPlayer === 0 ? '#ffd97a' : '#ffc542' }}>{match.oddsDraw!.toFixed(2)}</div>
                   <div className="text-sm font-medium mt-0.5" style={{ color: selectedPlayer === 0 ? '#e8e2f5' : '#9990b8' }}>Draw</div>
                 </button>
               )}
@@ -177,7 +177,7 @@ export function BetForm({ match, onBetPlaced, initialPlayer = null }: BetFormPro
               {t('bet_amount')}
             </label>
             <div
-              className="flex items-center gap-2 rounded-lg transition-colors cursor-text focus-within:border-[#d4a017] hover:border-[#d4a017]/60"
+              className="flex items-center gap-2 rounded-lg transition-colors cursor-text focus-within:border-[#ffc542] hover:border-[#ffc542]/60"
               style={{
                 background: '#13111f',
                 border: '1.5px solid #2a2640',
@@ -188,7 +188,7 @@ export function BetForm({ match, onBetPlaced, initialPlayer = null }: BetFormPro
                 if (input) input.focus();
               }}
             >
-              <span className="pl-3 text-[#d4a017] text-base">⚜</span>
+              <span className="pl-3 text-[#ffc542] text-base">⚜</span>
               <input
                 type="text"
                 inputMode="numeric"

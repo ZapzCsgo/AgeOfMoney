@@ -32,7 +32,7 @@ const MAX_MESSAGES = 100;
 const TIER_STYLES: Record<string, { bg: string; text: string; border: string; label: string }> = {
   bronze:   { bg: 'rgba(180,100,40,0.2)',  text: '#cd7f32', border: 'rgba(180,100,40,0.5)',  label: 'Br'  },
   silver:   { bg: 'rgba(150,160,170,0.2)', text: '#a8b8c8', border: 'rgba(150,160,170,0.5)', label: 'Ag'  },
-  gold:     { bg: 'rgba(212,160,23,0.2)',  text: '#d4a017', border: 'rgba(212,160,23,0.5)',  label: 'Or'  },
+  gold:     { bg: 'rgba(255,197,66,0.2)',  text: '#ffc542', border: 'rgba(255,197,66,0.5)',  label: 'Or'  },
   platinum: { bg: 'rgba(100,200,210,0.2)', text: '#64c8d2', border: 'rgba(100,200,210,0.5)', label: 'Pt'  },
   diamond:  { bg: 'rgba(120,100,220,0.2)', text: '#9b6aef', border: 'rgba(120,100,220,0.5)', label: 'Di'  },
   legend:   { bg: 'rgba(231,76,60,0.2)',   text: '#e74c3c', border: 'rgba(231,76,60,0.5)',   label: 'LG'  },
@@ -67,10 +67,10 @@ function UserSilhouette({ size = 24, className }: { size?: number; className?: s
     <svg
       width={size} height={size} viewBox="0 0 24 24" fill="none"
       className={className}
-      style={{ borderRadius: '50%', background: 'rgba(212,160,23,0.08)' }}
+      style={{ borderRadius: '50%', background: 'rgba(255,197,66,0.08)' }}
     >
-      <circle cx="12" cy="8" r="4" fill="rgba(212,160,23,0.4)" />
-      <path d="M4 20c0-4.418 3.582-8 8-8s8 3.582 8 8" fill="rgba(212,160,23,0.25)" />
+      <circle cx="12" cy="8" r="4" fill="rgba(255,197,66,0.4)" />
+      <path d="M4 20c0-4.418 3.582-8 8-8s8 3.582 8 8" fill="rgba(255,197,66,0.25)" />
     </svg>
   );
 }
@@ -212,9 +212,9 @@ export function MatchChat({ matchId }: MatchChatProps) {
                     : 'rounded-bl-sm text-aoe-parchment'
                 )} style={{
                   background: isOwn
-                    ? 'rgba(212,160,23,0.12)'
+                    ? 'rgba(255,197,66,0.12)'
                     : 'rgba(255,255,255,0.05)',
-                  border: `1px solid ${isOwn ? 'rgba(212,160,23,0.25)' : 'rgba(255,255,255,0.07)'}`,
+                  border: `1px solid ${isOwn ? 'rgba(255,197,66,0.25)' : 'rgba(255,255,255,0.07)'}`,
                 }}>
                   {msg.message}
                 </div>
@@ -244,7 +244,7 @@ export function MatchChat({ matchId }: MatchChatProps) {
               onClick={handleSend}
               disabled={!input.trim()}
               className="p-2 rounded-lg transition-all disabled:opacity-30"
-              style={{ background: input.trim() ? 'rgba(212,160,23,0.15)' : 'rgba(255,255,255,0.05)', border: '1px solid #1e1a30', color: '#d4a017' }}
+              style={{ background: input.trim() ? 'rgba(255,197,66,0.15)' : 'rgba(255,255,255,0.05)', border: '1px solid #1e1a30', color: '#ffc542' }}
             >
               <Send size={14} />
             </button>

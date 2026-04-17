@@ -36,7 +36,7 @@ export function Particles({
   staticity = 50,
   ease = 50,
   size = 0.4,
-  color = '#d4a017',
+  color = '#ffc542',
   vx = 0,
   vy = 0,
 }: ParticlesProps) {

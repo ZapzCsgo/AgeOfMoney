@@ -35,7 +35,7 @@ interface CoinFlipGame {
 }
 
 const GLOBAL_CSS = `
-@keyframes cf-pulse-gold { 0%,100%{box-shadow:0 0 8px rgba(212,160,23,0.3)} 50%{box-shadow:0 0 24px rgba(212,160,23,0.5),0 0 48px rgba(212,160,23,0.2)} }
+@keyframes cf-pulse-gold { 0%,100%{box-shadow:0 0 8px rgba(255,197,66,0.3)} 50%{box-shadow:0 0 24px rgba(255,197,66,0.5),0 0 48px rgba(255,197,66,0.2)} }
 @keyframes cf-slide-in { 0%{opacity:0;transform:translateY(12px)} 100%{opacity:1;transform:translateY(0)} }
 @keyframes cf-result-in { 0%{opacity:0;transform:scale(0.85)} 100%{opacity:1;transform:scale(1)} }
 .cf-gold-pulse { animation: cf-pulse-gold 2s ease-in-out infinite; }
@@ -271,10 +271,10 @@ export default function CoinFlipPage() {
         {/* Header */}
         <div className="text-center mb-6">
           <div className="flex items-center justify-center gap-3 mb-1">
-            <Coins size={28} style={{ color: '#f5c842' }} />
+            <Coins size={28} style={{ color: '#ffd97a' }} />
             <h1
               className="text-3xl font-bold"
-              style={{ fontFamily: 'Cinzel, serif', color: '#f5c842' }}
+              style={{ fontFamily: 'Cinzel, serif', color: '#ffd97a' }}
             >
               COINFLIP
             </h1>
@@ -319,7 +319,7 @@ export default function CoinFlipPage() {
           style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}
         >
           <div className="flex items-center gap-2 mb-4">
-            <Plus size={16} style={{ color: '#f5c842' }} />
+            <Plus size={16} style={{ color: '#ffd97a' }} />
             <h2
               className="text-[14px] font-bold tracking-wider uppercase"
               style={{ fontFamily: 'Cinzel, serif', color: '#e8e2f5' }}
@@ -342,10 +342,10 @@ export default function CoinFlipPage() {
                 style={{
                   background:
                     selectedSide === 'crown'
-                      ? 'rgba(212,160,23,0.12)'
+                      ? 'rgba(255,197,66,0.12)'
                       : '#0d0b1a',
                   border: `1.5px solid ${
-                    selectedSide === 'crown' ? '#d4a017' : '#1e1a30'
+                    selectedSide === 'crown' ? '#ffc542' : '#1e1a30'
                   }`,
                 }}
               >
@@ -353,7 +353,7 @@ export default function CoinFlipPage() {
                 <span
                   className="text-[11px] font-bold uppercase"
                   style={{
-                    color: selectedSide === 'crown' ? '#f5c842' : '#6b6488',
+                    color: selectedSide === 'crown' ? '#ffd97a' : '#6b6488',
                   }}
                 >
                   Archers
@@ -409,7 +409,7 @@ export default function CoinFlipPage() {
                       color: '#e8e2f5',
                     }}
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#f5c842] text-[11px]">
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#ffd97a] text-[11px]">
                     ⚜
                   </span>
                 </div>
@@ -445,7 +445,7 @@ export default function CoinFlipPage() {
                 onClick={handleCreate}
                 disabled={creating || !betAmount || parseInt(betAmount) < 1}
                 className="w-full py-3 rounded-lg text-[14px] font-bold tracking-wider transition-all disabled:opacity-40"
-                style={{ background: '#d4a017', color: '#07060f', border: 'none' }}
+                style={{ background: '#ffc542', color: '#07060f', border: 'none' }}
               >
                 {creating
                   ? t('common_processing')
@@ -466,7 +466,7 @@ export default function CoinFlipPage() {
         >
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <Users size={16} style={{ color: '#f5c842' }} />
+              <Users size={16} style={{ color: '#ffd97a' }} />
               <h2
                 className="text-[14px] font-bold tracking-wider uppercase"
                 style={{ fontFamily: 'Cinzel, serif', color: '#e8e2f5' }}
@@ -509,7 +509,7 @@ export default function CoinFlipPage() {
                   style={{
                     background: '#0a0817',
                     border: `1px solid ${
-                      isHighValue(game.amount) ? '#d4a01740' : '#1e1a30'
+                      isHighValue(game.amount) ? '#ffc54240' : '#1e1a30'
                     }`,
                     animationDelay: `${idx * 0.05}s`,
                   }}
@@ -551,7 +551,7 @@ export default function CoinFlipPage() {
                       <p
                         className="text-[16px] font-bold"
                         style={{
-                          color: isHighValue(game.amount) ? '#f5c842' : '#e8e2f5',
+                          color: isHighValue(game.amount) ? '#ffd97a' : '#e8e2f5',
                           fontFamily: 'Cinzel, serif',
                         }}
                       >
@@ -574,10 +574,10 @@ export default function CoinFlipPage() {
                         background:
                           game.side === 'crown'
                             ? 'rgba(138,138,154,0.15)'
-                            : 'rgba(212,160,23,0.15)',
-                        color: game.side === 'crown' ? '#c0c0c0' : '#f5c842',
+                            : 'rgba(255,197,66,0.15)',
+                        color: game.side === 'crown' ? '#c0c0c0' : '#ffd97a',
                         border: `1px solid ${
-                          game.side === 'crown' ? '#8a8a9a40' : '#d4a01740'
+                          game.side === 'crown' ? '#8a8a9a40' : '#ffc54240'
                         }`,
                       }}
                     >
@@ -640,7 +640,7 @@ export default function CoinFlipPage() {
                         className="text-[12px] font-bold"
                         style={{
                           color:
-                            game.result === 'crown' ? '#f5c842' : '#c0c0c0',
+                            game.result === 'crown' ? '#ffd97a' : '#c0c0c0',
                         }}
                       >
                         {game.amount.toLocaleString('fr-FR')} ⚜

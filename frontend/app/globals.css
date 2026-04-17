@@ -14,20 +14,22 @@
     --card-foreground: 248 40% 95%;
     --popover:      248 30% 8%;
     --popover-foreground: 248 40% 95%;
-    --primary:      43 80% 48%;
+    --primary:      43 100% 63%;
     --primary-foreground: 248 30% 8%;
     --secondary:    248 20% 14%;
     --secondary-foreground: 248 30% 75%;
     --muted:        248 20% 11%;
     --muted-foreground: 248 20% 50%;
-    --accent:       43 85% 55%;
+    --accent:       43 100% 63%;
     --accent-foreground: 248 30% 8%;
-    --destructive:  4 75% 47%;
+    --destructive:  0 100% 62%;
     --destructive-foreground: 248 40% 95%;
+    --success:      143 100% 61%;
+    --success-foreground: 248 30% 8%;
     --border:       248 25% 14%;
     --input:        248 25% 11%;
-    --ring:         43 80% 48%;
-    --radius:       0.5rem;
+    --ring:         43 100% 63%;
+    --radius:       0.625rem;
   }
 
   * {
@@ -59,12 +61,27 @@
   ::-webkit-scrollbar        { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track  { background: #07060f; }
   ::-webkit-scrollbar-thumb  { background: #2d2850; border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: #d4a017; }
+  ::-webkit-scrollbar-thumb:hover { background: #ffc542; }
 
   /* ── Font classes ──────────────────────────────────────────────────────── */
+  /* Cinzel est r\u00e9serv\u00e9 au wordmark + titres h\u00e9ros (opt-in via .font-cinzel). */
+  /* Tous les autres titres/body utilisent Inter par d\u00e9faut (d\u00e9fini sur body). */
   .font-cinzel { font-family: 'Cinzel', Georgia, serif; }
 
-  h1, h2, h3, h4 { font-family: 'Cinzel', Georgia, serif; }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: inherit;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  /* Tabular nums pour tous les chiffres de cotes/balances/stats */
+  .tabular-nums,
+  .odds-value,
+  .balance-value,
+  .stat-value {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' on, 'lnum' on;
+  }
 }
 
 /* ── Component classes ────────────────────────────────────────────────────── */
@@ -85,9 +102,9 @@
 
   .aom-card-gold {
     background: #0d0b1a;
-    border: 1px solid rgba(212,160,23,0.3);
+    border: 1px solid rgba(255,197,66,0.3);
     border-radius: 10px;
-    box-shadow: 0 0 20px rgba(212,160,23,0.08);
+    box-shadow: 0 0 20px rgba(255,197,66,0.08);
   }
 
   /* === Buttons === */
@@ -97,7 +114,7 @@
     justify-content: center;
     gap: 6px;
     padding: 8px 20px;
-    background: linear-gradient(135deg, #8b6410 0%, #d4a017 45%, #f5c842 55%, #d4a017 80%, #8b6410 100%);
+    background: linear-gradient(135deg, #b8881a 0%, #ffc542 45%, #ffd97a 55%, #ffc542 80%, #b8881a 100%);
     background-size: 200% auto;
     color: #07060f;
     font-family: 'Cinzel', serif;
@@ -113,7 +130,7 @@
   }
   .aom-btn-gold:hover {
     background-position: right center;
-    box-shadow: 0 0 20px rgba(212,160,23,0.5), 0 0 40px rgba(212,160,23,0.2);
+    box-shadow: 0 0 20px rgba(255,197,66,0.5), 0 0 40px rgba(255,197,66,0.2);
     transform: translateY(-1px);
   }
   .aom-btn-gold:active { transform: translateY(0); }
@@ -125,20 +142,20 @@
     gap: 6px;
     padding: 8px 20px;
     background: transparent;
-    color: #d4a017;
+    color: #ffc542;
     font-family: 'Cinzel', serif;
     font-weight: 600;
     font-size: 12px;
     letter-spacing: 0.12em;
     text-transform: uppercase;
     border-radius: 6px;
-    border: 1px solid rgba(212,160,23,0.4);
+    border: 1px solid rgba(255,197,66,0.4);
     cursor: pointer;
     transition: all 0.2s;
   }
   .aom-btn-outline:hover {
-    background: rgba(212,160,23,0.08);
-    border-color: #d4a017;
+    background: rgba(255,197,66,0.08);
+    border-color: #ffc542;
   }
 
   .aom-btn-steam {
@@ -168,8 +185,8 @@
     box-shadow: 0 4px 20px rgba(0,0,0,0.5);
   }
   .match-card:hover {
-    border-color: rgba(212,160,23,0.4);
-    box-shadow: 0 0 30px rgba(212,160,23,0.1), 0 8px 30px rgba(0,0,0,0.6);
+    border-color: rgba(255,197,66,0.4);
+    box-shadow: 0 0 30px rgba(255,197,66,0.1), 0 8px 30px rgba(0,0,0,0.6);
     transform: translateY(-2px);
   }
   .match-card-live {
@@ -196,13 +213,13 @@
     user-select: none;
   }
   .odds-btn:hover {
-    border-color: rgba(212,160,23,0.5);
-    background: rgba(212,160,23,0.05);
+    border-color: rgba(255,197,66,0.5);
+    background: rgba(255,197,66,0.05);
   }
   .odds-btn.selected {
-    border-color: #d4a017;
-    background: rgba(212,160,23,0.12);
-    box-shadow: 0 0 16px rgba(212,160,23,0.25);
+    border-color: #ffc542;
+    background: rgba(255,197,66,0.12);
+    box-shadow: 0 0 16px rgba(255,197,66,0.25);
   }
 
   /* === Live badge === */
@@ -231,7 +248,7 @@
   }
 
   /* === Tier badges === */
-  .badge-tier-s  { background: rgba(212,160,23,0.2); border: 1px solid rgba(212,160,23,0.6); color: #f5c842; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-family: 'Cinzel', serif; font-weight: 700; }
+  .badge-tier-s  { background: rgba(255,197,66,0.2); border: 1px solid rgba(255,197,66,0.6); color: #ffd97a; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-family: 'Cinzel', serif; font-weight: 700; }
   .badge-tier-a  { background: rgba(52,152,219,0.15); border: 1px solid rgba(52,152,219,0.5); color: #3498db; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-family: 'Cinzel', serif; font-weight: 700; }
   .badge-tier-b  { background: rgba(39,174,96,0.15);  border: 1px solid rgba(39,174,96,0.5);  color: #27ae60; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-family: 'Cinzel', serif; font-weight: 700; }
   .badge-tier-c  { background: rgba(127,140,141,0.15); border: 1px solid rgba(127,140,141,0.4); color: #95a5a6; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-family: 'Cinzel', serif; font-weight: 700; }
@@ -242,7 +259,7 @@
   /* === Chat level badges === */
   .level-bronze  { background: rgba(139,90,43,0.3);  border: 1px solid #8b5a2b; color: #cd7f32; padding: 1px 5px; border-radius: 3px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
   .level-silver  { background: rgba(148,163,184,0.2); border: 1px solid #94a3b8; color: #cbd5e1; padding: 1px 5px; border-radius: 3px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
-  .level-gold    { background: rgba(212,160,23,0.2);  border: 1px solid #d4a017; color: #f5c842; padding: 1px 5px; border-radius: 3px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+  .level-gold    { background: rgba(255,197,66,0.2);  border: 1px solid #ffc542; color: #ffd97a; padding: 1px 5px; border-radius: 3px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
   .level-diamond { background: rgba(99,102,241,0.2);  border: 1px solid #818cf8; color: #a5b4fc; padding: 1px 5px; border-radius: 3px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
 
   /* === Divider === */
@@ -258,7 +275,7 @@
     gap: 5px;
     font-family: 'Cinzel', serif;
     font-weight: 700;
-    color: #d4a017;
+    color: #ffc542;
     font-size: 13px;
   }
 
@@ -271,7 +288,7 @@
   }
   .aom-progress-bar {
     height: 100%;
-    background: linear-gradient(90deg, #8b6410, #d4a017);
+    background: linear-gradient(90deg, #b8881a, #ffc542);
     border-radius: 2px;
     transition: width 0.5s ease;
   }
@@ -297,8 +314,8 @@
     width: 100%;
   }
   .aom-input:focus {
-    border-color: rgba(212,160,23,0.5);
-    box-shadow: 0 0 0 2px rgba(212,160,23,0.1);
+    border-color: rgba(255,197,66,0.5);
+    box-shadow: 0 0 0 2px rgba(255,197,66,0.1);
   }
   .aom-input::placeholder { color: #4a4468; }
 
@@ -315,14 +332,14 @@
   }
   .aoe-card-gold {
     background: #0d0b1a;
-    border: 1px solid rgba(212,160,23,0.3);
+    border: 1px solid rgba(255,197,66,0.3);
     border-radius: 10px;
-    box-shadow: 0 0 20px rgba(212,160,23,0.08);
+    box-shadow: 0 0 20px rgba(255,197,66,0.08);
   }
   .aoe-btn-gold {
     display: inline-flex; align-items: center; justify-content: center; gap: 6px;
     padding: 8px 20px;
-    background: linear-gradient(135deg, #8b6410 0%, #d4a017 45%, #f5c842 55%, #d4a017 80%, #8b6410 100%);
+    background: linear-gradient(135deg, #b8881a 0%, #ffc542 45%, #ffd97a 55%, #ffc542 80%, #b8881a 100%);
     background-size: 200% auto;
     color: #07060f;
     font-family: 'Cinzel', serif; font-weight: 700; font-size: 12px;
@@ -333,22 +350,22 @@
   }
   .aoe-btn-gold:hover {
     background-position: right center;
-    box-shadow: 0 0 20px rgba(212,160,23,0.5), 0 0 40px rgba(212,160,23,0.2);
+    box-shadow: 0 0 20px rgba(255,197,66,0.5), 0 0 40px rgba(255,197,66,0.2);
     transform: translateY(-1px);
   }
   .aoe-btn-outline {
     display: inline-flex; align-items: center; justify-content: center; gap: 6px;
     padding: 8px 20px;
-    background: transparent; color: #d4a017;
+    background: transparent; color: #ffc542;
     font-family: 'Cinzel', serif; font-weight: 600; font-size: 12px;
     letter-spacing: 0.12em; text-transform: uppercase;
-    border-radius: 6px; border: 1px solid rgba(212,160,23,0.4); cursor: pointer;
+    border-radius: 6px; border: 1px solid rgba(255,197,66,0.4); cursor: pointer;
     transition: all 0.2s;
   }
-  .aoe-btn-outline:hover { background: rgba(212,160,23,0.08); border-color: #d4a017; }
+  .aoe-btn-outline:hover { background: rgba(255,197,66,0.08); border-color: #ffc542; }
 
   /* === Legacy tier badge aliases === */
-  .aoe-badge-s { background: rgba(212,160,23,0.2); border: 1px solid rgba(212,160,23,0.6); color: #f5c842; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-family: 'Cinzel', serif; font-weight: 700; }
+  .aoe-badge-s { background: rgba(255,197,66,0.2); border: 1px solid rgba(255,197,66,0.6); color: #ffd97a; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-family: 'Cinzel', serif; font-weight: 700; }
   .aoe-badge-a { background: rgba(52,152,219,0.15); border: 1px solid rgba(52,152,219,0.5); color: #3498db; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-family: 'Cinzel', serif; font-weight: 700; }
   .aoe-badge-b { background: rgba(39,174,96,0.15); border: 1px solid rgba(39,174,96,0.5); color: #27ae60; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-family: 'Cinzel', serif; font-weight: 700; }
   .aoe-badge-c { background: rgba(127,140,141,0.15); border: 1px solid rgba(127,140,141,0.4); color: #95a5a6; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-family: 'Cinzel', serif; font-weight: 700; }
@@ -372,16 +389,16 @@
     box-shadow: 0 4px 20px rgba(0,0,0,0.5);
   }
   .aoe-card-hover:hover {
-    border-color: rgba(212,160,23,0.4);
-    box-shadow: 0 0 30px rgba(212,160,23,0.1), 0 8px 30px rgba(0,0,0,0.6);
+    border-color: rgba(255,197,66,0.4);
+    box-shadow: 0 0 30px rgba(255,197,66,0.1), 0 8px 30px rgba(0,0,0,0.6);
     transform: translateY(-2px);
   }
 
   .aoe-card-decorated {
     background: #0d0b1a;
-    border: 1px solid rgba(212,160,23,0.3);
+    border: 1px solid rgba(255,197,66,0.3);
     border-radius: 10px;
-    box-shadow: 0 0 20px rgba(212,160,23,0.08);
+    box-shadow: 0 0 20px rgba(255,197,66,0.08);
   }
 }
 
@@ -396,7 +413,7 @@
   }
 
   .text-gold-gradient {
-    background: linear-gradient(135deg, #8b6410, #d4a017 35%, #f5c842 50%, #d4a017 65%, #8b6410);
+    background: linear-gradient(135deg, #b8881a, #ffc542 35%, #ffd97a 50%, #ffc542 65%, #b8881a);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -435,12 +452,12 @@
 }
 
 /* Bet volume bar */
-.bet-bar-p1 { background: linear-gradient(90deg, #8b6410, #d4a017); }
+.bet-bar-p1 { background: linear-gradient(90deg, #b8881a, #ffc542); }
 .bet-bar-p2 { background: linear-gradient(90deg, #1a3a6b, #2980b9); }
 
 /* Number glow */
 .text-glow-gold {
-  text-shadow: 0 0 20px rgba(212,160,23,0.6), 0 0 40px rgba(212,160,23,0.3);
+  text-shadow: 0 0 20px rgba(255,197,66,0.6), 0 0 40px rgba(255,197,66,0.3);
 }
 .text-glow-green {
   text-shadow: 0 0 20px rgba(39,174,96,0.6);

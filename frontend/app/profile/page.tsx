@@ -55,7 +55,7 @@ function getLevel(totalWagered: number): { level: number; pct: number } {
 function levelColor(level: number): string {
   if (level >= 50) return '#a855f7';
   if (level >= 30) return '#06b6d4';
-  if (level >= 20) return '#d4a017';
+  if (level >= 20) return '#ffc542';
   if (level >= 10) return '#94a3b8';
   return '#78716c';
 }
@@ -69,8 +69,8 @@ function StatPeriodCard({ title, won, played, count }: { title: string; won: num
       <div className="space-y-3">
         <div>
           <div className="flex items-center gap-1.5">
-            <span className="text-[#d4a017]">⚜</span>
-            <span className={cn('text-[18px] font-bold', profit >= 0 ? 'text-[#d4a017]' : 'text-red-400')}>
+            <span className="text-[#ffc542]">⚜</span>
+            <span className={cn('text-[18px] font-bold', profit >= 0 ? 'text-[#ffc542]' : 'text-red-400')}>
               {new Intl.NumberFormat('fr-FR').format(won)}
             </span>
           </div>
@@ -173,7 +173,7 @@ function SettingsTab({ session, initialBio, onBioSaved }: { session: { user: { n
               className="w-full px-4 py-3 rounded-lg text-[13px] text-[#6b6488] outline-none cursor-default font-mono"
               style={{ background: '#13111f', border: '1px solid #1e1a30' }} />
             <button onClick={handleCopyId}
-              className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors hover:text-[#d4a017]"
+              className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors hover:text-[#ffc542]"
               style={{ color: copied ? '#22c55e' : '#6b6488' }}
               title={copied ? t('common_copied') : t('common_copy')}>
               {copied ? <Check size={15} /> : <Copy size={15} />}
@@ -196,7 +196,7 @@ function SettingsTab({ session, initialBio, onBioSaved }: { session: { user: { n
         {/* Update */}
         <button onClick={handleSave} disabled={saving}
           className="px-6 py-2.5 rounded-lg text-[13px] font-bold font-cinzel transition-all hover:opacity-90 disabled:opacity-50"
-          style={{ background: saved ? '#16a34a' : 'linear-gradient(135deg, #8b6410, #d4a017)', color: '#07060f' }}>
+          style={{ background: saved ? '#16a34a' : 'linear-gradient(135deg, #b8881a, #ffc542)', color: '#07060f' }}>
           {saving ? t('settings_updating') : saved ? `✓ ${t('settings_updated')}` : t('settings_update')}
         </button>
       </div>
@@ -316,7 +316,7 @@ function SecurityTab({ session }: { session: { user: { accessToken: string; id?:
             onClick={handleToggle}
             disabled={loadingSetup}
             className="relative w-11 h-6 rounded-full transition-colors shrink-0 disabled:opacity-60"
-            style={{ background: twofaEnabled ? '#d4a017' : '#2a2640' }}
+            style={{ background: twofaEnabled ? '#ffc542' : '#2a2640' }}
           >
             <span
               className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform shadow"
@@ -400,7 +400,7 @@ function SecurityTab({ session }: { session: { user: { accessToken: string; id?:
             <button
               onClick={handleEnable}
               className="px-5 py-2.5 rounded-lg text-[13px] font-bold transition-colors"
-              style={{ background: 'linear-gradient(135deg, #8b6410, #d4a017)', color: '#07060f' }}
+              style={{ background: 'linear-gradient(135deg, #b8881a, #ffc542)', color: '#07060f' }}
             >
               {t('sec_enable')}
             </button>
@@ -418,7 +418,7 @@ function SecurityTab({ session }: { session: { user: { accessToken: string; id?:
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
               <p className="text-[13px] font-semibold text-[#c8c0e0]">{browser}, {os}</p>
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(212,160,23,0.12)', color: '#d4a017', border: '1px solid rgba(212,160,23,0.25)' }}>
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(255,197,66,0.12)', color: '#ffc542', border: '1px solid rgba(255,197,66,0.25)' }}>
                 {t('sec_current_session')}
               </span>
             </div>
@@ -453,7 +453,7 @@ function BetStatusBadge({ status }: { status: string }) {
   const cfg: Record<string, { label: string; bg: string; color: string }> = {
     WON:      { label: t('profile_history_won'),     bg: '#04200f', color: '#22c55e' },
     LOST:     { label: t('profile_history_lost'),    bg: '#200404', color: '#ef4444' },
-    PENDING:  { label: t('profile_history_pending'), bg: '#201a04', color: '#d4a017' },
+    PENDING:  { label: t('profile_history_pending'), bg: '#201a04', color: '#ffc542' },
     REFUNDED: { label: t('common_pending'),          bg: '#131025', color: '#6b6488' },
     CANCELLED:{ label: t('common_pending'),          bg: '#131025', color: '#6b6488' },
   };
@@ -547,7 +547,7 @@ export default function ProfilePage() {
   if (status === 'loading' && !session && !dataLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#07060f' }}>
-        <div className="w-8 h-8 border-2 border-[#d4a017] border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-[#ffc542] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -556,10 +556,10 @@ export default function ProfilePage() {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#07060f' }}>
         <div className="text-center p-8 rounded-xl" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
-          <h2 className="font-bold text-lg text-[#d4a017] mb-2" style={{ fontFamily: 'Cinzel, serif' }}>{t('auth_required')}</h2>
+          <h2 className="font-bold text-lg text-[#ffc542] mb-2" style={{ fontFamily: 'Cinzel, serif' }}>{t('auth_required')}</h2>
           <p className="text-[#6b6488] text-sm mb-5">{t('auth_required_desc')}</p>
           <button onClick={() => signIn()} className="px-6 py-2.5 rounded-lg text-sm font-semibold text-[#07060f]"
-            style={{ background: 'linear-gradient(135deg, #8b6410, #d4a017)' }}>
+            style={{ background: 'linear-gradient(135deg, #b8881a, #ffc542)' }}>
             {t('auth_signin_steam')}
           </button>
         </div>
@@ -571,15 +571,15 @@ export default function ProfilePage() {
   if (isViewingOther) {
     if (publicLoading) return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#07060f' }}>
-        <div className="w-8 h-8 border-2 border-[#d4a017] border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-[#ffc542] border-t-transparent rounded-full animate-spin" />
       </div>
     );
     if (!publicProfile) return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#07060f' }}>
         <div className="text-center p-8 rounded-xl" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
           <div className="text-3xl mb-3">⚔</div>
-          <h2 className="font-bold text-lg text-[#d4a017] mb-2" style={{ fontFamily: 'Cinzel, serif' }}>Utilisateur introuvable</h2>
-          <Link href="/profile" className="text-[#6b6488] text-sm hover:text-[#d4a017]">← Retour à mon profil</Link>
+          <h2 className="font-bold text-lg text-[#ffc542] mb-2" style={{ fontFamily: 'Cinzel, serif' }}>Utilisateur introuvable</h2>
+          <Link href="/profile" className="text-[#6b6488] text-sm hover:text-[#ffc542]">← Retour à mon profil</Link>
         </div>
       </div>
     );
@@ -589,7 +589,7 @@ export default function ProfilePage() {
     return (
       <div className="min-h-screen" style={{ background: '#07060f' }}>
         <div className="max-w-2xl mx-auto px-4 py-10 space-y-4">
-          <Link href="/profile" className="text-[11px] text-[#6b6488] hover:text-[#d4a017] transition-colors">← Retour à mon profil</Link>
+          <Link href="/profile" className="text-[11px] text-[#6b6488] hover:text-[#ffc542] transition-colors">← Retour à mon profil</Link>
           <div className="rounded-xl p-6 relative overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
             <div className="absolute inset-0 opacity-10" style={{ background: `radial-gradient(ellipse at top right, ${pubColor}, transparent 60%)` }} />
             <div className="relative flex items-center gap-5">
@@ -613,9 +613,9 @@ export default function ProfilePage() {
                 <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                   {publicProfile.isAdmin && <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: '#be123c33', color: '#f87171', border: '1px solid #be123c55' }}>ADMIN</span>}
                   {publicProfile.isMod && <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: '#1e3a5f', color: '#60a5fa', border: '1px solid #3b82f640' }}>MOD</span>}
-                  {publicProfile.isPartner && <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: 'rgba(212,160,23,0.1)', color: '#d4a017', border: '1px solid rgba(212,160,23,0.3)' }}>PARTENAIRE</span>}
+                  {publicProfile.isPartner && <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: 'rgba(255,197,66,0.1)', color: '#ffc542', border: '1px solid rgba(255,197,66,0.3)' }}>PARTENAIRE</span>}
                   {!publicProfile.isAdmin && !publicProfile.isMod && !publicProfile.isPartner && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: 'rgba(212,160,23,0.1)', color: '#d4a017', border: '1px solid rgba(212,160,23,0.3)' }}>MEMBRE</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: 'rgba(255,197,66,0.1)', color: '#ffc542', border: '1px solid rgba(255,197,66,0.3)' }}>MEMBRE</span>
                   )}
                 </div>
                 <p className="text-[13px] mt-2 italic" style={{ color: publicProfile.bio ? '#9990b8' : '#3d3860' }}>
@@ -648,8 +648,8 @@ export default function ProfilePage() {
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <div className="flex items-center gap-1">
-                      <span className="text-[#d4a017] text-xs">⚜</span>
-                      <span className="text-[16px] font-bold text-[#d4a017]">{fmt(s.won)}</span>
+                      <span className="text-[#ffc542] text-xs">⚜</span>
+                      <span className="text-[16px] font-bold text-[#ffc542]">{fmt(s.won)}</span>
                     </div>
                     <p className="text-[10px] text-[#6b6488] mt-0.5">Total gagné</p>
                   </div>
@@ -738,7 +738,7 @@ export default function ProfilePage() {
                   {session.user.isAdmin ? (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: '#be123c33', color: '#f87171', border: '1px solid #be123c55' }}>ADMIN</span>
                   ) : (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: 'rgba(212,160,23,0.1)', color: '#d4a017', border: '1px solid rgba(212,160,23,0.3)' }}>MEMBRE</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: 'rgba(255,197,66,0.1)', color: '#ffc542', border: '1px solid rgba(255,197,66,0.3)' }}>MEMBRE</span>
                   )}
                 </div>
                 {profileBio && (
@@ -783,7 +783,7 @@ export default function ProfilePage() {
               className={cn(
                 'flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-medium transition-all',
                 activeTab === tab.id
-                  ? 'text-[#d4a017]'
+                  ? 'text-[#ffc542]'
                   : 'text-[#6b6488] hover:text-[#c8c0e0]'
               )}
               style={activeTab === tab.id ? { background: '#1a1630' } : {}}
@@ -824,7 +824,7 @@ export default function ProfilePage() {
 
         {/* ── History tab ───────────────────────────────────────────────────── */}
         {activeTab === 'history' && (() => {
-          const ZONE_COLORS: Record<string, string> = { KNIGHTS: '#94a3b8', EMPEROR: '#f5c842', ARCHERS: '#fb923c' };
+          const ZONE_COLORS: Record<string, string> = { KNIGHTS: '#94a3b8', EMPEROR: '#ffd97a', ARCHERS: '#fb923c' };
           const ZONE_LABELS: Record<string, string> = { KNIGHTS: 'Chevaliers', EMPEROR: 'Emperor', ARCHERS: 'Archers' };
 
           // Merge & sort all bets
@@ -859,7 +859,7 @@ export default function ProfilePage() {
 
               {loading ? (
                 <div className="flex justify-center py-10">
-                  <div className="w-6 h-6 border-2 border-[#d4a017] border-t-transparent rounded-full animate-spin" />
+                  <div className="w-6 h-6 border-2 border-[#ffc542] border-t-transparent rounded-full animate-spin" />
                 </div>
               ) : filtered.length === 0 ? (
                 <div className="text-center py-12">
@@ -884,7 +884,7 @@ export default function ProfilePage() {
                             <Swords size={11} style={{ color: '#6b6488' }} />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <Link href={`/matches/${bet.matchId}`} className="hover:text-[#d4a017] transition-colors">
+                            <Link href={`/matches/${bet.matchId}`} className="hover:text-[#ffc542] transition-colors">
                               <p className="text-[13px] font-medium text-[#c8c0e0] truncate">
                                 <span className="text-[#6b6488]">{playerName}</span>
                                 <span className="text-[#3d3860] mx-1.5">·</span>

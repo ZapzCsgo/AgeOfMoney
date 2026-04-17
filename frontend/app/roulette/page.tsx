@@ -17,7 +17,7 @@ import 'react-roulette-pro/dist/index.css';
 
 const ZONES = {
   KNIGHTS: { label: 'CHEVALIERS', multiplier: 2,  color: '#94a3b8', glow: 'rgba(148,163,184,0.4)', border: '#475569',    bg: 'rgba(71,85,105,0.3)',      icon: Shield },
-  EMPEROR: { label: 'EMPEROR',    multiplier: 14, color: '#f5c842', glow: 'rgba(245,200,66,0.55)',  border: '#d4a01780',  bg: 'rgba(212,160,23,0.15)',    icon: Crown  },
+  EMPEROR: { label: 'EMPEROR',    multiplier: 14, color: '#ffd97a', glow: 'rgba(245,200,66,0.55)',  border: '#ffc54280',  bg: 'rgba(255,197,66,0.15)',    icon: Crown  },
   ARCHERS: { label: 'ARCHERS',    multiplier: 2,  color: '#fb923c', glow: 'rgba(251,146,60,0.45)',  border: '#c2410c80',  bg: 'rgba(194,65,12,0.15)',     icon: Target },
 } as const;
 type Zone = keyof typeof ZONES;
@@ -547,7 +547,7 @@ export default function RoulettePage() {
 
         {/* Header */}
         <div className="text-center mb-5">
-          <h1 className="text-3xl font-bold mb-0.5" style={{ fontFamily:'Cinzel,serif', color:'#f5c842' }}>{t('roulette_title').toUpperCase()}</h1>
+          <h1 className="text-3xl font-bold mb-0.5" style={{ fontFamily:'Cinzel,serif', color:'#ffd97a' }}>{t('roulette_title').toUpperCase()}</h1>
           <p className="text-[11px] tracking-widest uppercase" style={{ color:'#6b6488' }}>#1 Age of Empire</p>
         </div>
 
@@ -627,7 +627,7 @@ export default function RoulettePage() {
                 const dashOffset = CIRC * (1 - progress);
                 const isUrgent  = countdown <= 3;
                 const isWarning = countdown <= 10;
-                const color = isUrgent ? '#f87171' : isWarning ? '#fb923c' : '#f5c842';
+                const color = isUrgent ? '#f87171' : isWarning ? '#fb923c' : '#ffd97a';
                 const glow  = isUrgent ? 'rgba(248,113,113,0.75)' : isWarning ? 'rgba(251,146,60,0.65)' : 'rgba(245,200,66,0.55)';
                 return (
                   <div className={cn('relative flex items-center justify-center', isUrgent && 'rl-urgent')}
@@ -666,10 +666,10 @@ export default function RoulettePage() {
                 const barColor = isResult && winZone
                   ? ZONES[winZone].color
                   : anticipation
-                  ? '#f5c842'
+                  ? '#ffd97a'
                   : isSpinning
-                  ? '#f5c842'
-                  : '#d4a017';
+                  ? '#ffd97a'
+                  : '#ffc542';
                 const glowColor = isResult && winZone
                   ? ZONES[winZone].glow
                   : 'rgba(245,200,66,0.6)';
@@ -862,7 +862,7 @@ export default function RoulettePage() {
                 placeholder={t('deposit_amount_coins')}
                 className="w-full px-3 py-2.5 rounded-lg text-[13px] outline-none text-[#e8e2f5] placeholder:text-[#3d3860] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 style={{ background:'#13111f', border:'1px solid #1e1a30' }} />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#f5c842] text-[11px]">⚜</span>
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#ffd97a] text-[11px]">⚜</span>
             </div>
             {([1,10,100] as number[]).map(v=>(
               <button key={v} onClick={()=>setBetAmount(a=>String((parseInt(a)||0)+v))}
@@ -881,14 +881,14 @@ export default function RoulettePage() {
           </div>
           <button onClick={placeBet} disabled={!isBetting||!selectedZone||!betAmount}
             className="w-full py-3 rounded-lg text-[14px] font-bold font-cinzel tracking-wider transition-all disabled:opacity-40"
-            style={{ background:selectedZone ? ZONES[selectedZone].color : '#f5c842', color:'#07060f' }}>
+            style={{ background:selectedZone ? ZONES[selectedZone].color : '#ffd97a', color:'#07060f' }}>
             {!isBetting ? t('bet_closed') :
               !selectedZone ? t('roulette_select_zone') :
               `${t('roulette_bet')} ${betAmount ? parseInt(betAmount).toLocaleString('fr-FR') : '...'} ⚜`}
           </button>
           {myZoneBet && isBetting && (
             <p className="text-center text-[11px] mt-2" style={{ color:'#6b6488' }}>
-              {t('bet_stake')} : <span style={{ color:selectedZone?ZONES[selectedZone].color:'#f5c842' }}>{myZoneBet.amount.toLocaleString('fr-FR')} ⚜</span>
+              {t('bet_stake')} : <span style={{ color:selectedZone?ZONES[selectedZone].color:'#ffd97a' }}>{myZoneBet.amount.toLocaleString('fr-FR')} ⚜</span>
             </p>
           )}
         </div>
@@ -959,7 +959,7 @@ export default function RoulettePage() {
           style={{ background:'rgba(7,6,15,0.88)', backdropFilter:'blur(6px)' }}
           onClick={() => setShowFairnessGuide(false)}>
           <div className="w-full max-w-2xl rounded-2xl overflow-hidden max-h-[85vh] flex flex-col"
-            style={{ background:'#0d0b1a', border:'1px solid #1e1a30', boxShadow:'0 0 60px rgba(212,160,23,0.12)' }}
+            style={{ background:'#0d0b1a', border:'1px solid #1e1a30', boxShadow:'0 0 60px rgba(255,197,66,0.12)' }}
             onClick={e => e.stopPropagation()}>
 
             {/* Header */}
@@ -990,7 +990,7 @@ export default function RoulettePage() {
 
               {/* Roulette section */}
               <div>
-                <h3 className="font-bold text-[13px] mb-2" style={{ color:'#f5c842', fontFamily:'Cinzel,serif' }}>Roulette</h3>
+                <h3 className="font-bold text-[13px] mb-2" style={{ color:'#ffd97a', fontFamily:'Cinzel,serif' }}>Roulette</h3>
                 <p className="mb-2">{t('fair_roulette_p1')}</p>
                 <p className="mb-3">
                   {t('fair_slots_intro')}{' '}
@@ -1002,7 +1002,7 @@ export default function RoulettePage() {
                 </p>
                 <p>
                   {t('fair_formula')}{' '}
-                  <code className="px-1.5 py-0.5 rounded text-[11px]" style={{ background:'#13111f', color:'#f5c842' }}>
+                  <code className="px-1.5 py-0.5 rounded text-[11px]" style={{ background:'#13111f', color:'#ffd97a' }}>
                     slot = (parseInt(SHA256(seed).slice(0,8), 16) % 15) + 1
                   </code>
                 </p>
@@ -1036,7 +1036,7 @@ export default function RoulettePage() {
               </button>
               <button onClick={() => setShowFairnessGuide(false)}
                 className="px-4 py-2 rounded-lg text-[12px] font-bold hover:opacity-80 transition-opacity"
-                style={{ background:'#d4a017', color:'#07060f' }}>
+                style={{ background:'#ffc542', color:'#07060f' }}>
                 {t('deposit_confirm')}
               </button>
             </div>
@@ -1050,7 +1050,7 @@ export default function RoulettePage() {
           style={{ background:'rgba(7,6,15,0.85)', backdropFilter:'blur(6px)' }}
           onClick={() => setShowFairness(false)}>
           <div className="w-full max-w-lg rounded-2xl overflow-hidden"
-            style={{ background:'#0d0b1a', border:'1px solid #1e1a30', boxShadow:'0 0 60px rgba(212,160,23,0.15)' }}
+            style={{ background:'#0d0b1a', border:'1px solid #1e1a30', boxShadow:'0 0 60px rgba(255,197,66,0.15)' }}
             onClick={e => e.stopPropagation()}>
 
             {/* Header */}

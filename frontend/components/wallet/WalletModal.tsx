@@ -236,7 +236,7 @@ export function WalletModal({ onClose }: Props) {
 
           {/* Coins to receive */}
           <div className="rounded-lg p-3 text-center"
-               style={{ background: 'rgba(212,160,23,0.08)', border: '1px solid rgba(212,160,23,0.2)' }}>
+               style={{ background: 'rgba(255,197,66,0.08)', border: '1px solid rgba(255,197,66,0.2)' }}>
             <p className="text-aoe-parchment-dim text-xs mb-1">{t('wallet_will_receive')}</p>
             <p className="font-cinzel font-black text-2xl text-aoe-gold">
               {invoice.coins.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ⚜
@@ -298,7 +298,7 @@ export function WalletModal({ onClose }: Props) {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <svg width="16" height="14" viewBox="0 0 32 28" fill="none">
-              <path d="M2 22L6 8L12 16L16 4L20 16L26 8L30 22H2Z" fill="#d4a017"/>
+              <path d="M2 22L6 8L12 16L16 4L20 16L26 8L30 22H2Z" fill="#ffc542"/>
             </svg>
             <h2 className="font-cinzel font-bold text-base text-aoe-parchment tracking-wider">Wallet</h2>
           </div>
@@ -310,7 +310,7 @@ export function WalletModal({ onClose }: Props) {
         {/* Balance */}
         {session && (
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg mb-4"
-               style={{ background: 'rgba(212,160,23,0.07)', border: '1px solid rgba(212,160,23,0.15)' }}>
+               style={{ background: 'rgba(255,197,66,0.07)', border: '1px solid rgba(255,197,66,0.15)' }}>
             <span className="text-aoe-parchment-dim text-xs font-cinzel tracking-wide">Balance</span>
             <span className="text-aoe-gold font-cinzel font-bold text-sm ml-auto">
               ⚜ {coins.toLocaleString('fr-FR')}
@@ -330,7 +330,7 @@ export function WalletModal({ onClose }: Props) {
                   ? 'text-aoe-bg'
                   : 'text-aoe-parchment-dim hover:text-aoe-parchment'
               )}
-              style={tab === tabKey ? { background: 'linear-gradient(135deg, #8b6410, #d4a017)' } : undefined}
+              style={tab === tabKey ? { background: 'linear-gradient(135deg, #b8881a, #ffc542)' } : undefined}
             >
               {tabKey === 'deposit'
                 ? <><ArrowDownToLine size={11} /> {t('deposit_tab')}</>
@@ -511,7 +511,7 @@ export function WalletModal({ onClose }: Props) {
             'w-full py-3 rounded-lg font-cinzel font-bold text-sm tracking-widest uppercase transition-all flex items-center justify-center gap-2',
             loading ? 'opacity-60 cursor-not-allowed' : ''
           )}
-          style={{ background: 'linear-gradient(135deg, #8b6410, #d4a017)', color: '#07060f' }}
+          style={{ background: 'linear-gradient(135deg, #b8881a, #ffc542)', color: '#07060f' }}
         >
           {loading ? (
             <><RefreshCw size={14} className="animate-spin" /> {t('common_loading')}</>
@@ -542,7 +542,7 @@ export function WalletModal({ onClose }: Props) {
             />
             <button
               className="px-4 h-8 rounded-md text-xs font-cinzel font-bold tracking-wide transition-all shrink-0"
-              style={{ background: 'linear-gradient(135deg, #8b6410, #d4a017)', color: '#07060f' }}
+              style={{ background: 'linear-gradient(135deg, #b8881a, #ffc542)', color: '#07060f' }}
             >
               {t('deposit_promo_apply')}
             </button>
@@ -568,7 +568,7 @@ function ModalShell({ children, onClose }: { children: React.ReactNode; onClose:
         style={{
           background: '#0d0b1a',
           border: '1px solid #2d2850',
-          boxShadow: '0 25px 60px rgba(0,0,0,0.8), 0 0 0 1px rgba(212,160,23,0.05)',
+          boxShadow: '0 25px 60px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,197,66,0.05)',
           maxHeight: '90vh',
           overflowY: 'auto',
         }}
@@ -576,7 +576,7 @@ function ModalShell({ children, onClose }: { children: React.ReactNode; onClose:
       >
         {/* Top gold accent line */}
         <div className="h-px w-full"
-             style={{ background: 'linear-gradient(90deg, transparent 0%, #d4a017 30%, #f5c842 50%, #d4a017 70%, transparent 100%)' }} />
+             style={{ background: 'linear-gradient(90deg, transparent 0%, #ffc542 30%, #ffd97a 50%, #ffc542 70%, transparent 100%)' }} />
         {children}
       </div>
     </div>

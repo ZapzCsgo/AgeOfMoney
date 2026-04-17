@@ -120,7 +120,7 @@ export function CoinFlipModal({
           style={{
             background: '#0d0b1a',
             border: '1px solid #1e1a30',
-            boxShadow: '0 0 80px rgba(212,160,23,0.1)',
+            boxShadow: '0 0 80px rgba(255,197,66,0.1)',
           }}
           initial={{ scale: 0.9, y: 30 }}
           animate={{ scale: 1, y: 0 }}
@@ -133,7 +133,7 @@ export function CoinFlipModal({
           >
             <h2
               className="text-lg font-bold tracking-widest uppercase"
-              style={{ fontFamily: 'Cinzel, serif', color: '#f5c842' }}
+              style={{ fontFamily: 'Cinzel, serif', color: '#ffd97a' }}
             >
               COINFLIP
             </h2>
@@ -152,7 +152,7 @@ export function CoinFlipModal({
                     height: 72,
                     border: `3px solid ${
                       showResult && winner?.id === player1.id
-                        ? '#f5c842'
+                        ? '#ffd97a'
                         : showResult && loser?.id === player1.id
                         ? '#3d3860'
                         : '#1e1a30'
@@ -184,7 +184,7 @@ export function CoinFlipModal({
                   className="text-[13px] font-medium truncate max-w-[120px]"
                   style={{
                     color:
-                      showResult && winner?.id === player1.id ? '#f5c842' : '#e8e2f5',
+                      showResult && winner?.id === player1.id ? '#ffd97a' : '#e8e2f5',
                   }}
                 >
                   {player1.username}
@@ -194,11 +194,11 @@ export function CoinFlipModal({
                   style={{
                     background:
                       player1.side === 'crown'
-                        ? 'rgba(212,160,23,0.15)'
+                        ? 'rgba(255,197,66,0.15)'
                         : 'rgba(138,138,154,0.15)',
-                    color: player1.side === 'crown' ? '#f5c842' : '#c0c0c0',
+                    color: player1.side === 'crown' ? '#ffd97a' : '#c0c0c0',
                     border: `1px solid ${
-                      player1.side === 'crown' ? '#d4a01740' : '#8a8a9a40'
+                      player1.side === 'crown' ? '#ffc54240' : '#8a8a9a40'
                     }`,
                   }}
                 >
@@ -222,7 +222,7 @@ export function CoinFlipModal({
                       fontSize: 48,
                       fontWeight: 900,
                       fontFamily: 'Cinzel, serif',
-                      color: '#f5c842',
+                      color: '#ffd97a',
                       textShadow: '0 0 20px rgba(245,200,66,0.5)',
                     }}
                   >
@@ -255,7 +255,7 @@ export function CoinFlipModal({
                     height: 72,
                     border: `3px solid ${
                       showResult && winner?.id === player2.id
-                        ? '#f5c842'
+                        ? '#ffd97a'
                         : showResult && loser?.id === player2.id
                         ? '#3d3860'
                         : '#1e1a30'
@@ -287,7 +287,7 @@ export function CoinFlipModal({
                   className="text-[13px] font-medium truncate max-w-[120px]"
                   style={{
                     color:
-                      showResult && winner?.id === player2.id ? '#f5c842' : '#e8e2f5',
+                      showResult && winner?.id === player2.id ? '#ffd97a' : '#e8e2f5',
                   }}
                 >
                   {player2.username}
@@ -297,11 +297,11 @@ export function CoinFlipModal({
                   style={{
                     background:
                       player2.side === 'crown'
-                        ? 'rgba(212,160,23,0.15)'
+                        ? 'rgba(255,197,66,0.15)'
                         : 'rgba(138,138,154,0.15)',
-                    color: player2.side === 'crown' ? '#f5c842' : '#c0c0c0',
+                    color: player2.side === 'crown' ? '#ffd97a' : '#c0c0c0',
                     border: `1px solid ${
-                      player2.side === 'crown' ? '#d4a01740' : '#8a8a9a40'
+                      player2.side === 'crown' ? '#ffc54240' : '#8a8a9a40'
                     }`,
                   }}
                 >
@@ -325,7 +325,7 @@ export function CoinFlipModal({
                         className="text-2xl font-bold tracking-wider"
                         style={{
                           fontFamily: 'Cinzel, serif',
-                          color: '#f5c842',
+                          color: '#ffd97a',
                           textShadow: '0 0 20px rgba(245,200,66,0.4)',
                         }}
                       >
@@ -333,7 +333,7 @@ export function CoinFlipModal({
                       </p>
                       <p
                         className="text-3xl font-black mt-2"
-                        style={{ color: '#f5c842' }}
+                        style={{ color: '#ffd97a' }}
                       >
                         +{displayedAmount.toLocaleString('fr-FR')} ⚜
                       </p>
@@ -353,7 +353,7 @@ export function CoinFlipModal({
                   {currentUserWon === null && winner && (
                     <p
                       className="text-xl font-bold"
-                      style={{ fontFamily: 'Cinzel, serif', color: '#f5c842' }}
+                      style={{ fontFamily: 'Cinzel, serif', color: '#ffd97a' }}
                     >
                       {winner.username} {t('coinflip_wins')}
                     </p>
@@ -366,7 +366,7 @@ export function CoinFlipModal({
                         onClick={onPlayAgain}
                         className="px-6 py-2.5 font-bold text-[13px] tracking-wider"
                         style={{
-                          background: '#d4a017',
+                          background: '#ffc542',
                           color: '#07060f',
                           border: 'none',
                         }}

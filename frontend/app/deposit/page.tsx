@@ -215,7 +215,7 @@ export default function DepositPage() {
     return (
       <div className="max-w-lg mx-auto px-4 py-12">
         <div className="rounded-2xl border overflow-hidden" style={{ background: '#0d0b1a', borderColor: '#2d2850' }}>
-          <div className="h-px" style={{ background: 'linear-gradient(90deg,transparent,#d4a017 30%,#f5c842 50%,#d4a017 70%,transparent)' }} />
+          <div className="h-px" style={{ background: 'linear-gradient(90deg,transparent,#ffc542 30%,#ffd97a 50%,#ffc542 70%,transparent)' }} />
           <div className="p-7 space-y-5">
             <div className="flex items-center gap-4">
               {crypto && <CryptoLogo id={crypto.id} size={48} />}
@@ -226,7 +226,7 @@ export default function DepositPage() {
                 </p>
               </div>
             </div>
-            <div className="rounded-xl p-5 text-center" style={{ background: 'rgba(212,160,23,0.07)', border: '1px solid rgba(212,160,23,0.2)' }}>
+            <div className="rounded-xl p-5 text-center" style={{ background: 'rgba(255,197,66,0.07)', border: '1px solid rgba(255,197,66,0.2)' }}>
               <p className="text-aoe-parchment-dim text-[10px] mb-1 font-cinzel tracking-wider uppercase">{t('deposit_amount_coins')}</p>
               <p className="font-cinzel font-black text-4xl text-aoe-gold">{invoice.coins.toLocaleString('fr-FR')} ⚜</p>
               {bonusPct > 0 && <p className="text-emerald-400 text-xs mt-1">dont +{bonusPct}% bonus</p>}
@@ -264,8 +264,8 @@ export default function DepositPage() {
     return (
       <div className="max-w-md mx-auto px-4 py-20 text-center">
         <div className="rounded-2xl border overflow-hidden p-10" style={{ background: '#0d0b1a', borderColor: '#2d2850' }}>
-          <div className="h-px mb-8" style={{ background: 'linear-gradient(90deg,transparent,#d4a017 30%,#f5c842 50%,#d4a017 70%,transparent)' }} />
-          <div className="w-14 h-14 rounded-full mx-auto mb-5 flex items-center justify-center" style={{ background: 'rgba(212,160,23,0.1)', border: '1px solid rgba(212,160,23,0.3)' }}>
+          <div className="h-px mb-8" style={{ background: 'linear-gradient(90deg,transparent,#ffc542 30%,#ffd97a 50%,#ffc542 70%,transparent)' }} />
+          <div className="w-14 h-14 rounded-full mx-auto mb-5 flex items-center justify-center" style={{ background: 'rgba(255,197,66,0.1)', border: '1px solid rgba(255,197,66,0.3)' }}>
             <ArrowDownToLine size={24} className="text-aoe-gold" />
           </div>
           <h2 className="font-cinzel font-bold text-xl text-aoe-gold mb-8 tracking-wider">{t('auth_required').toUpperCase()}</h2>
@@ -289,11 +289,11 @@ export default function DepositPage() {
       {/* Tabs */}
       <div className="flex mb-4 border-b" style={{ borderColor: '#1e1a30' }}>
         <div
-          className="flex-1 flex items-center justify-center gap-2 py-3 font-cinzel font-bold text-[12px] tracking-[0.18em] uppercase cursor-default text-[#d4a017] relative"
+          className="flex-1 flex items-center justify-center gap-2 py-3 font-cinzel font-bold text-[12px] tracking-[0.18em] uppercase cursor-default text-[#ffc542] relative"
         >
           <ArrowDownToLine size={13} />
           {t('deposit_tab')}
-          <span className="absolute left-0 right-0 -bottom-px h-[2px] bg-[#d4a017]" />
+          <span className="absolute left-0 right-0 -bottom-px h-[2px] bg-[#ffc542]" />
         </div>
         <Link
           href="/withdraw"
@@ -312,7 +312,7 @@ export default function DepositPage() {
         </p>
       </div>
 
-      <div className="rounded-xl p-3 mb-4 flex items-center justify-between gap-3" style={{ background: 'linear-gradient(135deg, rgba(212,160,23,0.08), rgba(212,160,23,0.04))', border: '1px solid rgba(212,160,23,0.25)' }}>
+      <div className="rounded-xl p-3 mb-4 flex items-center justify-between gap-3" style={{ background: 'linear-gradient(135deg, rgba(255,197,66,0.08), rgba(255,197,66,0.04))', border: '1px solid rgba(255,197,66,0.25)' }}>
         <div className="text-center flex-1">
           <p className="text-aoe-parchment-muted text-[10px] font-cinzel tracking-wider uppercase mb-1">{t('deposit_amount_coins')}</p>
           <p className="font-cinzel font-black text-2xl text-aoe-gold">
@@ -345,7 +345,7 @@ export default function DepositPage() {
       </div>
 
       <div className="rounded-2xl border overflow-hidden" style={{ background: '#0d0b1a', borderColor: '#2d2850' }}>
-        <div className="h-px" style={{ background: 'linear-gradient(90deg,transparent,#d4a017 30%,#f5c842 50%,#d4a017 70%,transparent)' }} />
+        <div className="h-px" style={{ background: 'linear-gradient(90deg,transparent,#ffc542 30%,#ffd97a 50%,#ffc542 70%,transparent)' }} />
 
         <div className="p-4 space-y-4">
 
@@ -359,7 +359,7 @@ export default function DepositPage() {
                 onChange={e => setCustomCoins(e.target.value.replace(/[^0-9]/g, ''))}
                 placeholder=""
                 className="w-full border rounded-xl px-4 py-3 text-aoe-parchment text-lg font-cinzel font-bold placeholder-aoe-parchment-muted/40 outline-none transition-colors pr-16"
-                style={{ background: 'rgba(255,255,255,0.04)', borderColor: customCoins ? '#d4a017' : '#1e1a30' }}
+                style={{ background: 'rgba(255,255,255,0.04)', borderColor: customCoins ? '#ffc542' : '#1e1a30' }}
                 autoFocus
               />
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-aoe-gold text-xl font-bold">⚜</span>
@@ -439,7 +439,7 @@ export default function DepositPage() {
                 <button
                   onClick={applyPromo}
                   disabled={promoLoading}
-                  className="px-5 h-10 rounded-sm text-[11px] font-cinzel font-black tracking-[0.15em] uppercase shrink-0 transition-colors border-2 border-[#d4a017] bg-transparent text-[#d4a017] hover:bg-[#d4a017]/15 disabled:opacity-50"
+                  className="px-5 h-10 rounded-sm text-[11px] font-cinzel font-black tracking-[0.15em] uppercase shrink-0 transition-colors border-2 border-[#ffc542] bg-transparent text-[#ffc542] hover:bg-[#ffc542]/15 disabled:opacity-50"
                 >
                   {promoLoading ? '...' : t('deposit_promo_apply')}
                 </button>
@@ -482,7 +482,7 @@ export default function DepositPage() {
             <button
               onClick={handleDeposit}
               disabled={loading}
-              className="w-full py-3.5 rounded-md font-bold text-base flex items-center justify-center gap-2 transition-colors bg-[#d4a017] text-black hover:bg-[#e0ad1f] disabled:opacity-50 disabled:hover:bg-[#d4a017]"
+              className="w-full py-3.5 rounded-md font-bold text-base flex items-center justify-center gap-2 transition-colors bg-[#ffc542] text-black hover:bg-[#e0ad1f] disabled:opacity-50 disabled:hover:bg-[#ffc542]"
             >
               {loading
                 ? <><RefreshCw size={15} className="animate-spin" /> {t('common_processing')}</>

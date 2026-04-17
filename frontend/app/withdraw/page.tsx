@@ -164,8 +164,8 @@ export default function WithdrawPage() {
     return (
       <div className="max-w-md mx-auto px-4 py-20 text-center">
         <div className="rounded-2xl border overflow-hidden p-10" style={{ background: '#0d0b1a', borderColor: '#2d2850' }}>
-          <div className="h-px mb-8" style={{ background: 'linear-gradient(90deg,transparent,#d4a017 30%,#f5c842 50%,#d4a017 70%,transparent)' }} />
-          <div className="w-14 h-14 rounded-full mx-auto mb-5 flex items-center justify-center" style={{ background: 'rgba(212,160,23,0.1)', border: '1px solid rgba(212,160,23,0.3)' }}>
+          <div className="h-px mb-8" style={{ background: 'linear-gradient(90deg,transparent,#ffc542 30%,#ffd97a 50%,#ffc542 70%,transparent)' }} />
+          <div className="w-14 h-14 rounded-full mx-auto mb-5 flex items-center justify-center" style={{ background: 'rgba(255,197,66,0.1)', border: '1px solid rgba(255,197,66,0.3)' }}>
             <ArrowUpFromLine size={24} className="text-aoe-gold" />
           </div>
           <h2 className="font-cinzel font-bold text-xl text-aoe-gold mb-2 tracking-wider">{t('auth_required').toUpperCase()}</h2>
@@ -242,8 +242,8 @@ export default function WithdrawPage() {
           {/* Header */}
           <div className="flex flex-col items-center mb-6">
             <div className="w-14 h-14 rounded-full flex items-center justify-center mb-4"
-              style={{ background: 'rgba(212,160,23,0.08)', border: '1px solid rgba(212,160,23,0.25)' }}>
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#d4a017" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              style={{ background: 'rgba(255,197,66,0.08)', border: '1px solid rgba(255,197,66,0.25)' }}>
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#ffc542" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>
               </svg>
             </div>
@@ -387,10 +387,10 @@ export default function WithdrawPage() {
           <ArrowDownToLine size={13} />
           {t('deposit_tab')}
         </Link>
-        <div className="flex-1 flex items-center justify-center gap-2 py-3 font-cinzel font-bold text-[12px] tracking-[0.18em] uppercase cursor-default text-[#d4a017] relative">
+        <div className="flex-1 flex items-center justify-center gap-2 py-3 font-cinzel font-bold text-[12px] tracking-[0.18em] uppercase cursor-default text-[#ffc542] relative">
           <ArrowUpFromLine size={13} />
           {t('withdraw_tab')}
-          <span className="absolute left-0 right-0 -bottom-px h-[2px] bg-[#d4a017]" />
+          <span className="absolute left-0 right-0 -bottom-px h-[2px] bg-[#ffc542]" />
         </div>
       </div>
 
@@ -403,7 +403,7 @@ export default function WithdrawPage() {
       </div>
 
       {/* Balance info */}
-      <div className="rounded-xl p-4 mb-6 flex items-center justify-between" style={{ background: 'linear-gradient(135deg, rgba(212,160,23,0.08), rgba(212,160,23,0.04))', border: '1px solid rgba(212,160,23,0.25)' }}>
+      <div className="rounded-xl p-4 mb-6 flex items-center justify-between" style={{ background: 'linear-gradient(135deg, rgba(255,197,66,0.08), rgba(255,197,66,0.04))', border: '1px solid rgba(255,197,66,0.25)' }}>
         <div className="flex items-center gap-2">
           <Wallet size={16} className="text-aoe-gold" />
           <span className="text-aoe-parchment-muted text-sm font-cinzel">{t('deposit_balance')}</span>
@@ -432,7 +432,7 @@ export default function WithdrawPage() {
             min={minCoins}
             max={userCoins}
             className="w-full border rounded-xl px-4 py-4 text-aoe-parchment text-xl font-cinzel font-bold placeholder-aoe-parchment-muted/40 outline-none transition-colors pr-16 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            style={{ background: 'rgba(255,255,255,0.04)', borderColor: coins > 0 ? '#d4a017' : '#1e1a30' }}
+            style={{ background: 'rgba(255,255,255,0.04)', borderColor: coins > 0 ? '#ffc542' : '#1e1a30' }}
           />
           <span className="absolute right-4 top-1/2 -translate-y-1/2 text-aoe-gold text-xl font-bold">⚜</span>
         </div>

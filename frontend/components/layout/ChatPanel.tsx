@@ -49,7 +49,7 @@ function levelColor(tier: string): string {
     case 'legend':   return '#a855f7';
     case 'diamond':  return '#06b6d4';
     case 'platinum': return '#38bdf8';
-    case 'gold':     return '#d4a017';
+    case 'gold':     return '#ffc542';
     case 'silver':   return '#94a3b8';
     default:         return '#78716c';
   }
@@ -109,7 +109,7 @@ const ChatMessage = memo(function ChatMessage({ msg, isMe, onAvatarClick }: Chat
     <div
       className={cn(
         'group flex items-start gap-3 px-3 py-3 transition-colors cursor-default',
-        isMe ? 'bg-[#d4a017]/5' : 'hover:bg-[#0d0c18]'
+        isMe ? 'bg-[#ffc542]/5' : 'hover:bg-[#0d0c18]'
       )}
     >
       <button
@@ -136,7 +136,7 @@ const ChatMessage = memo(function ChatMessage({ msg, isMe, onAvatarClick }: Chat
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-          <span className={cn('text-[13px] font-bold leading-none', isMe ? 'text-[#d4a017]' : 'text-[#e8e2f5]')}>
+          <span className={cn('text-[13px] font-bold leading-none', isMe ? 'text-[#ffc542]' : 'text-[#e8e2f5]')}>
             {msg.username}
           </span>
           {msg.isAdmin && (
@@ -329,7 +329,7 @@ export function ChatPanel() {
       >
         <div className="flex items-center gap-2">
           {/* Site name like BLITZ */}
-          <span className="font-bold text-[13px] tracking-wider text-[#d4a017] uppercase" style={{ fontFamily: 'Cinzel, serif', letterSpacing: '0.15em' }}>
+          <span className="font-bold text-[13px] tracking-wider text-[#ffc542] uppercase" style={{ fontFamily: 'Cinzel, serif', letterSpacing: '0.15em' }}>
             AoM
           </span>
           <span className="text-[#3d3860] text-[11px]">/</span>
@@ -399,7 +399,7 @@ export function ChatPanel() {
                       onClick={handleSend}
                       disabled={!input.trim() || !connected}
                       className="w-6 h-6 rounded flex items-center justify-center shrink-0 disabled:opacity-30 transition-all hover:scale-110"
-                      style={{ background: input.trim() ? '#d4a017' : 'transparent' }}
+                      style={{ background: input.trim() ? '#ffc542' : 'transparent' }}
                     >
                       <Send size={11} style={{ color: input.trim() ? '#07060f' : '#3d3860' }} />
                     </button>
@@ -412,8 +412,8 @@ export function ChatPanel() {
                     className={cn(
                       'flex items-center justify-center w-8 h-8 rounded-lg border transition-all',
                       showEmojis
-                        ? 'text-[#d4a017] border-[#d4a017]/40 bg-[#d4a017]/10'
-                        : 'text-[#9990b8] border-[#2d2850] bg-[#0d0b1a] hover:text-[#d4a017] hover:border-[#d4a017]/30 hover:bg-[#d4a017]/5'
+                        ? 'text-[#ffc542] border-[#ffc542]/40 bg-[#ffc542]/10'
+                        : 'text-[#9990b8] border-[#2d2850] bg-[#0d0b1a] hover:text-[#ffc542] hover:border-[#ffc542]/30 hover:bg-[#ffc542]/5'
                     )}
                     title="Emojis"
                   >
@@ -453,7 +453,7 @@ export function ChatPanel() {
         ) : (
           <div className="px-3 py-3 text-center">
             <p className="text-[11px] text-[#3d3860] leading-relaxed">
-              <span className="text-[#d4a017] font-semibold">{t('chat_signin_prompt')}</span>
+              <span className="text-[#ffc542] font-semibold">{t('chat_signin_prompt')}</span>
               <br />{t('chat_signin_desc')}
             </p>
           </div>
@@ -489,7 +489,7 @@ export function ChatPanel() {
           {session && (
             <div className="px-3 py-2 border-t" style={{ borderColor: '#1e1a30' }}>
               <div className="flex items-center gap-1.5 mb-1.5">
-                <span className="text-[11px] text-[#d4a017]">⚜</span>
+                <span className="text-[11px] text-[#ffc542]">⚜</span>
                 <span className="text-[11px] text-[#c8c0e0]">Envoyer des coins</span>
               </div>
               <div className="flex gap-1.5">
@@ -505,7 +505,7 @@ export function ChatPanel() {
                   onClick={handleTip}
                   disabled={tipping || !tipAmount}
                   className="px-2 py-1 rounded text-[11px] font-bold disabled:opacity-40 transition-opacity"
-                  style={{ background: '#d4a017', color: '#07060f' }}
+                  style={{ background: '#ffc542', color: '#07060f' }}
                 >
                   {tipping ? '…' : 'Tip'}
                 </button>

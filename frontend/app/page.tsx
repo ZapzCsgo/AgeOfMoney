@@ -76,9 +76,9 @@ function PlayerAvatar({
           ? undefined
           : `radial-gradient(circle at 40% 35%, hsl(${hue},35%,22%) 0%, hsl(${hue},20%,10%) 100%)`,
         border: selected
-          ? '2px solid rgba(212,160,23,0.6)'
-          : '2px solid rgba(212,160,23,0.18)',
-        boxShadow: selected ? `0 0 18px rgba(212,160,23,0.3)` : 'none',
+          ? '2px solid rgba(255,197,66,0.6)'
+          : '2px solid rgba(255,197,66,0.18)',
+        boxShadow: selected ? `0 0 18px rgba(255,197,66,0.3)` : 'none',
       }}
     >
       {imgSrc ? (
@@ -182,7 +182,7 @@ function QuickBetBar({
         <div className="flex items-center gap-1.5 shrink-0">
           <div
             className="w-2 h-2 rounded-full"
-            style={{ background: '#d4a017' }}
+            style={{ background: '#ffc542' }}
           />
           <span className="text-[10px] font-cinzel tracking-wider text-aoe-gold uppercase truncate max-w-[80px]">
             {player.name}
@@ -353,8 +353,8 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
           className={cn('p-4 flex flex-col items-center gap-3 transition-all duration-300', p2Won && 'opacity-40')}
           style={{
             background: selected === 1
-              ? 'radial-gradient(ellipse at 50% 0%, rgba(212,160,23,0.1) 0%, transparent 70%)'
-              : p1Won ? 'radial-gradient(ellipse at 50% 0%, rgba(212,160,23,0.07) 0%, transparent 70%)' : 'transparent',
+              ? 'radial-gradient(ellipse at 50% 0%, rgba(255,197,66,0.1) 0%, transparent 70%)'
+              : p1Won ? 'radial-gradient(ellipse at 50% 0%, rgba(255,197,66,0.07) 0%, transparent 70%)' : 'transparent',
           }}
         >
           <div className="relative">
@@ -366,11 +366,11 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
               selected={selected === 1}
             />
             {p1Won && (
-              <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-3xl leading-none drop-shadow-[0_0_8px_rgba(212,160,23,0.6)]">👑</span>
+              <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-3xl leading-none drop-shadow-[0_0_8px_rgba(255,197,66,0.6)]">👑</span>
             )}
           </div>
           <div className="text-center">
-            <p className={cn('font-cinzel font-bold text-sm leading-tight', p1Won ? 'text-[#d4a017]' : 'text-aoe-parchment')}>
+            <p className={cn('font-cinzel font-bold text-sm leading-tight', p1Won ? 'text-[#ffc542]' : 'text-aoe-parchment')}>
               {match.player1.name}
             </p>
             {gameOngoing && match.p1Civ && (
@@ -382,8 +382,8 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
 
           {/* Odds button P1 or winner label */}
           {isCompleted ? (
-            <div className="w-full rounded-lg px-3 py-2.5 text-center" style={{ background: p1Won ? 'rgba(212,160,23,0.08)' : 'rgba(255,255,255,0.02)', border: `1px solid ${p1Won ? 'rgba(212,160,23,0.25)' : 'rgba(255,255,255,0.05)'}` }}>
-              <div className={cn('font-cinzel text-[11px] font-bold uppercase tracking-widest', p1Won ? 'text-[#d4a017]' : 'text-[#3d3860]')}>
+            <div className="w-full rounded-lg px-3 py-2.5 text-center" style={{ background: p1Won ? 'rgba(255,197,66,0.08)' : 'rgba(255,255,255,0.02)', border: `1px solid ${p1Won ? 'rgba(255,197,66,0.25)' : 'rgba(255,255,255,0.05)'}` }}>
+              <div className={cn('font-cinzel text-[11px] font-bold uppercase tracking-widest', p1Won ? 'text-[#ffc542]' : 'text-[#3d3860]')}>
                 {p1Won ? 'Vainqueur' : 'Éliminé'}
               </div>
               <div className="text-[10px] text-[#4a4570] mt-0.5 font-cinzel">
@@ -395,9 +395,9 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
               onClick={(e) => handleOddsClick(1, e)}
               className={cn('odds-btn w-full transition-all duration-200', selected === 1 && 'selected')}
               style={selected === 1 ? {
-                background: 'linear-gradient(135deg, rgba(139,100,16,0.4), rgba(212,160,23,0.2))',
-                borderColor: '#d4a017',
-                boxShadow: '0 0 20px rgba(212,160,23,0.3), inset 0 1px 0 rgba(255,255,255,0.05)',
+                background: 'linear-gradient(135deg, rgba(139,100,16,0.4), rgba(255,197,66,0.2))',
+                borderColor: '#ffc542',
+                boxShadow: '0 0 20px rgba(255,197,66,0.3), inset 0 1px 0 rgba(255,255,255,0.05)',
               } : undefined}
             >
               <div className={cn('font-cinzel font-black text-2xl leading-none', selected === 1 ? 'text-aoe-gold-bright text-glow-gold' : 'text-aoe-parchment')}>
@@ -415,11 +415,11 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
           <div className="w-px flex-1 bg-gradient-to-b from-transparent via-aoe-border to-transparent" />
           {isCompleted ? (
             <div className="flex flex-col items-center shrink-0 gap-0.5">
-              <div className={cn('font-cinzel font-black text-xl leading-none', p1Won ? 'text-[#d4a017]' : 'text-[#4a4570]')}>
+              <div className={cn('font-cinzel font-black text-xl leading-none', p1Won ? 'text-[#ffc542]' : 'text-[#4a4570]')}>
                 {match.p1Score ?? 0}
               </div>
               <div className="text-[#3a3560] text-[8px] font-cinzel tracking-widest">FIN</div>
-              <div className={cn('font-cinzel font-black text-xl leading-none', p2Won ? 'text-[#d4a017]' : 'text-[#4a4570]')}>
+              <div className={cn('font-cinzel font-black text-xl leading-none', p2Won ? 'text-[#ffc542]' : 'text-[#4a4570]')}>
                 {match.p2Score ?? 0}
               </div>
             </div>
@@ -446,9 +446,9 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
           {!isCompleted && match.oddsDraw && (
             <button
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSelected(selected === 0 ? null : 0); }}
-              className={cn('px-3 py-1.5 rounded-lg text-center transition-all duration-200 border', selected === 0 ? 'border-[#d4a017] bg-[#d4a017]/10' : 'border-[#1e1a30] bg-[#0d0b1a]/50 hover:border-[#3d3860]')}
+              className={cn('px-3 py-1.5 rounded-lg text-center transition-all duration-200 border', selected === 0 ? 'border-[#ffc542] bg-[#ffc542]/10' : 'border-[#1e1a30] bg-[#0d0b1a]/50 hover:border-[#3d3860]')}
             >
-              <div className="font-cinzel font-bold text-sm text-[#d4a017] leading-none">{match.oddsDraw.toFixed(2)}</div>
+              <div className="font-cinzel font-bold text-sm text-[#ffc542] leading-none">{match.oddsDraw.toFixed(2)}</div>
               <div className="text-[8px] text-[#6b6488] mt-0.5 uppercase tracking-widest">Draw</div>
             </button>
           )}
@@ -460,7 +460,7 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
           style={{
             background: selected === 2
               ? 'radial-gradient(ellipse at 50% 0%, rgba(41,128,185,0.1) 0%, transparent 70%)'
-              : p2Won ? 'radial-gradient(ellipse at 50% 0%, rgba(212,160,23,0.07) 0%, transparent 70%)' : 'transparent',
+              : p2Won ? 'radial-gradient(ellipse at 50% 0%, rgba(255,197,66,0.07) 0%, transparent 70%)' : 'transparent',
           }}
         >
           <div className="relative">
@@ -472,11 +472,11 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
               selected={selected === 2}
             />
             {p2Won && (
-              <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-3xl leading-none drop-shadow-[0_0_8px_rgba(212,160,23,0.6)]">👑</span>
+              <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-3xl leading-none drop-shadow-[0_0_8px_rgba(255,197,66,0.6)]">👑</span>
             )}
           </div>
           <div className="text-center">
-            <p className={cn('font-cinzel font-bold text-sm leading-tight', p2Won ? 'text-[#d4a017]' : 'text-aoe-parchment')}>
+            <p className={cn('font-cinzel font-bold text-sm leading-tight', p2Won ? 'text-[#ffc542]' : 'text-aoe-parchment')}>
               {match.player2.name}
             </p>
             {gameOngoing && match.p2Civ && (
@@ -488,8 +488,8 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
 
           {/* Odds button P2 or winner label */}
           {isCompleted ? (
-            <div className="w-full rounded-lg px-3 py-2.5 text-center" style={{ background: p2Won ? 'rgba(212,160,23,0.08)' : 'rgba(255,255,255,0.02)', border: `1px solid ${p2Won ? 'rgba(212,160,23,0.25)' : 'rgba(255,255,255,0.05)'}` }}>
-              <div className={cn('font-cinzel text-[11px] font-bold uppercase tracking-widest', p2Won ? 'text-[#d4a017]' : 'text-[#3d3860]')}>
+            <div className="w-full rounded-lg px-3 py-2.5 text-center" style={{ background: p2Won ? 'rgba(255,197,66,0.08)' : 'rgba(255,255,255,0.02)', border: `1px solid ${p2Won ? 'rgba(255,197,66,0.25)' : 'rgba(255,255,255,0.05)'}` }}>
+              <div className={cn('font-cinzel text-[11px] font-bold uppercase tracking-widest', p2Won ? 'text-[#ffc542]' : 'text-[#3d3860]')}>
                 {p2Won ? 'Vainqueur' : 'Éliminé'}
               </div>
               <div className="text-[10px] text-[#4a4570] mt-0.5 font-cinzel">
@@ -538,7 +538,7 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
         >
           <Link
             href={`/matches/${match.id}`}
-            className="flex items-center gap-1 text-[11px] font-cinzel text-[#6b6488] hover:text-[#d4a017] transition-colors"
+            className="flex items-center gap-1 text-[11px] font-cinzel text-[#6b6488] hover:text-[#ffc542] transition-colors"
             onClick={(e) => e.stopPropagation()}
           >
             Afficher plus de paris <ChevronRight size={11} />
@@ -593,7 +593,7 @@ function Hero({ liveCount, totalBets, matchCount }: { liveCount: number; totalBe
       <Particles
         className="absolute inset-0 pointer-events-none"
         quantity={60}
-        color="#d4a017"
+        color="#ffc542"
         staticity={60}
         ease={60}
         size={0.5}
@@ -602,7 +602,7 @@ function Hero({ liveCount, totalBets, matchCount }: { liveCount: number; totalBe
       {/* Grid pattern overlay */}
       <GridPattern
         className="opacity-[0.03]"
-        style={{ stroke: '#d4a017' }}
+        style={{ stroke: '#ffc542' }}
         width={48}
         height={48}
       />
@@ -618,19 +618,19 @@ function Hero({ liveCount, totalBets, matchCount }: { liveCount: number; totalBe
         style={{
           top: '-30%', left: '50%', transform: 'translateX(-50%)',
           width: 800, height: 500,
-          background: 'radial-gradient(ellipse, rgba(212,160,23,0.06) 0%, transparent 60%)',
+          background: 'radial-gradient(ellipse, rgba(255,197,66,0.06) 0%, transparent 60%)',
         }}
       />
 
       {/* Top gold line */}
       <div
         className="absolute top-0 left-0 right-0 h-px"
-        style={{ background: 'linear-gradient(90deg, transparent 0%, #d4a017 30%, #f5c842 50%, #d4a017 70%, transparent 100%)' }}
+        style={{ background: 'linear-gradient(90deg, transparent 0%, #ffc542 30%, #ffd97a 50%, #ffc542 70%, transparent 100%)' }}
       />
 
       {/* Castle silhouette — subtle background */}
       <div className="absolute bottom-0 left-0 right-0 pointer-events-none" style={{ opacity: 0.03 }}>
-        <svg viewBox="0 0 1200 100" preserveAspectRatio="xMidYMax meet" fill="#d4a017" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: 100 }}>
+        <svg viewBox="0 0 1200 100" preserveAspectRatio="xMidYMax meet" fill="#ffc542" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: 100 }}>
           <rect x="0" y="60" width="1200" height="40" />
           {Array.from({ length: 80 }).map((_, i) => (
             <rect key={i} x={i * 15} y="46" width="9" height="16" />
@@ -649,7 +649,7 @@ function Hero({ liveCount, totalBets, matchCount }: { liveCount: number; totalBe
       <div className="relative z-10 flex flex-col items-center justify-center py-14 px-6 text-center">
         {/* Crown */}
         <div className="mb-5 relative">
-          <Crown size={44} className="text-aoe-gold drop-shadow-[0_0_16px_rgba(212,160,23,0.7)]" />
+          <Crown size={44} className="text-aoe-gold drop-shadow-[0_0_16px_rgba(255,197,66,0.7)]" />
         </div>
 
         {/* Title */}
@@ -659,7 +659,7 @@ function Hero({ liveCount, totalBets, matchCount }: { liveCount: number; totalBe
         >
           <span
             style={{
-              background: 'linear-gradient(135deg, #8b6410, #d4a017 30%, #f5c842 50%, #d4a017 70%, #8b6410)',
+              background: 'linear-gradient(135deg, #b8881a, #ffc542 30%, #ffd97a 50%, #ffc542 70%, #b8881a)',
               WebkitBackgroundClip: 'text',
               backgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
@@ -674,7 +674,7 @@ function Hero({ liveCount, totalBets, matchCount }: { liveCount: number; totalBe
           className="mb-5 h-0.5 rounded-full"
           style={{
             width: 'clamp(160px, 40%, 340px)',
-            background: 'linear-gradient(90deg, transparent, #8b6410, #d4a017, #f5c842, #d4a017, #8b6410, transparent)',
+            background: 'linear-gradient(90deg, transparent, #b8881a, #ffc542, #ffd97a, #ffc542, #b8881a, transparent)',
             backgroundSize: '200% auto',
             animation: 'shimmer 3s linear infinite',
           }}
@@ -880,7 +880,7 @@ export default function HomePage() {
                         : 'text-aoe-parchment-dim hover:text-aoe-parchment hover:bg-white/5'
                     )}
                     style={isActive ? {
-                      background: 'linear-gradient(135deg, #8b6410, #d4a017)',
+                      background: 'linear-gradient(135deg, #b8881a, #ffc542)',
                     } : undefined}
                   >
                     {f.id === 'LIVE' && liveMatches.length > 0 && (
@@ -965,14 +965,14 @@ export default function HomePage() {
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
               {upcomingTourneys.map(tourn => (
                 <Link key={tourn.id} href={`/tournaments/${tourn.id}`}
-                  className="flex items-center gap-4 px-5 py-4 rounded-xl border border-[#1e1a30] hover:border-[#d4a017]/30 transition-all group"
+                  className="flex items-center gap-4 px-5 py-4 rounded-xl border border-[#1e1a30] hover:border-[#ffc542]/30 transition-all group"
                   style={{ background: '#0d0b1a' }}>
                   <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
-                    style={{ background: 'rgba(212,160,23,0.08)', border: '1px solid rgba(212,160,23,0.15)' }}>
-                    <Trophy size={16} className="text-[#d4a017]" />
+                    style={{ background: 'rgba(255,197,66,0.08)', border: '1px solid rgba(255,197,66,0.15)' }}>
+                    <Trophy size={16} className="text-[#ffc542]" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-cinzel font-bold text-[13px] text-[#e8e2f5] truncate group-hover:text-[#d4a017] transition-colors">{tourn.name}</p>
+                    <p className="font-cinzel font-bold text-[13px] text-[#e8e2f5] truncate group-hover:text-[#ffc542] transition-colors">{tourn.name}</p>
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-[10px] text-[#6b6488]">{tourn.game ?? 'AoE4'}</span>
                       {tourn.startDate && <span className="text-[10px] text-[#6b6488]">· {new Date(tourn.startDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>}
@@ -980,11 +980,11 @@ export default function HomePage() {
                     </div>
                   </div>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded shrink-0"
-                    style={{ background: tourn.tier === 'S' ? '#d4a01720' : tourn.tier === 'A' ? '#a78bfa20' : '#60a5fa20',
-                             color: tourn.tier === 'S' ? '#d4a017' : tourn.tier === 'A' ? '#a78bfa' : '#60a5fa' }}>
+                    style={{ background: tourn.tier === 'S' ? '#ffc54220' : tourn.tier === 'A' ? '#a78bfa20' : '#60a5fa20',
+                             color: tourn.tier === 'S' ? '#ffc542' : tourn.tier === 'A' ? '#a78bfa' : '#60a5fa' }}>
                     {tourn.tier}
                   </span>
-                  <ChevronRight size={14} className="text-[#3d3860] group-hover:text-[#d4a017] transition-colors shrink-0" />
+                  <ChevronRight size={14} className="text-[#3d3860] group-hover:text-[#ffc542] transition-colors shrink-0" />
                 </Link>
               ))}
             </div>

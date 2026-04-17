@@ -24,7 +24,7 @@ function Sparkle({ delay, x, y, size }: { delay: number; x: number; y: number; s
       style={{
         width: size,
         height: size,
-        background: 'radial-gradient(circle, #f5c842 0%, #d4a017 40%, transparent 70%)',
+        background: 'radial-gradient(circle, #ffd97a 0%, #ffc542 40%, transparent 70%)',
         left: '50%',
         top: '50%',
         filter: 'blur(0.5px)',
@@ -136,7 +136,7 @@ export function CoinFlipAnimation({
         style={{
           width: size * 1.3,
           height: size * 1.3,
-          background: 'radial-gradient(circle, rgba(212,160,23,0.15) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(255,197,66,0.15) 0%, transparent 70%)',
           filter: 'blur(20px)',
         }}
       />
@@ -157,11 +157,11 @@ export function CoinFlipAnimation({
             className="absolute inset-0 rounded-full flex items-center justify-center"
             style={{
               backfaceVisibility: 'hidden',
-              background: `radial-gradient(ellipse at 35% 30%, #f5c842 0%, #d4a017 40%, #b8860b 80%, #8b6914 100%)`,
+              background: `radial-gradient(ellipse at 35% 30%, #ffd97a 0%, #ffc542 40%, #b8860b 80%, #8b6914 100%)`,
               boxShadow: `
                 inset 0 -4px 12px rgba(0,0,0,0.4),
                 inset 0 4px 8px rgba(255,230,120,0.3),
-                0 0 30px rgba(212,160,23,0.3)
+                0 0 30px rgba(255,197,66,0.3)
               `,
               border: '2px solid #c4960f',
             }}

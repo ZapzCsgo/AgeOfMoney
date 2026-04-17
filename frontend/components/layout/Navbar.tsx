@@ -183,7 +183,7 @@ export function Navbar() {
                       style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}
                     >
                       <div className="flex items-center justify-between px-4 py-3 border-b border-[#1e1a30]">
-                        <span className="font-cinzel text-[13px] text-[#d4a017] font-bold">Notifications</span>
+                        <span className="font-cinzel text-[13px] text-[#ffc542] font-bold">Notifications</span>
                         {notifications.length > 0 && (
                           <span className="text-[11px] text-[#6b6488]">{notifications.length} au total</span>
                         )}
@@ -209,7 +209,7 @@ export function Navbar() {
                                     )}
                                     <p className="text-[12px] text-[#9988bb] mt-0.5">
                                       {n.playerBetOn} · Mise {n.amount} ⚜
-                                      {n.won && <span className="text-[#f5c842] font-bold"> → +{n.payout} ⚜</span>}
+                                      {n.won && <span className="text-[#ffd97a] font-bold"> → +{n.payout} ⚜</span>}
                                     </p>
                                     <p className="text-[10px] text-[#4a4468] mt-0.5">
                                       {new Date(n.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
@@ -229,7 +229,7 @@ export function Navbar() {
                                 <span className="text-lg mt-0.5 shrink-0">{icon}</span>
                                 <div className="flex-1 min-w-0">
                                   <p className={`text-[13px] font-semibold ${color}`}>{title}</p>
-                                  <p className="text-[12px] text-[#f5c842] font-bold mt-0.5">+{n.amount} ⚜</p>
+                                  <p className="text-[12px] text-[#ffd97a] font-bold mt-0.5">+{n.amount} ⚜</p>
                                   <p className="text-[10px] text-[#4a4468] mt-0.5">
                                     {new Date(n.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                                   </p>
@@ -252,7 +252,7 @@ export function Navbar() {
                 >
                   {/* Coins badge */}
                   <div className="flex items-center gap-1 md:gap-1.5 px-2 md:px-3 h-full border-r border-aoe-border"
-                    style={{ background: 'rgba(212,160,23,0.08)' }}>
+                    style={{ background: 'rgba(255,197,66,0.08)' }}>
                     <Wallet size={12} className="text-aoe-gold shrink-0" />
                     <span className={cn(
                       'font-bold font-cinzel text-[12px] md:text-sm tabular-nums transition-colors duration-300',
