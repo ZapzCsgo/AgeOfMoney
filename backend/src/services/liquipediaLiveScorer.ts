@@ -807,11 +807,34 @@ async function syncMatchScore(matchId: string): Promise<void> {
   }
 
   if (!lpMatch) {
-    // Log ALL opponent pairs from the wikitext so we can diagnose name mismatches
-    const pairs = lpMatches.map(m => `${m.opponent1} vs ${m.opponent2}`).join(' | ');
-    logger.info(`[LPScorer] Match ${matchId}: "${match.player1.name}" vs "${match.player2.name}" NOT FOUND in LP wikitext. LP has ${lpMatches.length} matches: [${pairs}]`);
+    // Track consecutive misses — auto-cancel ghost matches that will never resolve
+    const missCount = (matchNotFoundCount.get(matchId) ?? 0) + 1;
+    matchNotFoundCount.set(matchId, missCount);
+
+    if (missCount <= 3 || missCount === NOT_FOUND_CANCEL_THRESHOLD) {
+      // Only log the first 3 misses + the cancel — avoid flooding logs
+      const pairs = lpMatches.map(m => `${m.opponent1} vs ${m.opponent2}`).join(' | ');
+      logger.info(`[LPScorer] Match ${matchId}: "${match.player1.name}" vs "${match.player2.name}" NOT FOUND in LP wikitext (miss ${missCount}/${NOT_FOUND_CANCEL_THRESHOLD}). LP has ${lpMatches.length} matches: [${pairs}]`);
+    }
+
+    if (missCount >= NOT_FOUND_CANCEL_THRESHOLD) {
+      // Ghost match — cancel and refund
+      logger.warn(`[LPScorer] Match ${matchId}: "${match.player1.name}" vs "${match.player2.name}" NOT FOUND after ${missCount} checks — auto-cancelling + refunding bets`);
+      const { refundBets } = await import('./betService');
+      await prisma.match.update({
+        where: { id: matchId },
+        data: { status: 'CANCELLED', betsOpen: false },
+      });
+      await refundBets(matchId, `Match annulé — données incorrectes ("${match.player1.name}" vs "${match.player2.name}" introuvable sur Liquipedia)`);
+      const io = getIo();
+      io?.emit('matchUpdate', { matchId, status: 'CANCELLED' });
+      matchNotFoundCount.delete(matchId);
+    }
     return;
   }
+
+  // Match found — clear any prior miss count
+  matchNotFoundCount.delete(matchId);
 
   // Determine which way around the players are
   const reversed = namesMatch(lpMatch.opponent1, match.player2.name);
@@ -949,6 +972,11 @@ async function syncMatchScore(matchId: string): Promise<void> {
 
 let scorerTimeout: ReturnType<typeof setTimeout> | null = null;
 let lastLoggedInterval = 0;
+
+// Track consecutive "NOT FOUND" per match — auto-cancel ghost matches that
+// the scorer can never resolve instead of waiting 8h.
+const matchNotFoundCount = new Map<string, number>();
+const NOT_FOUND_CANCEL_THRESHOLD = 10; // cancel after ~5 min of polling (10 × 30s)
 
 /**
  * Compute the poll interval based on how many unique LP pages we need to
