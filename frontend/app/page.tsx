@@ -138,6 +138,18 @@ function QuickBetBar({
     );
   }
 
+  if (match.betsOpen === false || match.status === 'COMPLETED') {
+    return (
+      <div className="animate-slide-down border-t border-aoe-border/50 bg-black/30 px-4 py-3 flex items-center justify-between">
+        <p className="text-red-400/80 text-xs font-cinzel tracking-wider flex items-center gap-1.5">
+          <Lock size={11} />
+          {match.status === 'LIVE' ? 'Bets are closed — match is live' : t('bet_closed')}
+        </p>
+        <button onClick={onClose} className="text-aoe-parchment-muted hover:text-aoe-parchment text-xs">✕</button>
+      </div>
+    );
+  }
+
   if (result === 'success') {
     return (
       <div className="animate-slide-down border-t border-emerald-500/30 bg-emerald-950/20 px-4 py-3 flex items-center justify-between">
