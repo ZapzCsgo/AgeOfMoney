@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import {
   Home, Swords, Trophy, User, Settings, Wallet, ChevronLeft, ChevronRight,
-  TrendingUp, Star, Bell, Users, Dices, Gift
+  TrendingUp, Star, Bell, Users, Dices, Gift, Coins
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/i18n';
@@ -28,6 +28,7 @@ export function LeftSidebar() {
     { href: '/',            icon: Home,       label: t('nav_home') },
     { href: '/matches',     icon: Swords,     label: t('nav_matches') },
     { href: '/roulette',    icon: Dices,      label: t('nav_roulette') },
+    { href: '/coinflip',   icon: Coins,      label: t('nav_coinflip') },
     { href: '/tournaments', icon: Trophy,     label: t('nav_tournaments') },
     { href: '/leaderboard', icon: TrendingUp, label: t('nav_leaderboard') },
   ];

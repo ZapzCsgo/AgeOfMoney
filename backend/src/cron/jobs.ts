@@ -80,6 +80,16 @@ export function initCronJobs(): void {
     }
   });
 
+  // ── Every minute: auto-cancel stale coinflips (>15 min waiting) ────────────
+  cron.schedule('* * * * *', async () => {
+    try {
+      const { cancelStaleCoinFlips } = await import('../services/coinflipService');
+      await cancelStaleCoinFlips();
+    } catch (err) {
+      logger.error('[CRON] cancelStaleCoinFlips failed:', err);
+    }
+  });
+
   // ── Every 10 minutes: distribute payouts ──────────────────────────────────
   cron.schedule('*/10 * * * *', async () => {
     try {

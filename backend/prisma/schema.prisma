@@ -33,7 +33,9 @@ model User {
   updatedAt     DateTime      @updatedAt
   bets          Bet[]
   transactions  Transaction[]
-  rouletteBets  RouletteBet[]
+  rouletteBets     RouletteBet[]
+  coinflipsCreated CoinFlip[]    @relation("coinflipCreator")
+  coinflipsJoined  CoinFlip[]    @relation("coinflipJoiner")
 
   @@unique([provider, providerId])
   @@index([totalWagered])
@@ -311,4 +313,28 @@ model RouletteBet {
 
   @@index([userId, createdAt])
   @@index([roundId])
+}
+
+// ── Coinflip PvP ─────────────────────────────────────────────────────────────
+
+model CoinFlip {
+  id           String    @id @default(cuid())
+  creatorId    String
+  creator      User      @relation("coinflipCreator", fields: [creatorId], references: [id])
+  joinerId     String?
+  joiner       User?     @relation("coinflipJoiner", fields: [joinerId], references: [id])
+  amount       Int       // bet amount per player
+  creatorSide  String    // "crown" or "shield"
+  winnerId     String?
+  status       String    @default("WAITING") // WAITING | FLIPPING | COMPLETED | CANCELLED
+  serverSeed   String    // random hex — revealed after flip
+  seedHash     String    // SHA256(serverSeed) — shown before flip for provably fair
+  result       String?   // "crown" or "shield"
+  rake         Int       @default(0) // coins taken as house rake
+  createdAt    DateTime  @default(now())
+  completedAt  DateTime?
+
+  @@index([status])
+  @@index([creatorId])
+  @@index([joinerId])
 }

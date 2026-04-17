@@ -494,6 +494,26 @@ const t_fr = {
   wallet_err_address:      'Adresse de retrait requise',
   wallet_err_withdraw:     'Erreur lors du retrait',
 
+  // Coinflip
+  nav_coinflip:            'Coinflip',
+  coinflip_subtitle:       'Pile ou Face PvP — Misez et affrontez un adversaire',
+  coinflip_create_title:   'Lancer un flip',
+  coinflip_create_btn:     'Lancer pour',
+  coinflip_lobby_title:    'Flips ouverts',
+  coinflip_open:           'ouverts',
+  coinflip_completed:      'terminés',
+  coinflip_empty:          'Aucun flip ouvert — lancez-en un !',
+  coinflip_join:           'Rejoindre',
+  coinflip_cancel:         'Annuler',
+  coinflip_created:        'Flip lancé avec succès !',
+  coinflip_cant_join_own:  'Vous ne pouvez pas rejoindre votre propre flip',
+  coinflip_recent:         'Résultats récents',
+  coinflip_each:           'chacun',
+  coinflip_you_won:        'VOUS AVEZ GAGNE',
+  coinflip_you_lost:       'VOUS AVEZ PERDU',
+  coinflip_wins:           'a gagné !',
+  coinflip_play_again:     'Rejouer',
+
   // Tournament
   tournament_no_matches:   'Aucun match programmé',
 } as const;
@@ -964,6 +984,26 @@ const t_en: Record<keyof typeof t_fr, string> = {
   wallet_err_address:      'Withdrawal address required',
   wallet_err_withdraw:     'Error during withdrawal',
 
+  // Coinflip
+  nav_coinflip:            'Coinflip',
+  coinflip_subtitle:       'PvP Coin Flip — Wager and face an opponent',
+  coinflip_create_title:   'Create a flip',
+  coinflip_create_btn:     'Flip for',
+  coinflip_lobby_title:    'Open flips',
+  coinflip_open:           'open',
+  coinflip_completed:      'completed',
+  coinflip_empty:          'No open flips — create one!',
+  coinflip_join:           'Join',
+  coinflip_cancel:         'Cancel',
+  coinflip_created:        'Flip created successfully!',
+  coinflip_cant_join_own:  'You cannot join your own flip',
+  coinflip_recent:         'Recent results',
+  coinflip_each:           'each',
+  coinflip_you_won:        'YOU WON',
+  coinflip_you_lost:       'YOU LOST',
+  coinflip_wins:           'won!',
+  coinflip_play_again:     'Play Again',
+
   // Tournament
   tournament_no_matches:   'No scheduled matches',
 };
@@ -1433,6 +1473,26 @@ const t_es: Record<keyof typeof t_fr, string> = {
   wallet_err_balance:      'Saldo insuficiente',
   wallet_err_address:      'Dirección de retiro requerida',
   wallet_err_withdraw:     'Error al retirar',
+
+  // Coinflip
+  nav_coinflip:            'Coinflip',
+  coinflip_subtitle:       'Cara o Cruz PvP — Apuesta y enfrenta a un oponente',
+  coinflip_create_title:   'Crear un flip',
+  coinflip_create_btn:     'Lanzar por',
+  coinflip_lobby_title:    'Flips abiertos',
+  coinflip_open:           'abiertos',
+  coinflip_completed:      'completados',
+  coinflip_empty:          'No hay flips abiertos — crea uno!',
+  coinflip_join:           'Unirse',
+  coinflip_cancel:         'Cancelar',
+  coinflip_created:        'Flip creado con exito!',
+  coinflip_cant_join_own:  'No puedes unirte a tu propio flip',
+  coinflip_recent:         'Resultados recientes',
+  coinflip_each:           'cada uno',
+  coinflip_you_won:        'HAS GANADO',
+  coinflip_you_lost:       'HAS PERDIDO',
+  coinflip_wins:           'gano!',
+  coinflip_play_again:     'Jugar de nuevo',
 
   // Tournament
   tournament_no_matches:   'No hay partidas programadas',

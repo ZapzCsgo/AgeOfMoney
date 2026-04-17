@@ -204,6 +204,10 @@ export function initSocket(httpServer: HttpServer): void {
       socket.leave(`matchRoom:${matchId}`);
     });
 
+    // Coinflip lobby
+    socket.on('coinflip:joinLobby', () => socket.join('coinflip:lobby'));
+    socket.on('coinflip:leaveLobby', () => socket.leave('coinflip:lobby'));
+
     // Global chat
     socket.on('globalChat', async (data: GlobalChatMessage) => {
       if (!socket.userId || !socket.username) {

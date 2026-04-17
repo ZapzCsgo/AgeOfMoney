@@ -236,5 +236,11 @@ export async function adminListAffiliateCodes(): Promise<ApiResponse<Array<{
   return res.data;
 }
 
+// Coinflip
+export const getActiveCoinFlips = () => apiClient.get('/coinflip');
+export const createCoinFlip = (amount: number, side: string) => apiClient.post('/coinflip/create', { amount, side });
+export const joinCoinFlip = (id: string) => apiClient.post(`/coinflip/${id}/join`);
+export const cancelCoinFlip = (id: string) => apiClient.post(`/coinflip/${id}/cancel`);
+
 export { apiClient };
 export default apiClient;

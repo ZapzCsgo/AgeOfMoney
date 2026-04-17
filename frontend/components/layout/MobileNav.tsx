@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Swords, Dices, Trophy, Wallet } from 'lucide-react';
+import { Home, Swords, Dices, Coins, Trophy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/i18n';
 
@@ -15,8 +15,8 @@ export function MobileNav() {
     { href: '/',            icon: Home,     label: t('nav_home') },
     { href: '/matches',     icon: Swords,   label: t('nav_matches') },
     { href: '/roulette',    icon: Dices,    label: t('nav_roulette') },
+    { href: '/coinflip',   icon: Coins,    label: t('nav_coinflip') },
     { href: '/tournaments', icon: Trophy,   label: t('nav_tournaments') },
-    { href: '/deposit',     icon: Wallet,   label: t('nav_deposit') },
   ];
 
   return (

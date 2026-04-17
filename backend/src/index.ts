@@ -18,6 +18,7 @@ import usersRouter from './routes/users';
 import adminRouter from './routes/admin';
 import paymentsRouter from './routes/payments';
 import rouletteRouter from './routes/roulette';
+import coinflipRouter from './routes/coinflip';
 import affiliateRouter from './routes/affiliate';
 import supportRouter from './routes/support';
 import devRouter from './routes/dev';
@@ -121,6 +122,15 @@ const paymentLimiter = rateLimit({
   message: { error: 'Too many payment requests. Please try again later.' },
 });
 
+// Coinflip: prevent create/join spam
+const coinflipLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30, // 30 req/min
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many coinflip requests.' },
+});
+
 // Roulette: prevent spam placement / polling abuse
 const rouletteLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -161,6 +171,7 @@ app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/payments/webhook', express.raw({ type: 'application/json' }));
 app.use('/api/v1/payments', paymentLimiter, paymentsRouter);
 app.use('/api/v1/roulette', rouletteLimiter, rouletteRouter);
+app.use('/api/v1/coinflip', coinflipLimiter, coinflipRouter);
 app.use('/api/v1/affiliate', affiliateLimiter, affiliateRouter);
 app.use('/api/v1/support', supportRouter);
 
