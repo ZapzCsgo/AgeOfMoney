@@ -52,6 +52,15 @@ async function withRetry<T>(fn: () => Promise<T>, label: string, maxAttempts = 3
   throw lastErr;
 }
 
+// Cloudflare in front of api.oxapay.com blocks requests with axios' default
+// User-Agent ("axios/1.x.x") as bot traffic. Send a browser-style UA so the
+// WAF lets us through. Also explicitly accept JSON.
+const OXAPAY_HEADERS_BASE = {
+  'Content-Type': 'application/json',
+  'Accept': 'application/json',
+  'User-Agent': 'Mozilla/5.0 (compatible; AgeOfMoney/1.0; +https://ageof.money)',
+};
+
 async function oxaPost(path: string, body: Record<string, unknown>) {
   return withRetry(async () => {
     // OxaPay v1 expects the API key in a `merchant_api_key` HTTP HEADER, not
@@ -60,7 +69,7 @@ async function oxaPost(path: string, body: Record<string, unknown>) {
     // Reference: https://docs.oxapay.com/api-reference/payment/generate-invoice
     const res = await axios.post(`${OXAPAY_API}${path}`, body, {
       headers: {
-        'Content-Type': 'application/json',
+        ...OXAPAY_HEADERS_BASE,
         'merchant_api_key': OXAPAY_KEY(),
       },
       timeout: 15000,
@@ -73,7 +82,7 @@ async function oxaPayout(body: Record<string, unknown>) {
   return withRetry(async () => {
     const res = await axios.post(`${OXAPAY_API}/payout`, body, {
       headers: {
-        'Content-Type': 'application/json',
+        ...OXAPAY_HEADERS_BASE,
         'payout_api_key': OXAPAY_PAYOUT_KEY(),
       },
       timeout: 15000,
