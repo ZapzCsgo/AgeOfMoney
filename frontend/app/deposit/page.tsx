@@ -149,12 +149,15 @@ export default function DepositPage() {
     setPromoLoading(true);
     setPromoError('');
     try {
-      const r = await fetch(`/api/v1/affiliate/validate/${encodeURIComponent(code)}`, {
-        headers: { Authorization: `Bearer ${session.user.accessToken}` },
-      });
-      const data = await r.json();
-      if (!r.ok || !data.valid) {
-        setPromoError(data.error || 'Code invalide');
+      // Use apiClient so the request goes to the real backend URL. The old
+      // relative /api/v1/... fetch hit the Next.js server which doesn't
+      // proxy this path, turning "self-referral code" errors into "Erreur
+      // réseau" — confusing for users.
+      const { apiClient } = await import('@/lib/api');
+      const res = await apiClient.get(`/affiliate/validate/${encodeURIComponent(code)}`);
+      const data = res.data;
+      if (!data?.valid) {
+        setPromoError(data?.error || 'Code invalide');
         setPromoApplied(false);
         return;
       }
@@ -168,8 +171,13 @@ export default function DepositPage() {
         localStorage.setItem('affiliateCodeExpiry', String(expiry));
         localStorage.setItem('affiliateBonusPct', String(bonus));
       } catch {}
-    } catch {
-      setPromoError('Erreur réseau');
+    } catch (err: unknown) {
+      // Axios puts the server's 400/404 response body in err.response.data
+      // so "Vous ne pouvez pas utiliser votre propre code" surfaces instead
+      // of the generic "Erreur réseau".
+      const body = (err as { response?: { data?: { error?: string } } })?.response?.data;
+      setPromoError(body?.error || 'Erreur réseau');
+      setPromoApplied(false);
     } finally {
       setPromoLoading(false);
     }
