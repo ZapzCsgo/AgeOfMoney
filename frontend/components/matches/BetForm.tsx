@@ -285,10 +285,11 @@ export function BetForm({ match, onBetPlaced, initialPlayer = null }: BetFormPro
           {/* Submit button */}
           <button
             type="submit"
-            disabled={loading || cooldown || !selectedPlayer || amount < 2 || amount > userBalance}
+            disabled={loading || cooldown || amount < 2 || amount > userBalance}
             className={cn(
-              'aoe-btn-gold w-full py-3 text-base relative overflow-hidden',
-              loading && 'opacity-70 cursor-not-allowed'
+              'aoe-btn-gold w-full py-3 text-base relative overflow-hidden transition-opacity',
+              loading && 'opacity-70 cursor-not-allowed',
+              selectedPlayer === null && 'opacity-60'
             )}
           >
             {loading ? (
@@ -296,6 +297,8 @@ export function BetForm({ match, onBetPlaced, initialPlayer = null }: BetFormPro
                 <span className="w-4 h-4 border-2 border-aoe-gold-dark border-t-transparent rounded-full animate-spin" />
                 {t('bet_placing')}
               </span>
+            ) : selectedPlayer === null ? (
+              t('bet_choose_player')
             ) : (
               t('bet_submit')
             )}

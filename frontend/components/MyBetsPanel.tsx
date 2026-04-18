@@ -111,8 +111,26 @@ export function MyBetsPanel() {
                   const cfg = STATUS_CONFIG[bet.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.PENDING;
                   const StatusIcon = cfg.icon;
                   const statusLabel = t(cfg.tKey);
-                  const betOnName   = bet.selectedPlayer === 1 ? bet.match?.player1?.name : bet.match?.player2?.name;
-                  const opponentName = bet.selectedPlayer === 1 ? bet.match?.player2?.name : bet.match?.player1?.name;
+                  const p1Name = bet.match?.player1?.name;
+                  const p2Name = bet.match?.player2?.name;
+
+                  // Reconstruct what the user bet on:
+                  //  - EXACT_SCORE: score string from boNumber (= loserGames) + format, plus picked player
+                  //  - MATCH draw (selectedPlayer=0): "Égalité"
+                  //  - MATCH win: picked player name
+                  const isExact = bet.betType === 'EXACT_SCORE';
+                  const boNum = parseInt(bet.match?.format?.replace(/\D/g, '') ?? '3', 10) || 3;
+                  const winsNeeded = Math.ceil(boNum / 2);
+                  const loserGames = bet.boNumber ?? 0;
+                  const pickedName = bet.selectedPlayer === 0
+                    ? 'Égalité'
+                    : bet.selectedPlayer === 1 ? p1Name : p2Name;
+                  const scoreStr = isExact
+                    ? (bet.selectedPlayer === 1
+                        ? `${winsNeeded}-${loserGames}`
+                        : `${loserGames}-${winsNeeded}`)
+                    : null;
+                  const matchupLabel = p1Name && p2Name ? `${p1Name} vs ${p2Name}` : (p1Name ?? p2Name ?? '');
 
                   return (
                     <Link key={bet.id} href={`/matches/${bet.matchId}`} onClick={() => setOpen(false)}
@@ -122,9 +140,18 @@ export function MyBetsPanel() {
                         <StatusIcon size={12} className={cfg.color} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1">
-                          <span className="font-cinzel font-bold text-[12px] text-[#e8e2f5] truncate">{betOnName}</span>
-                          <span className="text-[#4a4570] text-[10px] shrink-0">vs {opponentName}</span>
+                        <div className="flex items-center gap-1.5">
+                          {isExact && (
+                            <span className="px-1 py-px rounded text-[8px] font-cinzel font-bold uppercase tracking-wider shrink-0" style={{ background: 'rgba(255,197,66,0.15)', color: '#ffc542', border: '1px solid rgba(255,197,66,0.3)' }}>
+                              Score
+                            </span>
+                          )}
+                          <span className="font-cinzel font-bold text-[12px] text-[#e8e2f5] truncate">
+                            {isExact ? `${scoreStr} · ${pickedName}` : pickedName}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <span className="text-[10px] text-[#4a4570] truncate">{matchupLabel}</span>
                         </div>
                         <div className="flex items-center gap-1.5 mt-0.5">
                           <span className="text-[10px] text-[#6b6488] truncate">{bet.match?.tournament?.name ?? t('mybets_tournament_fallback')}</span>
