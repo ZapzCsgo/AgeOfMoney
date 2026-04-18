@@ -6,7 +6,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { ArrowDownToLine, ArrowUpFromLine, Check, Copy, AlertTriangle, RefreshCw, Zap, Shield, Clock, Gift } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpFromLine, Check, Copy, AlertTriangle, RefreshCw, Zap, Shield, Clock, Gift, CreditCard } from 'lucide-react';
 import Link from 'next/link';
 
 async function handleSteamLogin(callbackPath = '/deposit') {
@@ -104,6 +104,7 @@ export default function DepositPage() {
 
   const [customCoins, setCustomCoins]          = useState('9');
   const [selectedCrypto, setCrypto]            = useState<typeof CRYPTOS[0]>(CRYPTOS[0]);
+  const [paymentMethod, setPaymentMethod]      = useState<'crypto' | 'card'>('crypto');
   const [promoCode, setPromoCode]              = useState('');
   const [promoApplied, setPromoApplied]        = useState(false);
   const [promoError, setPromoError]            = useState('');
@@ -181,26 +182,46 @@ export default function DepositPage() {
     if (!session) { handleSteamLogin(); return; }
     if (!baseCoins || baseCoins < 1) { setError(t('deposit_select_crypto')); return; }
     if (usdCost < 3) { setError(t('deposit_min') + ' $3.00 (≈ 5 ⚜)'); return; }
+
     setLoading(true); setError(null);
     try {
-      const res = await fetch('/api/payments/crypto/create', {
+      // Card path → backend creates OxaPay white-label invoice and returns a
+      // MoonPay widget URL with our TRC20 wallet pre-filled as destination.
+      // User pays CB on MoonPay, USDT lands directly in our OxaPay account,
+      // webhook credits them automatically — same flow as a crypto deposit.
+      const endpoint = paymentMethod === 'card' ? '/api/payments/card/create' : '/api/payments/crypto/create';
+      const body = paymentMethod === 'card'
+        ? {
+            usdAmount: parseFloat(usdCost.toFixed(2)),
+            coins: totalCoins,
+            affiliateCode: promoApplied ? promoCode.toUpperCase() : undefined,
+          }
+        : {
+            cryptoId: selectedCrypto.id,
+            usdAmount: parseFloat(usdCost.toFixed(2)),
+            coins: totalCoins,
+            affiliateCode: promoApplied ? promoCode.toUpperCase() : undefined,
+          };
+
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          cryptoId: selectedCrypto.id,
-          usdAmount: parseFloat(usdCost.toFixed(2)),
-          coins: totalCoins,
-          affiliateCode: promoApplied ? promoCode.toUpperCase() : undefined,
-        }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || t('common_error'));
-      // OxaPay returns a payment URL — redirect user to hosted payment page
       if (data.paymentUrl) {
         window.open(data.paymentUrl, '_blank');
-        setInvoice({ address: data.paymentUrl, cryptoAmount: '', coins: data.coins, crypto: selectedCrypto.symbol, usdAmount: data.usdAmount, expiresAt: data.expiresAt });
+        setInvoice({
+          address: data.walletAddress || data.paymentUrl,
+          cryptoAmount: '',
+          coins: data.coins,
+          crypto: paymentMethod === 'card' ? 'USDT' : selectedCrypto.symbol,
+          usdAmount: data.usdAmount,
+          expiresAt: data.expiresAt,
+        });
       } else {
-        setInvoice({ ...data, crypto: selectedCrypto.symbol });
+        setInvoice({ ...data, crypto: paymentMethod === 'card' ? 'USDT' : selectedCrypto.symbol });
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : t('common_error'));
@@ -397,56 +418,119 @@ export default function DepositPage() {
           {/* PAYMENT METHOD */}
           <div>
             <p className="text-[10px] font-cinzel tracking-widest text-aoe-parchment-dim uppercase mb-2">Méthode de paiement</p>
-            <div
-              className="relative overflow-hidden rounded-xl"
-              style={{
-                background: 'linear-gradient(135deg, #14122a 0%, #0a0816 100%)',
-                border: '1px solid #2d2850',
-              }}
-            >
-              {/* Top gold accent */}
-              <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, #ffc542 50%, transparent)' }} />
 
-              <div className="p-4 flex items-center gap-4">
-                {/* Brand mark — infinity symbol in golden disc */}
-                <div className="shrink-0 relative">
-                  <div
-                    className="w-12 h-12 rounded-full flex items-center justify-center"
-                    style={{
-                      background: 'radial-gradient(circle at 30% 30%, #ffd97a 0%, #ffc542 45%, #c48c0e 100%)',
-                      boxShadow: '0 4px 16px rgba(255,197,66,0.35), inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -2px 4px rgba(0,0,0,0.2)',
-                    }}
-                  >
+            <div className="space-y-2">
+              {/* Option 1 — Crypto via OxaPay */}
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('crypto')}
+                className="relative overflow-hidden rounded-xl w-full text-left transition-all"
+                style={{
+                  background: paymentMethod === 'crypto'
+                    ? 'linear-gradient(135deg, #14122a 0%, #0a0816 100%)'
+                    : 'rgba(255,255,255,0.02)',
+                  border: `1px solid ${paymentMethod === 'crypto' ? '#ffc542' : '#1e1a30'}`,
+                  boxShadow: paymentMethod === 'crypto' ? '0 0 18px rgba(255,197,66,0.12)' : 'none',
+                }}
+              >
+                {paymentMethod === 'crypto' && (
+                  <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, #ffc542 50%, transparent)' }} />
+                )}
+
+                <div className="p-4 flex items-center gap-4">
+                  <div className="shrink-0 w-12 h-12 rounded-full flex items-center justify-center" style={{
+                    background: paymentMethod === 'crypto'
+                      ? 'radial-gradient(circle at 30% 30%, #ffd97a 0%, #ffc542 45%, #c48c0e 100%)'
+                      : 'rgba(255,197,66,0.1)',
+                    boxShadow: paymentMethod === 'crypto' ? '0 4px 16px rgba(255,197,66,0.35), inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -2px 4px rgba(0,0,0,0.2)' : 'none',
+                  }}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                      <path d="M6.5 12c0-1.66 1.34-3 3-3 1.32 0 2.44.85 2.85 2.03l.65-.03.65.03c.41-1.18 1.53-2.03 2.85-2.03 1.66 0 3 1.34 3 3s-1.34 3-3 3c-1.32 0-2.44-.85-2.85-2.03L13 12.97l-.65.03C11.94 14.15 10.82 15 9.5 15c-1.66 0-3-1.34-3-3z" stroke="#0a0816" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M6.5 12c0-1.66 1.34-3 3-3 1.32 0 2.44.85 2.85 2.03l.65-.03.65.03c.41-1.18 1.53-2.03 2.85-2.03 1.66 0 3 1.34 3 3s-1.34 3-3 3c-1.32 0-2.44-.85-2.85-2.03L13 12.97l-.65.03C11.94 14.15 10.82 15 9.5 15c-1.66 0-3-1.34-3-3z" stroke={paymentMethod === 'crypto' ? '#0a0816' : '#ffc542'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   </div>
-                </div>
 
-                {/* Label block */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-baseline gap-2 mb-0.5">
-                    <span className="font-cinzel font-bold text-[15px] text-aoe-parchment">Payer en crypto</span>
-                    <span className="text-[9px] font-bold tracking-[0.2em] uppercase text-aoe-parchment-muted">via OxaPay</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-2 mb-0.5">
+                      <span className="font-cinzel font-bold text-[15px] text-aoe-parchment">Payer en crypto</span>
+                      <span className="text-[9px] font-bold tracking-[0.2em] uppercase text-aoe-parchment-muted">via OxaPay</span>
+                    </div>
+                    <p className="text-[11px] text-aoe-parchment-muted">Crédit direct sur ton compte après confirmation réseau</p>
                   </div>
-                  <p className="text-[11px] text-aoe-parchment-muted">Choisis ta crypto sur la page suivante</p>
-                </div>
 
-                {/* Active indicator */}
-                <div className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center" style={{ background: 'rgba(255,197,66,0.15)', border: '1px solid rgba(255,197,66,0.5)' }}>
-                  <Check size={13} className="text-[#ffc542]" strokeWidth={3} />
-                </div>
-              </div>
-
-              {/* Supported cryptos strip */}
-              <div className="px-4 pb-3 pt-2 border-t flex items-center gap-1.5" style={{ borderColor: 'rgba(30,26,48,0.8)', background: 'rgba(0,0,0,0.15)' }}>
-                {CRYPTOS.map(c => (
-                  <div key={c.id} title={`${c.name} (${c.network})`} className="transition-transform hover:scale-110">
-                    <CryptoLogo id={c.id} size={18} />
+                  <div className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center" style={{
+                    background: paymentMethod === 'crypto' ? 'rgba(255,197,66,0.15)' : 'transparent',
+                    border: `1px solid ${paymentMethod === 'crypto' ? 'rgba(255,197,66,0.5)' : '#3d3860'}`,
+                  }}>
+                    {paymentMethod === 'crypto' && <Check size={13} className="text-[#ffc542]" strokeWidth={3} />}
                   </div>
-                ))}
-                <span className="text-[10px] text-aoe-parchment-muted ml-auto font-cinzel tracking-wide">+ autres</span>
-              </div>
+                </div>
+
+                <div className="px-4 pb-3 pt-2 border-t flex items-center gap-1.5" style={{ borderColor: 'rgba(30,26,48,0.8)', background: 'rgba(0,0,0,0.15)' }}>
+                  {CRYPTOS.map(c => (
+                    <div key={c.id} title={`${c.name} (${c.network})`} className="transition-transform hover:scale-110">
+                      <CryptoLogo id={c.id} size={18} />
+                    </div>
+                  ))}
+                  <span className="text-[10px] text-aoe-parchment-muted ml-auto font-cinzel tracking-wide">+ autres</span>
+                </div>
+              </button>
+
+              {/* Option 2 — Card via MoonPay (2-step: buy crypto by card, then deposit) */}
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('card')}
+                className="relative overflow-hidden rounded-xl w-full text-left transition-all"
+                style={{
+                  background: paymentMethod === 'card'
+                    ? 'linear-gradient(135deg, #14122a 0%, #0a0816 100%)'
+                    : 'rgba(255,255,255,0.02)',
+                  border: `1px solid ${paymentMethod === 'card' ? '#ffc542' : '#1e1a30'}`,
+                  boxShadow: paymentMethod === 'card' ? '0 0 18px rgba(255,197,66,0.12)' : 'none',
+                }}
+              >
+                {paymentMethod === 'card' && (
+                  <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, #ffc542 50%, transparent)' }} />
+                )}
+
+                <div className="p-4 flex items-center gap-4">
+                  <div className="shrink-0 w-12 h-12 rounded-full flex items-center justify-center" style={{
+                    background: paymentMethod === 'card'
+                      ? 'radial-gradient(circle at 30% 30%, #ffd97a 0%, #ffc542 45%, #c48c0e 100%)'
+                      : 'rgba(255,197,66,0.1)',
+                    boxShadow: paymentMethod === 'card' ? '0 4px 16px rgba(255,197,66,0.35), inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -2px 4px rgba(0,0,0,0.2)' : 'none',
+                  }}>
+                    <CreditCard size={22} strokeWidth={2.2} color={paymentMethod === 'card' ? '#0a0816' : '#ffc542'} />
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-2 mb-0.5">
+                      <span className="font-cinzel font-bold text-[15px] text-aoe-parchment">Carte bancaire</span>
+                      <span className="text-[9px] font-bold tracking-[0.2em] uppercase text-aoe-parchment-muted">via MoonPay</span>
+                    </div>
+                    <p className="text-[11px] text-aoe-parchment-muted">Achète de la crypto par CB, puis dépose-la ici</p>
+                  </div>
+
+                  <div className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center" style={{
+                    background: paymentMethod === 'card' ? 'rgba(255,197,66,0.15)' : 'transparent',
+                    border: `1px solid ${paymentMethod === 'card' ? 'rgba(255,197,66,0.5)' : '#3d3860'}`,
+                  }}>
+                    {paymentMethod === 'card' && <Check size={13} className="text-[#ffc542]" strokeWidth={3} />}
+                  </div>
+                </div>
+
+                {paymentMethod === 'card' && (
+                  <div className="px-4 pb-3 pt-2 border-t text-[10px] text-aoe-parchment-muted leading-relaxed space-y-1" style={{ borderColor: 'rgba(30,26,48,0.8)', background: 'rgba(0,0,0,0.15)' }}>
+                    <div className="flex gap-2">
+                      <span className="text-[#ffc542] font-bold">1.</span>
+                      <span>On t'envoie sur MoonPay, tu achètes ${usdCost > 0 ? usdCost.toFixed(2) : '5.00'} d'USDT par CB.</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <span className="text-[#ffc542] font-bold">2.</span>
+                      <span>Une fois l'USDT reçue sur ton wallet, reviens ici et utilise « Payer en crypto ».</span>
+                    </div>
+                  </div>
+                )}
+              </button>
             </div>
           </div>
 

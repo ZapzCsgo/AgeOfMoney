@@ -217,6 +217,114 @@ router.post('/crypto/create', requireAuth, async (req: Request, res: Response): 
   }
 });
 
+// ── POST /payments/card/create — OxaPay white-label USDT + MoonPay redirect ─
+// 1-click card flow: we create a white-label USDT/TRC20 invoice on OxaPay
+// (returns a per-order receive address), then redirect the user to MoonPay's
+// public buy widget with that address pre-filled. User pays CB on MoonPay,
+// MoonPay settles USDT on the OxaPay address, OxaPay webhook (same as crypto)
+// fires with order_id = transaction.id and credits the user.
+router.post('/card/create', requireAuth, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user!.id;
+    const { usdAmount, affiliateCode } = req.body;
+
+    if (!usdAmount || usdAmount < MIN_DEPOSIT) {
+      res.status(400).json({ error: `Montant minimum: $${MIN_DEPOSIT}` }); return;
+    }
+
+    touchUserIp(userId, req.ip).catch(() => {});
+
+    // Affiliate validation — same logic as crypto/create
+    let bonusMultiplier = 1;
+    let affiliateCodeId: string | null = null;
+    if (affiliateCode && typeof affiliateCode === 'string' && affiliateCode.trim().length > 0) {
+      const aff = await prisma.affiliateCode.findUnique({ where: { code: affiliateCode.trim().toUpperCase() } });
+      if (!aff) { res.status(400).json({ error: 'Code affilié invalide' }); return; }
+      if (aff.userId === userId) { res.status(400).json({ error: 'Vous ne pouvez pas utiliser votre propre code' }); return; }
+      const existingReferral = await prisma.affiliateReferral.findUnique({ where: { referredUserId: userId } });
+      if (existingReferral) { res.status(400).json({ error: 'Vous avez déjà utilisé un code affilié' }); return; }
+      bonusMultiplier = 1 + AFFILIATE_DEPOSIT_BONUS_PCT / 100;
+      affiliateCodeId = aff.id;
+    }
+
+    const finalCoins = Math.floor(usdAmount * DEPOSIT_RATE * bonusMultiplier);
+
+    const transaction = await prisma.transaction.create({
+      data: {
+        userId,
+        type:           'deposit',
+        amount:         Math.round(usdAmount * 100),
+        realAmount:     Math.round(usdAmount * 100),
+        coins:          finalCoins,
+        status:         'pending',
+        affiliateCodeId,
+      },
+    });
+
+    try {
+      // White-label invoice = returns a per-order USDT/TRC20 address directly
+      // (no hosted page). Docs: /v1/payment/white-label
+      const wlRes = await oxaPost('/payment/white-label', {
+        amount:       usdAmount,
+        currency:     'USD',
+        pay_currency: 'USDT',
+        network:      'TRC20',
+        order_id:     transaction.id,
+        description:  `AgeOfMoney — ${finalCoins} ⚜ coins (CB via MoonPay)`,
+        callback_url: `${backendPublicUrl()}/api/v1/payments/crypto/webhook`,
+        lifetime:     60,
+      });
+
+      if (wlRes.status !== 200 || !wlRes.data?.address) {
+        throw new Error(wlRes.message || 'OxaPay white-label failed');
+      }
+
+      const { address, track_id, expired_at } = wlRes.data;
+
+      await prisma.transaction.update({
+        where: { id: transaction.id },
+        data:  { stripeSessionId: String(track_id) },
+      });
+
+      // MoonPay public buy widget — no API key required for basic redirect.
+      // `walletAddress` + `defaultCurrencyCode=usdt_trx` tells MoonPay to
+      // settle USDT on Tron directly to our OxaPay address.
+      const moonpayParams = new URLSearchParams({
+        defaultCurrencyCode: 'usdt_trx',
+        baseCurrencyCode:    'usd',
+        baseCurrencyAmount:  usdAmount.toFixed(2),
+        walletAddress:       address,
+        colorCode:           '#ffc542',
+        showWalletAddressForm: 'false',
+      });
+      const paymentUrl = `https://buy.moonpay.com/?${moonpayParams.toString()}`;
+
+      res.json({
+        paymentUrl,
+        walletAddress: address,           // fallback: user copies address manually if MoonPay ignores the param
+        trackId:       track_id,
+        usdAmount,
+        coins:         finalCoins,
+        paymentId:     transaction.id,
+        expiresAt:     expired_at ? new Date(expired_at * 1000).toISOString() : null,
+      });
+    } catch (oxaErr: unknown) {
+      const errMsg = oxaErr instanceof Error ? oxaErr.message : String(oxaErr);
+      const axiosData = (oxaErr as { response?: { data?: unknown } })?.response?.data;
+      logger.error(`OxaPay white-label error: ${errMsg}`, { data: axiosData, apiKey: OXAPAY_KEY() ? 'SET' : 'EMPTY' });
+      // Rollback the pending transaction on failure so it doesn't linger
+      await prisma.transaction.update({
+        where: { id: transaction.id },
+        data:  { status: 'failed' },
+      }).catch(() => {});
+      res.status(500).json({ error: 'Erreur lors de la création du paiement carte. Réessayez.' });
+    }
+  } catch (error) {
+    logger.error('POST /payments/card/create error:', error);
+    res.status(500).json({ error: 'Erreur lors de la création du paiement' });
+  }
+});
+
 // ── POST /payments/crypto/webhook — OxaPay callback (invoices + payouts) ────
 router.post('/crypto/webhook', async (req: Request, res: Response): Promise<void> => {
   try {
