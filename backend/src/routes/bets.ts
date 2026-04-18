@@ -121,7 +121,29 @@ type ScoreEntry = { score: string; player: 0|1|2; loserGames: number; odds: numb
  * Build the theoretical (binomial) probability distribution from the match
  * odds alone. This is the BASE RATE — no player history, just the maths.
  */
-function theoreticalDistribution(odds1: number, odds2: number, format: string): ScoreDistribution {
+function theoreticalDistribution(odds1: number, odds2: number, format: string, oddsDraw?: number): ScoreDistribution {
+  // ── BO2 special case ─────────────────────────────────────────────────────
+  // BO2 has 3 distinct outcomes (2-0, 1-1, 0-2), so the exact score distribution
+  // must be derived from the 3-way market odds directly — NOT from odds1/odds2
+  // alone. Normalizing only on odds1+odds2 would over-weight "both players win"
+  // outcomes and produce cotes incoherent with the main bet market.
+  //
+  // Implied probabilities sum to (1 + main-bet margin). We just renormalize so
+  // they sum to 1, then distributionToEntries will re-apply EXACT_SCORE_MARGIN
+  // on top. The result: score-exact cotes ≈ main-bet cotes × (0.85/0.90),
+  // i.e. internally coherent, same ordering, slightly tighter for the house.
+  if (format === 'BO2' && oddsDraw && oddsDraw > 1) {
+    const r1 = 1 / odds1;
+    const rD = 1 / oddsDraw;
+    const r2 = 1 / odds2;
+    const norm = r1 + rD + r2;
+    return {
+      '2-0': r1 / norm,
+      '1-1': rD / norm,
+      '0-2': r2 / norm,
+    };
+  }
+
   const raw1 = 1/odds1, raw2 = 1/odds2;
   const norm = raw1 + raw2;
   const pMatch1 = raw1 / norm;
@@ -133,6 +155,7 @@ function theoreticalDistribution(odds1: number, odds2: number, format: string): 
     dist['1-0'] = p;
     dist['0-1'] = q;
   } else if (format === 'BO2') {
+    // Legacy BO2 fallback when oddsDraw is missing — kept for safety only
     dist['2-0'] = p*p;
     dist['1-1'] = 2*p*q;
     dist['0-2'] = q*q;
@@ -185,8 +208,8 @@ function distributionToEntries(dist: ScoreDistribution): ScoreEntry[] {
  * Synchronous fallback (theoretical only) — used when we don't have player
  * IDs or when the DB blend fails. Keeps older call sites working.
  */
-function exactScoreOdds(odds1: number, odds2: number, format: string): ScoreEntry[] {
-  return distributionToEntries(theoreticalDistribution(odds1, odds2, format));
+function exactScoreOdds(odds1: number, odds2: number, format: string, oddsDraw?: number): ScoreEntry[] {
+  return distributionToEntries(theoreticalDistribution(odds1, odds2, format, oddsDraw));
 }
 
 /**
@@ -202,17 +225,18 @@ async function exactScoreOddsBlended(
   odds2: number,
   format: string,
   matchTier?: string,
+  oddsDraw?: number,
 ): Promise<ScoreEntry[]> {
-  if (format === 'BO1' || format === 'BO2') return exactScoreOdds(odds1, odds2, format);
+  if (format === 'BO1' || format === 'BO2') return exactScoreOdds(odds1, odds2, format, oddsDraw);
   try {
-    const theoretical = theoreticalDistribution(odds1, odds2, format);
+    const theoretical = theoreticalDistribution(odds1, odds2, format, oddsDraw);
     const blended = await buildBlendedDistribution(
       theoretical, matchId, p1Id, p2Id, format as Bo, odds1, odds2, matchTier,
     );
     return distributionToEntries(blended);
   } catch (err) {
     logger.warn('[ExactScore] Blend failed, falling back to theoretical:', err);
-    return exactScoreOdds(odds1, odds2, format);
+    return exactScoreOdds(odds1, odds2, format, oddsDraw);
   }
 }
 
@@ -222,7 +246,7 @@ router.get('/exact-scores/:matchId', async (req: Request, res: Response): Promis
     const match = await prisma.match.findUnique({
       where: { id: req.params.matchId },
       select: {
-        id: true, format: true, odds1: true, odds2: true,
+        id: true, format: true, odds1: true, odds2: true, oddsDraw: true,
         status: true, betsOpen: true, scheduledAt: true,
         player1Id: true, player2Id: true,
         tournament: { select: { tier: true } },
@@ -232,7 +256,7 @@ router.get('/exact-scores/:matchId', async (req: Request, res: Response): Promis
     if (match.format === 'BO1') { res.json({ data: [] }); return; }
     const scores = await exactScoreOddsBlended(
       match.id, match.player1Id, match.player2Id, match.odds1, match.odds2, match.format,
-      match.tournament?.tier ?? undefined,
+      match.tournament?.tier ?? undefined, match.oddsDraw ?? undefined,
     );
     res.json({ data: scores });
   } catch (error) {
@@ -264,7 +288,7 @@ router.post('/exact', requireAuth, async (req: Request, res: Response): Promise<
         where: { id: matchId },
         select: {
           status: true, betsOpen: true, scheduledAt: true,
-          odds1: true, odds2: true, format: true,
+          odds1: true, odds2: true, oddsDraw: true, format: true,
           player1Id: true, player2Id: true,
           tournament: { select: { tier: true } },
         },
@@ -281,7 +305,7 @@ router.post('/exact', requireAuth, async (req: Request, res: Response): Promise<
     // Verify odds are still valid (recompute server-side with blended model)
     const freshScores = await exactScoreOddsBlended(
       matchId, match.player1Id, match.player2Id, match.odds1, match.odds2, match.format,
-      match.tournament?.tier ?? undefined,
+      match.tournament?.tier ?? undefined, match.oddsDraw ?? undefined,
     );
     const freshEntry = freshScores.find(s => s.score === score);
     if (!freshEntry) { res.status(400).json({ error: 'Invalid score for this match format' }); return; }
