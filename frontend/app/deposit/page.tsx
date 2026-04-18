@@ -90,6 +90,7 @@ function CopyBtn({ value }: { value: string }) {
 
 interface Invoice {
   address: string;
+  paymentUrl?: string; // hosted OxaPay page — separate from the on-chain address
   cryptoAmount: string;
   coins: number;
   crypto: string;
@@ -214,6 +215,7 @@ export default function DepositPage() {
         window.open(data.paymentUrl, '_blank');
         setInvoice({
           address: data.walletAddress || data.paymentUrl,
+          paymentUrl: data.paymentUrl, // keep the hosted page URL separate from the wallet address
           cryptoAmount: '',
           coins: data.coins,
           crypto: paymentMethod === 'card' ? 'USDT' : selectedCrypto.symbol,
@@ -234,7 +236,11 @@ export default function DepositPage() {
   // Post-create screen: OxaPay has been opened in a new tab. We show the status
   // + a button to reopen if the popup got blocked, + info on what happens next.
   if (invoice) {
-    const paymentUrl = invoice.address; // populated with data.paymentUrl in handleDeposit
+    // Prefer the hosted-page URL when present; fall back to `address` for
+    // legacy flows that only returned the wallet address. Never use a raw
+    // Tron/BTC address as an href — the browser would resolve it relative
+    // to ageof.money and 404.
+    const paymentUrl = invoice.paymentUrl ?? (invoice.address?.startsWith('http') ? invoice.address : '');
     return (
       <div className="max-w-lg mx-auto px-4 py-12">
         <div className="rounded-2xl border overflow-hidden" style={{ background: '#0d0b1a', borderColor: '#2d2850' }}>
@@ -275,16 +281,21 @@ export default function DepositPage() {
               </div>
             </div>
 
-            {/* Reopen button — in case popup got blocked */}
-            <a
-              href={paymentUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-cinzel font-bold transition-colors"
-              style={{ background: '#ffc542', color: '#07060f' }}
-            >
-              Ouvrir la page de paiement ↗
-            </a>
+            {/* Reopen button — only render when we have a hosted page URL.
+                Flows that only return an on-chain address (white-label USDT
+                without redirect) don't have a page to reopen — hide the
+                button in that case rather than 404 the user. */}
+            {paymentUrl && (
+              <a
+                href={paymentUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-cinzel font-bold transition-colors"
+                style={{ background: '#ffc542', color: '#07060f' }}
+              >
+                Ouvrir la page de paiement ↗
+              </a>
+            )}
 
             {/* Back button */}
             <button onClick={() => setInvoice(null)} className="w-full py-2.5 rounded-xl text-sm font-cinzel text-aoe-parchment-dim hover:text-aoe-parchment border border-aoe-border hover:border-aoe-border-mid transition-colors">
