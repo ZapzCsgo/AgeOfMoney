@@ -350,20 +350,21 @@ export function calculateOddsV2(input: OddsInputV2): OddsResult {
   const rust2 = computeRustPenalty(input.daysSinceLastMatch2);
 
   // ── Factor 4: Tier-context performance (10%) ────────────────────────────
-  // When the current match has a known tier, compare each player's winrate
-  // specifically at that tier vs their overall winrate.
-  // E.g., a player who performs at 75% in S-tier but only 60% overall gets
-  // a positive boost for S-tier matches — captures "big-stage players".
+  // Tier-specific winrates are only comparable when BOTH players have real
+  // data at the match tier. Falling back to overall WR when one player has
+  // no tier data is misleading: "JIF has never played at S-tier" isn't the
+  // same as "JIF would go 50% at S-tier" — more often she'd be crushed.
+  // So: if either side lacks tier data, tier-context is skipped and the
+  // weight is renormalized into the other factors.
   let tierContextLogit = 0;
+  let tierContextAvailable = false;
   if (input.matchTier) {
     const p1TierWr = computeTierSpecificWinrate(input.p1Records, input.matchTier);
     const p2TierWr = computeTierSpecificWinrate(input.p2Records, input.matchTier);
-    // Use tier-specific WR where we have enough data, otherwise fall back to overall
-    const eff1 = p1TierWr ?? wr1.winrate;
-    const eff2 = p2TierWr ?? wr2.winrate;
-    if (p1TierWr !== null || p2TierWr !== null) {
+    if (p1TierWr !== null && p2TierWr !== null) {
       // 0.5× dampening: prevents overcorrection from small tier-specific samples
-      tierContextLogit = (logit(eff1) - logit(eff2)) * 0.5;
+      tierContextLogit = (logit(p1TierWr) - logit(p2TierWr)) * 0.5;
+      tierContextAvailable = true;
     }
   }
 
@@ -376,7 +377,10 @@ export function calculateOddsV2(input: OddsInputV2): OddsResult {
   const h2hWeight    = h2hResult.confidence * 0.30;
   const wrWeight     = Math.max(0.35, wrConfidence * 0.50);
   const formWeight   = 0.15;
-  const tierCtxWeight = input.matchTier ? 0.10 : 0;
+  // Only count tier-context weight when we actually have comparable data on
+  // BOTH players. If one of them has never played at this tier we skip it —
+  // the renormalization below redistributes the weight to the other factors.
+  const tierCtxWeight = tierContextAvailable ? 0.10 : 0;
   const weightSum    = h2hWeight + wrWeight + formWeight + tierCtxWeight;
   const blendedLogit = weightSum > 0 ? (
     logit(wrProb1)        * wrWeight +

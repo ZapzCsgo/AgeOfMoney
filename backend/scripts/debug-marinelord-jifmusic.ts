@@ -42,9 +42,48 @@ async function summarize(name: string) {
   return { id: p.id, name: p.name, records };
 }
 
+async function compareOdds(p1Name: string, p2Name: string, tier: string, format: string) {
+  const p1 = await summarize(p1Name);
+  const p2 = await summarize(p2Name);
+  if (!p1 || !p2) return;
+
+  const opponentIds = new Set<string>();
+  for (const r of [...p1.records, ...p2.records]) if (r.opponentId) opponentIds.add(r.opponentId);
+  const oppWinrateMap = new Map<string, number>();
+  if (opponentIds.size > 0) {
+    const oppRecords = await prisma.playerMatchRecord.findMany({
+      where: { playerId: { in: [...opponentIds] }, game: 'AoE4' },
+      select: { playerId: true, won: true },
+    });
+    const grouped = new Map<string, { total: number; wins: number }>();
+    for (const r of oppRecords) {
+      const g = grouped.get(r.playerId) ?? { total: 0, wins: 0 };
+      g.total++; if (r.won) g.wins++; grouped.set(r.playerId, g);
+    }
+    for (const [id, s] of grouped.entries()) if (s.total >= 3) oppWinrateMap.set(id, s.wins / s.total);
+  }
+
+  const mapRec = (r: typeof p1.records[number]) => ({
+    won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId,
+  });
+  const out = calculateOddsV2({
+    p1Records: p1.records.map(mapRec),
+    p2Records: p2.records.map(mapRec),
+    h2h: [],
+    daysSinceLastMatch1: 7,
+    daysSinceLastMatch2: 7,
+    matchTier: tier,
+    format,
+    opponentWinrates: oppWinrateMap,
+  });
+  console.log(`\n>>> ${p1.name} vs ${p2.name} (${format}, tier ${tier}): odds1=${out.odds1}  odds2=${out.odds2}`);
+}
+
 async function main() {
-  const ml = await summarize('MarineLorD');
-  const jif = await summarize('JIF Music');
+  await compareOdds('MarineLorD', 'JIF Music', 'A', 'BO5');
+  await compareOdds('Wam01', 'SAS', 'A', 'BO5');
+  const ml = null;
+  const jif = null;
   if (!ml || !jif) { await prisma.$disconnect(); return; }
 
   // Build opponent-winrate map from DB — this is the real calibration fix
