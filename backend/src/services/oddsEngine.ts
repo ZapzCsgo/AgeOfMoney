@@ -24,8 +24,12 @@
  */
 
 // ── Constants ──────────────────────────────────────────────────────────────────
-const HOUSE_MARGIN_2WAY = 0.06;  // 6% overround for 2-way markets (BO3/5/7)
-const HOUSE_MARGIN_3WAY = 0.10;  // 10% overround for 3-way markets (BO2/4 with draw)
+// House margin 9% — middle of the 8-10% target range. Reference points:
+// Pinnacle 2-3% (volume-driven, sharp), CSGOEmpire 7-8%, DraftKings/FanDuel
+// 8-12%. Alpha phase with coins virtuels = marge sert surtout de safety net
+// contre les miscalibrations du modèle.
+const HOUSE_MARGIN_2WAY = 0.09;  // 9% overround for 2-way markets (BO3/5/7 + BO2 void-on-draw)
+const HOUSE_MARGIN_3WAY = 0.10;  // legacy — no longer used since BO2 is now void-on-draw 2-way
 const MIN_ODDS = 1.05;
 const MAX_ODDS = 20.0;
 
