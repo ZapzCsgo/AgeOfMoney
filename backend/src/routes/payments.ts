@@ -174,9 +174,14 @@ router.post('/crypto/create', requireAuth, async (req: Request, res: Response): 
       const invoiceRes = await oxaPost('/payment/invoice', {
         amount:       usdAmount,
         currency:     'USD',
-        to_currency:  CRYPTO_MAP[cryptoId].currency,
+        // `to_currency` is an auto-convert field that requires the merchant
+        // account to have conversion enabled for the target crypto. Sending
+        // it for non-enabled currencies (BTC/ETH/LTC/etc.) returns
+        // "invalid_to_currency". We don't need auto-conversion — we just
+        // track the USD amount — so let the user pick the payment crypto
+        // directly on OxaPay's hosted page.
         order_id:     transaction.id,
-        description:  `AgeOfMoney — ${finalCoins} ⚜ coins`,
+        description:  `AgeOfMoney — ${finalCoins} ⚜ coins (${CRYPTO_MAP[cryptoId].currency})`,
         callback_url: `${backendPublicUrl()}/api/v1/payments/crypto/webhook`,
         return_url:   `${frontendPublicUrl()}/deposit`,
         lifetime:     60, // 60 minutes
