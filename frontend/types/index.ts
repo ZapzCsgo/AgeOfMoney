@@ -140,9 +140,11 @@ export interface Bet {
   match: Match;
   amount: number;
   oddsAtBet: number;
-  selectedPlayer: 1 | 2;
+  selectedPlayer: 0 | 1 | 2; // 0 = draw
   status: BetStatus;
   payout?: number | null;
+  betType?: 'MATCH' | 'EXACT_SCORE';
+  boNumber?: number | null;   // for EXACT_SCORE bets this stores loserGames
   createdAt: string;
   updatedAt: string;
 }
