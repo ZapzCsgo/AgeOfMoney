@@ -10,6 +10,7 @@ import { LeaderboardEntry } from '@/types';
 import { computeLevel, levelTier } from '@/lib/level';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/i18n';
+import { EmptyState } from '@/components/ui/empty-state';
 
 function avatarColor(name: string): string {
   const colors = ['#7c3aed','#0891b2','#b45309','#047857','#be185d','#1d4ed8'];
@@ -101,7 +102,11 @@ export default function LeaderboardPage() {
           {loading ? (
             <div className="py-16 text-center text-[13px]" style={{ color: '#6b6488' }}>{t('common_loading')}</div>
           ) : entries.length === 0 ? (
-            <div className="py-16 text-center text-[13px]" style={{ color: '#6b6488' }}>{t('lb_empty')}</div>
+            <EmptyState
+              icon={Trophy}
+              title={t('lb_empty')}
+              actions={[{ label: t('nav_matches'), href: '/matches' }]}
+            />
           ) : (
             <div>
               {entries.map((entry, i) => {

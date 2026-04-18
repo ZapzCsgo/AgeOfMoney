@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { Calendar, Users, ChevronDown, ChevronUp, Trophy, RefreshCw, AlertTriangle, Zap, Search } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useT } from '@/lib/i18n';
+import { EmptyState } from '@/components/ui/empty-state';
 
 const GAME_TABS = [
   { id: 'all', label: 'tourn_all_games' },
@@ -469,20 +470,14 @@ export default function TournamentsPage() {
             })()}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-20">
-            <Trophy size={28} className="text-[#3d3860] mb-4" />
-            <p className="text-[13px] text-[#6b6488]">
-              {statusFilter !== 'all' || gameFilter !== 'all' ? t('matches_empty_filter') : t('tourn_empty')}
-            </p>
-            {(statusFilter !== 'all' || gameFilter !== 'all') && (
-              <button
-                onClick={() => { setStatusFilter('all'); setGameFilter('all'); }}
-                className="mt-3 text-[11px] text-[#ffc542] hover:underline"
-              >
-                {t('matches_see_all')}
-              </button>
-            )}
-          </div>
+          <EmptyState
+            icon={Trophy}
+            title={statusFilter !== 'all' || gameFilter !== 'all' ? t('matches_empty_filter') : t('tourn_empty')}
+            actions={(statusFilter !== 'all' || gameFilter !== 'all')
+              ? [{ label: t('matches_see_all'), onClick: () => { setStatusFilter('all'); setGameFilter('all'); } }]
+              : undefined
+            }
+          />
         )}
       </div>
     </div>

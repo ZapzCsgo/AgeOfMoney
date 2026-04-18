@@ -15,6 +15,7 @@ const GridPattern = nextDynamic(() => import('@/components/magicui/grid-pattern'
 const Meteors = nextDynamic(() => import('@/components/magicui/meteors').then(m => ({ default: m.Meteors })), { ssr: false });
 import { cn, getAvatarSrc } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   Zap, Clock, TrendingUp, ChevronRight, Swords, Trophy,
   RefreshCw, AlertTriangle, Users, Crown, Minus, Plus, Lock, Tv,
@@ -939,18 +940,19 @@ export default function HomePage() {
             ))}
           </div>
         ) : (
-          /* Empty state */
-          <div className="flex flex-col items-center py-8">
-            <Swords size={28} className="text-aoe-parchment-muted opacity-40 mb-4" />
-            <p className="font-cinzel text-sm tracking-widest text-aoe-parchment-dim mb-2">
-              {filter !== 'all' ? t('matches_empty_filter') : t('matches_empty')}
-            </p>
-            {filter !== 'all' && (
-              <button onClick={() => setFilter('all')} className="text-xs text-aoe-gold font-cinzel hover:underline">
-                {t('home_view_all')}
-              </button>
-            )}
-          </div>
+          <EmptyState
+            compact
+            icon={Swords}
+            title={filter !== 'all' ? t('matches_empty_filter') : t('matches_empty')}
+            description={filter !== 'all' ? undefined : t('matches_empty_description')}
+            actions={filter !== 'all'
+              ? [{ label: t('home_view_all'), onClick: () => setFilter('all') }]
+              : [
+                  { label: t('nav_tournaments'), href: '/tournaments' },
+                  { label: t('nav_roulette'), href: '/roulette', variant: 'ghost' },
+                ]
+            }
+          />
         )}
 
         {/* Upcoming tournaments — always shown when no UPCOMING matches exist */}

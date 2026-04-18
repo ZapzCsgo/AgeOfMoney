@@ -11,6 +11,7 @@ import { cn, getAvatarSrc } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Clock, RefreshCw, AlertTriangle, Swords, Search } from 'lucide-react';
 import { useT } from '@/lib/i18n';
+import { EmptyState } from '@/components/ui/empty-state';
 
 function formatCountdown(dateStr: string, t: (k: string) => string): string {
   const diff = new Date(dateStr).getTime() - Date.now();
@@ -411,15 +412,18 @@ export default function MatchesPage() {
             ))}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-24">
-            <Swords size={28} className="text-[#3d3860] mb-4" />
-            <p className="font-cinzel text-sm tracking-widest text-[#6b6488]">
-              {filter !== 'all' ? t('matches_empty_filter') : t('matches_empty')}
-            </p>
-            {filter !== 'all' && (
-              <button onClick={() => setFilter('all')} className="mt-4 text-xs text-[#ffc542] font-cinzel hover:underline">{t('matches_see_all')}</button>
-            )}
-          </div>
+          <EmptyState
+            icon={Swords}
+            title={filter !== 'all' ? t('matches_empty_filter') : t('matches_empty')}
+            description={filter !== 'all' ? undefined : t('matches_empty_description')}
+            actions={filter !== 'all'
+              ? [{ label: t('matches_see_all'), onClick: () => setFilter('all') }]
+              : [
+                  { label: t('nav_tournaments'), href: '/tournaments' },
+                  { label: t('nav_roulette'), href: '/roulette', variant: 'ghost' },
+                ]
+            }
+          />
         )}
       </div>
     </div>
