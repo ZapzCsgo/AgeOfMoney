@@ -20,7 +20,7 @@
  *   pulls odds toward even money when data is sparse.
  *
  * Tier weights for record importance:
- *   S: 3.0 | A: 2.0 | Qualifier: 1.5 | B: 1.0 | C: 0.5 | Misc: 0.3
+ *   S: 4.0 | A: 2.0 | Qualifier: 1.5 | B: 1.0 | C: 0.5 | Misc: 0.3
  */
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -29,7 +29,9 @@ const HOUSE_MARGIN_3WAY = 0.10;  // 10% overround for 3-way markets (BO2/4 with 
 const MIN_ODDS = 1.05;
 const MAX_ODDS = 20.0;
 
-// Tier weights — a S-tier win counts 4× as much as a B-tier win (2× A-tier)
+// Tier weights — a S-tier win counts 4× as much as a B-tier win (2× A-tier).
+// These values are currently arbitrary (not backtested); revisit with a
+// log-likelihood calibration on completed matches before tuning.
 const TIER_WEIGHT: Record<string, number> = {
   S: 4.0,
   A: 2.0,
@@ -106,21 +108,49 @@ export function formatAllowsDraw(format: string): boolean {
 }
 
 /**
- * Calculate draw probability for even BO formats.
- * Draw probability depends on how close the players are in skill (prob1 ≈ 0.5 → higher draw chance).
+ * Calculate draw probability for even BO formats from a per-game win prob.
  * For BO2: P(draw) = 2 * p * (1-p) where p = prob of winning a single game.
  * For BO4: P(draw) = C(4,2) * p^2 * (1-p)^2 = 6 * p^2 * (1-p)^2
  * General: P(draw in BO_n) = C(n, n/2) * p^(n/2) * (1-p)^(n/2)
+ *
+ * IMPORTANT: pass a PER-GAME probability here, not a series win probability.
+ * Use solvePerGameProb() to convert a series-level probability back to a
+ * per-game probability before calling this function.
  */
-export function calculateDrawProbability(prob1: number, boNum: number): number {
+export function calculateDrawProbability(pPerGame: number, boNum: number): number {
   if (boNum % 2 !== 0) return 0;
   const half = boNum / 2;
-  // Binomial coefficient C(n, n/2)
   let binom = 1;
   for (let i = 0; i < half; i++) {
     binom = binom * (boNum - i) / (i + 1);
   }
-  return binom * Math.pow(prob1, half) * Math.pow(1 - prob1, half);
+  return binom * Math.pow(pPerGame, half) * Math.pow(1 - pPerGame, half);
+}
+
+/**
+ * Given a series-win probability `pMatch` in a given BO format, backsolve the
+ * underlying per-game probability `p` such that the binomial series model
+ * predicts the same series-win probability.
+ *
+ * Used when we only have series-level data (PlayerMatchRecord.won is a
+ * series-win flag) but need a per-game probability to compute draw odds for
+ * BO2/BO4 formats.
+ */
+export function solvePerGameProb(pMatch: number, format: string): number {
+  const seriesWin = (p: number): number => {
+    if (format === 'BO1') return p;
+    if (format === 'BO3') return p * p * (3 - 2 * p);
+    if (format === 'BO5') return p * p * p * (1 + 3 * (1 - p) + 6 * (1 - p) * (1 - p));
+    if (format === 'BO7') return p * p * p * p * (1 + 4 * (1 - p) + 10 * (1 - p) * (1 - p) + 20 * (1 - p) * (1 - p) * (1 - p));
+    return p;
+  };
+  if (pMatch <= 0 || pMatch >= 1) return pMatch;
+  let lo = 0.001, hi = 0.999;
+  for (let i = 0; i < 60; i++) {
+    const mid = (lo + hi) / 2;
+    if (seriesWin(mid) < pMatch) lo = mid; else hi = mid;
+  }
+  return (lo + hi) / 2;
 }
 
 // ── Core: Tier-specific winrate ───────────────────────────────────────────────
@@ -369,11 +399,15 @@ export function calculateOddsV2(input: OddsInputV2): OddsResult {
   let oddsDraw: number | undefined;
   let probDraw: number | undefined;
   if (boNum % 2 === 0) {
-    // Calculate true draw probability using binomial distribution
-    // BO2 with equal players: P(draw) = 50%, BO4: P(draw) = 37.5%
-    probDraw = calculateDrawProbability(prob1, boNum);
-    // Minimum 5% draw chance (very lopsided matchups)
-    probDraw = Math.max(0.05, probDraw);
+    // prob1 coming out of blending is a SERIES win probability (training data
+    // `won` flags are series-level — BO3/BO5/BO7 series wins). To compute a
+    // correct draw probability for BO2/BO4 we need the underlying per-game
+    // prob. Backsolve assuming BO3 is the dominant format in training data.
+    const pPerGame = solvePerGameProb(prob1, 'BO3');
+    probDraw = calculateDrawProbability(pPerGame, boNum);
+    // Clamp: 5% floor for lopsided matchups, 60% ceiling to avoid pathological
+    // near-50/50 predictions that would crush main-bet odds.
+    probDraw = Math.max(0.05, Math.min(0.60, probDraw));
     // Redistribute: scale down p1/p2 so p1+p2+pDraw = 1
     const winTotal = 1 - probDraw;
     const ratio = prob1 / (prob1 + prob2);

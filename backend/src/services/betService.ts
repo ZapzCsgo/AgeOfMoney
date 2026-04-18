@@ -11,7 +11,8 @@ export async function placeBet(
   userId: string,
   matchId: string,
   amount: number,
-  selectedPlayer: 0 | 1 | 2 // 0 = draw, 1 = player1, 2 = player2
+  selectedPlayer: 0 | 1 | 2, // 0 = draw, 1 = player1, 2 = player2
+  expectedOdds?: number,
 ): Promise<{
   id: string;
   amount: number;
@@ -96,24 +97,42 @@ export async function placeBet(
     if (!match.oddsDraw) throw new Error('Draw odds not available for this match');
   }
 
-  const oddsAtBet = selectedPlayer === 0
-    ? (match.oddsDraw ?? 0)
-    : selectedPlayer === 1 ? match.odds1 : match.odds2;
+  // Compute the same volume-adjusted odds the user sees in the live broadcast
+  // so what they see is what they pay. Draw odds aren't volume-adjusted (the
+  // 2-way liquidity signal doesn't apply to the 3rd outcome).
+  let oddsAtBet: number;
+  if (selectedPlayer === 0) {
+    oddsAtBet = match.oddsDraw ?? 0;
+  } else {
+    const existingBets = await prisma.bet.findMany({
+      where: { matchId, status: { notIn: [BetStatus.CANCELLED, BetStatus.REFUNDED] } },
+      select: { amount: true, oddsAtBet: true, selectedPlayer: true },
+    });
+    const betRecords = existingBets
+      .filter(b => b.selectedPlayer === 1 || b.selectedPlayer === 2)
+      .map(b => ({ amount: b.amount, oddsAtBet: b.oddsAtBet, selectedPlayer: b.selectedPlayer as 1 | 2 })) satisfies BetRecord[];
+    const adjusted = adjustOddsAdvanced(match.odds1, match.odds2, betRecords);
+    oddsAtBet = selectedPlayer === 1 ? adjusted.odds1 : adjusted.odds2;
+  }
 
   if (oddsAtBet <= 0) throw new Error('Invalid odds for this selection');
 
+  // Odds-move guard: reject if client-side `expectedOdds` diverges > 5%
+  // from server-recomputed odds. Lets the UI show a "odds changed, confirm?"
+  // toast instead of silently paying out at a different rate.
+  if (expectedOdds !== undefined) {
+    const divergence = Math.abs(oddsAtBet - expectedOdds) / expectedOdds;
+    if (divergence > 0.05) {
+      const err = new Error(`Odds have changed from ${expectedOdds} to ${oddsAtBet} — please confirm`) as Error & { expectedOdds?: number; currentOdds?: number; code?: string };
+      err.expectedOdds = expectedOdds;
+      err.currentOdds = oddsAtBet;
+      err.code = 'ODDS_CHANGED';
+      throw err;
+    }
+  }
+
   // Use a transaction to deduct coins and create bet atomically
   const bet = await prisma.$transaction(async (tx) => {
-    // Re-check balance inside transaction
-    const freshUser = await tx.user.findUnique({
-      where: { id: userId },
-      select: { coins: true },
-    });
-
-    if (!freshUser || freshUser.coins < amount) {
-      throw new Error('Insufficient coins');
-    }
-
     // Re-check max bets inside transaction to prevent race condition
     const txBetCount = await tx.bet.count({
       where: { userId, matchId, status: { notIn: [BetStatus.CANCELLED, BetStatus.REFUNDED] } },
@@ -122,13 +141,17 @@ export async function placeBet(
       throw new Error(`Maximum ${MAX_BETS_PER_MATCH} bets per match reached`);
     }
 
-    // Deduct coins
-    await tx.user.update({
-      where: { id: userId },
+    // Atomic decrement: the `coins: { gte: amount }` guard makes the balance
+    // check + decrement a single SQL UPDATE, which kills the race where two
+    // concurrent bets both read coins=100 and decrement 60 each (ending at -20).
+    const updateResult = await tx.user.updateMany({
+      where: { id: userId, coins: { gte: amount } },
       data: { coins: { decrement: amount }, totalWagered: { increment: amount } },
     });
+    if (updateResult.count === 0) {
+      throw new Error('Insufficient coins');
+    }
 
-    // Create bet
     const newBet = await tx.bet.create({
       data: {
         userId,

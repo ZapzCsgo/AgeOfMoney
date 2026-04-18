@@ -49,3 +49,6 @@ coverage/
 # Misc
 .vercel
 .turbo
+
+# Claude MCP config (contains API tokens)
+.mcp.json

@@ -211,9 +211,25 @@ function ExactScoreBets({ match, onBetPlaced }: { match: Match; onBetPlaced: () 
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/v1/bets/exact`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.user.accessToken}` },
-        body: JSON.stringify({ matchId: match.id, amount: parseInt(amount), score: selected.score, player: selected.player, loserGames: selected.loserGames, odds: selected.odds }),
+        // NB: `odds` is NOT sent — the server recomputes them. `expectedOdds`
+        // is the cote the user saw; server returns 409 if it has moved >5%.
+        body: JSON.stringify({
+          matchId: match.id,
+          amount: parseInt(amount),
+          score: selected.score,
+          player: selected.player,
+          loserGames: selected.loserGames,
+          expectedOdds: selected.odds,
+        }),
       });
       const data = await res.json();
+      if (res.status === 409 && data.code === 'ODDS_CHANGED') {
+        setMsg({ type: 'err', text: `Les cotes ont bougé (× ${data.currentOdds?.toFixed(2) ?? '?'}). Revalidez votre pari.` });
+        // Refresh the scores list so the next click uses the new odds.
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/v1/bets/exact-scores/${match.id}`)
+          .then(r => r.json()).then(r => setScores(r.data ?? [])).catch(() => {});
+        return;
+      }
       if (!res.ok) { setMsg({ type: 'err', text: data.error ?? 'Erreur' }); return; }
       setMsg({ type: 'ok', text: `Pari placé sur ${selected.score} à ×${selected.odds}` });
       setSelected(null); setAmount('10');

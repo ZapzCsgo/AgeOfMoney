@@ -29,9 +29,11 @@ const BLEND_CACHE_TTL = 5 * 60 * 1000; // 5 min
 interface CachedEntry { data: ScoreDistribution; ts: number }
 const blendCache = new Map<string, CachedEntry>();
 
-function cacheKey(matchId: string, format: string, odds1: number, odds2: number): string {
-  // Include odds so cache invalidates when odds move
-  return `${matchId}:${format}:${odds1.toFixed(2)}:${odds2.toFixed(2)}`;
+function cacheKey(matchId: string, format: string, odds1: number, odds2: number, oddsDraw?: number | null): string {
+  // Include every odds input so the cache invalidates when any of them move.
+  // BO2 routes around the blend today, but wiring oddsDraw in keeps the cache
+  // correct if/when we extend blending to even BOs.
+  return `${matchId}:${format}:${odds1.toFixed(2)}:${odds2.toFixed(2)}:${oddsDraw ? oddsDraw.toFixed(2) : ''}`;
 }
 
 // ── Recency weighting ──────────────────────────────────────────────────────
@@ -234,9 +236,10 @@ export async function buildBlendedDistribution(
   odds1: number,
   odds2: number,
   matchTier?: string,
+  oddsDraw?: number | null,
 ): Promise<ScoreDistribution> {
   // Cache hit? Include matchTier in key so S-tier vs A-tier get distinct caches.
-  const key = cacheKey(matchId, `${format}:${matchTier ?? ''}`, odds1, odds2);
+  const key = cacheKey(matchId, `${format}:${matchTier ?? ''}`, odds1, odds2, oddsDraw);
   const cached = blendCache.get(key);
   if (cached && Date.now() - cached.ts < BLEND_CACHE_TTL) {
     return cached.data;
