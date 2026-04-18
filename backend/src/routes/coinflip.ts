@@ -5,6 +5,7 @@ import {
   joinCoinFlip,
   cancelCoinFlip,
   getActiveCoinFlips,
+  getAllCoinFlipHistory,
   getCoinFlipHistory,
 } from '../services/coinflipService';
 import logger from '../logger';
@@ -19,6 +20,19 @@ router.get('/', async (_req: Request, res: Response): Promise<void> => {
   } catch (err) {
     logger.error('GET /coinflip error:', err);
     res.status(500).json({ error: 'Failed to fetch coinflip games' });
+  }
+});
+
+// GET /coinflip/history/all — global completed flips (for the Historique tab)
+router.get('/history/all', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const limit  = Math.min(parseInt((req.query.limit as string) ?? '50'), 100);
+    const offset = Math.max(parseInt((req.query.offset as string) ?? '0'), 0);
+    const games  = await getAllCoinFlipHistory(limit, offset);
+    res.json({ data: games });
+  } catch (err) {
+    logger.error('GET /coinflip/history/all error:', err);
+    res.status(500).json({ error: 'Failed to fetch coinflip history' });
   }
 });
 

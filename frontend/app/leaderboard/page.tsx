@@ -105,7 +105,6 @@ export default function LeaderboardPage() {
             <EmptyState
               icon={Trophy}
               title={t('lb_empty')}
-              actions={[{ label: t('nav_matches'), href: '/matches' }]}
             />
           ) : (
             <div>

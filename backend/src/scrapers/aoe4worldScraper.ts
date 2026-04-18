@@ -727,6 +727,28 @@ export async function enrichMatchWithH2H(matchId: string): Promise<void> {
   const { getPlayerH2HFromHistory } = await import('./aiPlayerHistoryScraper');
   const h2hFull = await getPlayerH2HFromHistory(match.player1Id, match.player2Id, match.game);
 
+  // Opponent-winrate map — weights wins by opponent strength. Farming weak
+  // opponents in weekly tournaments no longer inflates WR vs the real field.
+  const opponentIds = new Set<string>();
+  for (const r of [...p1Records, ...p2Records]) if (r.opponentId) opponentIds.add(r.opponentId);
+  const oppWinrateMap = new Map<string, number>();
+  if (opponentIds.size > 0) {
+    const oppRecords = await prisma.playerMatchRecord.findMany({
+      where: { playerId: { in: [...opponentIds] }, game: match.game },
+      select: { playerId: true, won: true },
+    });
+    const grouped = new Map<string, { total: number; wins: number }>();
+    for (const r of oppRecords) {
+      const g = grouped.get(r.playerId) ?? { total: 0, wins: 0 };
+      g.total++;
+      if (r.won) g.wins++;
+      grouped.set(r.playerId, g);
+    }
+    for (const [id, s] of grouped.entries()) {
+      if (s.total >= 3) oppWinrateMap.set(id, s.wins / s.total);
+    }
+  }
+
   const newOdds = calculateOddsV2({
     p1Records: p1Records.map(r => ({ won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId })),
     p2Records: p2Records.map(r => ({ won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId })),
@@ -735,6 +757,7 @@ export async function enrichMatchWithH2H(matchId: string): Promise<void> {
     daysSinceLastMatch2: profile2.daysSince,
     matchTier: tournament?.tier ?? undefined,
     format: match.format,
+    opponentWinrates: oppWinrateMap,
   });
 
   // Update odds in DB — always write oddsDraw (null for BO1/BO3/BO5/BO7,

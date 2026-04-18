@@ -87,6 +87,11 @@ export interface OddsInputV2 {
   matchTier?: string;
   // Match format — needed to calculate draw odds for even BOs
   format?: string;
+  // Opponent winrates (Map<opponentId, winrate 0-1>) — used to weight each
+  // win/loss by opponent strength. A win against a 30% player counts less
+  // than a win against a 70% player. When omitted, all opponents default
+  // to 0.5 and the factor is effectively inactive.
+  opponentWinrates?: Map<string, number>;
 }
 
 export interface OddsResult {
@@ -192,12 +197,17 @@ function computeCompetitiveWinrate(
     // Tier weight
     const tierW = TIER_WEIGHT[r.tier] ?? 1.0;
 
-    // Opponent strength multiplier (0.7–1.3)
+    // Opponent strength multiplier (0.4–1.6). A win against a weak 20%-WR
+    // opponent counts ~0.6× a baseline win; a win against a 80%-WR top pro
+    // counts ~1.4×. Amplified from the original 0.7-1.3 range so "farming
+    // weeklies against randoms" stops inflating someone's WR against the
+    // real competition — the core complaint behind MarineLord 1.58 odds.
     let oppStrength = 1.0;
     if (r.opponentId && opponentWinrates) {
       const oppWr = opponentWinrates.get(r.opponentId);
       if (oppWr !== undefined) {
-        oppStrength = 0.7 + oppWr * 0.6; // 50% opponent → 1.0, 80% → 1.18
+        // 20% opponent → 0.64, 50% → 1.0, 80% → 1.36
+        oppStrength = 0.4 + oppWr * 1.2;
       }
     }
 
@@ -297,29 +307,35 @@ export function calculateOddsV2(input: OddsInputV2): OddsResult {
   const now = Date.now();
 
   // ── Phase 1: raw competitive winrates (no opponent weighting) ────────────
+  // Required to set the confidence floor even when no opponent winrates are
+  // supplied by the caller.
   const raw1 = computeCompetitiveWinrate(input.p1Records, undefined, now);
   const raw2 = computeCompetitiveWinrate(input.p2Records, undefined, now);
+  void raw1; void raw2; // reserved for future opponent-adjustment logic
 
   // ── Phase 2: opponent-weighted winrates ──────────────────────────────────
-  // Use raw winrates as opponent strength estimates
-  const oppWinrates = new Map<string, number>();
-  // Populate from all records
-  for (const r of [...input.p1Records, ...input.p2Records]) {
-    if (r.opponentId && !oppWinrates.has(r.opponentId)) {
-      oppWinrates.set(r.opponentId, 0.5); // default
+  // If the caller passed real opponent winrates (from a DB query in the
+  // cron/recalc paths), use them. Otherwise default to a flat 0.5 map which
+  // makes the opponent-strength factor inactive.
+  const oppWinrates = input.opponentWinrates ?? new Map<string, number>();
+  if (!input.opponentWinrates) {
+    for (const r of [...input.p1Records, ...input.p2Records]) {
+      if (r.opponentId && !oppWinrates.has(r.opponentId)) {
+        oppWinrates.set(r.opponentId, 0.5);
+      }
     }
   }
-  // Override with computed winrates for our two players
-  // (used when one player appears in the other's records)
-  // We don't have player IDs here, so this is a simplified version
 
   const wr1 = computeCompetitiveWinrate(input.p1Records, oppWinrates, now);
   const wr2 = computeCompetitiveWinrate(input.p2Records, oppWinrates, now);
 
   // ── Factor 1: Competitive winrate (35%) ─────────────────────────────────
   const wrLogitDiff = logit(wr1.winrate) - logit(wr2.winrate);
-  // Scale 0.65: prevents absurd odds from extreme winrate gaps
-  const wrProb1 = sigmoid(wrLogitDiff * 0.65);
+  // Scale 0.90: let the skill gap actually matter. Old 0.65 dampened too much
+  // and produced cotes 1.58 for a legend like MarineLorD (85% tier-weighted WR)
+  // vs a mid-tier player like JIF Music (50%). Bumped so a 35-point WR gap
+  // maps to a more realistic 75/25 split instead of 60/40.
+  const wrProb1 = sigmoid(wrLogitDiff * 0.90);
   const wrConfidence = Math.sqrt(wr1.confidence * wr2.confidence);
 
   // ── Factor 2: H2H direct (25%) ──────────────────────────────────────────
@@ -351,23 +367,23 @@ export function calculateOddsV2(input: OddsInputV2): OddsResult {
     }
   }
 
-  // ── Adaptive blending in logit space ────────────────────────────────────
-  // H2H weight scales with confidence (0 H2H → 0%, 12+ H2H → 25%)
-  const h2hWeight = h2hResult.confidence * 0.25;
-  // Winrate weight scales with data confidence (max 35%)
-  const wrWeight = Math.max(0.15, wrConfidence * 0.35);
-  // Form weight (20%), tier-context weight (10%)
-  const formWeight = 0.20;
+  // ── Adaptive blending in logit space (normalized) ──────────────────────
+  // Each factor contributes weight proportional to its confidence. If a
+  // factor is unavailable (no H2H, no match tier), we DON'T blend in a
+  // 50/50 prior for the missing slot — that would wash out real signal
+  // from the other factors. Instead we renormalize so the present weights
+  // sum to 1, and the skill gap is preserved.
+  const h2hWeight    = h2hResult.confidence * 0.30;
+  const wrWeight     = Math.max(0.35, wrConfidence * 0.50);
+  const formWeight   = 0.15;
   const tierCtxWeight = input.matchTier ? 0.10 : 0;
-  // Remaining goes to base (50/50 prior)
-  const remainingWeight = Math.max(0, 1 - h2hWeight - wrWeight - formWeight - tierCtxWeight);
-
-  const blendedLogit =
+  const weightSum    = h2hWeight + wrWeight + formWeight + tierCtxWeight;
+  const blendedLogit = weightSum > 0 ? (
     logit(wrProb1)        * wrWeight +
     logit(h2hResult.prob) * h2hWeight +
-    (form1 - form2)       * formWeight * 5 + // scale form to logit magnitude
-    tierContextLogit      * tierCtxWeight +   // tier-specific performance at this level
-    0.0                   * remainingWeight;  // logit(0.5) = 0 = no info
+    (form1 - form2)       * formWeight * 5 +
+    tierContextLogit      * tierCtxWeight
+  ) / weightSum : 0;
 
   let prob1 = sigmoid(blendedLogit);
 
@@ -375,11 +391,13 @@ export function calculateOddsV2(input: OddsInputV2): OddsResult {
   prob1 = sigmoid(logit(prob1) - (rust1 - rust2));
 
   // ── Clamp based on data confidence ──────────────────────────────────────
+  // Ceiling raised for high-confidence matchups — a legend vs a mid-tier
+  // grinder with 400+ vs 100+ records should be able to hit 1.15-1.20 odds.
   const totalConfidence = Math.max(wrConfidence, h2hResult.confidence);
-  const maxProb = totalConfidence < 0.20 ? 0.68  // very low data → tight
-    : totalConfidence < 0.50 ? 0.76               // some data
-    : totalConfidence < 0.80 ? 0.82               // good data
-    : 0.84;                                        // excellent data
+  const maxProb = totalConfidence < 0.20 ? 0.70  // very low data → tight
+    : totalConfidence < 0.50 ? 0.80               // some data
+    : totalConfidence < 0.80 ? 0.86               // good data
+    : 0.90;                                        // excellent data (400+ records, huge skill gap)
   const minProb = 1 - maxProb;
 
   prob1 = Math.min(maxProb, Math.max(minProb, prob1));

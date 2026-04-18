@@ -89,7 +89,9 @@ export default function CoinFlipPage() {
   const { t } = useT();
 
   const [games, setGames] = useState<CoinFlipGame[]>([]);
-  const [recentResults, setRecentResults] = useState<CoinFlipGame[]>([]);
+  // Recent completed flips are now derived from the live `games` list rather
+  // than a separate endpoint — backend's /coinflip returns up to 10 most
+  // recent COMPLETED within 30min alongside WAITING/FLIPPING.
   const [betAmount, setBetAmount] = useState('5');
   const [selectedSide, setSelectedSide] = useState<CoinSide>('crown');
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -116,20 +118,35 @@ export default function CoinFlipPage() {
 
   const fetchGames = useCallback(async () => {
     try {
-      const [active, recent] = await Promise.allSettled([
-        apiClient.get('/coinflip'),
-        apiClient.get('/coinflip/recent'),
-      ]);
-      if (active.status === 'fulfilled') {
-        setGames(active.value.data.data ?? []);
-      }
-      if (recent.status === 'fulfilled') {
-        setRecentResults(recent.value.data.data ?? []);
-      }
+      const active = await apiClient.get('/coinflip');
+      // Active endpoint now returns WAITING/FLIPPING + up to 10 most recent
+      // COMPLETED (within 30min). Completed ones drive the "recent results"
+      // strip below; older completed flips only show in the Historique tab.
+      setGames(active.data.data ?? []);
     } catch {
       // silent
     }
   }, []);
+
+  const [viewTab, setViewTab] = useState<'live' | 'history'>('live');
+  const [historyGames, setHistoryGames] = useState<CoinFlipGame[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  const fetchHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    try {
+      const res = await apiClient.get('/coinflip/history/all?limit=50');
+      setHistoryGames(res.data.data ?? []);
+    } catch {
+      // silent
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (viewTab === 'history') fetchHistory();
+  }, [viewTab, fetchHistory]);
 
   useEffect(() => {
     fetchGames();
@@ -155,9 +172,15 @@ export default function CoinFlipPage() {
     });
 
     s.on('coinflip:result', (data: CoinFlipGame) => {
-      setGames((prev) => prev.filter((g) => g.id !== data.id));
-      setRecentResults((prev) => [data, ...prev].slice(0, 10));
-      // Update active game modal
+      // Replace the WAITING/FLIPPING version with the completed one. The
+      // active endpoint already caps to 10 recent completed in 30min, so on
+      // a refresh older ones naturally fall into history.
+      setGames((prev) => {
+        const filtered = prev.filter((g) => g.id !== data.id);
+        const completed = [data, ...filtered.filter(g => g.status === 'COMPLETED')].slice(0, 10);
+        const open = filtered.filter(g => g.status !== 'COMPLETED');
+        return [...open, ...completed];
+      });
       setActiveGame((prev) => (prev?.id === data.id ? data : prev));
     });
 
@@ -244,6 +267,7 @@ export default function CoinFlipPage() {
   }
 
   const waitingGames = games.filter((g) => g.status === 'WAITING');
+  const recentResults = games.filter((g) => g.status === 'COMPLETED').slice(0, 10);
   const isHighValue = (amount: number) => amount >= 100;
 
   // Build modal players
@@ -282,20 +306,32 @@ export default function CoinFlipPage() {
           <p className="text-[11px] tracking-widest uppercase" style={{ color: '#6b6488' }}>
             {t('coinflip_subtitle')}
           </p>
-          {/* Stats strip */}
-          <div className="flex items-center justify-center gap-6 mt-3">
-            <div className="flex items-center gap-1.5 text-[11px]" style={{ color: '#6b6488' }}>
-              <Users size={12} />
-              <span>
-                {waitingGames.length} {t('coinflip_open')}
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5 text-[11px]" style={{ color: '#6b6488' }}>
-              <Trophy size={12} />
-              <span>
-                {recentResults.length} {t('coinflip_completed')}
-              </span>
-            </div>
+          {/* Tab switcher : En direct / Historique */}
+          <div className="flex items-center justify-center gap-1 mt-4">
+            <button
+              onClick={() => setViewTab('live')}
+              className="px-4 py-1.5 rounded-lg text-[11px] font-bold tracking-wider uppercase transition-all"
+              style={{
+                background: viewTab === 'live' ? 'rgba(255,197,66,0.15)' : 'transparent',
+                color: viewTab === 'live' ? '#ffd97a' : '#6b6488',
+                border: viewTab === 'live' ? '1px solid rgba(255,197,66,0.3)' : '1px solid transparent',
+              }}
+            >
+              <Users size={12} className="inline mr-1.5" />
+              En direct · {waitingGames.length + recentResults.length}
+            </button>
+            <button
+              onClick={() => setViewTab('history')}
+              className="px-4 py-1.5 rounded-lg text-[11px] font-bold tracking-wider uppercase transition-all"
+              style={{
+                background: viewTab === 'history' ? 'rgba(255,197,66,0.15)' : 'transparent',
+                color: viewTab === 'history' ? '#ffd97a' : '#6b6488',
+                border: viewTab === 'history' ? '1px solid rgba(255,197,66,0.3)' : '1px solid transparent',
+              }}
+            >
+              <Trophy size={12} className="inline mr-1.5" />
+              Historique
+            </button>
           </div>
         </div>
 
@@ -313,7 +349,53 @@ export default function CoinFlipPage() {
           </div>
         )}
 
+        {/* Historique tab — full completed flips list */}
+        {viewTab === 'history' && (
+          <div className="rounded-2xl p-5" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+            <div className="flex items-center gap-2 mb-4">
+              <Trophy size={16} style={{ color: '#6b6488' }} />
+              <h2 className="text-[14px] font-bold tracking-wider uppercase" style={{ fontFamily: 'Cinzel, serif', color: '#e8e2f5' }}>
+                Historique des coinflips
+              </h2>
+              <span className="ml-auto text-[11px]" style={{ color: '#6b6488' }}>{historyGames.length} flips</span>
+            </div>
+            {historyLoading ? (
+              <div className="text-center py-8 text-[12px]" style={{ color: '#6b6488' }}>Chargement…</div>
+            ) : historyGames.length === 0 ? (
+              <div className="text-center py-8 text-[12px]" style={{ color: '#6b6488' }}>Aucun flip terminé.</div>
+            ) : (
+              <div className="space-y-1.5">
+                {historyGames.map((game) => {
+                  const isCreatorWin = game.result === game.side;
+                  const winnerName = isCreatorWin ? game.creator.username : (game.joiner?.username ?? '?');
+                  const loserName  = isCreatorWin ? (game.joiner?.username ?? '?') : game.creator.username;
+                  return (
+                    <div key={game.id} className="flex items-center gap-3 px-3 py-2 rounded-lg text-[12px]"
+                         style={{ background: '#0a0817', border: '1px solid #1e1a30' }}>
+                      <span style={{ fontSize: 16 }}>{game.result === 'crown' ? '🏹' : '⚔️'}</span>
+                      <div className="flex-1 min-w-0">
+                        <span className="font-bold" style={{ color: game.result === 'crown' ? '#ffd97a' : '#c0c0c0' }}>
+                          {winnerName}
+                        </span>
+                        <span style={{ color: '#4a4468' }}> vs </span>
+                        <span style={{ color: '#6b6488' }}>{loserName}</span>
+                      </div>
+                      <span className="font-bold tabular-nums" style={{ color: '#ffd97a' }}>
+                        {game.amount.toLocaleString('fr-FR')} ⚜
+                      </span>
+                      <span className="text-[10px]" style={{ color: '#4a4468' }}>
+                        {new Date(game.createdAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Create a flip card */}
+        {viewTab === 'live' && (<>
         <div
           className="rounded-2xl p-5 mb-6"
           style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}
@@ -658,6 +740,7 @@ export default function CoinFlipPage() {
             </ScrollArea>
           </div>
         )}
+        </>)}
       </div>
 
       {/* CoinFlip Modal */}

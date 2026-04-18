@@ -323,6 +323,30 @@ async function recalcActiveMatchOdds(): Promise<void> {
       const days1 = match.player1.lastMatchAt ? (now - match.player1.lastMatchAt.getTime()) / 86400000 : 30;
       const days2 = match.player2.lastMatchAt ? (now - match.player2.lastMatchAt.getTime()) / 86400000 : 30;
 
+      // Build opponent-winrate map — each tournament record's opponentId gets
+      // its true winrate so the engine can downweight wins against weak
+      // opponents (farming weeklies against randoms) and upweight wins
+      // against strong pros.
+      const opponentIds = new Set<string>();
+      for (const r of [...p1Records, ...p2Records]) if (r.opponentId) opponentIds.add(r.opponentId);
+      const oppWinrateMap = new Map<string, number>();
+      if (opponentIds.size > 0) {
+        const oppRecords = await prisma.playerMatchRecord.findMany({
+          where: { playerId: { in: [...opponentIds] }, game: match.game },
+          select: { playerId: true, won: true },
+        });
+        const grouped = new Map<string, { total: number; wins: number }>();
+        for (const r of oppRecords) {
+          const g = grouped.get(r.playerId) ?? { total: 0, wins: 0 };
+          g.total++;
+          if (r.won) g.wins++;
+          grouped.set(r.playerId, g);
+        }
+        for (const [id, s] of grouped.entries()) {
+          if (s.total >= 3) oppWinrateMap.set(id, s.wins / s.total);
+        }
+      }
+
       const modelOdds = calculateOddsV2({
         p1Records: p1Records.map(r => ({ won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId })),
         p2Records: p2Records.map(r => ({ won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId })),
@@ -331,6 +355,7 @@ async function recalcActiveMatchOdds(): Promise<void> {
         daysSinceLastMatch2: days2,
         matchTier: match.tournament?.tier ?? undefined,
         format: match.format,
+        opponentWinrates: oppWinrateMap,
       });
 
       const drawChanged = modelOdds.oddsDraw !== undefined &&

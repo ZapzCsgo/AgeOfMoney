@@ -275,33 +275,61 @@ export async function cancelStaleCoinFlips(): Promise<number> {
   return staleGames.length;
 }
 
+/**
+ * Games visible on the main coinflip page: open games (WAITING/FLIPPING)
+ * plus the 10 most recent completed ones within the last 30 minutes.
+ * Older completed games are only visible via `getAllCoinFlipHistory()`.
+ */
 export async function getActiveCoinFlips(): Promise<Record<string, unknown>[]> {
-  const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
+  const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000);
 
+  const [openGames, recentCompleted] = await Promise.all([
+    prisma.coinFlip.findMany({
+      where: { status: { in: ['WAITING', 'FLIPPING'] } },
+      include: {
+        creator: { select: { id: true, username: true, avatar: true } },
+        joiner: { select: { id: true, username: true, avatar: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    }),
+    // 10 most recent completed within 30 min — the "recently finished" band
+    // on the main page. Anything older goes into the Historique tab only.
+    prisma.coinFlip.findMany({
+      where: { status: 'COMPLETED', completedAt: { gte: thirtyMinAgo } },
+      include: {
+        creator: { select: { id: true, username: true, avatar: true } },
+        joiner: { select: { id: true, username: true, avatar: true } },
+      },
+      orderBy: { completedAt: 'desc' },
+      take: 10,
+    }),
+  ]);
+
+  const merged = [...openGames, ...recentCompleted];
+  return merged.map((g) => {
+    const plain = g as unknown as Record<string, unknown>;
+    if (g.status !== 'COMPLETED') return sanitizeGame(plain);
+    return plain;
+  });
+}
+
+/**
+ * Global coinflip history — all completed games across the site. Used by the
+ * "Historique" tab on the coinflip page. Paginated via `limit`/`offset`.
+ */
+export async function getAllCoinFlipHistory(limit = 50, offset = 0): Promise<Record<string, unknown>[]> {
   const games = await prisma.coinFlip.findMany({
-    where: {
-      OR: [
-        { status: 'WAITING' },
-        { status: 'FLIPPING' },
-        { status: 'COMPLETED', completedAt: { gte: fiveMinAgo } },
-      ],
-    },
+    where: { status: 'COMPLETED' },
     include: {
       creator: { select: { id: true, username: true, avatar: true } },
       joiner: { select: { id: true, username: true, avatar: true } },
     },
-    orderBy: { createdAt: 'desc' },
-    take: 50,
+    orderBy: { completedAt: 'desc' },
+    take: Math.min(limit, 100),
+    skip: offset,
   });
-
-  // Strip serverSeed from games that are not yet completed
-  return games.map((g) => {
-    const plain = g as unknown as Record<string, unknown>;
-    if (g.status !== 'COMPLETED') {
-      return sanitizeGame(plain);
-    }
-    return plain;
-  });
+  return games as unknown as Record<string, unknown>[];
 }
 
 export async function getCoinFlipHistory(userId: string): Promise<Record<string, unknown>[]> {
