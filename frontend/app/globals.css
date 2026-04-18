@@ -203,23 +203,55 @@
   /* === Odds buttons === */
   .odds-btn {
     padding: 12px 8px;
-    border-radius: 8px;
+    border-radius: 10px;
     border: 1px solid #1e1a30;
     background: rgba(0,0,0,0.3);
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
     width: 100%;
     text-align: center;
     user-select: none;
   }
   .odds-btn:hover {
-    border-color: rgba(255,197,66,0.5);
-    background: rgba(255,197,66,0.05);
+    border-color: rgba(255,197,66,0.6);
+    background: rgba(255,197,66,0.08);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255,197,66,0.15);
   }
   .odds-btn.selected {
     border-color: #ffc542;
     background: rgba(255,197,66,0.12);
     box-shadow: 0 0 16px rgba(255,197,66,0.25);
+  }
+
+  /* === Odds buttons (aoe-prefixed, used in MatchCard — similar to odds-btn but tighter) === */
+  .aoe-odds-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid #1e1a30;
+    background: rgba(13, 11, 26, 0.6);
+    transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    user-select: none;
+    font-variant-numeric: tabular-nums;
+  }
+  .aoe-odds-btn:hover {
+    border-color: rgba(255,197,66,0.7);
+    background: rgba(255,197,66,0.08);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(255,197,66,0.2);
+  }
+  .aoe-odds-btn.selected {
+    border-color: #ffc542;
+    background: rgba(255,197,66,0.15);
+    box-shadow: 0 0 20px rgba(255,197,66,0.3), inset 0 0 12px rgba(255,197,66,0.08);
+  }
+  .aoe-odds-btn:active {
+    transform: translateY(0);
   }
 
   /* === Live badge === */
