@@ -90,7 +90,7 @@ export default function CoinFlipPage() {
 
   const [games, setGames] = useState<CoinFlipGame[]>([]);
   const [recentResults, setRecentResults] = useState<CoinFlipGame[]>([]);
-  const [betAmount, setBetAmount] = useState('');
+  const [betAmount, setBetAmount] = useState('5');
   const [selectedSide, setSelectedSide] = useState<CoinSide>('crown');
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [creating, setCreating] = useState(false);
@@ -200,7 +200,7 @@ export default function CoinFlipPage() {
       });
       const game = res.data.data as CoinFlipGame;
       setGames((prev) => [game, ...prev]);
-      setBetAmount('');
+      setBetAmount('5');
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: string } }; message?: string };
       showMsg('error', err?.response?.data?.error ?? err?.message ?? t('common_error'));
