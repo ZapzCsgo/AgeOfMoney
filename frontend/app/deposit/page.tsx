@@ -623,18 +623,6 @@ export default function DepositPage() {
               }
             </button>
 
-            {/* Trust row */}
-            <div className="flex items-center justify-center gap-6 mt-4">
-              <div className="flex items-center gap-1.5 text-aoe-parchment-muted">
-                <Zap size={11} className="text-aoe-gold" />
-                <span className="text-[10px] font-cinzel tracking-wide">{t('deposit_instant')}</span>
-              </div>
-              <div className="flex items-center gap-1.5 text-aoe-parchment-muted">
-                <Shield size={11} className="text-aoe-gold" />
-                <span className="text-[10px] font-cinzel tracking-wide">{t('deposit_secure')}</span>
-              </div>
-            </div>
-
           </div>
         </div>
       </div>
