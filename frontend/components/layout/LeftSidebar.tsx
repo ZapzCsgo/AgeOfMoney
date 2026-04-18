@@ -24,13 +24,16 @@ export function LeftSidebar() {
   const [expanded, setExpanded] = useState(true);
   const { t } = useT();
 
-  const mainItems: NavItem[] = [
+  const bettingItems: NavItem[] = [
     { href: '/',            icon: Home,       label: t('nav_home') },
     { href: '/matches',     icon: Swords,     label: t('nav_matches') },
-    { href: '/roulette',    icon: Dices,      label: t('nav_roulette') },
-    { href: '/coinflip',   icon: Coins,      label: t('nav_coinflip') },
     { href: '/tournaments', icon: Trophy,     label: t('nav_tournaments') },
     { href: '/leaderboard', icon: TrendingUp, label: t('nav_leaderboard') },
+  ];
+
+  const gamesItems: NavItem[] = [
+    { href: '/roulette', icon: Dices, label: t('nav_roulette') },
+    { href: '/coinflip', icon: Coins, label: t('nav_coinflip') },
   ];
 
   const accountItems: NavItem[] = [
@@ -85,25 +88,40 @@ export function LeftSidebar() {
       </button>
 
       <div className="flex flex-col flex-1 py-2 overflow-hidden">
-        {/* Section: Navigation */}
+        {/* Section: Betting */}
         <div className={cn('px-2 space-y-0.5', expanded && 'mb-1')}>
           {expanded && (
-            <p className="text-[10px] font-semibold text-[#3d3860] uppercase tracking-widest px-2 py-2">
+            <p className="text-[10px] font-bold text-aoe-gold/70 uppercase tracking-widest px-2 py-2">
               {t('nav_section_nav')}
             </p>
           )}
-          {mainItems.map((item) => (
+          {bettingItems.map((item) => (
             <NavLink key={item.href} {...item} />
           ))}
         </div>
 
         {/* Divider */}
-        <div className="mx-3 my-3 border-t border-[#1a1730]" />
+        <div className="mx-3 my-2 border-t border-[#1a1730]" />
+
+        {/* Section: Games */}
+        <div className={cn('px-2 space-y-0.5', expanded && 'mb-1')}>
+          {expanded && (
+            <p className="text-[10px] font-bold text-aoe-gold/70 uppercase tracking-widest px-2 py-2">
+              {t('nav_section_games')}
+            </p>
+          )}
+          {gamesItems.map((item) => (
+            <NavLink key={item.href} {...item} />
+          ))}
+        </div>
+
+        {/* Divider */}
+        <div className="mx-3 my-2 border-t border-[#1a1730]" />
 
         {/* Section: Account */}
         <div className={cn('px-2 space-y-0.5', expanded && 'mb-1')}>
           {expanded && (
-            <p className="text-[10px] font-semibold text-[#3d3860] uppercase tracking-widest px-2 py-2">
+            <p className="text-[10px] font-bold text-aoe-gold/70 uppercase tracking-widest px-2 py-2">
               {t('nav_section_account')}
             </p>
           )}

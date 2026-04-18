@@ -17,7 +17,8 @@ const t_fr = {
   nav_affiliates:     'Affiliés',
   nav_admin:          'Administration',
   nav_connected:      'Connecté',
-  nav_section_nav:    'Navigation',
+  nav_section_nav:    'Paris',
+  nav_section_games:  'Jeux',
   nav_section_account:'Compte',
 
   // Auth
@@ -529,7 +530,8 @@ const t_en: Record<keyof typeof t_fr, string> = {
   nav_affiliates:     'Affiliates',
   nav_admin:          'Administration',
   nav_connected:      'Connected',
-  nav_section_nav:    'Navigation',
+  nav_section_nav:    'Betting',
+  nav_section_games:  'Games',
   nav_section_account:'Account',
 
   auth_signin:        'Sign in',
@@ -1019,7 +1021,8 @@ const t_es: Record<keyof typeof t_fr, string> = {
   nav_affiliates:     'Afiliados',
   nav_admin:          'Administración',
   nav_connected:      'Conectado',
-  nav_section_nav:    'Navegación',
+  nav_section_nav:    'Apuestas',
+  nav_section_games:  'Juegos',
   nav_section_account:'Cuenta',
 
   auth_signin:        'Iniciar sesión',
