@@ -382,38 +382,54 @@ export default function DepositPage() {
           <div>
             <p className="text-[10px] font-cinzel tracking-widest text-aoe-parchment-dim uppercase mb-2">Méthode de paiement</p>
             <div
-              className="relative p-4 rounded-xl border transition-colors"
+              className="relative overflow-hidden rounded-xl"
               style={{
-                background: 'linear-gradient(135deg, rgba(255,197,66,0.08), rgba(255,197,66,0.03))',
-                borderColor: '#ffc542',
-                boxShadow: '0 0 18px rgba(255,197,66,0.12)',
+                background: 'linear-gradient(135deg, #14122a 0%, #0a0816 100%)',
+                border: '1px solid #2d2850',
               }}
             >
-              <div className="absolute top-3 right-3 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: '#ffc542' }}>
-                <Check size={12} color="#000" strokeWidth={3} />
-              </div>
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center font-black text-[11px] tracking-tight" style={{ background: '#000', color: '#fff', border: '1px solid #2d2850' }}>
-                  Oxa<span style={{ color: '#ffc542' }}>Pay</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-cinzel font-bold text-sm text-aoe-parchment">Payer en crypto</p>
-                  <p className="text-[11px] text-aoe-parchment-muted">Choisissez la crypto sur la page suivante</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5 flex-wrap pt-3 border-t" style={{ borderColor: '#1e1a30' }}>
-                {CRYPTOS.map(c => (
+              {/* Top gold accent */}
+              <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, #ffc542 50%, transparent)' }} />
+
+              <div className="p-4 flex items-center gap-4">
+                {/* Brand mark — infinity symbol in golden disc */}
+                <div className="shrink-0 relative">
                   <div
-                    key={c.id}
-                    title={`${c.name} (${c.network})`}
-                    className="flex items-center gap-1 px-1.5 py-1 rounded-md"
-                    style={{ background: 'rgba(255,255,255,0.02)' }}
+                    className="w-12 h-12 rounded-full flex items-center justify-center"
+                    style={{
+                      background: 'radial-gradient(circle at 30% 30%, #ffd97a 0%, #ffc542 45%, #c48c0e 100%)',
+                      boxShadow: '0 4px 16px rgba(255,197,66,0.35), inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -2px 4px rgba(0,0,0,0.2)',
+                    }}
                   >
-                    <CryptoLogo id={c.id} size={16} />
-                    <span className="text-[10px] font-cinzel font-bold text-aoe-parchment-muted">{c.symbol}</span>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                      <path d="M6.5 12c0-1.66 1.34-3 3-3 1.32 0 2.44.85 2.85 2.03l.65-.03.65.03c.41-1.18 1.53-2.03 2.85-2.03 1.66 0 3 1.34 3 3s-1.34 3-3 3c-1.32 0-2.44-.85-2.85-2.03L13 12.97l-.65.03C11.94 14.15 10.82 15 9.5 15c-1.66 0-3-1.34-3-3z" stroke="#0a0816" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                </div>
+
+                {/* Label block */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline gap-2 mb-0.5">
+                    <span className="font-cinzel font-bold text-[15px] text-aoe-parchment">Payer en crypto</span>
+                    <span className="text-[9px] font-bold tracking-[0.2em] uppercase text-aoe-parchment-muted">via OxaPay</span>
+                  </div>
+                  <p className="text-[11px] text-aoe-parchment-muted">Choisis ta crypto sur la page suivante</p>
+                </div>
+
+                {/* Active indicator */}
+                <div className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center" style={{ background: 'rgba(255,197,66,0.15)', border: '1px solid rgba(255,197,66,0.5)' }}>
+                  <Check size={13} className="text-[#ffc542]" strokeWidth={3} />
+                </div>
+              </div>
+
+              {/* Supported cryptos strip */}
+              <div className="px-4 pb-3 pt-2 border-t flex items-center gap-1.5" style={{ borderColor: 'rgba(30,26,48,0.8)', background: 'rgba(0,0,0,0.15)' }}>
+                {CRYPTOS.map(c => (
+                  <div key={c.id} title={`${c.name} (${c.network})`} className="transition-transform hover:scale-110">
+                    <CryptoLogo id={c.id} size={18} />
                   </div>
                 ))}
-                <span className="text-[10px] text-aoe-parchment-muted ml-1">+ autres</span>
+                <span className="text-[10px] text-aoe-parchment-muted ml-auto font-cinzel tracking-wide">+ autres</span>
               </div>
             </div>
           </div>
