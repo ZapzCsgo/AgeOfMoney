@@ -16,7 +16,7 @@ import { promisify } from 'util';
 import Bottleneck from 'bottleneck';
 import { prisma } from '../index';
 import { getIo } from '../socket';
-import { distributePayout, distributeDrawPayout, refundBets } from './betService';
+import { distributePayout, refundBets } from './betService';
 import logger from '../logger';
 
 const gunzip = promisify(zlib.gunzip);
@@ -878,15 +878,20 @@ async function syncMatchScore(matchId: string): Promise<void> {
 
   const io = getIo();
 
-  // Even BO draw (BO2 1-1, BO4 2-2, etc.): match completed with no winner — draw bets win
+  // Even BO draw (BO2 1-1, BO4 2-2, etc.): match completed with no winner.
+  // Model change (2026-04): we now run a 2-way "void on draw" market — on
+  // a draw, ALL bets are refunded (stake returned). This matches the
+  // Pinnacle/CSGOEmpire convention for BO2 markets. Legacy draw bets
+  // (selectedPlayer=0) are also refunded — cleaner than paying them out in
+  // a model we no longer offer.
   if (isBO2Draw) {
     const resultScore = `${p1Score}-${p2Score}`;
-    logger.info(`[LPScorer] Match ${matchId}: even BO draw (${resultScore}) — draw bets win, player bets lose`);
+    logger.info(`[LPScorer] Match ${matchId}: even BO draw (${resultScore}) — refunding all bets (void-on-draw market)`);
     await prisma.match.update({
       where: { id: matchId },
       data: { p1Score, p2Score, status: 'COMPLETED', resultScore, betsOpen: false, currentGameId: null },
     });
-    await distributeDrawPayout(matchId);
+    await refundBets(matchId, `Match nul ${resultScore} — paris remboursés (void on draw)`);
 
     // Store the draw outcome in PlayerMatchRecord so the odds model can learn
     // empirical draw rates. Without this, the training data contains zero

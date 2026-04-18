@@ -18,7 +18,9 @@ interface BetFormProps {
 export function BetForm({ match, onBetPlaced, initialPlayer = null }: BetFormProps) {
   const { data: session } = useSession();
   const { t } = useT();
-  const [selectedPlayer, setSelectedPlayer] = useState<0 | 1 | 2 | null>(initialPlayer);
+  const [selectedPlayer, setSelectedPlayer] = useState<1 | 2 | null>(
+    initialPlayer === 1 || initialPlayer === 2 ? initialPlayer : null
+  );
   const [amount, setAmount] = useState<number>(10);
   const [customAmount, setCustomAmount] = useState('');
   const [loading, setLoading] = useState(false);
@@ -27,9 +29,10 @@ export function BetForm({ match, onBetPlaced, initialPlayer = null }: BetFormPro
   const [success, setSuccess] = useState<string | null>(null);
 
   const boNum = parseInt(match.format.replace(/\D/g, ''), 10) || 3;
-  const allowsDraw = boNum % 2 === 0 && !!match.oddsDraw;
+  // BO2/BO4 are now 2-way void-on-draw — show a refund notice instead of a 3rd button.
+  const isVoidOnDraw = boNum % 2 === 0;
   const isBettable = isMatchBettable(match.status, match.betsClosedAt, match.scheduledAt, match.betsOpen);
-  const selectedOdds = selectedPlayer === 0 ? (match.oddsDraw ?? null) : selectedPlayer === 1 ? match.odds1 : selectedPlayer === 2 ? match.odds2 : null;
+  const selectedOdds = selectedPlayer === 1 ? match.odds1 : selectedPlayer === 2 ? match.odds2 : null;
   const potentialGain = selectedOdds ? parseFloat((amount * selectedOdds).toFixed(2)) : 0;
   const netGain = parseFloat((potentialGain - amount).toFixed(2));
   const userBalance = session?.user.coins ?? 0;
@@ -140,7 +143,7 @@ export function BetForm({ match, onBetPlaced, initialPlayer = null }: BetFormPro
             <label className="text-aoe-parchment-dim text-xs uppercase tracking-wider font-cinzel mb-2 block">
               {t('bet_choose_player')}
             </label>
-            <div className={`grid gap-2 ${allowsDraw ? 'grid-cols-3' : 'grid-cols-2'}`}>
+            <div className="grid gap-2 grid-cols-2">
               {([1, 2] as const).map((p) => {
                 const isSelected = selectedPlayer === p;
                 const odds = p === 1 ? match.odds1 : match.odds2;
@@ -162,22 +165,13 @@ export function BetForm({ match, onBetPlaced, initialPlayer = null }: BetFormPro
                   </button>
                 );
               })}
-              {allowsDraw && (
-                <button
-                  type="button"
-                  onClick={() => setSelectedPlayer(0)}
-                  className="relative p-3 rounded-lg transition-all duration-150 text-center"
-                  style={{
-                    background: selectedPlayer === 0 ? 'rgba(255,197,66,0.1)' : 'rgba(255,255,255,0.03)',
-                    border: selectedPlayer === 0 ? '2px solid #ffc542' : '2px solid rgba(255,255,255,0.08)',
-                    boxShadow: selectedPlayer === 0 ? '0 0 18px rgba(255,197,66,0.2), inset 0 0 10px rgba(255,197,66,0.05)' : 'none',
-                  }}
-                >
-                  <div className="font-cinzel font-bold text-xl" style={{ color: selectedPlayer === 0 ? '#ffd97a' : '#ffc542' }}>{match.oddsDraw!.toFixed(2)}</div>
-                  <div className="text-sm font-medium mt-0.5" style={{ color: selectedPlayer === 0 ? '#e8e2f5' : '#9990b8' }}>Draw</div>
-                </button>
-              )}
             </div>
+            {isVoidOnDraw && (
+              <div className="mt-2 text-[11px] text-[#9990b8] flex items-center gap-1.5">
+                <span className="text-[#ffc542]">ⓘ</span>
+                <span>Match nul (1-1) = paris remboursés automatiquement.</span>
+              </div>
+            )}
           </div>
 
           {/* Amount */}

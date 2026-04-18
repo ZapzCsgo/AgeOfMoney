@@ -86,6 +86,123 @@ async function oxaPost(path: string, body: Record<string, unknown>) {
   }, `oxaPost ${path}`);
 }
 
+/**
+ * Credit a deposit transaction that we've confirmed is "Paid" on OxaPay's
+ * side. Used both by the webhook (real-time IPN) and by the admin sync
+ * endpoint (poll-based recovery for deposits whose webhook was lost).
+ *
+ * Idempotent: if the transaction is already `completed`, this is a no-op.
+ */
+export async function creditPaidDeposit(transactionId: string): Promise<{ credited: boolean; coins?: number }> {
+  const transaction = await prisma.transaction.findUnique({ where: { id: transactionId } });
+  if (!transaction || transaction.status === 'completed') return { credited: false };
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: transaction.userId },
+      data:  { coins: { increment: transaction.coins } },
+    }),
+    prisma.transaction.update({
+      where: { id: transaction.id },
+      data:  { status: 'completed' },
+    }),
+  ]);
+
+  const updatedUser = await prisma.user.findUnique({ where: { id: transaction.userId }, select: { coins: true } });
+  const io = getIo();
+  if (io && updatedUser) {
+    io.to(`user:${transaction.userId}`).emit('coinsUpdate', { coins: updatedUser.coins, direction: 'up' });
+    io.to(`user:${transaction.userId}`).emit('notification', { type: 'deposit', amount: transaction.coins });
+  }
+
+  logger.info(`[Deposit] Credited ${transaction.coins} coins to user ${transaction.userId} (tx ${transaction.id})`);
+
+  // ── Affiliate referral tracking (same logic as webhook) ───────────────────
+  if (transaction.affiliateCodeId) {
+    try {
+      const affCode = await prisma.affiliateCode.findUnique({ where: { id: transaction.affiliateCodeId } });
+      if (affCode) {
+        const depositedCoins = transaction.coins;
+        const [referrer, referredUser] = await Promise.all([
+          prisma.user.findUnique({ where: { id: affCode.userId }, select: { lastIpHash: true } }),
+          prisma.user.findUnique({ where: { id: transaction.userId }, select: { lastIpHash: true } }),
+        ]);
+        const sameIp = referrer?.lastIpHash && referredUser?.lastIpHash && referrer.lastIpHash === referredUser.lastIpHash;
+        const suspicious = !!sameIp;
+        const suspiciousReason = sameIp ? 'Même IP que le parrain au moment du dépôt' : null;
+
+        await prisma.affiliateReferral.upsert({
+          where: { referredUserId: transaction.userId },
+          update: {
+            totalDeposited: { increment: depositedCoins },
+            lastActiveAt:   new Date(),
+            ...(suspicious ? { suspicious: true, suspiciousReason } : {}),
+          },
+          create: {
+            affiliateCodeId: affCode.id,
+            referredUserId:  transaction.userId,
+            totalDeposited:  depositedCoins,
+            isActive:        false,
+            suspicious,
+            suspiciousReason,
+          },
+        });
+
+        const fresh = await prisma.affiliateCode.findUnique({ where: { id: affCode.id }, include: { referrals: true } });
+        if (fresh) {
+          const { computeTierRate } = await import('../services/affiliateService');
+          const totalRefs = fresh.referrals.length;
+          const totalDep  = fresh.referrals.reduce((s, r) => s + r.totalDeposited, 0);
+          const newRate   = computeTierRate(totalRefs, totalDep);
+          if (newRate !== fresh.commissionRate) {
+            await prisma.affiliateCode.update({ where: { id: fresh.id }, data: { commissionRate: newRate } });
+            logger.info(`[Affiliate] ${fresh.code} tier upgraded to ${(newRate * 100).toFixed(0)}%`);
+          }
+        }
+      }
+    } catch (err) { logger.error('[Affiliate] Referral tracking error:', err); }
+  }
+
+  return { credited: true, coins: transaction.coins };
+}
+
+/**
+ * Query OxaPay for the current status of a single deposit (by track_id) and
+ * apply DB updates if it has progressed. Returns the normalized status.
+ * Used by the admin sync endpoint and the periodic cron.
+ */
+export async function syncOxaPayDepositStatus(transactionId: string): Promise<'unchanged' | 'paid' | 'expired' | 'failed' | 'no-track' | 'api-error'> {
+  const tx = await prisma.transaction.findUnique({ where: { id: transactionId } });
+  if (!tx || tx.type !== 'deposit' || tx.status !== 'pending') return 'unchanged';
+  if (!tx.stripeSessionId) return 'no-track';
+
+  try {
+    const inquiry = await oxaPost('/payment/inquiry', { track_id: tx.stripeSessionId });
+    // OxaPay v1 wraps the payload in `{ status: 200, data: { status, ... } }`.
+    // The inner `status` is the payment state ("Paid"/"Waiting"/"Expired"/...)
+    const paymentStatus = (inquiry?.data?.status ?? inquiry?.status ?? '').toString().toLowerCase();
+
+    if (paymentStatus === 'paid') {
+      await creditPaidDeposit(tx.id);
+      return 'paid';
+    }
+    if (paymentStatus === 'expired') {
+      await prisma.transaction.update({ where: { id: tx.id }, data: { status: 'failed' } });
+      logger.info(`[OxaPaySync] Transaction ${tx.id} marked failed (expired)`);
+      return 'expired';
+    }
+    if (paymentStatus === 'failed' || paymentStatus === 'cancelled') {
+      await prisma.transaction.update({ where: { id: tx.id }, data: { status: 'failed' } });
+      logger.info(`[OxaPaySync] Transaction ${tx.id} marked failed (${paymentStatus})`);
+      return 'failed';
+    }
+    return 'unchanged';
+  } catch (err) {
+    logger.warn(`[OxaPaySync] Inquiry failed for tx ${tx.id}: ${(err as Error).message}`);
+    return 'api-error';
+  }
+}
+
 async function oxaPayout(body: Record<string, unknown>) {
   return withRetry(async () => {
     const res = await axios.post(`${OXAPAY_API}/payout`, body, {
@@ -416,108 +533,8 @@ router.post('/crypto/webhook', async (req: Request, res: Response): Promise<void
       res.status(200).send('ok'); return;
     }
 
-    const transaction = await prisma.transaction.findUnique({
-      where: { id: order_id },
-    });
-
-    if (!transaction || transaction.status === 'completed') {
-      res.status(200).send('ok'); return;
-    }
-
-    // Credit coins to depositor atomically
-    await prisma.$transaction([
-      prisma.user.update({
-        where: { id: transaction.userId },
-        data:  { coins: { increment: transaction.coins } },
-      }),
-      prisma.transaction.update({
-        where: { id: transaction.id },
-        data:  { status: 'completed' },
-      }),
-    ]);
-
-    const updatedUser = await prisma.user.findUnique({ where: { id: transaction.userId }, select: { coins: true } });
-    const io = getIo();
-    if (io && updatedUser) {
-      io.to(`user:${transaction.userId}`).emit('coinsUpdate', { coins: updatedUser.coins, direction: 'up' });
-      io.to(`user:${transaction.userId}`).emit('notification', { type: 'deposit', amount: transaction.coins });
-    }
-
-    logger.info(`[Deposit] Credited ${transaction.coins} coins to user ${transaction.userId} (OxaPay order ${order_id})`);
-
-    // ── Process affiliate commission ───────────────────────────────────────────
-    // ── Affiliate referral tracking ────────────────────────────────────────────
-    // We do NOT pay commission on deposits. Commission is paid as revshare
-    // on the user's NET LOSSES at bet resolution time (see affiliateService.ts).
-    // Here we just record/update the referral link and tier progression.
-    if (transaction.affiliateCodeId) {
-      try {
-        const affCode = await prisma.affiliateCode.findUnique({
-          where: { id: transaction.affiliateCodeId },
-        });
-
-        if (affCode) {
-          const depositedCoins = transaction.coins;
-
-          // Self-referral detection: compare IP hashes of referrer and referred user.
-          // If they match, flag the referral as suspicious for admin review.
-          const [referrer, referredUser] = await Promise.all([
-            prisma.user.findUnique({ where: { id: affCode.userId }, select: { lastIpHash: true } }),
-            prisma.user.findUnique({ where: { id: transaction.userId }, select: { lastIpHash: true } }),
-          ]);
-          const sameIp =
-            referrer?.lastIpHash &&
-            referredUser?.lastIpHash &&
-            referrer.lastIpHash === referredUser.lastIpHash;
-          const suspicious = !!sameIp;
-          const suspiciousReason = sameIp ? 'Même IP que le parrain au moment du dépôt' : null;
-
-          await prisma.affiliateReferral.upsert({
-            where: { referredUserId: transaction.userId },
-            update: {
-              totalDeposited: { increment: depositedCoins },
-              lastActiveAt:   new Date(),
-              ...(suspicious ? { suspicious: true, suspiciousReason } : {}),
-            },
-            create: {
-              affiliateCodeId: affCode.id,
-              referredUserId:  transaction.userId,
-              totalDeposited:  depositedCoins,
-              isActive:        false, // activates on first wager, not on deposit
-              suspicious,
-              suspiciousReason,
-            },
-          });
-
-          if (suspicious) {
-            logger.warn(`[Affiliate] SELF-REFERRAL SUSPECTED: code=${affCode.code}, user=${transaction.userId} (same IP as referrer)`);
-          }
-
-          // Re-evaluate tier based on aggregate referrals/deposits
-          const fresh = await prisma.affiliateCode.findUnique({
-            where: { id: affCode.id },
-            include: { referrals: true },
-          });
-          if (fresh) {
-            const { computeTierRate } = await import('../services/affiliateService');
-            const totalRefs = fresh.referrals.length;
-            const totalDep  = fresh.referrals.reduce((s, r) => s + r.totalDeposited, 0);
-            const newRate   = computeTierRate(totalRefs, totalDep);
-            if (newRate !== fresh.commissionRate) {
-              await prisma.affiliateCode.update({
-                where: { id: fresh.id },
-                data:  { commissionRate: newRate },
-              });
-              logger.info(`[Affiliate] ${fresh.code} tier upgraded to ${(newRate * 100).toFixed(0)}%`);
-            }
-          }
-
-          logger.info(`[Affiliate] Referral tracked: code=${affCode.code}, user=${transaction.userId}, deposit=${depositedCoins}`);
-        }
-      } catch (affErr) {
-        logger.error('[Affiliate] Referral tracking error:', affErr);
-      }
-    }
+    if (typeof order_id !== 'string') { res.status(200).send('ok'); return; }
+    await creditPaidDeposit(order_id);
 
     // OxaPay requires "ok" response
     res.status(200).send('ok');

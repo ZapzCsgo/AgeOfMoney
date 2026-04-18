@@ -393,44 +393,49 @@ export function calculateOddsV2(input: OddsInputV2): OddsResult {
   odds1 = Math.min(MAX_ODDS, Math.max(MIN_ODDS, Math.round(odds1 * 100) / 100));
   odds2 = Math.min(MAX_ODDS, Math.max(MIN_ODDS, Math.round(odds2 * 100) / 100));
 
-  // ── Draw odds for even BO formats ──────────────────────────────────────
+  // ── BO2/BO4 "draw void" market (Pinnacle-style) ────────────────────────
+  // For even BO formats, we offer 2 outcomes only — P1 wins the match or
+  // P2 wins the match. A 1-1 (or 2-2 for BO4) draw refunds all bets.
+  //
+  // This matches the CS2 / Dota 2 / LoL group-stage convention and produces
+  // tighter, more attractive odds (1.90/2.10 range) than a 3-way market.
+  //
+  // Math: given the unconditional series probs prob1, probDraw, prob2, the
+  // conditional "P1 wins given no draw" is prob1 / (prob1 + prob2). We still
+  // compute probDraw internally so the solver knows the matchup's closeness,
+  // but we don't expose it as a bettable market.
   const format = input.format ?? 'BO3';
   const boNum = parseInt(format.replace(/\D/g, ''), 10) || 3;
-  let oddsDraw: number | undefined;
   let probDraw: number | undefined;
   if (boNum % 2 === 0) {
-    // prob1 coming out of blending is a SERIES win probability (training data
-    // `won` flags are series-level — BO3/BO5/BO7 series wins). To compute a
-    // correct draw probability for BO2/BO4 we need the underlying per-game
-    // prob. Backsolve assuming BO3 is the dominant format in training data.
     const pPerGame = solvePerGameProb(prob1, 'BO3');
-    // Pure binomial P(draw) peaks at 50% when pPerGame=0.5, which is the
-    // mathematical maximum but empirically too high: competitive BO2 draws
-    // cluster around 30-40% in AoE/CS/LoL. Apply a 0.70 shrinkage so a
-    // 50/50 matchup predicts ~35% draw instead of 50%. Ceiling lowered from
-    // 0.60 to 0.45 for the same reason — avoids pathological near-50/50
-    // predictions that crush the main-bet odds.
+    // Shrinkage: pure binomial peaks at 50% at p=0.5, empirically BO2 draws
+    // cluster around 30-40% in AoE/CS/LoL.
     const DRAW_SHRINKAGE_EVEN_BO = 0.70;
     probDraw = calculateDrawProbability(pPerGame, boNum) * DRAW_SHRINKAGE_EVEN_BO;
     probDraw = Math.max(0.05, Math.min(0.45, probDraw));
-    // Redistribute: scale down p1/p2 so p1+p2+pDraw = 1
-    const winTotal = 1 - probDraw;
-    const ratio = prob1 / (prob1 + prob2);
-    prob1 = winTotal * ratio;
-    prob2 = winTotal * (1 - ratio);
-    // Apply 3-way margin (10% overround)
-    odds1 = Math.min(MAX_ODDS, Math.max(MIN_ODDS, Math.round(1 / (prob1 * (1 + HOUSE_MARGIN_3WAY)) * 100) / 100));
-    odds2 = Math.min(MAX_ODDS, Math.max(MIN_ODDS, Math.round(1 / (prob2 * (1 + HOUSE_MARGIN_3WAY)) * 100) / 100));
-    oddsDraw = Math.min(MAX_ODDS, Math.max(MIN_ODDS, Math.round(1 / (probDraw * (1 + HOUSE_MARGIN_3WAY)) * 100) / 100));
+    // Conditional 2-way probabilities (given non-draw) — what the market prices.
+    // prob1, prob2 keep their original values (they'll be reported as conditional
+    // on "no draw" via normalization below).
+    const winTotal = prob1 + prob2; // already sums to 1 before this block, but
+    // be defensive: if we ever change the blending above, this stays correct.
+    const condProb1 = winTotal > 0 ? prob1 / winTotal : 0.5;
+    const condProb2 = winTotal > 0 ? prob2 / winTotal : 0.5;
+    // Apply 2-way margin to the conditional probs → tight odds like 1.90/2.10
+    odds1 = Math.min(MAX_ODDS, Math.max(MIN_ODDS, Math.round(1 / (condProb1 * (1 + HOUSE_MARGIN_2WAY)) * 100) / 100));
+    odds2 = Math.min(MAX_ODDS, Math.max(MIN_ODDS, Math.round(1 / (condProb2 * (1 + HOUSE_MARGIN_2WAY)) * 100) / 100));
+    // Report conditional probs in the result so downstream UIs see what the
+    // market actually prices. Unconditional probDraw is reported separately.
+    prob1 = condProb1;
+    prob2 = condProb2;
   }
 
   const impliedProb1 = 1 / odds1;
   const impliedProb2 = 1 / odds2;
-  const margin = oddsDraw
-    ? (impliedProb1 + impliedProb2 + 1 / oddsDraw - 1) * 100
-    : (impliedProb1 + impliedProb2 - 1) * 100;
+  const margin = (impliedProb1 + impliedProb2 - 1) * 100;
 
-  return { odds1, odds2, oddsDraw, prob1, prob2, probDraw, impliedProb1, impliedProb2, margin };
+  // oddsDraw intentionally undefined — BO2/BO4 are 2-way void-on-draw markets.
+  return { odds1, odds2, prob1, prob2, probDraw, impliedProb1, impliedProb2, margin };
 }
 
 // ── Legacy compatibility wrappers ──────────────────────────────────────────────

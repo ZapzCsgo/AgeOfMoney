@@ -12,7 +12,7 @@ const router = Router();
 const placeBetSchema = z.object({
   matchId: z.string().min(1),
   amount: z.number().int().min(2, 'Minimum bet is 2 coins').max(500, 'Maximum bet is 500 coins'),
-  selectedPlayer: z.union([z.literal(0), z.literal(1), z.literal(2)]),
+  selectedPlayer: z.union([z.literal(1), z.literal(2)]),
   // Optional: the odds the user saw when placing the bet. Server rejects if
   // divergent > 5% from server-recomputed odds, preventing silent "odds moved"
   // payouts.

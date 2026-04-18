@@ -684,6 +684,40 @@ router.get('/suspicious', async (_req: Request, res: Response): Promise<void> =>
   }
 });
 
+// POST /transactions/sync-oxapay — Poll OxaPay inquiry API for every pending
+// deposit and apply status updates. Useful when the IPN webhook was missed
+// (e.g. network blip, Cloudflare bounce, dev env without public URL).
+router.post('/transactions/sync-oxapay', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const { syncOxaPayDepositStatus } = await import('./payments');
+    const pending = await prisma.transaction.findMany({
+      where: { type: 'deposit', status: 'pending' },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+      select: { id: true },
+    });
+
+    const counts = { checked: 0, paid: 0, expired: 0, failed: 0, noTrack: 0, apiError: 0 };
+    for (const tx of pending) {
+      counts.checked++;
+      const result = await syncOxaPayDepositStatus(tx.id);
+      if (result === 'paid') counts.paid++;
+      else if (result === 'expired') counts.expired++;
+      else if (result === 'failed') counts.failed++;
+      else if (result === 'no-track') counts.noTrack++;
+      else if (result === 'api-error') counts.apiError++;
+      // Rate-limit: OxaPay public API caps ~5 req/s. 250ms gap stays safe.
+      await new Promise(r => setTimeout(r, 250));
+    }
+
+    logger.info(`[OxaPaySync] admin trigger: ${JSON.stringify(counts)}`);
+    res.json({ ...counts, pendingTotal: pending.length });
+  } catch (error) {
+    logger.error('POST /admin/transactions/sync-oxapay error:', error);
+    res.status(500).json({ error: 'Failed to sync OxaPay statuses' });
+  }
+});
+
 // GET /transactions - Pending/recent withdrawals & deposits queue
 router.get('/transactions', async (req: Request, res: Response): Promise<void> => {
   try {
