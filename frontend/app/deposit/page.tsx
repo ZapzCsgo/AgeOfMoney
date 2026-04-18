@@ -496,7 +496,7 @@ export default function DepositPage() {
 
                 <div className="p-4 flex items-center gap-4">
                   <div
-                    className="shrink-0 w-12 h-12 rounded-full overflow-hidden flex items-center justify-center"
+                    className="shrink-0 w-12 h-12 rounded-full flex items-center justify-center p-2"
                     style={{
                       background: '#fff',
                       boxShadow: paymentMethod === 'card'
@@ -505,7 +505,7 @@ export default function DepositPage() {
                     }}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/debit-card.png" alt="Carte bancaire" className="w-full h-full object-cover" />
+                    <img src="/debit-card.png" alt="Carte bancaire" className="w-full h-full object-contain" />
                   </div>
 
                   <div className="flex-1 min-w-0">
