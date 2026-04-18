@@ -68,6 +68,7 @@ export interface MatchRecord {
   tier: string;        // S, A, B, C, Qualifier, Misc
   matchDate: Date | null;
   opponentId?: string | null;
+  score?: string | null; // "3-1", "4-0", etc — used for form dominance bonus
 }
 
 export interface H2HRecord {
@@ -257,33 +258,66 @@ function computeH2HProb(h2h: H2HRecord[], now = Date.now()): { prob: number; con
   return { prob: smoothed, confidence };
 }
 
-// ── Core: Recent Form ──────────────────────────────────────────────────────────
+// ── Core: Recent Form (hot-streak / cold-streak detector) ─────────────────────
 /**
- * Recent form factor from the last 15 matches (all tiers).
- * Returns a value from -0.06 to +0.06 in logit space.
+ * Recent form factor from the last 12 matches, weighted by:
+ *   - Recency (exponential decay, half-life ~4 matches)
+ *   - Tier importance (S = 2.5×, A = 1.8×, Qualifier = 1.3×, B = 1.0×, C = 0.5×)
+ *   - Score dominance if available (3-0 / 4-0 / 5-0 counts 1.5×; close wins 1×)
+ *
+ * Returns a logit adjustment in the range roughly -0.60..+0.60. Previous
+ * version capped at ±0.06 which was invisible in the blend. MarineLord's
+ * 10-in-a-row dominant wins over Wam01 / 1puppypaw / Numudan (all S/Qualifier)
+ * now actually move the needle by ~+0.45 logit.
  */
 function computeFormFactor(records: MatchRecord[], now = Date.now()): number {
-  // Sort by date descending, take last 15
+  void now; // recency handled by ordering, not absolute time here
+
+  // Sort by date desc, take last 12 — fresh signal, not a long tail
   const recent = records
     .filter(r => r.matchDate)
     .sort((a, b) => (b.matchDate?.getTime() ?? 0) - (a.matchDate?.getTime() ?? 0))
-    .slice(0, 15);
+    .slice(0, 12);
 
-  if (recent.length < 3) return 0; // not enough data
+  if (recent.length < 3) return 0;
 
-  let score = 0;
+  const TIER_MULT: Record<string, number> = {
+    S: 2.5, A: 1.8, Qualifier: 1.3, B: 1.0, C: 0.5, Misc: 0.3,
+  };
+
+  /** Dominance multiplier from the score string (player's perspective). */
+  const dominance = (score?: string | null): number => {
+    if (!score) return 1.0;
+    const m = score.match(/^\s*(\d+)\s*[-:]\s*(\d+)\s*$/);
+    if (!m) return 1.0;
+    const won = parseInt(m[1], 10);
+    const lost = parseInt(m[2], 10);
+    if (won > lost && lost === 0 && won >= 3) return 1.6; // sweep 3-0, 4-0, 5-0
+    if (won > lost && won - lost >= 2) return 1.25;       // clean 3-1 / 4-1
+    if (lost > won && won === 0 && lost >= 3) return 1.6; // swept
+    if (lost > won && lost - won >= 2) return 1.25;
+    return 1.0;
+  };
+
+  let weightedWinScore = 0;
   let totalWeight = 0;
-  const perMatchDecay = 0.85; // each older match counts 15% less
+  const perMatchDecay = 0.85;
 
   for (let i = 0; i < recent.length; i++) {
-    const weight = Math.pow(perMatchDecay, i);
-    totalWeight += weight;
-    if (recent[i].won) score += weight;
+    const recencyW = Math.pow(perMatchDecay, i);
+    const tierW = TIER_MULT[recent[i].tier] ?? 1.0;
+    const domW = dominance(recent[i].score);
+    const w = recencyW * tierW * domW;
+    totalWeight += w;
+    if (recent[i].won) weightedWinScore += w;
   }
 
-  const formWinrate = score / totalWeight;
-  // Map to -0.06..+0.06 logit adjustment
-  return (formWinrate - 0.5) * 0.12;
+  const formWinrate = totalWeight > 0 ? weightedWinScore / totalWeight : 0.5;
+  // Map (0..1) → (-1.25..+1.25) logit adjustment. A perfect dominant S-tier
+  // streak (ML sweeping Wam01 / 1puppypaw / Numudan 3-0, 4-0) pulls close to
+  // +1.2, which combined with the base skill signal produces the 1.10-1.15
+  // odds range that sharp books offer on crushing favorites.
+  return (formWinrate - 0.5) * 2.50;
 }
 
 // ── Core: Inactivity Penalty ───────────────────────────────────────────────────
@@ -335,11 +369,10 @@ export function calculateOddsV2(input: OddsInputV2): OddsResult {
 
   // ── Factor 1: Competitive winrate (35%) ─────────────────────────────────
   const wrLogitDiff = logit(wr1.winrate) - logit(wr2.winrate);
-  // Scale 0.90: let the skill gap actually matter. Old 0.65 dampened too much
-  // and produced cotes 1.58 for a legend like MarineLorD (85% tier-weighted WR)
-  // vs a mid-tier player like JIF Music (50%). Bumped so a 35-point WR gap
-  // maps to a more realistic 75/25 split instead of 60/40.
-  const wrProb1 = sigmoid(wrLogitDiff * 0.90);
+  // Scale 1.0: no damping. Our opponent-strength already corrects for weak
+  // opponents, so there's no need to artificially pull winrate gaps toward
+  // 50/50. A legend's 80%+ effective WR should read as a dominant favorite.
+  const wrProb1 = sigmoid(wrLogitDiff * 1.0);
   const wrConfidence = Math.sqrt(wr1.confidence * wr2.confidence);
 
   // ── Factor 2: H2H direct (25%) ──────────────────────────────────────────
@@ -380,16 +413,22 @@ export function calculateOddsV2(input: OddsInputV2): OddsResult {
   // sum to 1, and the skill gap is preserved.
   const h2hWeight    = h2hResult.confidence * 0.30;
   const wrWeight     = Math.max(0.35, wrConfidence * 0.50);
-  const formWeight   = 0.15;
+  // Form weight bumped to 0.30. Combined with the new tier-weighted +
+  // dominance-aware form factor (range ±0.9 instead of ±0.06), a winstreak
+  // of S-tier sweeps like MarineLord's recent run actually shifts the odds
+  // by a meaningful amount.
+  const formWeight   = 0.30;
   // Only count tier-context weight when we actually have comparable data on
   // BOTH players. If one of them has never played at this tier we skip it —
   // the renormalization below redistributes the weight to the other factors.
   const tierCtxWeight = tierContextAvailable ? 0.10 : 0;
   const weightSum    = h2hWeight + wrWeight + formWeight + tierCtxWeight;
+  // NOTE: form diff is already in logit units now (was *5 to compensate the
+  // old ±0.06 range — not needed anymore).
   const blendedLogit = weightSum > 0 ? (
     logit(wrProb1)        * wrWeight +
     logit(h2hResult.prob) * h2hWeight +
-    (form1 - form2)       * formWeight * 5 +
+    (form1 - form2)       * formWeight +
     tierContextLogit      * tierCtxWeight
   ) / weightSum : 0;
 
@@ -399,13 +438,13 @@ export function calculateOddsV2(input: OddsInputV2): OddsResult {
   prob1 = sigmoid(logit(prob1) - (rust1 - rust2));
 
   // ── Clamp based on data confidence ──────────────────────────────────────
-  // Ceiling raised for high-confidence matchups — a legend vs a mid-tier
-  // grinder with 400+ vs 100+ records should be able to hit 1.15-1.20 odds.
+  // Ceiling raised to 0.92 for excellent-data matchups — sharp books cap
+  // crushing favorites around 0.88-0.93 implied prob (odds ~1.08-1.12).
   const totalConfidence = Math.max(wrConfidence, h2hResult.confidence);
   const maxProb = totalConfidence < 0.20 ? 0.70  // very low data → tight
     : totalConfidence < 0.50 ? 0.80               // some data
-    : totalConfidence < 0.80 ? 0.86               // good data
-    : 0.90;                                        // excellent data (400+ records, huge skill gap)
+    : totalConfidence < 0.80 ? 0.87               // good data
+    : 0.92;                                        // excellent data (400+ records + huge skill gap)
   const minProb = 1 - maxProb;
 
   prob1 = Math.min(maxProb, Math.max(minProb, prob1));

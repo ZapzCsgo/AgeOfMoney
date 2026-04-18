@@ -710,11 +710,11 @@ export async function enrichMatchWithH2H(matchId: string): Promise<void> {
   const [p1Records, p2Records, tournament] = await Promise.all([
     prisma.playerMatchRecord.findMany({
       where: { playerId: match.player1Id, game: match.game, NOT: { opponentName: SENTINEL_OPPONENT } },
-      select: { won: true, tier: true, matchDate: true, opponentId: true },
+      select: { won: true, tier: true, matchDate: true, opponentId: true, score: true },
     }),
     prisma.playerMatchRecord.findMany({
       where: { playerId: match.player2Id, game: match.game, NOT: { opponentName: SENTINEL_OPPONENT } },
-      select: { won: true, tier: true, matchDate: true, opponentId: true },
+      select: { won: true, tier: true, matchDate: true, opponentId: true, score: true },
     }),
     match.tournamentId
       ? prisma.tournament.findUnique({ where: { id: match.tournamentId }, select: { tier: true } })
@@ -750,8 +750,8 @@ export async function enrichMatchWithH2H(matchId: string): Promise<void> {
   }
 
   const newOdds = calculateOddsV2({
-    p1Records: p1Records.map(r => ({ won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId })),
-    p2Records: p2Records.map(r => ({ won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId })),
+    p1Records: p1Records.map(r => ({ won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId, score: r.score })),
+    p2Records: p2Records.map(r => ({ won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId, score: r.score })),
     h2h: h2hFull,
     daysSinceLastMatch1: profile1.daysSince,
     daysSinceLastMatch2: profile2.daysSince,
