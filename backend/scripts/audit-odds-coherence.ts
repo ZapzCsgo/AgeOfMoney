@@ -12,8 +12,9 @@
  * Usage: npx tsx scripts/audit-odds-coherence.ts [--json] [--all-statuses]
  */
 
-import { prisma } from '../src/index';
+import { PrismaClient } from '@prisma/client';
 import { buildBlendedDistribution, type Bo } from '../src/services/exactScoreModel';
+const prisma = new PrismaClient();
 
 interface Violation {
   matchId: string;

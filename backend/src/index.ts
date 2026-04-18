@@ -288,9 +288,13 @@ setTimeout(async () => {
 
 const PORT = parseInt(process.env.PORT || '4000', 10);
 
-httpServer.listen(PORT, () => {
-  logger.info(`AgeOfMoney backend running on port ${PORT}`);
-});
+// Scripts that import from src/index (for `prisma`) set SKIP_SERVER=1 to
+// avoid "port already in use" when the dev server is also running.
+if (!process.env.SKIP_SERVER) {
+  httpServer.listen(PORT, () => {
+    logger.info(`AgeOfMoney backend running on port ${PORT}`);
+  });
+}
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {
