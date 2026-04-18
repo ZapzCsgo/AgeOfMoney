@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { requireAuth } from '../middleware/auth';
 import { placeBet, getUserStats } from '../services/betService';
 import { buildBlendedDistribution, type Bo, type ScoreDistribution } from '../services/exactScoreModel';
+import { solvePerGameProb } from '../services/oddsEngine';
 import { prisma } from '../index';
 import { z } from 'zod';
 import logger from '../logger';
@@ -12,7 +13,11 @@ const placeBetSchema = z.object({
   matchId: z.string().min(1),
   amount: z.number().int().min(10, 'Minimum bet is 10 coins').max(500, 'Maximum bet is 500 coins'),
   selectedPlayer: z.union([z.literal(0), z.literal(1), z.literal(2)]),
-});
+  // Optional: the odds the user saw when placing the bet. Server rejects if
+  // divergent > 5% from server-recomputed odds, preventing silent "odds moved"
+  // payouts.
+  expectedOdds: z.number().positive().optional(),
+}).strict();
 
 // POST / - Place a bet
 router.post('/', requireAuth, async (req: Request, res: Response): Promise<void> => {
@@ -23,14 +28,24 @@ router.post('/', requireAuth, async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    const { matchId, amount, selectedPlayer } = parsed.data;
+    const { matchId, amount, selectedPlayer, expectedOdds } = parsed.data;
     const userId = req.user!.id;
 
-    const bet = await placeBet(userId, matchId, amount, selectedPlayer);
+    const bet = await placeBet(userId, matchId, amount, selectedPlayer, expectedOdds);
 
     res.status(201).json({ data: bet, message: 'Bet placed successfully' });
   } catch (error) {
     if (error instanceof Error) {
+      const err = error as Error & { code?: string; expectedOdds?: number; currentOdds?: number };
+      if (err.code === 'ODDS_CHANGED') {
+        res.status(409).json({
+          error: err.message,
+          expectedOdds: err.expectedOdds,
+          currentOdds: err.currentOdds,
+          code: 'ODDS_CHANGED',
+        });
+        return;
+      }
       if (error.message.includes('Insufficient') || error.message.includes('closed') ||
           error.message.includes('already') || error.message.includes('not found') ||
           error.message.includes('maximum')) {
@@ -89,31 +104,14 @@ router.get('/my', requireAuth, async (req: Request, res: Response): Promise<void
 });
 
 // ── Exact score odds helper ───────────────────────────────────────────────────
-// Given per-game win probability p for P1 and format, return all score probs
-function solvePerGameProb(pMatch: number, format: string): number {
-  // Binary search for per-game probability p such that P(P1 wins series) = pMatch
-  const seriesWin = (p: number): number => {
-    if (format === 'BO1') return p;
-    if (format === 'BO3') return p*p*(3 - 2*p);
-    if (format === 'BO5') return p*p*p*(1 + 3*(1-p) + 6*(1-p)*(1-p));
-    if (format === 'BO7') return p*p*p*p*(1 + 4*(1-p) + 10*(1-p)*(1-p) + 20*(1-p)*(1-p)*(1-p));
-    return p;
-  };
-  if (pMatch <= 0 || pMatch >= 1) return pMatch;
-  let lo = 0.001, hi = 0.999;
-  for (let i = 0; i < 60; i++) {
-    const mid = (lo + hi) / 2;
-    if (seriesWin(mid) < pMatch) lo = mid; else hi = mid;
-  }
-  return (lo + hi) / 2;
-}
+// solvePerGameProb is now exported from oddsEngine.ts (single source of truth).
 
 const EXACT_SCORE_MARGIN = 0.15; // 15% house edge — esport industry standard
-// Hard max odds on exact-score bets. At launch we prefer to never pay more
-// than 15x the stake on a rare score, even if the model thinks it's that
-// unlikely. This is a final safety net on top of the distribution corridor
-// already enforced in exactScoreModel.ts.
-const EXACT_SCORE_MAX_ODDS = 15;
+// Hard max odds on exact-score bets. Set to 10 so rare scores whose fair
+// odds would exceed 10 all clamp to the same ceiling — keeps the overall
+// overround tight (target 14–20%) instead of ballooning past 25% on BO5/BO7
+// distributions where a few scores have <2% theoretical probability.
+const EXACT_SCORE_MAX_ODDS = 10;
 
 type ScoreEntry = { score: string; player: 0|1|2; loserGames: number; odds: number };
 
@@ -231,7 +229,7 @@ async function exactScoreOddsBlended(
   try {
     const theoretical = theoreticalDistribution(odds1, odds2, format, oddsDraw);
     const blended = await buildBlendedDistribution(
-      theoretical, matchId, p1Id, p2Id, format as Bo, odds1, odds2, matchTier,
+      theoretical, matchId, p1Id, p2Id, format as Bo, odds1, odds2, matchTier, oddsDraw,
     );
     return distributionToEntries(blended);
   } catch (err) {
@@ -268,19 +266,25 @@ router.get('/exact-scores/:matchId', async (req: Request, res: Response): Promis
 // POST /exact — Place an exact score bet
 // NOTE: odds are intentionally NOT accepted from the client. The server
 // recomputes them from the match state to prevent any forging attempt.
+// The Bet.boNumber column is reused to store `loserGames` for EXACT_SCORE
+// bets (see distributePayout in betService.ts which compares it to the
+// actual loser games count). Do not repurpose that column without migrating.
 const exactBetSchema = z.object({
   matchId: z.string().min(1),
   amount: z.number().int().min(10).max(500),
   score: z.string().min(3),         // e.g. "2-1"
   player: z.union([z.literal(1), z.literal(2)]),
   loserGames: z.number().int().min(0),
+  // Optional: the odds the user saw when placing the bet. Rejected if diverges
+  // by more than 5% from server-recomputed odds (anti-"silent odds move").
+  expectedOdds: z.number().positive().optional(),
 }).strict();
 
 router.post('/exact', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const parsed = exactBetSchema.safeParse(req.body);
     if (!parsed.success) { res.status(400).json({ error: 'Invalid bet data' }); return; }
-    const { matchId, amount, score, player, loserGames } = parsed.data;
+    const { matchId, amount, score, player, loserGames, expectedOdds } = parsed.data;
     const userId = req.user!.id;
 
     const [match, user] = await Promise.all([
@@ -311,10 +315,30 @@ router.post('/exact', requireAuth, async (req: Request, res: Response): Promise<
     if (!freshEntry) { res.status(400).json({ error: 'Invalid score for this match format' }); return; }
     const oddsAtBet = freshEntry.odds; // always use server-computed odds
 
+    // Odds-move guard: if the user passed expectedOdds and server recomputed
+    // a value > 5% different, reject so they can re-confirm with fresh odds.
+    if (expectedOdds !== undefined) {
+      const divergence = Math.abs(oddsAtBet - expectedOdds) / expectedOdds;
+      if (divergence > 0.05) {
+        res.status(409).json({
+          error: 'Odds have changed',
+          expectedOdds,
+          currentOdds: oddsAtBet,
+          message: 'Please confirm the new odds before placing the bet',
+        });
+        return;
+      }
+    }
+
+    // Atomic decrement: updateMany with a coins>=amount guard makes the
+    // balance check + decrement a single SQL statement, killing the race
+    // condition where two concurrent bets both read 100 and decrement 60.
     const bet = await prisma.$transaction(async (tx) => {
-      const freshUser = await tx.user.findUnique({ where: { id: userId }, select: { coins: true } });
-      if (!freshUser || freshUser.coins < amount) throw new Error('Insufficient coins');
-      await tx.user.update({ where: { id: userId }, data: { coins: { decrement: amount }, totalWagered: { increment: amount } } });
+      const updateResult = await tx.user.updateMany({
+        where: { id: userId, coins: { gte: amount } },
+        data: { coins: { decrement: amount }, totalWagered: { increment: amount } },
+      });
+      if (updateResult.count === 0) throw new Error('Insufficient coins');
       return tx.bet.create({
         data: { userId, matchId, betType: 'EXACT_SCORE', amount, oddsAtBet, selectedPlayer: player, boNumber: loserGames, status: 'PENDING' },
       });

@@ -64,14 +64,23 @@ export function BetForm({ match, onBetPlaced, initialPlayer = null }: BetFormPro
         setAuthToken(session.user.accessToken);
       }
 
-      await placeBet(match.id, amount, selectedPlayer);
+      await placeBet(match.id, amount, selectedPlayer, selectedOdds ?? undefined);
       setSuccess(t('bet_success', { amount }));
       onBetPlaced?.();
       setCooldown(true);
       setTimeout(() => setCooldown(false), 3000);
       setTimeout(() => setSuccess(null), 4000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('bet_err_generic'));
+      // 409 ODDS_CHANGED: server recomputed odds differ > 5% from what the
+      // user saw. Ask them to confirm with the new odds rather than placing
+      // silently. The API client throws with the response payload on non-2xx.
+      const axiosErr = err as { response?: { status?: number; data?: { code?: string; currentOdds?: number; expectedOdds?: number } } };
+      if (axiosErr.response?.status === 409 && axiosErr.response.data?.code === 'ODDS_CHANGED') {
+        const cur = axiosErr.response.data.currentOdds;
+        setError(`Les cotes ont bougé (× ${cur?.toFixed(2) ?? '?'}). Revalidez votre pari.`);
+      } else {
+        setError(err instanceof Error ? err.message : t('bet_err_generic'));
+      }
     } finally {
       setLoading(false);
     }

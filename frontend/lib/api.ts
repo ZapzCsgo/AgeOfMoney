@@ -92,8 +92,10 @@ export async function getTournament(id: string): Promise<ApiResponse<Tournament 
 }
 
 // Bets
-export async function placeBet(matchId: string, amount: number, selectedPlayer: 0 | 1 | 2): Promise<ApiResponse<Bet>> {
-  const res = await apiClient.post('/bets', { matchId, amount, selectedPlayer });
+export async function placeBet(matchId: string, amount: number, selectedPlayer: 0 | 1 | 2, expectedOdds?: number): Promise<ApiResponse<Bet>> {
+  const body: Record<string, unknown> = { matchId, amount, selectedPlayer };
+  if (expectedOdds !== undefined) body.expectedOdds = expectedOdds;
+  const res = await apiClient.post('/bets', body);
   return res.data as ApiResponse<Bet>;
 }
 

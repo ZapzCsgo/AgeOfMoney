@@ -887,6 +887,36 @@ async function syncMatchScore(matchId: string): Promise<void> {
       data: { p1Score, p2Score, status: 'COMPLETED', resultScore, betsOpen: false, currentGameId: null },
     });
     await distributeDrawPayout(matchId);
+
+    // Store the draw outcome in PlayerMatchRecord so the odds model can learn
+    // empirical draw rates. Without this, the training data contains zero
+    // draws and the model systematically under-predicts them.
+    const tournamentName = match.tournament?.name ?? 'Tournament';
+    for (const [playerId, opponentId, opponentName] of [
+      [match.player1.id, match.player2.id, match.player2.name],
+      [match.player2.id, match.player1.id, match.player1.name],
+    ] as [string, string, string][]) {
+      await prisma.playerMatchRecord.upsert({
+        where: {
+          playerId_opponentName_tournamentName_matchDate: {
+            playerId, opponentName, tournamentName, matchDate: match.scheduledAt,
+          },
+        },
+        create: {
+          playerId, opponentName, opponentId,
+          game: match.game,
+          won: false, // neither player won the series
+          score: resultScore,
+          tournamentName,
+          matchDate: match.scheduledAt,
+          format: match.format,
+          source: 'platform',
+          confidence: 1.0,
+        },
+        update: { won: false, score: resultScore, game: match.game },
+      }).catch(() => {});
+    }
+
     io?.emit('matchUpdate', { matchId, status: 'COMPLETED', p1Score, p2Score });
     return;
   }
