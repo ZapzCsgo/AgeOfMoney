@@ -278,6 +278,21 @@ export default function AdminPage() {
     }
   };
 
+  const [syncingOxaPay, setSyncingOxaPay] = useState(false);
+  const handleSyncOxaPay = async () => {
+    setSyncingOxaPay(true);
+    try {
+      const res = await apiClient.post('/admin/transactions/sync-oxapay', {});
+      const { checked, paid, expired, failed } = res.data;
+      showMsg('success', `${checked} vérifiées · ${paid} payées · ${expired + failed} expirées`);
+      await loadTransactions(txFilter);
+    } catch {
+      showMsg('error', 'Erreur sync OxaPay');
+    } finally {
+      setSyncingOxaPay(false);
+    }
+  };
+
   const handleSetResult = async () => {
     if (!resultModal || !resultForm.winnerId || !resultForm.score) return;
     setSubmitting(true);
@@ -1081,6 +1096,13 @@ export default function AdminPage() {
                 ))}
               </div>
               <span className="text-[12px] text-[#6b6488]">{adminTransactions.length} transaction(s)</span>
+              <button
+                onClick={handleSyncOxaPay}
+                disabled={syncingOxaPay}
+                className="ml-auto px-3 py-1 rounded text-[11px] font-medium transition-colors bg-[#13111f] border border-[#1e1a30] text-[#ffc542] hover:bg-[#1a1628] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {syncingOxaPay ? 'Sync…' : '🔄 Sync OxaPay'}
+              </button>
             </div>
             <div className="rounded-lg overflow-hidden" style={{ border: '1px solid #1e1a30', background: '#0d0b1a' }}>
               <table className="w-full text-[12px]">

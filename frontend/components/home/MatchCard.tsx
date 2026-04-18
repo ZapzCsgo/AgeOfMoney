@@ -38,7 +38,6 @@ export function MatchCard({ match }: MatchCardProps) {
 
   const flash1    = useOddsFlash(match.odds1);
   const flash2    = useOddsFlash(match.odds2);
-  const flashDraw = useOddsFlash(match.oddsDraw ?? 0);
 
   useEffect(() => {
     if (isLive || isCompleted) return;
@@ -142,14 +141,6 @@ export function MatchCard({ match }: MatchCardProps) {
                     {match.player1.name.substring(0, 8)}
                   </div>
                 </div>
-                {match.oddsDraw && (
-                  <div className={`aoe-odds-btn px-2.5 py-2 min-w-[52px] ${flashDraw === 'up' ? 'animate-odds-flash-up' : flashDraw === 'down' ? 'animate-odds-flash-down' : ''}`}>
-                    <div className="text-aoe-gold font-extrabold text-xl leading-none tabular-nums">
-                      {match.oddsDraw.toFixed(2)}
-                    </div>
-                    <div className="text-aoe-parchment-muted text-[10px] mt-1">Draw</div>
-                  </div>
-                )}
                 <div className={`aoe-odds-btn px-3 py-2 min-w-[62px] ${flash2 === 'up' ? 'animate-odds-flash-up' : flash2 === 'down' ? 'animate-odds-flash-down' : ''}`}>
                   <div className="text-aoe-gold font-extrabold text-xl leading-none tabular-nums">
                     {match.odds2.toFixed(2)}

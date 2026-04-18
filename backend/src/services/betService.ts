@@ -11,7 +11,7 @@ export async function placeBet(
   userId: string,
   matchId: string,
   amount: number,
-  selectedPlayer: 0 | 1 | 2, // 0 = draw, 1 = player1, 2 = player2
+  selectedPlayer: 0 | 1 | 2, // 1 = player1, 2 = player2 (0 = legacy draw, now rejected)
   expectedOdds?: number,
 ): Promise<{
   id: string;
@@ -90,30 +90,24 @@ export async function placeBet(
     throw new Error(`Maximum ${MAX_BETS_PER_MATCH} bets per match reached`);
   }
 
-  // Validate draw bet: only allowed for even BO formats
+  // Draw bets (selectedPlayer=0) are no longer offered — BO2/BO4 markets are
+  // now 2-way "void on draw" (match ending 1-1 refunds all bets). Reject any
+  // API caller still trying to place a draw bet with a clear message.
   if (selectedPlayer === 0) {
-    const bo = parseInt(match.format.replace(/\D/g, ''), 10) || 3;
-    if (bo % 2 !== 0) throw new Error('Draw bets are only available for even BO formats (BO2, BO4...)');
-    if (!match.oddsDraw) throw new Error('Draw odds not available for this match');
+    throw new Error("Le marché Égalité n'existe plus — les BO2/BO4 fonctionnent en void-on-draw (1-1 rembourse tous les paris).");
   }
 
   // Compute the same volume-adjusted odds the user sees in the live broadcast
-  // so what they see is what they pay. Draw odds aren't volume-adjusted (the
-  // 2-way liquidity signal doesn't apply to the 3rd outcome).
-  let oddsAtBet: number;
-  if (selectedPlayer === 0) {
-    oddsAtBet = match.oddsDraw ?? 0;
-  } else {
-    const existingBets = await prisma.bet.findMany({
-      where: { matchId, status: { notIn: [BetStatus.CANCELLED, BetStatus.REFUNDED] } },
-      select: { amount: true, oddsAtBet: true, selectedPlayer: true },
-    });
-    const betRecords = existingBets
-      .filter(b => b.selectedPlayer === 1 || b.selectedPlayer === 2)
-      .map(b => ({ amount: b.amount, oddsAtBet: b.oddsAtBet, selectedPlayer: b.selectedPlayer as 1 | 2 })) satisfies BetRecord[];
-    const adjusted = adjustOddsAdvanced(match.odds1, match.odds2, betRecords);
-    oddsAtBet = selectedPlayer === 1 ? adjusted.odds1 : adjusted.odds2;
-  }
+  // so what they see is what they pay.
+  const existingOtherBets = await prisma.bet.findMany({
+    where: { matchId, status: { notIn: [BetStatus.CANCELLED, BetStatus.REFUNDED] } },
+    select: { amount: true, oddsAtBet: true, selectedPlayer: true },
+  });
+  const betRecords = existingOtherBets
+    .filter(b => b.selectedPlayer === 1 || b.selectedPlayer === 2)
+    .map(b => ({ amount: b.amount, oddsAtBet: b.oddsAtBet, selectedPlayer: b.selectedPlayer as 1 | 2 })) satisfies BetRecord[];
+  const adjusted = adjustOddsAdvanced(match.odds1, match.odds2, betRecords);
+  const oddsAtBet: number = selectedPlayer === 1 ? adjusted.odds1 : adjusted.odds2;
 
   if (oddsAtBet <= 0) throw new Error('Invalid odds for this selection');
 

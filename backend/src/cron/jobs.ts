@@ -123,6 +123,36 @@ export function initCronJobs(): void {
     }
   });
 
+  // ── Every 5 minutes: poll OxaPay for pending deposits whose IPN was lost ──
+  // Transactions stay "pending" if the webhook didn't reach us (network, WAF,
+  // expired cert). We re-query OxaPay's inquiry endpoint and apply the same
+  // credit/fail logic as the webhook. Rate-limited internally (250ms gap).
+  cron.schedule('*/5 * * * *', async () => {
+    try {
+      const { syncOxaPayDepositStatus } = await import('../routes/payments');
+      // Only sync deposits created > 2 min ago — fresh ones may still resolve
+      // via webhook and we don't want to race the IPN.
+      const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000);
+      const pending = await prisma.transaction.findMany({
+        where: { type: 'deposit', status: 'pending', createdAt: { lt: twoMinAgo } },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+        select: { id: true },
+      });
+      let resolved = 0;
+      for (const tx of pending) {
+        const r = await syncOxaPayDepositStatus(tx.id);
+        if (r === 'paid' || r === 'expired' || r === 'failed') resolved++;
+        await new Promise(res => setTimeout(res, 250));
+      }
+      if (pending.length > 0) {
+        logger.info(`[CRON] OxaPay sync: ${pending.length} pending, ${resolved} resolved`);
+      }
+    } catch (err) {
+      logger.error('[CRON] OxaPay sync failed:', err);
+    }
+  });
+
   logger.info('All cron jobs initialized');
 
   // ── Run critical checks immediately on startup ────────────────────────────

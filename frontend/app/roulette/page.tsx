@@ -467,7 +467,7 @@ export default function RoulettePage() {
     if (!session) { showMsg('error', t('auth_required')); return; }
     if (!selectedZone) { showMsg('error', t('bet_err_select')); return; }
     const amount = parseInt(betAmount);
-    if (!amount || amount < 1) { showMsg('error', t('bet_err_min')); return; }
+    if (!amount || amount < 1) { showMsg('error', t('roulette_err_min')); return; }
     // Keep amount so user can chain bets without retyping
 
     // Optimistic update — show bet instantly before server confirms
