@@ -80,6 +80,27 @@ async function main() {
         getH2H(m.player1.id, m.player2.id, m.game),
       ]);
 
+      // Opponent-winrate map — downweight wins against weak opponents
+      const opponentIds = new Set<string>();
+      for (const r of [...p1Records, ...p2Records]) if (r.opponentId) opponentIds.add(r.opponentId);
+      const oppWinrateMap = new Map<string, number>();
+      if (opponentIds.size > 0) {
+        const oppRecords = await prisma.playerMatchRecord.findMany({
+          where: { playerId: { in: [...opponentIds] }, game: m.game },
+          select: { playerId: true, won: true },
+        });
+        const grouped = new Map<string, { total: number; wins: number }>();
+        for (const r of oppRecords) {
+          const g = grouped.get(r.playerId) ?? { total: 0, wins: 0 };
+          g.total++;
+          if (r.won) g.wins++;
+          grouped.set(r.playerId, g);
+        }
+        for (const [id, s] of grouped.entries()) {
+          if (s.total >= 3) oppWinrateMap.set(id, s.wins / s.total);
+        }
+      }
+
       const now = Date.now();
       const days1 = m.player1.lastMatchAt ? (now - m.player1.lastMatchAt.getTime()) / 86400000 : 30;
       const days2 = m.player2.lastMatchAt ? (now - m.player2.lastMatchAt.getTime()) / 86400000 : 30;
@@ -92,6 +113,7 @@ async function main() {
         daysSinceLastMatch2: days2,
         matchTier: m.tournament?.tier ?? undefined,
         format: m.format,
+        opponentWinrates: oppWinrateMap,
       });
 
       const oldOver = 1 / m.odds1 + 1 / m.odds2 + (m.oddsDraw ? 1 / m.oddsDraw : 0);
