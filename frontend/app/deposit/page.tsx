@@ -102,7 +102,7 @@ export default function DepositPage() {
   const { data: session } = useSession();
   const { t } = useT();
 
-  const [customCoins, setCustomCoins]          = useState('9');
+  const [customUsd, setCustomUsd]              = useState('5');
   const [selectedCrypto, setCrypto]            = useState<typeof CRYPTOS[0]>(CRYPTOS[0]);
   const [paymentMethod, setPaymentMethod]      = useState<'crypto' | 'card'>('crypto');
   const [promoCode, setPromoCode]              = useState('');
@@ -134,11 +134,11 @@ export default function DepositPage() {
   const [loading, setLoading]                  = useState(false);
   const [error, setError]                      = useState<string | null>(null);
 
-  const baseCoins  = parseInt(customCoins) || 0;
+  const usdCost    = parseFloat(customUsd) || 0;
+  const baseCoins  = Math.floor(usdCost * COINS_PER_USD);
   const bonusPct   = promoApplied ? promoBonusPct : 0;
   const bonusCoins = Math.floor(baseCoins * bonusPct / 100);
   const totalCoins = baseCoins + bonusCoins;
-  const usdCost    = useMemo(() => baseCoins > 0 ? (baseCoins / COINS_PER_USD) : 0, [baseCoins]);
   const eurCost    = useMemo(() => usdCost * USD_TO_EUR, [usdCost]);
 
   const applyPromo = async () => {
@@ -386,29 +386,29 @@ export default function DepositPage() {
 
         <div className="p-4 space-y-4">
 
-          {/* COIN AMOUNT INPUT */}
+          {/* USD AMOUNT INPUT */}
           <div>
-            <p className="text-[10px] font-cinzel tracking-widest text-aoe-parchment-dim uppercase mb-2">{t('deposit_amount_coins')}</p>
+            <p className="text-[10px] font-cinzel tracking-widest text-aoe-parchment-dim uppercase mb-2">Montant en dollars</p>
             <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-aoe-gold text-xl font-bold">$</span>
               <input
-                type="text" inputMode="numeric"
-                value={customCoins}
-                onChange={e => setCustomCoins(e.target.value.replace(/[^0-9]/g, ''))}
-                placeholder=""
-                className="w-full border rounded-xl px-4 py-3 text-aoe-parchment text-lg font-cinzel font-bold placeholder-aoe-parchment-muted/40 outline-none transition-colors pr-16"
-                style={{ background: 'rgba(255,255,255,0.04)', borderColor: customCoins ? '#ffc542' : '#1e1a30' }}
+                type="text" inputMode="decimal"
+                value={customUsd}
+                onChange={e => setCustomUsd(e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
+                placeholder="5.00"
+                className="w-full border rounded-xl pl-8 pr-4 py-3 text-aoe-parchment text-lg font-cinzel font-bold placeholder-aoe-parchment-muted/40 outline-none transition-colors"
+                style={{ background: 'rgba(255,255,255,0.04)', borderColor: customUsd ? '#ffc542' : '#1e1a30' }}
                 autoFocus
               />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-aoe-gold text-xl font-bold">⚜</span>
             </div>
-            <p className="text-[10px] mt-1.5 text-right" style={{ color: baseCoins > 0 && usdCost < 5 ? '#f87171' : '#3d3860' }}>
-              {baseCoins > 0 && usdCost < 5
-                ? `${t('deposit_min')} $5.00 — ${(5 - usdCost).toFixed(2)}$`
-                : `${t('deposit_min')} $5.00`}
+            <p className="text-[10px] mt-1.5 text-right" style={{ color: usdCost > 0 && usdCost < 5 ? '#f87171' : '#3d3860' }}>
+              {usdCost > 0 && usdCost < 5
+                ? `Minimum $5.00 — manque $${(5 - usdCost).toFixed(2)}`
+                : 'Minimum $5.00'}
             </p>
-            {baseCoins > 0 && usdCost >= 5 && (
+            {usdCost >= 5 && (
               <p className="text-aoe-parchment-muted text-xs mt-1 text-right">
-                = <span className="text-aoe-parchment font-semibold">${usdCost.toFixed(2)}</span>
+                = <span className="text-aoe-gold font-semibold">{baseCoins.toLocaleString('fr-FR')} ⚜</span>
                 <span className="mx-1 opacity-40">·</span>
                 <span className="opacity-70">≈ €{eurCost.toFixed(2)}</span>
               </p>
