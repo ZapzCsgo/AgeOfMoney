@@ -303,10 +303,25 @@ async function recalcActiveMatchOdds(): Promise<void> {
         format: match.format,
       });
 
-      const modelChanged = Math.abs(modelOdds.odds1 - match.odds1) > 0.005 || Math.abs(modelOdds.odds2 - match.odds2) > 0.005;
+      const drawChanged = modelOdds.oddsDraw !== undefined &&
+        (match.oddsDraw == null || Math.abs(modelOdds.oddsDraw - match.oddsDraw) > 0.005);
+      const modelChanged =
+        Math.abs(modelOdds.odds1 - match.odds1) > 0.005
+        || Math.abs(modelOdds.odds2 - match.odds2) > 0.005
+        || drawChanged;
       if (modelChanged) {
-        // Write fresh model odds to DB (volume adjustment is never stored — always computed live)
-        await prisma.match.update({ where: { id: match.id }, data: { odds1: modelOdds.odds1, odds2: modelOdds.odds2 } });
+        // Write fresh model odds to DB — MUST include oddsDraw for even BO
+        // formats, otherwise odds1/odds2 get refreshed but oddsDraw stays
+        // stale, causing the three markets to be internally incoherent
+        // (free money via arbitrage).
+        await prisma.match.update({
+          where: { id: match.id },
+          data: {
+            odds1: modelOdds.odds1,
+            odds2: modelOdds.odds2,
+            oddsDraw: modelOdds.oddsDraw ?? null,
+          },
+        });
       }
 
       // Apply volume adjustment on top of model odds for broadcast
