@@ -80,15 +80,10 @@ export function initCronJobs(): void {
     }
   });
 
-  // ── Every minute: auto-cancel stale coinflips (>15 min waiting) ────────────
-  cron.schedule('* * * * *', async () => {
-    try {
-      const { cancelStaleCoinFlips } = await import('../services/coinflipService');
-      await cancelStaleCoinFlips();
-    } catch (err) {
-      logger.error('[CRON] cancelStaleCoinFlips failed:', err);
-    }
-  });
+  // Note: coinflip auto-cancel removed — after 15 min waiting the CancelOrWait
+  // UI shows a manual Cancel button the creator can click when they want to
+  // abort. Keeping flips alive indefinitely is more forgiving UX; creator
+  // keeps control over their stake.
 
   // ── Every 10 minutes: deactivate tournaments with all matches completed ────
   cron.schedule('*/10 * * * *', async () => {
