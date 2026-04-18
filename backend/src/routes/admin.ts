@@ -323,7 +323,7 @@ router.post('/scrapers/run', async (req: Request, res: Response): Promise<void> 
         try {
           const h2h = await getPlayerH2HFromHistory(match.player1.id, match.player2.id, match.game);
           const newOdds = calculateOddsFromPlayers(match.player1, match.player2, h2h);
-          await prisma.match.update({ where: { id: match.id }, data: { odds1: newOdds.odds1, odds2: newOdds.odds2 } });
+          await prisma.match.update({ where: { id: match.id }, data: { odds1: newOdds.odds1, odds2: newOdds.odds2, ...(('oddsDraw' in newOdds) ? { oddsDraw: (newOdds as { oddsDraw?: number }).oddsDraw ?? null } : {}) } });
           io?.to(`matchRoom:${match.id}`).emit('oddsUpdate', { matchId: match.id, odds1: newOdds.odds1, odds2: newOdds.odds2 });
           io?.emit('matchUpdate', { matchId: match.id, odds1: newOdds.odds1, odds2: newOdds.odds2 });
         } catch { /* skip */ }
