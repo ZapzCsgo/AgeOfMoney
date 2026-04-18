@@ -287,11 +287,11 @@ async function recalcActiveMatchOdds(): Promise<void> {
       const [p1Records, p2Records] = await Promise.all([
         prisma.playerMatchRecord.findMany({
           where: { playerId: match.player1.id, game: match.game, NOT: { opponentName: SENTINEL_OPPONENT } },
-          select: { won: true, tier: true, matchDate: true, opponentId: true },
+          select: { won: true, tier: true, matchDate: true, opponentId: true, score: true },
         }),
         prisma.playerMatchRecord.findMany({
           where: { playerId: match.player2.id, game: match.game, NOT: { opponentName: SENTINEL_OPPONENT } },
-          select: { won: true, tier: true, matchDate: true, opponentId: true },
+          select: { won: true, tier: true, matchDate: true, opponentId: true, score: true },
         }),
       ]);
 
@@ -343,8 +343,8 @@ async function recalcActiveMatchOdds(): Promise<void> {
       }
 
       const modelOdds = calculateOddsV2({
-        p1Records: p1Records.map(r => ({ won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId })),
-        p2Records: p2Records.map(r => ({ won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId })),
+        p1Records: p1Records.map(r => ({ won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId, score: r.score })),
+        p2Records: p2Records.map(r => ({ won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId, score: r.score })),
         h2h,
         daysSinceLastMatch1: days1,
         daysSinceLastMatch2: days2,

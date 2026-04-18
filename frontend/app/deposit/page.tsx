@@ -289,10 +289,8 @@ export default function DepositPage() {
               </div>
             </div>
 
-            {/* Reopen button — only render when we have a hosted page URL.
-                Flows that only return an on-chain address (white-label USDT
-                without redirect) don't have a page to reopen — hide the
-                button in that case rather than 404 the user. */}
+            {/* Reopen button — takes the user straight to OxaPay where they
+                pick a crypto and get the wallet address to send funds to. */}
             {paymentUrl && (
               <a
                 href={paymentUrl}
@@ -301,7 +299,7 @@ export default function DepositPage() {
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-cinzel font-bold transition-colors"
                 style={{ background: '#ffc542', color: '#07060f' }}
               >
-                Ouvrir la page de paiement ↗
+                Aller sur OxaPay pour l'adresse wallet ↗
               </a>
             )}
 

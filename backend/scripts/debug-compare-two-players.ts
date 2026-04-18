@@ -64,7 +64,7 @@ async function compareOdds(p1Name: string, p2Name: string, tier: string, format:
   }
 
   const mapRec = (r: typeof p1.records[number]) => ({
-    won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId,
+    won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId, score: r.score,
   });
   const out = calculateOddsV2({
     p1Records: p1.records.map(mapRec),
@@ -106,7 +106,7 @@ async function main() {
 
   // Run the V2 engine with real records + opponent winrates
   const mapRec = (r: typeof ml.records[number]) => ({
-    won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId,
+    won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId, score: r.score,
   });
   const out = calculateOddsV2({
     p1Records: ml.records.map(mapRec),

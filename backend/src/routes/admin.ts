@@ -330,11 +330,11 @@ router.post('/scrapers/run', async (req: Request, res: Response): Promise<void> 
           const [p1Records, p2Records, h2h] = await Promise.all([
             prisma.playerMatchRecord.findMany({
               where: { playerId: match.player1.id, game: match.game, NOT: { opponentName: SENTINEL_OPPONENT } },
-              select: { won: true, tier: true, matchDate: true, opponentId: true },
+              select: { won: true, tier: true, matchDate: true, opponentId: true, score: true },
             }),
             prisma.playerMatchRecord.findMany({
               where: { playerId: match.player2.id, game: match.game, NOT: { opponentName: SENTINEL_OPPONENT } },
-              select: { won: true, tier: true, matchDate: true, opponentId: true },
+              select: { won: true, tier: true, matchDate: true, opponentId: true, score: true },
             }),
             getPlayerH2HFromHistory(match.player1.id, match.player2.id, match.game),
           ]);
@@ -342,8 +342,8 @@ router.post('/scrapers/run', async (req: Request, res: Response): Promise<void> 
           const days1 = match.player1.lastMatchAt ? (now - match.player1.lastMatchAt.getTime()) / 86400000 : 30;
           const days2 = match.player2.lastMatchAt ? (now - match.player2.lastMatchAt.getTime()) / 86400000 : 30;
           const newOdds = calculateOddsV2({
-            p1Records: p1Records.map(r => ({ won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId })),
-            p2Records: p2Records.map(r => ({ won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId })),
+            p1Records: p1Records.map(r => ({ won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId, score: r.score })),
+            p2Records: p2Records.map(r => ({ won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId, score: r.score })),
             h2h,
             daysSinceLastMatch1: days1,
             daysSinceLastMatch2: days2,
