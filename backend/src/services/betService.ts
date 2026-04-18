@@ -74,7 +74,7 @@ export async function placeBet(
   }
 
   // Check bet amount bounds
-  if (amount < 10) throw new Error('Minimum bet is 10 coins');
+  if (amount < 2) throw new Error('Minimum bet is 2 coins');
   if (amount > 500) throw new Error('Maximum bet is 500 coins');
 
   // Check max bets per match

@@ -51,7 +51,24 @@ function MyMatchBets({ matchId, match, refreshKey }: { matchId: string; match: M
       </div>
       <div className="space-y-2">
         {bets.map((bet) => {
-          const playerName = bet.selectedPlayer === 1 ? match.player1.name : match.player2.name;
+          // For exact-score bets, reconstruct the score string from boNumber
+          // (which stores loserGames) + match format. Winner side = the player
+          // picked. BO3 → 2-N, BO5 → 3-N, BO7 → 4-N. BO2 has only 2-0 / 0-2.
+          const isExact = bet.betType === 'EXACT_SCORE';
+          const boNum = parseInt(match.format.replace(/\D/g, ''), 10) || 3;
+          const winsNeeded = Math.ceil(boNum / 2);
+          const loserGames = bet.boNumber ?? 0;
+          const pickedName = bet.selectedPlayer === 0
+            ? 'Draw'
+            : bet.selectedPlayer === 1 ? match.player1.name : match.player2.name;
+          const scoreStr = isExact
+            ? (bet.selectedPlayer === 1
+                ? `${winsNeeded}-${loserGames}`
+                : `${loserGames}-${winsNeeded}`)
+            : null;
+          const betLabel = isExact
+            ? `${scoreStr} · ${pickedName}`
+            : pickedName;
           const potentialReturn = parseFloat((bet.amount * bet.oddsAtBet).toFixed(2));
           const statusColor =
             bet.status === 'WON'      ? 'text-emerald-400' :
@@ -81,9 +98,16 @@ function MyMatchBets({ matchId, match, refreshKey }: { matchId: string; match: M
                 }`,
               }}
             >
-              <div className="flex items-center justify-between">
-                <span className="font-cinzel font-bold text-xs text-aoe-parchment truncate">{playerName}</span>
-                <span className={cn('text-[10px] font-cinzel font-bold shrink-0 ml-2', statusColor)}>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  {isExact && (
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-cinzel font-bold uppercase tracking-wider shrink-0" style={{ background: 'rgba(255,197,66,0.15)', color: '#ffc542', border: '1px solid rgba(255,197,66,0.3)' }}>
+                      Score
+                    </span>
+                  )}
+                  <span className="font-cinzel font-bold text-xs text-aoe-parchment truncate">{betLabel}</span>
+                </div>
+                <span className={cn('text-[10px] font-cinzel font-bold shrink-0', statusColor)}>
                   {statusLabel}
                 </span>
               </div>

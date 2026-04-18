@@ -52,7 +52,7 @@ export function BetForm({ match, onBetPlaced, initialPlayer = null }: BetFormPro
 
     if (!session) { signIn(); return; }
     if (!selectedPlayer) { setError(t('bet_err_select')); return; }
-    if (amount < 5) { setError(t('bet_err_min')); return; }
+    if (amount < 2) { setError(t('bet_err_min')); return; }
     if (amount > 500) { setError(t('bet_err_max')); return; }
     if (amount > userBalance) { setError(t('bet_err_balance')); return; }
 
@@ -285,7 +285,7 @@ export function BetForm({ match, onBetPlaced, initialPlayer = null }: BetFormPro
           {/* Submit button */}
           <button
             type="submit"
-            disabled={loading || cooldown || !selectedPlayer || amount < 10 || amount > userBalance}
+            disabled={loading || cooldown || !selectedPlayer || amount < 2 || amount > userBalance}
             className={cn(
               'aoe-btn-gold w-full py-3 text-base relative overflow-hidden',
               loading && 'opacity-70 cursor-not-allowed'
