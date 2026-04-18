@@ -25,6 +25,14 @@ const OXAPAY_API = 'https://api.oxapay.com/v1';
 const OXAPAY_KEY = () => process.env.OXAPAY_API_KEY || '';
 const OXAPAY_PAYOUT_KEY = () => process.env.OXAPAY_PAYOUT_API_KEY || '';
 
+// FRONTEND_URL can be a comma-separated list (CORS allowlist). For user-facing
+// URLs (OxaPay return_url, etc.) we need a single canonical URL — take the
+// first entry.
+const frontendPublicUrl = (): string =>
+  (process.env.FRONTEND_URL || 'https://ageof.money').split(',')[0].trim();
+const backendPublicUrl = (): string =>
+  (process.env.BACKEND_URL || 'https://api.ageof.money').split(',')[0].trim();
+
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 // Retry transient failures only (timeouts, 5xx, network errors).
@@ -169,8 +177,8 @@ router.post('/crypto/create', requireAuth, async (req: Request, res: Response): 
         to_currency:  CRYPTO_MAP[cryptoId].currency,
         order_id:     transaction.id,
         description:  `AgeOfMoney — ${finalCoins} ⚜ coins`,
-        callback_url: `${process.env.BACKEND_URL}/api/v1/payments/crypto/webhook`,
-        return_url:   `${process.env.FRONTEND_URL}/deposit`,
+        callback_url: `${backendPublicUrl()}/api/v1/payments/crypto/webhook`,
+        return_url:   `${frontendPublicUrl()}/deposit`,
         lifetime:     60, // 60 minutes
       });
 
@@ -463,7 +471,7 @@ router.post('/crypto/withdraw', requireAuth, async (req: Request, res: Response)
         // are NOT in the keys list — using them 400s.
         network:      'Tron',
         amount:       usdAmount, // USDT is stablecoin: 1 USDT ≈ 1 USD
-        callback_url: `${process.env.BACKEND_URL}/api/v1/payments/crypto/webhook`,
+        callback_url: `${backendPublicUrl()}/api/v1/payments/crypto/webhook`,
         description:  transaction.id, // we use this to find the tx in the webhook
       });
 
