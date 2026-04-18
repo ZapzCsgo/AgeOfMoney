@@ -438,15 +438,17 @@ export default function DepositPage() {
                 )}
 
                 <div className="p-4 flex items-center gap-4">
-                  <div className="shrink-0 w-12 h-12 rounded-full flex items-center justify-center" style={{
-                    background: paymentMethod === 'crypto'
-                      ? 'radial-gradient(circle at 30% 30%, #ffd97a 0%, #ffc542 45%, #c48c0e 100%)'
-                      : 'rgba(255,197,66,0.1)',
-                    boxShadow: paymentMethod === 'crypto' ? '0 4px 16px rgba(255,197,66,0.35), inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -2px 4px rgba(0,0,0,0.2)' : 'none',
-                  }}>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                      <path d="M6.5 12c0-1.66 1.34-3 3-3 1.32 0 2.44.85 2.85 2.03l.65-.03.65.03c.41-1.18 1.53-2.03 2.85-2.03 1.66 0 3 1.34 3 3s-1.34 3-3 3c-1.32 0-2.44-.85-2.85-2.03L13 12.97l-.65.03C11.94 14.15 10.82 15 9.5 15c-1.66 0-3-1.34-3-3z" stroke={paymentMethod === 'crypto' ? '#0a0816' : '#ffc542'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
+                  <div
+                    className="shrink-0 w-12 h-12 rounded-full overflow-hidden flex items-center justify-center"
+                    style={{
+                      background: '#fff',
+                      boxShadow: paymentMethod === 'crypto'
+                        ? '0 4px 16px rgba(255,197,66,0.35), 0 0 0 2px rgba(255,197,66,0.5)'
+                        : '0 0 0 1px rgba(255,255,255,0.1)',
+                    }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/oxapay.jpg" alt="OxaPay" className="w-full h-full object-cover" />
                   </div>
 
                   <div className="flex-1 min-w-0">
