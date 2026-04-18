@@ -699,32 +699,49 @@ export async function enrichMatchWithH2H(matchId: string): Promise<void> {
     }
   }
 
-  // ── 5. Calculate odds ──────────────────────────────────────────────────────
-  const { calculateOddsFromPlayers } = await import('../services/oddsEngine');
-  const newOdds = calculateOddsFromPlayers(
-    {
-      elo: match.player1.elo,
-      winrate: profile1.winrate,
-      totalGames: profile1.totalGames,
-      currentStreak: profile1.streak,
-      peakElo: match.player1.peakElo,
-      lastMatchAt: profile1.daysSince < 999 ? new Date(Date.now() - profile1.daysSince * 86400000) : null,
-    },
-    {
-      elo: match.player2.elo,
-      winrate: profile2.winrate,
-      totalGames: profile2.totalGames,
-      currentStreak: profile2.streak,
-      peakElo: match.player2.peakElo,
-      lastMatchAt: profile2.daysSince < 999 ? new Date(Date.now() - profile2.daysSince * 86400000) : null,
-    },
-    h2hRecent,
-  );
+  // ── 5. Calculate odds via V2 engine ────────────────────────────────────────
+  // Uses the same full-record + format path as the 10-min fast recalc in
+  // cron/jobs.ts — MUST pass `format` so BO2/BO4 get a 3-way market with
+  // correctly calibrated `oddsDraw`. The legacy `calculateOddsFromPlayers`
+  // silently dropped `format`, leaving `oddsDraw` stale in DB while
+  // overwriting `odds1/odds2` with 2-way-margin numbers → arbitrage.
+  const { calculateOddsV2 } = await import('../services/oddsEngine');
+  const SENTINEL_OPPONENT = '__AI_ENRICHED__';
+  const [p1Records, p2Records, tournament] = await Promise.all([
+    prisma.playerMatchRecord.findMany({
+      where: { playerId: match.player1Id, game: match.game, NOT: { opponentName: SENTINEL_OPPONENT } },
+      select: { won: true, tier: true, matchDate: true, opponentId: true },
+    }),
+    prisma.playerMatchRecord.findMany({
+      where: { playerId: match.player2Id, game: match.game, NOT: { opponentName: SENTINEL_OPPONENT } },
+      select: { won: true, tier: true, matchDate: true, opponentId: true },
+    }),
+    match.tournamentId
+      ? prisma.tournament.findUnique({ where: { id: match.tournamentId }, select: { tier: true } })
+      : Promise.resolve(null),
+  ]);
 
-  // Update odds in DB
+  // H2H for V2 needs tier/matchDate/confidence — the AI history lookup above
+  // already returns these, so call it again to get the full shape. Cheap: it
+  // reads from PlayerMatchRecord without API calls.
+  const { getPlayerH2HFromHistory } = await import('./aiPlayerHistoryScraper');
+  const h2hFull = await getPlayerH2HFromHistory(match.player1Id, match.player2Id, match.game);
+
+  const newOdds = calculateOddsV2({
+    p1Records: p1Records.map(r => ({ won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId })),
+    p2Records: p2Records.map(r => ({ won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId })),
+    h2h: h2hFull,
+    daysSinceLastMatch1: profile1.daysSince,
+    daysSinceLastMatch2: profile2.daysSince,
+    matchTier: tournament?.tier ?? undefined,
+    format: match.format,
+  });
+
+  // Update odds in DB — always write oddsDraw (null for BO1/BO3/BO5/BO7,
+  // number for BO2/BO4) so it never ends up stale from a previous format.
   await prisma.match.update({
     where: { id: matchId },
-    data: { odds1: newOdds.odds1, odds2: newOdds.odds2, ...('oddsDraw' in newOdds ? { oddsDraw: (newOdds as { oddsDraw?: number }).oddsDraw } : {}) },
+    data: { odds1: newOdds.odds1, odds2: newOdds.odds2, oddsDraw: newOdds.oddsDraw ?? null },
   });
 
   // Broadcast updated odds to connected clients in real-time

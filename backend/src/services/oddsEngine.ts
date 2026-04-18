@@ -404,10 +404,15 @@ export function calculateOddsV2(input: OddsInputV2): OddsResult {
     // correct draw probability for BO2/BO4 we need the underlying per-game
     // prob. Backsolve assuming BO3 is the dominant format in training data.
     const pPerGame = solvePerGameProb(prob1, 'BO3');
-    probDraw = calculateDrawProbability(pPerGame, boNum);
-    // Clamp: 5% floor for lopsided matchups, 60% ceiling to avoid pathological
-    // near-50/50 predictions that would crush main-bet odds.
-    probDraw = Math.max(0.05, Math.min(0.60, probDraw));
+    // Pure binomial P(draw) peaks at 50% when pPerGame=0.5, which is the
+    // mathematical maximum but empirically too high: competitive BO2 draws
+    // cluster around 30-40% in AoE/CS/LoL. Apply a 0.70 shrinkage so a
+    // 50/50 matchup predicts ~35% draw instead of 50%. Ceiling lowered from
+    // 0.60 to 0.45 for the same reason — avoids pathological near-50/50
+    // predictions that crush the main-bet odds.
+    const DRAW_SHRINKAGE_EVEN_BO = 0.70;
+    probDraw = calculateDrawProbability(pPerGame, boNum) * DRAW_SHRINKAGE_EVEN_BO;
+    probDraw = Math.max(0.05, Math.min(0.45, probDraw));
     // Redistribute: scale down p1/p2 so p1+p2+pDraw = 1
     const winTotal = 1 - probDraw;
     const ratio = prob1 / (prob1 + prob2);

@@ -3,7 +3,7 @@
  */
 import { PrismaClient } from '@prisma/client';
 import axios from 'axios';
-import { calculateOddsFromPlayers } from '../src/services/oddsEngine';
+import { calculateOddsV2 } from '../src/services/oddsEngine';
 
 const prisma = new PrismaClient();
 const AOE4WORLD_BASE = 'https://aoe4world.com/api/v0';
@@ -131,29 +131,57 @@ async function main() {
     const prof1 = buildProfile(match.player1, db1);
     const prof2 = buildProfile(match.player2, db2);
 
-    // H2H from DB
-    const dbH2H = await prisma.match.findMany({
-      where: {
-        status: 'COMPLETED', winnerId: { not: null },
-        OR: [
-          { player1Id: match.player1Id, player2Id: match.player2Id },
-          { player1Id: match.player2Id, player2Id: match.player1Id },
-        ],
-        NOT: { id: match.id },
-      },
-      orderBy: { scheduledAt: 'desc' },
-      take: 20,
-      select: { player1Id: true, winnerId: true },
-    });
-    const h2h = dbH2H.map(m => ({ winner: m.winnerId === match.player1Id ? 1 as const : 2 as const }));
+    // H2H + player records for V2 engine (always pass `format` so BO2/BO4
+    // get their 3-way market with correctly calibrated oddsDraw)
+    const SENTINEL_OPPONENT = '__AI_ENRICHED__';
+    const [p1Records, p2Records, dbH2H, tournament] = await Promise.all([
+      prisma.playerMatchRecord.findMany({
+        where: { playerId: match.player1Id, game: match.game, NOT: { opponentName: SENTINEL_OPPONENT } },
+        select: { won: true, tier: true, matchDate: true, opponentId: true },
+      }),
+      prisma.playerMatchRecord.findMany({
+        where: { playerId: match.player2Id, game: match.game, NOT: { opponentName: SENTINEL_OPPONENT } },
+        select: { won: true, tier: true, matchDate: true, opponentId: true },
+      }),
+      prisma.match.findMany({
+        where: {
+          status: 'COMPLETED', winnerId: { not: null },
+          game: match.game,
+          OR: [
+            { player1Id: match.player1Id, player2Id: match.player2Id },
+            { player1Id: match.player2Id, player2Id: match.player1Id },
+          ],
+          NOT: { id: match.id },
+        },
+        orderBy: { scheduledAt: 'desc' },
+        take: 20,
+        select: { player1Id: true, winnerId: true, scheduledAt: true },
+      }),
+      match.tournamentId
+        ? prisma.tournament.findUnique({ where: { id: match.tournamentId }, select: { tier: true } })
+        : Promise.resolve(null),
+    ]);
+    const h2h = dbH2H.map(m => ({
+      winner: (m.winnerId === match.player1Id ? 1 : 2) as 1 | 2,
+      tier: 'B',
+      matchDate: m.scheduledAt,
+      confidence: 1.0,
+    }));
 
-    const newOdds = calculateOddsFromPlayers(
-      { elo: match.player1.elo, winrate: prof1.winrate, totalGames: prof1.totalGames, currentStreak: prof1.streak, peakElo: match.player1.peakElo, lastMatchAt: prof1.daysSince < 999 ? new Date(Date.now() - prof1.daysSince * 86400000) : null },
-      { elo: match.player2.elo, winrate: prof2.winrate, totalGames: prof2.totalGames, currentStreak: prof2.streak, peakElo: match.player2.peakElo, lastMatchAt: prof2.daysSince < 999 ? new Date(Date.now() - prof2.daysSince * 86400000) : null },
+    const newOdds = calculateOddsV2({
+      p1Records: p1Records.map(r => ({ won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId })),
+      p2Records: p2Records.map(r => ({ won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId })),
       h2h,
-    );
+      daysSinceLastMatch1: prof1.daysSince,
+      daysSinceLastMatch2: prof2.daysSince,
+      matchTier: tournament?.tier ?? undefined,
+      format: match.format,
+    });
 
-    await prisma.match.update({ where: { id: match.id }, data: { odds1: newOdds.odds1, odds2: newOdds.odds2 } });
+    await prisma.match.update({
+      where: { id: match.id },
+      data: { odds1: newOdds.odds1, odds2: newOdds.odds2, oddsDraw: newOdds.oddsDraw ?? null },
+    });
 
     const changed = newOdds.odds1 !== 1.9 || newOdds.odds2 !== 1.9;
     console.log(

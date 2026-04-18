@@ -308,22 +308,52 @@ router.post('/scrapers/run', async (req: Request, res: Response): Promise<void> 
 
     // For enrich: first do an instant recalc from DB, then full API enrich in background
     if (source === 'enrich') {
-      // Instant pass: recalc odds from existing DB data, broadcast via socket NOW
+      // Instant pass: recalc odds from existing DB data via V2 engine (same
+      // path as the 10-min fast recalc cron). Passing `format` is mandatory:
+      // without it, BO2 matches get odds1/odds2 with 2-way margin and no
+      // oddsDraw, leaving any previously-stored oddsDraw stale in DB → the
+      // three markets no longer sum to 1 → arbitrage on BO2 markets.
       const io = getIo();
-      const { calculateOddsFromPlayers } = await import('../services/oddsEngine');
+      const { calculateOddsV2 } = await import('../services/oddsEngine');
       const { getPlayerH2HFromHistory } = await import('../scrapers/aiPlayerHistoryScraper');
+      const SENTINEL_OPPONENT = '__AI_ENRICHED__';
       const activeMatches = await prisma.match.findMany({
         where: { status: { in: ['UPCOMING', 'LIVE'] } },
         include: {
-          player1: { select: { id: true, elo: true, winrate: true, totalGames: true, currentStreak: true, peakElo: true, lastMatchAt: true } },
-          player2: { select: { id: true, elo: true, winrate: true, totalGames: true, currentStreak: true, peakElo: true, lastMatchAt: true } },
+          player1: { select: { id: true, lastMatchAt: true } },
+          player2: { select: { id: true, lastMatchAt: true } },
+          tournament: { select: { tier: true } },
         },
       });
       for (const match of activeMatches) {
         try {
-          const h2h = await getPlayerH2HFromHistory(match.player1.id, match.player2.id, match.game);
-          const newOdds = calculateOddsFromPlayers(match.player1, match.player2, h2h);
-          await prisma.match.update({ where: { id: match.id }, data: { odds1: newOdds.odds1, odds2: newOdds.odds2, ...(('oddsDraw' in newOdds) ? { oddsDraw: (newOdds as { oddsDraw?: number }).oddsDraw ?? null } : {}) } });
+          const [p1Records, p2Records, h2h] = await Promise.all([
+            prisma.playerMatchRecord.findMany({
+              where: { playerId: match.player1.id, game: match.game, NOT: { opponentName: SENTINEL_OPPONENT } },
+              select: { won: true, tier: true, matchDate: true, opponentId: true },
+            }),
+            prisma.playerMatchRecord.findMany({
+              where: { playerId: match.player2.id, game: match.game, NOT: { opponentName: SENTINEL_OPPONENT } },
+              select: { won: true, tier: true, matchDate: true, opponentId: true },
+            }),
+            getPlayerH2HFromHistory(match.player1.id, match.player2.id, match.game),
+          ]);
+          const now = Date.now();
+          const days1 = match.player1.lastMatchAt ? (now - match.player1.lastMatchAt.getTime()) / 86400000 : 30;
+          const days2 = match.player2.lastMatchAt ? (now - match.player2.lastMatchAt.getTime()) / 86400000 : 30;
+          const newOdds = calculateOddsV2({
+            p1Records: p1Records.map(r => ({ won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId })),
+            p2Records: p2Records.map(r => ({ won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId })),
+            h2h,
+            daysSinceLastMatch1: days1,
+            daysSinceLastMatch2: days2,
+            matchTier: match.tournament?.tier ?? undefined,
+            format: match.format,
+          });
+          await prisma.match.update({
+            where: { id: match.id },
+            data: { odds1: newOdds.odds1, odds2: newOdds.odds2, oddsDraw: newOdds.oddsDraw ?? null },
+          });
           io?.to(`matchRoom:${match.id}`).emit('oddsUpdate', { matchId: match.id, odds1: newOdds.odds1, odds2: newOdds.odds2 });
           io?.emit('matchUpdate', { matchId: match.id, odds1: newOdds.odds1, odds2: newOdds.odds2 });
         } catch { /* skip */ }
