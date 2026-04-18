@@ -380,35 +380,41 @@ export default function DepositPage() {
 
           {/* PAYMENT METHOD */}
           <div>
-            <p className="text-[10px] font-cinzel tracking-widest text-aoe-parchment-dim uppercase mb-2">{t('deposit_select_crypto')}</p>
-            <div className="grid grid-cols-4 gap-1.5">
-              {CRYPTOS.map(c => {
-                const active = selectedCrypto.id === c.id;
-                return (
-                  <button
+            <p className="text-[10px] font-cinzel tracking-widest text-aoe-parchment-dim uppercase mb-2">Méthode de paiement</p>
+            <div
+              className="relative p-4 rounded-xl border transition-colors"
+              style={{
+                background: 'linear-gradient(135deg, rgba(255,197,66,0.08), rgba(255,197,66,0.03))',
+                borderColor: '#ffc542',
+                boxShadow: '0 0 18px rgba(255,197,66,0.12)',
+              }}
+            >
+              <div className="absolute top-3 right-3 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: '#ffc542' }}>
+                <Check size={12} color="#000" strokeWidth={3} />
+              </div>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center font-black text-[11px] tracking-tight" style={{ background: '#000', color: '#fff', border: '1px solid #2d2850' }}>
+                  Oxa<span style={{ color: '#ffc542' }}>Pay</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-cinzel font-bold text-sm text-aoe-parchment">Payer en crypto</p>
+                  <p className="text-[11px] text-aoe-parchment-muted">Choisissez la crypto sur la page suivante</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 flex-wrap pt-3 border-t" style={{ borderColor: '#1e1a30' }}>
+                {CRYPTOS.map(c => (
+                  <div
                     key={c.id}
-                    onClick={() => setCrypto(c)}
-                    className={cn(
-                      'relative flex flex-col items-center gap-1 py-2 px-1 rounded-lg border transition-all',
-                      active ? 'scale-[1.03]' : 'hover:border-aoe-border-mid'
-                    )}
-                    style={{
-                      background: active ? `${c.color}14` : 'rgba(255,255,255,0.025)',
-                      borderColor: active ? c.color : '#1e1a30',
-                      boxShadow: active ? `0 0 16px ${c.color}20` : 'none',
-                    }}
+                    title={`${c.name} (${c.network})`}
+                    className="flex items-center gap-1 px-1.5 py-1 rounded-md"
+                    style={{ background: 'rgba(255,255,255,0.02)' }}
                   >
-                    {active && (
-                      <div className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center" style={{ background: c.color }}>
-                        <Check size={8} color="#000" strokeWidth={3} />
-                      </div>
-                    )}
-                    <CryptoLogo id={c.id} size={28} />
-                    <span className="font-cinzel font-bold text-[11px]" style={{ color: active ? c.color : '#e8e2f5' }}>{c.symbol}</span>
-                    <span className="text-[9px] text-aoe-parchment-muted">{c.network}</span>
-                  </button>
-                );
-              })}
+                    <CryptoLogo id={c.id} size={16} />
+                    <span className="text-[10px] font-cinzel font-bold text-aoe-parchment-muted">{c.symbol}</span>
+                  </div>
+                ))}
+                <span className="text-[10px] text-aoe-parchment-muted ml-1">+ autres</span>
+              </div>
             </div>
           </div>
 
