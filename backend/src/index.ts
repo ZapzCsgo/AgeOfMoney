@@ -93,7 +93,17 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-app.use(express.json({ limit: '100kb' }));
+// Capture the raw request body alongside parsed JSON so webhook handlers
+// can verify HMAC signatures against the EXACT bytes the sender signed.
+// JSON.stringify(req.body) is NOT byte-identical to the original payload
+// (whitespace, key order, unicode escaping differ) — it must not be used
+// for signature verification.
+app.use(express.json({
+  limit: '100kb',
+  verify: (req, _res, buf) => {
+    (req as unknown as { rawBody?: string }).rawBody = buf.toString('utf8');
+  },
+}));
 app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 
 // Rate limiting
@@ -167,8 +177,6 @@ app.use('/api/v1/players', playersRouter);
 app.use('/api/v1/tournaments', tournamentsRouter);
 app.use('/api/v1/users', userLookupLimiter, usersRouter);
 app.use('/api/v1/admin', adminRouter);
-// Stripe webhook needs raw body — mount before express.json for this route
-app.use('/api/v1/payments/webhook', express.raw({ type: 'application/json' }));
 app.use('/api/v1/payments', paymentLimiter, paymentsRouter);
 app.use('/api/v1/roulette', rouletteLimiter, rouletteRouter);
 app.use('/api/v1/coinflip', coinflipLimiter, coinflipRouter);

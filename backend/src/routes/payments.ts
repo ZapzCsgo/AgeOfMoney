@@ -54,11 +54,15 @@ async function withRetry<T>(fn: () => Promise<T>, label: string, maxAttempts = 3
 
 async function oxaPost(path: string, body: Record<string, unknown>) {
   return withRetry(async () => {
-    const res = await axios.post(`${OXAPAY_API}${path}`, {
-      ...body,
-      merchant_api_key: OXAPAY_KEY(),
-    }, {
-      headers: { 'Content-Type': 'application/json' },
+    // OxaPay v1 expects the API key in a `merchant_api_key` HTTP HEADER, not
+    // in the JSON body. Putting it in the body triggers a silent 401/400 from
+    // the API — the primary reason this integration was broken.
+    // Reference: https://docs.oxapay.com/api-reference/payment/generate-invoice
+    const res = await axios.post(`${OXAPAY_API}${path}`, body, {
+      headers: {
+        'Content-Type': 'application/json',
+        'merchant_api_key': OXAPAY_KEY(),
+      },
       timeout: 15000,
     });
     return res.data;
@@ -210,7 +214,15 @@ router.post('/crypto/webhook', async (req: Request, res: Response): Promise<void
       res.status(500).send('ok'); return;
     }
 
-    const rawBody = JSON.stringify(req.body);
+    // MUST use the raw request bytes — JSON.stringify(req.body) re-serializes
+    // the parsed object with different whitespace / key ordering and will
+    // never match OxaPay's signed payload. rawBody is captured by the
+    // express.json({ verify }) middleware in index.ts.
+    const rawBody = (req as Request & { rawBody?: string }).rawBody;
+    if (!rawBody) {
+      logger.error('[Webhook] rawBody missing — express.json verify middleware not configured');
+      res.status(500).send('ok'); return;
+    }
     const expected = crypto.createHmac('sha512', secret).update(rawBody).digest('hex');
 
     // Constant-time comparison to defeat timing attacks.
@@ -233,7 +245,11 @@ router.post('/crypto/webhook', async (req: Request, res: Response): Promise<void
       const transaction = await prisma.transaction.findUnique({ where: { id: txId } });
       if (!transaction) { res.status(200).send('ok'); return; }
 
-      if (payoutStatus === 'Confirmed') {
+      // OxaPay IPN sends capitalized values ("Confirmed"/"Failed") while its
+      // REST API returns lowercase — normalize to lowercase for comparison.
+      const normalizedStatus = typeof payoutStatus === 'string' ? payoutStatus.toLowerCase() : '';
+
+      if (normalizedStatus === 'confirmed') {
         if (transaction.status !== 'completed') {
           await prisma.transaction.update({
             where: { id: transaction.id },
@@ -241,7 +257,7 @@ router.post('/crypto/webhook', async (req: Request, res: Response): Promise<void
           });
           logger.info(`[Payout] Confirmed withdrawal ${txId} (track=${track_id})`);
         }
-      } else if (payoutStatus === 'Failed') {
+      } else if (normalizedStatus === 'failed') {
         // Refund user's coins — payout failed on OxaPay side
         if (transaction.status === 'pending') {
           const refundCoins = Math.abs(transaction.coins);
@@ -265,7 +281,8 @@ router.post('/crypto/webhook', async (req: Request, res: Response): Promise<void
     // ── INVOICE webhook (deposits) ─────────────────────────────────────────
     const { status, order_id } = req.body;
 
-    if (status !== 'Paid') {
+    // Normalize capitalization — OxaPay IPNs use "Paid" but we stay defensive.
+    if (typeof status !== 'string' || status.toLowerCase() !== 'paid') {
       res.status(200).send('ok'); return;
     }
 
@@ -432,7 +449,10 @@ router.post('/crypto/withdraw', requireAuth, async (req: Request, res: Response)
       const payoutRes = await oxaPayout({
         address,
         currency:     'USDT',
-        network:      'TRC20',
+        // OxaPay accepts any value from the currency's `keys` array. For USDT
+        // on Tron those are: "Tron", "TRC20", "TRX". "TRC-20" / "TRON" / "tron"
+        // are NOT in the keys list — using them 400s.
+        network:      'Tron',
         amount:       usdAmount, // USDT is stablecoin: 1 USDT ≈ 1 USD
         callback_url: `${process.env.BACKEND_URL}/api/v1/payments/crypto/webhook`,
         description:  transaction.id, // we use this to find the tx in the webhook
