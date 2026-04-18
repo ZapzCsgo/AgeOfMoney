@@ -628,10 +628,10 @@ export default function CoinFlipPage() {
                         {game.side === 'crown' ? '🏹 Archers' : '⚔ Swords'}
                       </p>
                     </div>
-                    {/* Amount */}
-                    <div className="text-right shrink-0">
+                    {/* Amount — fleur-de-lys in gold next to the number */}
+                    <div className="text-right shrink-0 flex items-center gap-1.5">
                       <p
-                        className="text-[16px] font-bold"
+                        className="text-[18px] font-bold tabular-nums"
                         style={{
                           color: isHighValue(game.amount) ? '#ffd97a' : '#e8e2f5',
                           fontFamily: 'Cinzel, serif',
@@ -639,9 +639,15 @@ export default function CoinFlipPage() {
                       >
                         {game.amount.toLocaleString('fr-FR')}
                       </p>
-                      <p className="text-[10px]" style={{ color: '#6b6488' }}>
+                      <span
+                        className="text-[18px] leading-none"
+                        style={{
+                          color: '#ffc542',
+                          filter: 'drop-shadow(0 0 8px rgba(255,197,66,0.55))',
+                        }}
+                      >
                         ⚜
-                      </p>
+                      </span>
                     </div>
                   </div>
 
