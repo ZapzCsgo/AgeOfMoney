@@ -210,48 +210,64 @@ export default function DepositPage() {
   };
 
   // ── Invoice ─────────────────────────────────────────────────────────────────
+  // Post-create screen: OxaPay has been opened in a new tab. We show the status
+  // + a button to reopen if the popup got blocked, + info on what happens next.
   if (invoice) {
-    const crypto = CRYPTOS.find(c => c.symbol === invoice.crypto);
+    const paymentUrl = invoice.address; // populated with data.paymentUrl in handleDeposit
     return (
       <div className="max-w-lg mx-auto px-4 py-12">
         <div className="rounded-2xl border overflow-hidden" style={{ background: '#0d0b1a', borderColor: '#2d2850' }}>
           <div className="h-px" style={{ background: 'linear-gradient(90deg,transparent,#ffc542 30%,#ffd97a 50%,#ffc542 70%,transparent)' }} />
           <div className="p-7 space-y-5">
+            {/* Status header */}
             <div className="flex items-center gap-4">
-              {crypto && <CryptoLogo id={crypto.id} size={48} />}
-              <div>
-                <h2 className="font-cinzel font-bold text-lg text-aoe-parchment">{t('common_pending')}</h2>
-                <p className="text-aoe-parchment-dim text-sm">Envoyez exactement{' '}
-                  <span className="font-bold" style={{ color: crypto?.color }}>{invoice.cryptoAmount} {invoice.crypto}</span>
-                </p>
+              <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(255,197,66,0.12)', border: '1px solid rgba(255,197,66,0.4)' }}>
+                <Clock size={22} className="text-aoe-gold" />
+              </div>
+              <div className="flex-1">
+                <h2 className="font-cinzel font-bold text-lg text-aoe-parchment">Paiement en attente</h2>
+                <p className="text-aoe-parchment-dim text-xs mt-0.5">Complète ton paiement sur la page OxaPay ouverte</p>
               </div>
             </div>
+
+            {/* Coins amount */}
             <div className="rounded-xl p-5 text-center" style={{ background: 'rgba(255,197,66,0.07)', border: '1px solid rgba(255,197,66,0.2)' }}>
-              <p className="text-aoe-parchment-dim text-[10px] mb-1 font-cinzel tracking-wider uppercase">{t('deposit_amount_coins')}</p>
+              <p className="text-aoe-parchment-dim text-[10px] mb-1 font-cinzel tracking-wider uppercase">À créditer après paiement</p>
               <p className="font-cinzel font-black text-4xl text-aoe-gold">{invoice.coins.toLocaleString('fr-FR')} ⚜</p>
-              {bonusPct > 0 && <p className="text-emerald-400 text-xs mt-1">dont +{bonusPct}% bonus</p>}
+              <p className="text-aoe-parchment-muted text-xs mt-1">pour ${invoice.usdAmount.toFixed(2)}</p>
+              {bonusPct > 0 && <p className="text-emerald-400 text-[11px] mt-1">dont +{bonusPct}% bonus affilié</p>}
             </div>
-            <div>
-              <p className="text-[10px] font-cinzel tracking-widest text-aoe-parchment-dim uppercase mb-2">{t('deposit_address')} {invoice.crypto}</p>
-              <div className="flex items-center gap-2 p-3 rounded-xl" style={{ background: '#07060f', border: '1px solid #1e1a30' }}>
-                <code className="text-aoe-parchment text-xs flex-1 break-all font-mono leading-relaxed">{invoice.address}</code>
-                <CopyBtn value={invoice.address} />
+
+            {/* Steps */}
+            <div className="space-y-2">
+              <div className="flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold font-cinzel" style={{ background: 'rgba(255,197,66,0.15)', color: '#ffc542', border: '1px solid rgba(255,197,66,0.4)' }}>1</div>
+                <p className="text-aoe-parchment-dim text-[13px] leading-relaxed pt-0.5">Choisis ta crypto et envoie le paiement sur la page OxaPay.</p>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold font-cinzel" style={{ background: 'rgba(255,197,66,0.15)', color: '#ffc542', border: '1px solid rgba(255,197,66,0.4)' }}>2</div>
+                <p className="text-aoe-parchment-dim text-[13px] leading-relaxed pt-0.5">Ton solde est crédité automatiquement après 1–3 confirmations réseau (1–15 min selon la crypto).</p>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold font-cinzel" style={{ background: 'rgba(255,197,66,0.15)', color: '#ffc542', border: '1px solid rgba(255,197,66,0.4)' }}>3</div>
+                <p className="text-aoe-parchment-dim text-[13px] leading-relaxed pt-0.5">Pas besoin de rester sur cette page — tu recevras une notification en jeu.</p>
               </div>
             </div>
-            <div>
-              <p className="text-[10px] font-cinzel tracking-widest text-aoe-parchment-dim uppercase mb-2">{t('deposit_amount_coins')}</p>
-              <div className="flex items-center gap-2 p-3 rounded-xl" style={{ background: '#07060f', border: '1px solid #1e1a30' }}>
-                <code className="font-bold font-mono flex-1 text-sm" style={{ color: crypto?.color }}>{invoice.cryptoAmount} {invoice.crypto}</code>
-                <CopyBtn value={invoice.cryptoAmount} />
-              </div>
-              {invoice.devMode && <p className="text-[10px] text-yellow-500 mt-1">⚠ Mode dev — configurez NOWPAYMENTS_API_KEY</p>}
-            </div>
-            <div className="flex items-start gap-2 p-3 rounded-xl text-xs" style={{ background: 'rgba(231,76,60,0.07)', border: '1px solid rgba(231,76,60,0.2)' }}>
-              <AlertTriangle size={13} className="text-red-400 shrink-0 mt-0.5" />
-              <p className="text-aoe-parchment-dim leading-relaxed">{t('deposit_send_note')}</p>
-            </div>
+
+            {/* Reopen button — in case popup got blocked */}
+            <a
+              href={paymentUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-cinzel font-bold transition-colors"
+              style={{ background: '#ffc542', color: '#07060f' }}
+            >
+              Ouvrir la page de paiement ↗
+            </a>
+
+            {/* Back button */}
             <button onClick={() => setInvoice(null)} className="w-full py-2.5 rounded-xl text-sm font-cinzel text-aoe-parchment-dim hover:text-aoe-parchment border border-aoe-border hover:border-aoe-border-mid transition-colors">
-              ← {t('deposit_back')}
+              ← Nouveau dépôt
             </button>
           </div>
         </div>
