@@ -609,10 +609,9 @@ export async function enrichMatchWithH2H(matchId: string): Promise<void> {
 
   // ── 3. Ensure both players have history seeded ─────────────────────────────
   // For AoE4 matches: seed from aoe4world (only AoE4 data exists there).
-  // For non-AoE4 matches (AoE2/AoM/AoE3): seed from Claude AI — aoe4world has no data.
+  // For non-AoE4 matches (AoE2/AoM/AoE3): fall back to Liquipedia — the
+  // Claude-AI supplement was removed on 2026-04-19.
   // Count uses a defensive try/catch — `game` column may not exist on stale schemas.
-  // The downstream `enrichPlayerWithAI` has its OWN sentinel-based cache so it
-  // won't waste credits on (player, game) pairs we've already attempted.
   {
     const safeCount = async (playerId: string): Promise<number> => {
       try {
@@ -650,13 +649,15 @@ export async function enrichMatchWithH2H(matchId: string): Promise<void> {
   // ── 4. H2H history (tournament-only, ranked ignored) ────────────────────
   let h2hRecent: { winner: 1 | 2 }[] = [];
 
-  // Priority 1: AI-stored tournament match records (Liquipedia + esport history)
+  // Priority 1: PMR tournament match records (scraped via Liquipedia — was
+  // previously named "AI H2H" but the backing scraper is gone; reads come
+  // straight from PlayerMatchRecord now).
   {
-    const { getPlayerH2HFromHistory } = await import('./aiPlayerHistoryScraper');
-    const aiH2H = await getPlayerH2HFromHistory(match.player1Id, match.player2Id, match.game);
-    if (aiH2H.length > 0) {
-      h2hRecent = aiH2H.slice(0, 20).map(r => ({ winner: r.winner }));
-      logger.debug(`[Odds] H2H from AI tournament records: ${aiH2H.length} games for ${match.player1.name} vs ${match.player2.name}`);
+    const { getPlayerH2HFromHistory } = await import('../services/h2hHistory');
+    const pmrH2H = await getPlayerH2HFromHistory(match.player1Id, match.player2Id, match.game);
+    if (pmrH2H.length > 0) {
+      h2hRecent = pmrH2H.slice(0, 20).map(r => ({ winner: r.winner }));
+      logger.debug(`[Odds] H2H from PMR tournament records: ${pmrH2H.length} games for ${match.player1.name} vs ${match.player2.name}`);
     }
   }
 
@@ -721,10 +722,10 @@ export async function enrichMatchWithH2H(matchId: string): Promise<void> {
       : Promise.resolve(null),
   ]);
 
-  // H2H for V2 needs tier/matchDate/confidence — the AI history lookup above
+  // H2H for V2 needs tier/matchDate/confidence — the PMR-backed lookup above
   // already returns these, so call it again to get the full shape. Cheap: it
   // reads from PlayerMatchRecord without API calls.
-  const { getPlayerH2HFromHistory } = await import('./aiPlayerHistoryScraper');
+  const { getPlayerH2HFromHistory } = await import('../services/h2hHistory');
   const h2hFull = await getPlayerH2HFromHistory(match.player1Id, match.player2Id, match.game);
 
   // Opponent-winrate map — weights wins by opponent strength. Farming weak

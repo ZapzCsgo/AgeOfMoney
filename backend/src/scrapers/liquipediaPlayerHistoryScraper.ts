@@ -18,6 +18,7 @@
 import axios from 'axios';
 import { prisma } from '../index';
 import logger from '../logger';
+import { upsertOpponentPlayer } from './opponentNameUtils';
 
 // Accept all tiers — the tier is stored in DB and the odds engine weights
 // by tier importance (S > A > Qualifier > B > C > Misc).
@@ -283,16 +284,13 @@ export async function scrapePlayerHistoryFromLiquipedia(
                      winnerGames === 3 ? 'BO5' :
                      winnerGames === 4 ? 'BO7' : `BO${winnerGames * 2 - 1}`;
 
-      // Try to find the opponent in our DB
-      const opponent = await prisma.player.findFirst({
-        where: {
-          OR: [
-            { name: { equals: m.opponentName, mode: 'insensitive' } },
-            { liquipediaSlug: m.opponentName.replace(/ /g, '_') },
-          ],
-        },
-        select: { id: true },
-      });
+      // Phase 5 P0 : upsert the opponent as a Player row when the name
+      // passes the sanity checks (length, blocklist, team pattern, …).
+      // This unblocks 67 % of PMR rows which previously stored only the
+      // opponent name without an opponentId — top pros like Hera, DeMu,
+      // RecoN become ratable as a side-effect.
+      const opponentId = await upsertOpponentPlayer(m.opponentName, game);
+      const opponent = opponentId ? { id: opponentId } : null;
 
       await prisma.playerMatchRecord.upsert({
         where: {

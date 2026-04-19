@@ -315,7 +315,7 @@ router.post('/scrapers/run', async (req: Request, res: Response): Promise<void> 
       // three markets no longer sum to 1 → arbitrage on BO2 markets.
       const io = getIo();
       const { calculateOddsV2 } = await import('../services/oddsEngine');
-      const { getPlayerH2HFromHistory } = await import('../scrapers/aiPlayerHistoryScraper');
+      const { getPlayerH2HFromHistory } = await import('../services/h2hHistory');
       const SENTINEL_OPPONENT = '__AI_ENRICHED__';
       const activeMatches = await prisma.match.findMany({
         where: { status: { in: ['UPCOMING', 'LIVE'] } },
@@ -963,12 +963,9 @@ router.post('/players/:id/seed-history', async (req: Request, res: Response): Pr
         logger.info(`[Admin] Seeded ${player.name} via Liquipedia scraper (${game})`);
       }
 
-      // Claude AI seeder (all games — uses Liquipedia knowledge)
-      if ((source === 'all' || source === 'ai') && process.env.ANTHROPIC_API_KEY) {
-        const { enrichPlayerWithAI } = await import('../scrapers/aiPlayerHistoryScraper');
-        await enrichPlayerWithAI(player.id, player.name, force, game!);
-        logger.info(`[Admin] Seeded ${player.name} via Claude AI (${game})`);
-      }
+      // Claude AI seeder was removed on 2026-04-19 — we no longer pay for
+      // the Anthropic API. `source: 'ai'` is a no-op now (kept for API
+      // backwards-compat so admin UI callers don't break).
     })().catch(err => logger.error(`[Admin] Seed history failed for ${player.name}:`, err));
   } catch (err) {
     res.status(500).json({ error: String(err) });

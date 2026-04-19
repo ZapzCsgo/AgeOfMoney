@@ -244,58 +244,24 @@ router.post('/enrich', async (_req: Request, res: Response): Promise<void> => {
   }
 });
 
-// POST /api/v1/dev/seed-ai-history — seed ALL pro players' tournament history via Claude Opus AI
-// Optional body: { force: true } to re-fetch even if records already exist
-// This is a one-time batch operation — takes ~4s per player (rate limit delay)
-router.post('/seed-ai-history', async (req: Request, res: Response): Promise<void> => {
-  const force = req.body?.force === true;
-  const players = await prisma.player.findMany({ select: { id: true, name: true } });
-  res.json({
-    ok: true,
-    message: `AI history seeding started for ${players.length} players (force=${force}) — check backend logs`,
-    playerCount: players.length,
-    estimatedSeconds: players.length * 4,
-  });
-  try {
-    const { enrichAllProPlayers } = await import('../scrapers/aiPlayerHistoryScraper');
-    await enrichAllProPlayers(force);
-  } catch (err) {
-    logger.error('[AI History] Batch error:', err);
-  }
-});
+// AI-based seed endpoints were removed on 2026-04-19 — we no longer pay for
+// the Anthropic API. Use /seed-history below (aoe4world only) or the admin
+// panel's Liquipedia scraper instead.
 
-// POST /api/v1/dev/seed-ai-history/:playerId — seed a single player's history via AI
-router.post('/seed-ai-history/:playerId', async (req: Request, res: Response): Promise<void> => {
-  const { playerId } = req.params;
-  const force = req.body?.force === true;
-  try {
-    const player = await prisma.player.findUnique({ where: { id: playerId }, select: { id: true, name: true } });
-    if (!player) { res.status(404).json({ error: 'Player not found' }); return; }
-    const { enrichPlayerWithAI } = await import('../scrapers/aiPlayerHistoryScraper');
-    const count = await enrichPlayerWithAI(player.id, player.name, force);
-    res.json({ ok: true, player: player.name, recordsStored: count });
-  } catch (err) {
-    res.status(500).json({ error: String(err) });
-  }
-});
-
-// POST /api/v1/dev/seed-history — seed ALL players from BOTH aoe4world real data + AI (Opus)
-// Real data first (free, accurate), then AI fills gaps
+// POST /api/v1/dev/seed-history — seed ALL players from aoe4world real data.
+// Previously chained to Claude Opus for gap-filling; that step was removed
+// with the rest of the AI scrapers.
 router.post('/seed-history', async (req: Request, res: Response): Promise<void> => {
   const force = req.body?.force === true;
   const players = await prisma.player.findMany({ where: { aoe4worldId: { not: null } }, select: { id: true, name: true } });
   res.json({
     ok: true,
-    message: `Full history seeding started: aoe4world data + AI Opus for ${players.length} players (force=${force})`,
+    message: `History seeding started: aoe4world data for ${players.length} players (force=${force})`,
     playerCount: players.length,
   });
   try {
-    // Step 1: real data from aoe4world (free, 100% accurate)
     const { seedAllPlayerHistories } = await import('../scrapers/aoe4worldPlayerHistorySeeder');
     await seedAllPlayerHistories(force);
-    // Step 2: AI fills gaps for players still under 50 records
-    const { enrichAllProPlayers } = await import('../scrapers/aiPlayerHistoryScraper');
-    await enrichAllProPlayers(force);
   } catch (err) {
     logger.error('[Seed History] Error:', err);
   }

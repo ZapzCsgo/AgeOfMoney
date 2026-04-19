@@ -280,7 +280,7 @@ async function closeBetsPreMatch(): Promise<void> {
 async function recalcActiveMatchOdds(): Promise<void> {
   const io = getIo();
   const { calculateOddsV2 } = await import('../services/oddsEngine');
-  const { getPlayerH2HFromHistory } = await import('../scrapers/aiPlayerHistoryScraper');
+  const { getPlayerH2HFromHistory } = await import('../services/h2hHistory');
 
   const SENTINEL_OPPONENT = '__AI_ENRICHED__';
   const activeMatches = await prisma.match.findMany({

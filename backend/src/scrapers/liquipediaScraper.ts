@@ -803,20 +803,13 @@ export async function scrapeUpcomingMatches(): Promise<void> {
         });
         matchesSaved++;
 
-        if (process.env.ANTHROPIC_API_KEY) {
-          (async () => {
-            const { enrichPlayerWithAI } = await import('./aiPlayerHistoryScraper');
-            const { enrichAllUpcomingMatches } = await import('./aoe4worldScraper');
-            for (const [pid, pname] of [[p1.id, p1.name], [p2.id, p2.name]] as [string, string][]) {
-              const count = await prisma.playerMatchRecord.count({ where: { playerId: pid } });
-              if (count < 10) {
-                await enrichPlayerWithAI(pid, pname, false, tournGame);
-                await sleep(3000);
-              }
-            }
-            await enrichAllUpcomingMatches().catch(() => {});
-          })().catch(err => logger.warn(`[Liquipedia] AI enrichment failed for new match: ${err}`));
-        }
+        // Kick off odds enrichment (aoe4world stats + H2H from PMR). The
+        // Claude-AI gap-filler was removed 2026-04-19 — sparse new players
+        // rely on the Liquipedia /Matches subpage scraper only.
+        (async () => {
+          const { enrichAllUpcomingMatches } = await import('./aoe4worldScraper');
+          await enrichAllUpcomingMatches().catch(() => {});
+        })().catch(err => logger.warn(`[Liquipedia] Odds enrichment failed for new match: ${err}`));
 
         await sleep(200);
       } catch (err) {

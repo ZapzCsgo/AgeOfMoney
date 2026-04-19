@@ -957,7 +957,7 @@ async function syncMatchScore(matchId: string): Promise<void> {
     await distributePayout(matchId, resolvedWinnerId);
 
     // Append result to PlayerMatchRecord — this is how non-AoE4 H2H grows
-    // organically once Claude has been called once per (player, game).
+    // organically as platform matches complete.
     {
       const p1Won = resolvedWinnerId === match.player1.id;
       const tournamentName = match.tournament?.name ?? 'Tournament';

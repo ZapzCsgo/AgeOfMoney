@@ -188,24 +188,21 @@ async function processTournament(tourn: Aoe4WorldTournament): Promise<void> {
       });
       playerMap.set(p.profile_id, created.id);
 
-      // New player discovered — seed their history in background (non-blocking)
-      if (process.env.ANTHROPIC_API_KEY) {
+      // New player discovered — seed their history in background from the
+      // free aoe4world API (non-blocking). The Claude-AI gap-filler was
+      // removed 2026-04-19 — sparse players stay sparse until the next
+      // Liquipedia scrape picks them up.
+      {
         const newPlayerId = created.id;
         const newPlayerName = p.name;
         const newPlayerAoe4Id = String(p.profile_id);
         setImmediate(async () => {
           try {
-            logger.info(`[Tournament] New player ${newPlayerName} — seeding history (aoe4world + AI)`);
+            logger.info(`[Tournament] New player ${newPlayerName} — seeding history from aoe4world`);
             const { seedPlayerHistoryFromAoe4World } = await import('./aoe4worldPlayerHistorySeeder');
             const { buildProPlayerSet } = await import('./aoe4worldScraper');
             const proIds = await buildProPlayerSet();
             await seedPlayerHistoryFromAoe4World(newPlayerId, newPlayerName, newPlayerAoe4Id, proIds);
-            // AI supplement if still under 50
-            const count = await prisma.playerMatchRecord.count({ where: { playerId: newPlayerId } });
-            if (count < 50) {
-              const { enrichPlayerWithAI } = await import('./aiPlayerHistoryScraper');
-              await enrichPlayerWithAI(newPlayerId, newPlayerName, false);
-            }
           } catch (err) {
             logger.error(`[Tournament] History seeding failed for ${newPlayerName}:`, err);
           }
