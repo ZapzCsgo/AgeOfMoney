@@ -214,6 +214,23 @@ async function predictForMatch(m: MatchRow): Promise<Prediction | null> {
   const days1 = m.player1LastMatchAt ? Math.max(0, (now - m.player1LastMatchAt.getTime()) / 86400000) : 30;
   const days2 = m.player2LastMatchAt ? Math.max(0, (now - m.player2LastMatchAt.getTime()) / 86400000) : 30;
 
+  // Phase 2 : fetch Glicko ratings (ne trigger V2 que si flag ON)
+  let glicko1: { rating: number; rd: number } | undefined;
+  let glicko2: { rating: number; rd: number } | undefined;
+  if (process.env.ODDS_ENGINE_V2_ENABLED === 'true') {
+    const glickoRows = await prisma.$queryRawUnsafe<Array<{
+      playerid: string; rating: number; rd: number;
+    }>>(
+      `SELECT "playerId" AS playerid, rating, rd FROM "PlayerRating" WHERE "playerId" IN ($1, $2)`,
+      m.player1Id, m.player2Id,
+    ).catch(() => [] as Array<{ playerid: string; rating: number; rd: number }>);
+    for (const r of glickoRows) {
+      const entry = { rating: Number(r.rating), rd: Number(r.rd) };
+      if (r.playerid === m.player1Id) glicko1 = entry;
+      else if (r.playerid === m.player2Id) glicko2 = entry;
+    }
+  }
+
   // 6. Call the engine
   const mapRec = (r: typeof p1Records[number]): MatchRecord => ({
     won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId, score: r.score,
@@ -227,6 +244,10 @@ async function predictForMatch(m: MatchRow): Promise<Prediction | null> {
     matchTier: m.tournamentTier ?? undefined,
     format: m.format,
     opponentWinrates: oppMap,
+    glickoRating1: glicko1?.rating,
+    glickoRd1: glicko1?.rd,
+    glickoRating2: glicko2?.rating,
+    glickoRd2: glicko2?.rd,
   });
 
   // 7. Determine outcome

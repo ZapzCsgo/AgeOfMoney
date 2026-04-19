@@ -893,6 +893,14 @@ async function syncMatchScore(matchId: string): Promise<void> {
     });
     await refundBets(matchId, `Match nul ${resultScore} — paris remboursés (void on draw)`);
 
+    // Phase 2 : draw = score 0.5 côté Glicko
+    if (process.env.ODDS_ENGINE_V2_ENABLED === 'true') {
+      try {
+        const { updateBothPlayersForMatch } = await import('./ratingEngine');
+        await updateBothPlayersForMatch(match.player1.id, match.player2.id, 0.5);
+      } catch (err) { logger.warn('[LPScorer] Glicko update (draw) failed:', err); }
+    }
+
     // Store the draw outcome in PlayerMatchRecord so the odds model can learn
     // empirical draw rates. Without this, the training data contains zero
     // draws and the model systematically under-predicts them.
@@ -989,6 +997,15 @@ async function syncMatchScore(matchId: string): Promise<void> {
     if (io) {
       io.to(`matchRoom:${matchId}`).emit('matchResult', { matchId, winnerId: resolvedWinnerId, resultScore, verifiedBy: 'liquipedia' });
       io.emit('matchUpdate', { matchId, status: 'COMPLETED', winnerId: resolvedWinnerId, resultScore, p1Score, p2Score });
+    }
+
+    // Phase 2 : mise à jour Glicko-2 ratings (gated par V2 flag).
+    if (process.env.ODDS_ENGINE_V2_ENABLED === 'true') {
+      try {
+        const { updateBothPlayersForMatch } = await import('./ratingEngine');
+        const outcome = resolvedWinnerId === match.player1.id ? 1 : 0;
+        await updateBothPlayersForMatch(match.player1.id, match.player2.id, outcome);
+      } catch (err) { logger.warn('[LPScorer] Glicko update failed:', err); }
     }
 
     logger.info(`[LPScorer] Match ${matchId} RESOLVED via Liquipedia: ${resolvedWinnerId === match.player1.id ? match.player1.name : match.player2.name} wins ${resultScore}`);

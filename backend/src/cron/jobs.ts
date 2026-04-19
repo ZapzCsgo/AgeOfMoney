@@ -342,6 +342,24 @@ async function recalcActiveMatchOdds(): Promise<void> {
         }
       }
 
+      // Phase 2 : fetch Glicko ratings si V2 flag ON (sinon les champs
+      // restent undefined et le moteur retombe sur le WR heuristique).
+      let glicko1: { rating: number; rd: number } | undefined;
+      let glicko2: { rating: number; rd: number } | undefined;
+      if (process.env.ODDS_ENGINE_V2_ENABLED === 'true') {
+        const glickoRows = await prisma.$queryRawUnsafe<Array<{
+          playerid: string; rating: number; rd: number;
+        }>>(
+          `SELECT "playerId" AS playerid, rating, rd FROM "PlayerRating" WHERE "playerId" IN ($1, $2)`,
+          match.player1.id, match.player2.id,
+        ).catch(() => [] as Array<{ playerid: string; rating: number; rd: number }>);
+        for (const r of glickoRows) {
+          const entry = { rating: Number(r.rating), rd: Number(r.rd) };
+          if (r.playerid === match.player1.id) glicko1 = entry;
+          else if (r.playerid === match.player2.id) glicko2 = entry;
+        }
+      }
+
       const modelOdds = calculateOddsV2({
         p1Records: p1Records.map(r => ({ won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId, score: r.score })),
         p2Records: p2Records.map(r => ({ won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId, score: r.score })),
@@ -351,6 +369,10 @@ async function recalcActiveMatchOdds(): Promise<void> {
         matchTier: match.tournament?.tier ?? undefined,
         format: match.format,
         opponentWinrates: oppWinrateMap,
+        glickoRating1: glicko1?.rating,
+        glickoRd1: glicko1?.rd,
+        glickoRating2: glicko2?.rating,
+        glickoRd2: glicko2?.rd,
       });
 
       const drawChanged = modelOdds.oddsDraw !== undefined &&

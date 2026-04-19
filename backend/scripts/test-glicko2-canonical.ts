@@ -17,7 +17,7 @@
  * Usage: SKIP_SERVER=1 npx tsx scripts/test-glicko2-canonical.ts
  */
 
-import { computeUpdatedRating, computeWinProbability } from '../src/services/ratingEngine';
+import { computeUpdatedRating, computeWinProbability } from '../src/services/glicko2';
 
 function check(label: string, actual: number, expected: number, tol: number): boolean {
   const diff = Math.abs(actual - expected);

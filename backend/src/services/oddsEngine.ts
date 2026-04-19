@@ -1,3 +1,5 @@
+import { computeWinProbability as glickoWinProb } from './glicko2';
+
 /**
  * Odds Engine v2 — Professional-grade esports betting odds.
  *
@@ -105,6 +107,14 @@ export interface OddsInputV2 {
   // than a win against a 70% player. When omitted, all opponents default
   // to 0.5 and the factor is effectively inactive.
   opponentWinrates?: Map<string, number>;
+  // Phase 2 : Glicko-2 ratings (optional). When both provided AND
+  // ODDS_ENGINE_V2_ENABLED=true, the "competitive winrate" factor is
+  // replaced by the Glicko single-game win probability. Other factors
+  // (form, H2H, tier-context) remain intact as modifiers.
+  glickoRating1?: number;
+  glickoRd1?: number;
+  glickoRating2?: number;
+  glickoRd2?: number;
 }
 
 export interface OddsResult {
@@ -461,16 +471,26 @@ export function calculateOddsV2(input: OddsInputV2): OddsResult {
   const wr2 = computeCompetitiveWinrate(input.p2Records, oppWinrates, now);
 
   // ── Factor 1: Competitive winrate (35%) ─────────────────────────────────
+  // V1 = WR heuristique ; V2 (Phase 2) = Glicko-2 P(A wins single game) si
+  // les ratings sont fournis. Glicko est un signal bien plus précis de skill
+  // que le WR global Bayesian (uncertainty modelisée, rating calibré contre
+  // tous les opponents chronologiquement).
   const wrLogitDiff = logit(wr1.winrate) - logit(wr2.winrate);
-  // V1 scale: 1.0 (aucun damping). V2 scale: 1.15 — le baseline a montré que
-  // le modèle était sous-calibré (bucket 30-40% → actual 100% victoires P1).
-  // Un léger uplift du signal WR corrige la tendance à pousser vers 50/50.
   const WR_LOGIT_SCALE = V2_ENABLED ? 1.15 : 1.0;
-  // V2 : SOS bonus — joueur qui affronte du 60%+ WR en moyenne a prouvé qu'il
-  // joue dans la cour des grands (signal indépendant du tier du match).
   const sos1 = computeSOS(input.p1Records, oppWinrates);
   const sos2 = computeSOS(input.p2Records, oppWinrates);
-  const wrProb1 = sigmoid(wrLogitDiff * WR_LOGIT_SCALE + (sos1 - sos2));
+  const wrHeuristicProb1 = sigmoid(wrLogitDiff * WR_LOGIT_SCALE + (sos1 - sos2));
+
+  const hasGlicko =
+    V2_ENABLED &&
+    input.glickoRating1 !== undefined && input.glickoRd1 !== undefined &&
+    input.glickoRating2 !== undefined && input.glickoRd2 !== undefined;
+  const wrProb1 = hasGlicko
+    ? glickoWinProb(
+        input.glickoRating1!, input.glickoRd1!,
+        input.glickoRating2!, input.glickoRd2!,
+      )
+    : wrHeuristicProb1;
   const wrConfidence = Math.sqrt(wr1.confidence * wr2.confidence);
 
   // ── Factor 2: H2H direct (25%) ──────────────────────────────────────────

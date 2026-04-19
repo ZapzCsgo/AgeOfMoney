@@ -19,9 +19,12 @@
  */
 
 import { PrismaClient } from '@prisma/client';
-import { computeUpdatedRating, GLICKO2_DEFAULTS } from '../src/services/ratingEngine';
+import { computeUpdatedRating, DEFAULT_RATING, DEFAULT_RD, DEFAULT_VOL } from '../src/services/glicko2';
 
+// Standalone Prisma client — no import from ../src/index, so no cron jobs,
+// roulette, socket or HTTP server get booted by this script.
 const prisma = new PrismaClient();
+const GLICKO2_DEFAULTS = { RATING: DEFAULT_RATING, RD: DEFAULT_RD, VOL: DEFAULT_VOL };
 const SENTINEL = '__AI_ENRICHED__';
 
 interface RatingState {

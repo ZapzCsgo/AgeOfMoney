@@ -749,6 +749,23 @@ export async function enrichMatchWithH2H(matchId: string): Promise<void> {
     }
   }
 
+  // Phase 2 : fetch Glicko ratings si V2 flag ON
+  let glicko1: { rating: number; rd: number } | undefined;
+  let glicko2: { rating: number; rd: number } | undefined;
+  if (process.env.ODDS_ENGINE_V2_ENABLED === 'true') {
+    const glickoRows = await prisma.$queryRawUnsafe<Array<{
+      playerid: string; rating: number; rd: number;
+    }>>(
+      `SELECT "playerId" AS playerid, rating, rd FROM "PlayerRating" WHERE "playerId" IN ($1, $2)`,
+      match.player1.id, match.player2.id,
+    ).catch(() => [] as Array<{ playerid: string; rating: number; rd: number }>);
+    for (const r of glickoRows) {
+      const entry = { rating: Number(r.rating), rd: Number(r.rd) };
+      if (r.playerid === match.player1.id) glicko1 = entry;
+      else if (r.playerid === match.player2.id) glicko2 = entry;
+    }
+  }
+
   const newOdds = calculateOddsV2({
     p1Records: p1Records.map(r => ({ won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId, score: r.score })),
     p2Records: p2Records.map(r => ({ won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId, score: r.score })),
@@ -758,6 +775,10 @@ export async function enrichMatchWithH2H(matchId: string): Promise<void> {
     matchTier: tournament?.tier ?? undefined,
     format: match.format,
     opponentWinrates: oppWinrateMap,
+    glickoRating1: glicko1?.rating,
+    glickoRd1: glicko1?.rd,
+    glickoRating2: glicko2?.rating,
+    glickoRd2: glicko2?.rd,
   });
 
   // Update odds in DB — always write oddsDraw (null for BO1/BO3/BO5/BO7,
