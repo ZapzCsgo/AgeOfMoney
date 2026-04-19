@@ -82,6 +82,7 @@ async function compareOdds(p1Name: string, p2Name: string, tier: string, format:
 async function main() {
   await compareOdds('MarineLorD', 'JIF Music', 'A', 'BO5');
   await compareOdds('Wam01', 'SAS', 'A', 'BO5');
+  await compareOdds('Anh Huy', 'Chim Sẻ Đi Nắng', 'S', 'BO2');
   const ml = null;
   const jif = null;
   if (!ml || !jif) { await prisma.$disconnect(); return; }
