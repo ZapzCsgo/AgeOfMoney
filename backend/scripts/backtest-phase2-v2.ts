@@ -142,9 +142,21 @@ async function main() {
   const measurementStart = Math.max(0, events.length - n);
 
   // Replay chronologically with Glicko-2 ratings updated in-memory
-  const ratings = new Map<string, RatingTriple>();
-  const getR = (id: string): RatingTriple =>
-    ratings.get(id) ?? { rating: DEFAULT_RATING, rd: DEFAULT_RD, vol: DEFAULT_VOL };
+  interface RatingState extends RatingTriple { lastMatchDate: Date | null }
+  const ratings = new Map<string, RatingState>();
+  const getR = (id: string): RatingState =>
+    ratings.get(id) ?? { rating: DEFAULT_RATING, rd: DEFAULT_RD, vol: DEFAULT_VOL, lastMatchDate: null };
+
+  /** Bug #2 fix : RD inflation pour inactivité avant d'utiliser le rating. */
+  const SCALE = 173.7178;
+  const inflateRd = (s: RatingState, asOf: Date): RatingState => {
+    if (!s.lastMatchDate) return s;
+    const monthsIdle = Math.max(0, (asOf.getTime() - s.lastMatchDate.getTime()) / (30 * 24 * 60 * 60 * 1000));
+    if (monthsIdle < 1) return s;
+    const phi = s.rd / SCALE;
+    const phiIdle = Math.sqrt(phi * phi + monthsIdle * s.vol * s.vol);
+    return { ...s, rd: Math.min(DEFAULT_RD, phiIdle * SCALE) };
+  };
 
   interface Pred {
     matchId: string;
@@ -178,8 +190,8 @@ async function main() {
         const now = ev.date.getTime();
         const days1 = ev.player1LastMatchAt ? Math.max(0, (now - ev.player1LastMatchAt.getTime()) / 86400000) : 30;
         const days2 = ev.player2LastMatchAt ? Math.max(0, (now - ev.player2LastMatchAt.getTime()) / 86400000) : 30;
-        const r1 = getR(ev.player1Id);
-        const r2 = getR(ev.player2Id);
+        const r1 = inflateRd(getR(ev.player1Id), ev.date);
+        const r2 = inflateRd(getR(ev.player2Id), ev.date);
 
         const baseInput = {
           p1Records: p1Recs, p2Records: p2Recs, h2h,
@@ -211,14 +223,14 @@ async function main() {
     }
 
     // Update ratings regardless (need full history for future predictions)
-    const r1 = getR(ev.player1Id);
-    const r2 = getR(ev.player2Id);
+    const r1Pre = inflateRd(getR(ev.player1Id), ev.date);
+    const r2Pre = inflateRd(getR(ev.player2Id), ev.date);
     const score1: 0 | 0.5 | 1 = drawInfo.isDraw ? 0.5 : outcome === 1 ? 1 : 0;
     const score2: 0 | 0.5 | 1 = score1 === 1 ? 0 : score1 === 0 ? 1 : 0.5;
-    const r1N = computeUpdatedRating(r1, [{ opponentRating: r2.rating, opponentRd: r2.rd, score: score1 }]);
-    const r2N = computeUpdatedRating(r2, [{ opponentRating: r1.rating, opponentRd: r1.rd, score: score2 }]);
-    ratings.set(ev.player1Id, r1N);
-    ratings.set(ev.player2Id, r2N);
+    const r1N = computeUpdatedRating(r1Pre, [{ opponentRating: r2Pre.rating, opponentRd: r2Pre.rd, score: score1 }]);
+    const r2N = computeUpdatedRating(r2Pre, [{ opponentRating: r1Pre.rating, opponentRd: r1Pre.rd, score: score2 }]);
+    ratings.set(ev.player1Id, { ...r1N, lastMatchDate: ev.date });
+    ratings.set(ev.player2Id, { ...r2N, lastMatchDate: ev.date });
 
     if ((i + 1) % 500 === 0) console.log(`  processed ${i + 1}/${events.length}`);
   }

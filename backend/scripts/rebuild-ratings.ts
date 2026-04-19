@@ -32,6 +32,7 @@ interface RatingState {
   rd: number;
   vol: number;
   gamesPlayed: number;
+  lastMatchDate: Date | null; // Bug #2 fix : track inactivity
 }
 
 /** In-memory map playerId → rating, for fast rebuild. Flushed to DB at end. */
@@ -43,7 +44,32 @@ function getRating(playerId: string): RatingState {
     rd: GLICKO2_DEFAULTS.RD,
     vol: GLICKO2_DEFAULTS.VOL,
     gamesPlayed: 0,
+    lastMatchDate: null,
   };
+}
+
+/**
+ * Bug #2 fix : RD inflation pour périodes d'inactivité.
+ *
+ * Glicko-2 prévoit que la RD grandit avec l'inactivité — un joueur qui n'a
+ * pas joué depuis 2 ans ne doit pas garder une RD de 50 comme s'il était
+ * toujours en forme. Formule standard : φ' = sqrt(φ² + σ²) par rating period.
+ * Ici on prend 1 période = 1 mois. Capé à DEFAULT_RD pour ne pas exploser.
+ *
+ * Appelée AVANT d'utiliser le rating comme référence (opponent rating).
+ */
+function inflateRd(state: RatingState, asOf: Date): RatingState {
+  if (!state.lastMatchDate) return state;
+  const msPerMonth = 30 * 24 * 60 * 60 * 1000;
+  const monthsIdle = Math.max(0, (asOf.getTime() - state.lastMatchDate.getTime()) / msPerMonth);
+  if (monthsIdle < 1) return state;
+  // Apply σ-based inflation per month of idleness
+  // Converted: φ_idle = sqrt(φ² + months × σ²)
+  const SCALE = 173.7178;
+  const phi = state.rd / SCALE;
+  const phiIdle = Math.sqrt(phi * phi + monthsIdle * state.vol * state.vol);
+  const newRd = Math.min(GLICKO2_DEFAULTS.RD, phiIdle * SCALE);
+  return { ...state, rd: newRd };
 }
 
 interface MatchEvent {
@@ -153,8 +179,9 @@ async function collectAllMatchEvents(): Promise<MatchEvent[]> {
 }
 
 async function applyEvent(ev: MatchEvent): Promise<void> {
-  const r1 = getRating(ev.player1Id);
-  const r2 = getRating(ev.player2Id);
+  // Bug #2 fix : inflate RD pour inactivité avant de calculer
+  const r1 = inflateRd(getRating(ev.player1Id), ev.date);
+  const r2 = inflateRd(getRating(ev.player2Id), ev.date);
 
   const p1New = computeUpdatedRating(
     { rating: r1.rating, rd: r1.rd, vol: r1.vol },
@@ -166,8 +193,8 @@ async function applyEvent(ev: MatchEvent): Promise<void> {
     [{ opponentRating: r1.rating, opponentRd: r1.rd, score: p2Score }],
   );
 
-  ratings.set(ev.player1Id, { ...p1New, gamesPlayed: r1.gamesPlayed + 1 });
-  ratings.set(ev.player2Id, { ...p2New, gamesPlayed: r2.gamesPlayed + 1 });
+  ratings.set(ev.player1Id, { ...p1New, gamesPlayed: r1.gamesPlayed + 1, lastMatchDate: ev.date });
+  ratings.set(ev.player2Id, { ...p2New, gamesPlayed: r2.gamesPlayed + 1, lastMatchDate: ev.date });
 }
 
 async function flushToDB(dry: boolean): Promise<void> {
