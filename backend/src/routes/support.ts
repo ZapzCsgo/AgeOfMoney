@@ -51,17 +51,25 @@ router.post('/', supportLimiter, async (req: Request, res: Response): Promise<vo
 
     const { email, subject, message } = parsed.data;
 
+    // Always log the full ticket content so nothing is lost even if SMTP
+    // fails — tickets can be recovered from Railway logs.
+    logger.info(`[Support] Ticket received — from: ${email}, subject: ${subject}, body: ${message.replace(/\s+/g, ' ').slice(0, 200)}…`);
+
     const transporter = createTransporter();
     if (!transporter) {
-      // Log the ticket even if email isn't sent
-      logger.info(`[Support] Ticket (SMTP not configured) — from: ${email}, subject: ${subject}`);
-      res.json({ ok: true });
+      // Fail loudly when SMTP isn't wired — silently returning ok: true
+      // made users think their ticket landed somewhere when it didn't. The
+      // full content is already in the logs above, nothing lost.
+      logger.error('[Support] SMTP not configured — set SMTP_HOST/SMTP_USER/SMTP_PASS (and optionally SUPPORT_EMAIL) on Railway');
+      res.status(503).json({ error: 'Service email temporairement indisponible. Réessaye plus tard ou contacte-nous sur Discord.' });
       return;
     }
 
+    const supportEmail = process.env.SUPPORT_EMAIL || 'support@ageof.money';
+
     await transporter.sendMail({
       from:    `"AgeOfMoney Support" <${process.env.SMTP_USER}>`,
-      to:      'support@ageof.money',
+      to:      supportEmail,
       replyTo: email,
       subject: `[Support AgeOfMoney] ${subject}`,
       text: [
