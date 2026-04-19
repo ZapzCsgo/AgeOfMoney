@@ -210,6 +210,12 @@ function SecurityTab({ session }: { session: { user: { accessToken: string; id?:
   const [twofaEnabled, setTwofaEnabled] = useState(false);
   const [showSetup, setShowSetup]       = useState(false);
   const [otpauthUrl, setOtpauthUrl]     = useState('');
+  // QR code rendu en local (data URL) depuis `otpauthUrl`. Avant on passait
+  // par api.qrserver.com, mais (a) ça exposait le secret TOTP à un 3rd party
+  // via l'URL, et (b) le service était bloqué/indisponible chez certains
+  // users → image cassée "QR Code 2FA" alt visible. Génération client-side
+  // 100% locale maintenant.
+  const [qrDataUrl, setQrDataUrl]       = useState('');
   const [verifyCode, setVerifyCode]     = useState('');
   const [verifyError, setVerifyError]   = useState('');
   const [verifySuccess, setVerifySuccess] = useState(false);
@@ -292,9 +298,34 @@ function SecurityTab({ session }: { session: { user: { accessToken: string; id?:
     }
   };
 
-  const qrUrl = otpauthUrl
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(otpauthUrl)}`
-    : '';
+  // Regénère le QR data URL à chaque changement d'otpauthUrl. Import dynamique
+  // pour éviter d'alourdir le bundle initial (la lib pèse ~50kB gzippé et
+  // n'est utile que quand l'utilisateur clique sur "activer 2FA").
+  // Le cast `as typeof import('qrcode')` tolère que le module ne soit pas
+  // résolu en dev tant que les types ne sont pas installés — Vercel/Railway
+  // installent via package.json.
+  useEffect(() => {
+    if (!otpauthUrl) { setQrDataUrl(''); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore — qrcode resolved at deploy time via package.json
+        const mod = await import('qrcode');
+        const QRCode = (mod as { default?: { toDataURL: (text: string, opts: unknown) => Promise<string> } }).default
+          ?? (mod as unknown as { toDataURL: (text: string, opts: unknown) => Promise<string> });
+        const url = await QRCode.toDataURL(otpauthUrl, {
+          width: 180,
+          margin: 1,
+          color: { dark: '#ffffff', light: '#07060f' },
+        });
+        if (!cancelled) setQrDataUrl(url);
+      } catch {
+        if (!cancelled) setQrDataUrl('');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [otpauthUrl]);
 
   return (
     <div className="space-y-4">
@@ -360,18 +391,34 @@ function SecurityTab({ session }: { session: { user: { accessToken: string; id?:
               className="rounded-lg flex flex-col items-center justify-center py-6 gap-3"
               style={{ background: '#07060f', border: '1px solid #1e1a30' }}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={qrUrl}
-                alt="QR Code 2FA"
-                width={120}
-                height={120}
-                className="rounded"
-                style={{ imageRendering: 'pixelated' }}
-              />
+              {qrDataUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={qrDataUrl}
+                  alt="QR Code 2FA"
+                  width={180}
+                  height={180}
+                  className="rounded"
+                  style={{ imageRendering: 'pixelated' }}
+                />
+              ) : (
+                <div className="w-[180px] h-[180px] rounded flex items-center justify-center" style={{ background: '#13111f' }}>
+                  <span className="text-[#3d3860] text-[11px]">…</span>
+                </div>
+              )}
               <p className="text-[11px] text-center text-[#6b6488] max-w-xs leading-relaxed">
                 {t('sec_2fa_backup')}
               </p>
+              {otpauthUrl && (
+                <details className="text-[10px] text-[#4a4570] max-w-xs w-full">
+                  <summary className="cursor-pointer hover:text-[#6b6488] text-center">
+                    Impossible de scanner ? Entrer le secret manuellement
+                  </summary>
+                  <code className="block mt-2 break-all bg-[#13111f] rounded p-2 font-mono text-[#9990b8]">
+                    {new URL(otpauthUrl).searchParams.get('secret') || '—'}
+                  </code>
+                </details>
+              )}
             </div>
 
             {/* Verification code input */}
