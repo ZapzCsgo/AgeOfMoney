@@ -152,7 +152,9 @@ export function MatchCard({ match }: MatchCardProps) {
               </div>
             )}
 
-            {isLive && !isCompleted && (
+            {/* Score live affiché seulement SANS stream Twitch — sinon le user
+                se fie au stream et nos chiffres best-effort peuvent diverger. */}
+            {isLive && !isCompleted && !(match.twitchChannel ?? match.tournament?.twitchChannel) && (
               <div className="flex items-center gap-1.5 mt-1 tabular-nums">
                 <span className="font-black text-2xl text-amber-400 leading-none">{match.p1Score ?? 0}</span>
                 <span className="text-[#3a3560] font-bold">—</span>

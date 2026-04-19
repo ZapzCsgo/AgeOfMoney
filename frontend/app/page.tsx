@@ -424,7 +424,11 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
                 {match.p2Score ?? 0}
               </div>
             </div>
-          ) : isLive && (match.p1Score !== undefined || match.p2Score !== undefined) ? (
+          ) : isLive && !twitchChannel && (match.p1Score !== undefined || match.p2Score !== undefined) ? (
+            // Sans stream Twitch, on garde nos scores best-effort (seule source
+            // d'info pour le user). Avec un stream, on les cache : nos données
+            // live sont pas fiables en temps réel et contredisent visuellement
+            // le stream — plus propre de laisser le user lire le stream.
             <div className="flex flex-col items-center shrink-0">
               <div className="text-aoe-gold font-cinzel font-black text-lg leading-none">
                 {match.p1Score ?? 0}

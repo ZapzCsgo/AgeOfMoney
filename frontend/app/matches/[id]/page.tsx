@@ -577,9 +577,12 @@ export default function MatchPage() {
               </div>
             </div>
 
-            {/* Center — score or VS */}
+            {/* Center — score or VS.
+                Score live affiché seulement SANS stream Twitch (sinon user lit
+                directement le stream, nos chiffres best-effort sont redondants
+                et peuvent diverger). */}
             <div className="text-center">
-              {isLive ? (
+              {isLive && !twitchChannel ? (
                 <div className="flex items-center gap-3">
                   <span className="font-cinzel font-black text-5xl text-amber-400">{match.p1Score ?? 0}</span>
                   <span className="font-cinzel text-aoe-parchment-muted text-xl">-</span>
@@ -633,7 +636,7 @@ export default function MatchPage() {
                   <h3 className="font-cinzel font-bold text-sm text-aoe-gold tracking-wider uppercase">
                     BO History
                   </h3>
-                  {isLive && (
+                  {isLive && !twitchChannel && (
                     <span className="ml-auto text-[10px] text-aoe-parchment-muted font-cinzel">
                       {match.p1Score ?? 0} — {match.p2Score ?? 0}
                     </span>
