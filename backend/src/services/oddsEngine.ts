@@ -387,21 +387,53 @@ export function calculateOddsV2(input: OddsInputV2): OddsResult {
   const rust2 = computeRustPenalty(input.daysSinceLastMatch2);
 
   // ── Factor 4: Tier-context performance (10%) ────────────────────────────
-  // Tier-specific winrates are only comparable when BOTH players have real
-  // data at the match tier. Falling back to overall WR when one player has
-  // no tier data is misleading: "JIF has never played at S-tier" isn't the
-  // same as "JIF would go 50% at S-tier" — more often she'd be crushed.
-  // So: if either side lacks tier data, tier-context is skipped and the
-  // weight is renormalized into the other factors.
+  // Tier-specific winrates are the primary signal when available on BOTH
+  // players. When only ONE side has data at the match tier, we apply a
+  // "step-up penalty" to the side with no history: never having qualified
+  // for the match tier is itself a negative signal (a C-tier regular thrown
+  // into an S-tier match is at a disadvantage vs the S-tier regular, even
+  // if their overall WR is ok).
+  const TIER_LEVEL: Record<string, number> = {
+    S: 5, A: 4, Qualifier: 3, B: 2, C: 1, Misc: 0,
+  };
+  /** Highest tier the player has real (≥4-record) data at. */
+  function highestPlayedTier(records: MatchRecord[]): number {
+    let best = -1;
+    for (const tier of Object.keys(TIER_LEVEL)) {
+      if (computeTierSpecificWinrate(records, tier) !== null) {
+        best = Math.max(best, TIER_LEVEL[tier] ?? 0);
+      }
+    }
+    return best;
+  }
+
   let tierContextLogit = 0;
   let tierContextAvailable = false;
   if (input.matchTier) {
     const p1TierWr = computeTierSpecificWinrate(input.p1Records, input.matchTier);
     const p2TierWr = computeTierSpecificWinrate(input.p2Records, input.matchTier);
     if (p1TierWr !== null && p2TierWr !== null) {
-      // 0.5× dampening: prevents overcorrection from small tier-specific samples
       tierContextLogit = (logit(p1TierWr) - logit(p2TierWr)) * 0.5;
       tierContextAvailable = true;
+    } else if (p1TierWr !== null || p2TierWr !== null) {
+      // Asymmetric — one side has tier data, the other doesn't. Apply a
+      // step-up penalty to the no-data side based on how far below the
+      // match tier their highest-played tier sits.
+      const matchLevel = TIER_LEVEL[input.matchTier] ?? 2;
+      const p1High = highestPlayedTier(input.p1Records);
+      const p2High = highestPlayedTier(input.p2Records);
+      // 0.25 logit per tier step below the match tier (capped at 3 steps = 0.75).
+      // Example : JIF Music never played A-tier, highest is Qualifier → match=A
+      // (level 4) vs JIF=3 → 1 step → +0.25 logit penalty against JIF.
+      if (p1TierWr !== null && p2High < matchLevel) {
+        const steps = Math.min(3, matchLevel - p2High);
+        tierContextLogit = (logit(p1TierWr) - logit(0.45)) * 0.5 + 0.25 * steps;
+        tierContextAvailable = true;
+      } else if (p2TierWr !== null && p1High < matchLevel) {
+        const steps = Math.min(3, matchLevel - p1High);
+        tierContextLogit = (logit(0.45) - logit(p2TierWr)) * 0.5 - 0.25 * steps;
+        tierContextAvailable = true;
+      }
     }
   }
 
