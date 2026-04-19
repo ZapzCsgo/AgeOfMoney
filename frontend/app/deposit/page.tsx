@@ -434,13 +434,6 @@ export default function DepositPage() {
                 ? `Minimum $5.00 — manque $${(5 - usdCost).toFixed(2)}`
                 : 'Minimum $5.00'}
             </p>
-            {usdCost >= 5 && (
-              <p className="text-aoe-parchment-muted text-xs mt-1 text-right">
-                = <span className="text-aoe-gold font-semibold">{baseCoins.toLocaleString('fr-FR')} ⚜</span>
-                <span className="mx-1 opacity-40">·</span>
-                <span className="opacity-70">≈ €{eurCost.toFixed(2)}</span>
-              </p>
-            )}
           </div>
 
           {/* PAYMENT METHOD */}
