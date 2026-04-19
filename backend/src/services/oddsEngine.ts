@@ -481,8 +481,11 @@ export function calculateOddsV2(input: OddsInputV2): OddsResult {
   const sos2 = computeSOS(input.p2Records, oppWinrates);
   const wrHeuristicProb1 = sigmoid(wrLogitDiff * WR_LOGIT_SCALE + (sos1 - sos2));
 
+  // Glicko s'active dès que les 4 inputs sont fournis par le caller,
+  // indépendamment de V2_ENABLED. Le flag contrôle uniquement les features
+  // Phase 1 (time decay, momentum, SOS). Permettre au backtest de tester
+  // Glicko pur sans activer Phase 1, et vice-versa.
   const hasGlicko =
-    V2_ENABLED &&
     input.glickoRating1 !== undefined && input.glickoRd1 !== undefined &&
     input.glickoRating2 !== undefined && input.glickoRd2 !== undefined;
   const wrProb1 = hasGlicko
