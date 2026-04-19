@@ -19,7 +19,7 @@
  */
 
 import { PrismaClient } from '@prisma/client';
-import { computeUpdatedRating, DEFAULT_RATING, DEFAULT_RD, DEFAULT_VOL } from '../src/services/glicko2';
+import { computeUpdatedRating, DEFAULT_RATING, DEFAULT_RD, DEFAULT_VOL, tierWeight } from '../src/services/glicko2';
 
 // Standalone Prisma client — no import from ../src/index, so no cron jobs,
 // roulette, socket or HTTP server get booted by this script.
@@ -78,6 +78,8 @@ interface MatchEvent {
   player2Id: string;
   /** outcome from player1's perspective : 1 = p1 wins, 0 = p2 wins, 0.5 = draw */
   score: 0 | 0.5 | 1;
+  /** Tier du match (S/A/B/C/Qualifier/Misc) — utilisé pour le tier-weighted Glicko. */
+  tier: string | null;
   source: 'platform' | 'pmr'; // PlayerMatchRecord
 }
 
@@ -107,6 +109,7 @@ async function collectAllMatchEvents(): Promise<MatchEvent[]> {
       player2Id: true,
       winnerId: true,
       resultScore: true,
+      tournament: { select: { tier: true } },
     },
     orderBy: { scheduledAt: 'asc' },
   });
@@ -123,6 +126,7 @@ async function collectAllMatchEvents(): Promise<MatchEvent[]> {
       player1Id: m.player1Id,
       player2Id: m.player2Id,
       score,
+      tier: m.tournament?.tier ?? null,
       source: 'platform',
     });
   }
@@ -143,6 +147,7 @@ async function collectAllMatchEvents(): Promise<MatchEvent[]> {
       score: true,
       matchDate: true,
       tournamentName: true,
+      tier: true,
     },
     orderBy: { matchDate: 'asc' },
   });
@@ -169,6 +174,7 @@ async function collectAllMatchEvents(): Promise<MatchEvent[]> {
       player1Id: p1Id,
       player2Id: p2Id,
       score,
+      tier: r.tier ?? null,
       source: 'pmr',
     });
   }
@@ -183,14 +189,17 @@ async function applyEvent(ev: MatchEvent): Promise<void> {
   const r1 = inflateRd(getRating(ev.player1Id), ev.date);
   const r2 = inflateRd(getRating(ev.player2Id), ev.date);
 
+  // Phase 4 : tier-weighted Glicko — S-tier compte 4× plus qu'une C-tier.
+  const weight = tierWeight(ev.tier);
+
   const p1New = computeUpdatedRating(
     { rating: r1.rating, rd: r1.rd, vol: r1.vol },
-    [{ opponentRating: r2.rating, opponentRd: r2.rd, score: ev.score }],
+    [{ opponentRating: r2.rating, opponentRd: r2.rd, score: ev.score, weight }],
   );
   const p2Score = ev.score === 1 ? 0 : ev.score === 0 ? 1 : 0.5;
   const p2New = computeUpdatedRating(
     { rating: r2.rating, rd: r2.rd, vol: r2.vol },
-    [{ opponentRating: r1.rating, opponentRd: r1.rd, score: p2Score }],
+    [{ opponentRating: r1.rating, opponentRd: r1.rd, score: p2Score, weight }],
   );
 
   ratings.set(ev.player1Id, { ...p1New, gamesPlayed: r1.gamesPlayed + 1, lastMatchDate: ev.date });

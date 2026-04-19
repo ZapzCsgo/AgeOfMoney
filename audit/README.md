@@ -55,6 +55,7 @@ Ordre chronologique — chacun construit sur le précédent.
 4. [PHASE2_GLICKO2_VALIDATION_2026-04-19.md](PHASE2_GLICKO2_VALIDATION_2026-04-19.md) — Phase 2 (Glicko-2 rating) : V2 pire que V1, flag OFF
 5. [PHASE3_STOP_FOR_ANALYSIS_2026-04-19.md](PHASE3_STOP_FOR_ANALYSIS_2026-04-19.md) — Phase 3 bugs #1/#2 fixés : toujours pire, STOP
 6. [PHASE3_DIAGNOSTIC_2026-04-19.md](PHASE3_DIAGNOSTIC_2026-04-19.md) — **Diagnostic final** : 3-config + analyse des 10 pires erreurs. 100% "rating faux" (RD > 150). Cause racine : Glicko ignore le tier.
+7. [PHASE4_TIER_WEIGHTED_GLICKO_2026-04-19.md](PHASE4_TIER_WEIGHTED_GLICKO_2026-04-19.md) — Phase 4 (Glicko-2 tier-weighted) : code + math mergés, tests PASS, flag toujours OFF. Rebuild + backtest empirique à lancer avec pooler URL.
 
 ## Code references
 
@@ -69,5 +70,5 @@ Ordre chronologique — chacun construit sur le précédent.
 ## À reprendre seulement si
 
 - **N ≥ 200 matchs COMPLETED valides** (actuellement ~45). Avec plus de sample, les stats se stabilisent.
-- **Glicko tier-weighted** développé (score update multiplié par TIER_WEIGHT : S=4, A=2, etc.). Gros travail mais attaquerait la cause racine.
+- **Glicko tier-weighted** développé (score update multiplié par TIER_WEIGHT : S=4, A=2, etc.). **Fait en Phase 4** — code mergé, rebuild+backtest à lancer avec pooler URL (cf. [PHASE4_TIER_WEIGHTED_GLICKO_2026-04-19.md](PHASE4_TIER_WEIGHTED_GLICKO_2026-04-19.md) §4.1).
 - **Ensemble V1 × V2** tenté SEULEMENT si V2 blended est dans ±0.02 Brier de V1. Aujourd'hui écart > 0.06 → ensemble garantit une régression.

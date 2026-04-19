@@ -741,7 +741,7 @@ async function syncMatchScore(matchId: string): Promise<void> {
     include: {
       player1:    { select: { id: true, name: true } },
       player2:    { select: { id: true, name: true } },
-      tournament: { select: { name: true, liquipediaUrl: true } },
+      tournament: { select: { name: true, liquipediaUrl: true, tier: true } },
     },
   });
 
@@ -893,11 +893,11 @@ async function syncMatchScore(matchId: string): Promise<void> {
     });
     await refundBets(matchId, `Match nul ${resultScore} — paris remboursés (void on draw)`);
 
-    // Phase 2 : draw = score 0.5 côté Glicko
+    // Phase 2 : draw = score 0.5 côté Glicko (Phase 4 : tier-weighted)
     if (process.env.ODDS_ENGINE_V2_ENABLED === 'true') {
       try {
         const { updateBothPlayersForMatch } = await import('./ratingEngine');
-        await updateBothPlayersForMatch(match.player1.id, match.player2.id, 0.5);
+        await updateBothPlayersForMatch(match.player1.id, match.player2.id, 0.5, match.tournament?.tier);
       } catch (err) { logger.warn('[LPScorer] Glicko update (draw) failed:', err); }
     }
 
@@ -1004,7 +1004,7 @@ async function syncMatchScore(matchId: string): Promise<void> {
       try {
         const { updateBothPlayersForMatch } = await import('./ratingEngine');
         const outcome = resolvedWinnerId === match.player1.id ? 1 : 0;
-        await updateBothPlayersForMatch(match.player1.id, match.player2.id, outcome);
+        await updateBothPlayersForMatch(match.player1.id, match.player2.id, outcome, match.tournament?.tier);
       } catch (err) { logger.warn('[LPScorer] Glicko update failed:', err); }
     }
 

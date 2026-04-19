@@ -95,17 +95,21 @@ export async function updateBothPlayersForMatch(
   player2Id: string,
   /** outcome from player1's perspective : 1 = p1 wins, 0.5 = draw, 0 = p2 wins */
   outcome: 0 | 0.5 | 1,
+  /** Optional tier string (S/A/B/C/Qualifier/Misc) — applied as weight via tierWeight(). */
+  tier?: string | null,
 ): Promise<void> {
   const [r1, r2] = await Promise.all([getOrInitRating(player1Id), getOrInitRating(player2Id)]);
+  const { tierWeight } = await import('./glicko2');
+  const weight = tierWeight(tier);
 
   const p1New = computeUpdatedRating(
     { rating: r1.rating, rd: r1.rd, vol: r1.vol },
-    [{ opponentRating: r2.rating, opponentRd: r2.rd, score: outcome }],
+    [{ opponentRating: r2.rating, opponentRd: r2.rd, score: outcome, weight }],
   );
   const p2Score = outcome === 1 ? 0 : outcome === 0 ? 1 : 0.5;
   const p2New = computeUpdatedRating(
     { rating: r2.rating, rd: r2.rd, vol: r2.vol },
-    [{ opponentRating: r1.rating, opponentRd: r1.rd, score: p2Score }],
+    [{ opponentRating: r1.rating, opponentRd: r1.rd, score: p2Score, weight }],
   );
 
   await Promise.all([

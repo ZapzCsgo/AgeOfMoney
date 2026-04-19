@@ -27,6 +27,39 @@ export interface MatchResult {
   opponentRd: number;
   /** 1 = win, 0.5 = draw, 0 = loss (player's perspective) */
   score: 0 | 0.5 | 1;
+  /**
+   * Optional tier-based weight (default 1.0). Multiplies the match's
+   * information contribution to `v` and `Δ`. Extension standard de Glicko-2
+   * pour games pondérés (ex: Chess.com qui distingue rapid vs bullet,
+   * Dota 2 DatDota pour Majors vs petits tournois).
+   *
+   * Math : v = 1 / Σ wⱼ·g(φⱼ)²·E·(1-E), Δ = v · Σ wⱼ·g(φⱼ)·(sⱼ-E).
+   *
+   * Avec w=1 pour tous, on recover le Glicko-2 standard exact.
+   */
+  weight?: number;
+}
+
+/**
+ * Tier-based weights for match results, utilisés par le replay chronologique.
+ * Phase 4 fix : Glicko vanilla pondérait toutes les wins pareil, ce qui
+ * polluait les ratings des joueurs qui alternent gros tournois et farm de
+ * petits tournois. Cf. PHASE3_DIAGNOSTIC : 100% des pires erreurs V2 étaient
+ * "rating faux" causé par ce problème.
+ */
+export const TIER_WEIGHTS: Record<string, number> = {
+  S: 4.0,
+  Qualifier: 2.5,
+  A: 2.0,
+  B: 1.0,
+  C: 0.4,
+  Showmatch: 0.3,
+  Misc: 0.3,
+};
+
+export function tierWeight(tier: string | null | undefined): number {
+  if (!tier) return 1.0;
+  return TIER_WEIGHTS[tier] ?? 1.0;
 }
 
 function toGlicko2(r: number, rd: number): { mu: number; phi: number } {
@@ -99,21 +132,26 @@ export function computeUpdatedRating(
 
   const { mu, phi } = toGlicko2(current.rating, current.rd);
 
+  // Tier-weighted extension : chaque match a un weight optionnel (default 1).
+  // Avec tous weights = 1, on recover Glicko-2 standard exact (non-regression
+  // garantie par le test canonique de Glickman).
   let vInv = 0;
   for (const r of results) {
+    const w = r.weight ?? 1.0;
     const { mu: muJ, phi: phiJ } = toGlicko2(r.opponentRating, r.opponentRd);
     const gJ = g(phiJ);
     const E = expected(mu, muJ, phiJ);
-    vInv += gJ * gJ * E * (1 - E);
+    vInv += w * gJ * gJ * E * (1 - E);
   }
   const v = 1 / vInv;
 
   let delta = 0;
   for (const r of results) {
+    const w = r.weight ?? 1.0;
     const { mu: muJ, phi: phiJ } = toGlicko2(r.opponentRating, r.opponentRd);
     const gJ = g(phiJ);
     const E = expected(mu, muJ, phiJ);
-    delta += gJ * (r.score - E);
+    delta += w * gJ * (r.score - E);
   }
   delta *= v;
 
@@ -123,10 +161,11 @@ export function computeUpdatedRating(
 
   let sumGE = 0;
   for (const r of results) {
+    const w = r.weight ?? 1.0;
     const { mu: muJ, phi: phiJ } = toGlicko2(r.opponentRating, r.opponentRd);
     const gJ = g(phiJ);
     const E = expected(mu, muJ, phiJ);
-    sumGE += gJ * (r.score - E);
+    sumGE += w * gJ * (r.score - E);
   }
   const muPrime = mu + phiPrime * phiPrime * sumGE;
 
