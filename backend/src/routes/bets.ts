@@ -225,7 +225,11 @@ async function exactScoreOddsBlended(
   matchTier?: string,
   oddsDraw?: number,
 ): Promise<ScoreEntry[]> {
-  if (format === 'BO1' || format === 'BO2') return exactScoreOdds(odds1, odds2, format, oddsDraw);
+  // Phase 6 — retiré du marché : un BO1 exact-score est strictement équivalent
+  // au marché winner (avec 7.3 % de margin en plus). On le masque côté API pour
+  // supprimer le piège UX. Cf audit/PHASE6_EXACT_SCORE_STRESS_TEST_2026-04-19.md.
+  if (format === 'BO1') return [];
+  if (format === 'BO2') return exactScoreOdds(odds1, odds2, format, oddsDraw);
   try {
     const theoretical = theoreticalDistribution(odds1, odds2, format, oddsDraw);
     const blended = await buildBlendedDistribution(
@@ -301,6 +305,7 @@ router.post('/exact', requireAuth, async (req: Request, res: Response): Promise<
     ]);
     if (!match) { res.status(404).json({ error: 'Match not found' }); return; }
     if (!user || user.isBanned) { res.status(400).json({ error: 'Account banned' }); return; }
+    if (match.format === 'BO1') { res.status(400).json({ error: 'Exact-score market is not offered on BO1 matches' }); return; }
     if (match.status !== 'UPCOMING') { res.status(400).json({ error: 'Betting is closed' }); return; }
     if (!match.betsOpen) { res.status(400).json({ error: 'Bets temporarily closed' }); return; }
     if (new Date() >= match.scheduledAt) { res.status(400).json({ error: 'Match has started' }); return; }
