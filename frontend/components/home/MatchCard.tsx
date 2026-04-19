@@ -152,9 +152,16 @@ export function MatchCard({ match }: MatchCardProps) {
               </div>
             )}
 
-            {/* Score live affiché seulement SANS stream Twitch — sinon le user
-                se fie au stream et nos chiffres best-effort peuvent diverger. */}
-            {isLive && !isCompleted && !(match.twitchChannel ?? match.tournament?.twitchChannel) && (
+            {/* Score live affiché si :
+                - pas de stream (seule source d'info, on montre même 0-0), OU
+                - au moins un joueur a marqué (le 0-0 initial est caché avec
+                  stream pour éviter la contradiction quand le stream est déjà
+                  à 1-0 mais notre polling pas encore rafraîchi). */}
+            {isLive && !isCompleted && (
+              !(match.twitchChannel ?? match.tournament?.twitchChannel)
+              || (match.p1Score ?? 0) > 0
+              || (match.p2Score ?? 0) > 0
+            ) && (
               <div className="flex items-center gap-1.5 mt-1 tabular-nums">
                 <span className="font-black text-2xl text-amber-400 leading-none">{match.p1Score ?? 0}</span>
                 <span className="text-[#3a3560] font-bold">—</span>

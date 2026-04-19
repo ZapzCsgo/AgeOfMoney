@@ -122,12 +122,11 @@ function MatchRow({ match }: { match: Match }) {
         <div className="flex flex-col items-center gap-0.5 shrink-0 w-12">
           {isLive ? (
             <>
-              {/* Score in-match : affiché seulement si PAS de stream Twitch
-                  dispo. Avec stream, on fait confiance au user pour lire sur
-                  le stream — nos données live sont best-effort et peuvent
-                  diverger du stream en temps réel, ce qui confusait. */}
-              {!(match.twitchChannel ?? match.tournament?.twitchChannel)
-                && match.p1Score != null && match.p2Score != null
+              {/* Score in-match : toujours caché si 0-0 (pas d'info utile, et
+                  évite de contredire un stream qui serait déjà à 1-0).
+                  Dès qu'un joueur a marqué, on affiche — que le match ait un
+                  stream ou pas, le score brut vaut l'info. */}
+              {match.p1Score != null && match.p2Score != null
                 && (match.p1Score > 0 || match.p2Score > 0) ? (
                 <p className="font-cinzel font-black text-[14px] text-[#e8e2f5]">
                   {match.p1Score}<span className="text-[#3d3860] mx-0.5">-</span>{match.p2Score}

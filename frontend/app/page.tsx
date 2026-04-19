@@ -424,11 +424,14 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
                 {match.p2Score ?? 0}
               </div>
             </div>
-          ) : isLive && !twitchChannel && (match.p1Score !== undefined || match.p2Score !== undefined) ? (
-            // Sans stream Twitch, on garde nos scores best-effort (seule source
-            // d'info pour le user). Avec un stream, on les cache : nos données
-            // live sont pas fiables en temps réel et contredisent visuellement
-            // le stream — plus propre de laisser le user lire le stream.
+          ) : isLive
+              && (match.p1Score !== undefined || match.p2Score !== undefined)
+              && (!twitchChannel || (match.p1Score ?? 0) > 0 || (match.p2Score ?? 0) > 0) ? (
+            // Sans stream Twitch, on affiche nos scores best-effort (seule
+            // source d'info). Avec stream, on n'affiche que si le score est
+            // > 0-0 : un 0-0 est souvent le défaut initial sans valeur info,
+            // alors qu'un 1-0 / 2-1 vient de notre polling Liquipedia et
+            // complète utilement le stream.
             <div className="flex flex-col items-center shrink-0">
               <div className="text-aoe-gold font-cinzel font-black text-lg leading-none">
                 {match.p1Score ?? 0}
