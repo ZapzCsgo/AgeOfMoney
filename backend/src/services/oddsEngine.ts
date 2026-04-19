@@ -299,6 +299,16 @@ function computeFormFactor(records: MatchRecord[], now = Date.now()): number {
     return 1.0;
   };
 
+  /** Is this record actually a 1-1 / 2-2 draw (refund outcome in void-on-draw)? */
+  const isDraw = (score?: string | null): boolean => {
+    if (!score) return false;
+    const m = score.match(/^\s*(\d+)\s*[-:]\s*(\d+)\s*$/);
+    if (!m) return false;
+    const a = parseInt(m[1], 10);
+    const b = parseInt(m[2], 10);
+    return a === b && a >= 1;
+  };
+
   let weightedWinScore = 0;
   let totalWeight = 0;
   const perMatchDecay = 0.85;
@@ -306,10 +316,22 @@ function computeFormFactor(records: MatchRecord[], now = Date.now()): number {
   for (let i = 0; i < recent.length; i++) {
     const recencyW = Math.pow(perMatchDecay, i);
     const tierW = TIER_MULT[recent[i].tier] ?? 1.0;
-    const domW = dominance(recent[i].score);
-    const w = recencyW * tierW * domW;
-    totalWeight += w;
-    if (recent[i].won) weightedWinScore += w;
+    const drawFlag = isDraw(recent[i].score);
+    // Draws count half-weight and add 0.5 win credit — they shouldn't drag a
+    // player's form down as hard as a decisive loss (BO2 1-1 refunds users,
+    // they didn't actually "lose"). Anh Huy had 6 of his last 10 matches end
+    // 1-1; treating those as losses made the model think he was on a
+    // catastrophic cold streak when really he was mostly drawing.
+    if (drawFlag) {
+      const w = recencyW * tierW * 0.5;
+      totalWeight += w;
+      weightedWinScore += w * 0.5; // neutral credit
+    } else {
+      const domW = dominance(recent[i].score);
+      const w = recencyW * tierW * domW;
+      totalWeight += w;
+      if (recent[i].won) weightedWinScore += w;
+    }
   }
 
   const formWinrate = totalWeight > 0 ? weightedWinScore / totalWeight : 0.5;
