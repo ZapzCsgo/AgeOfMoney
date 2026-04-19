@@ -90,7 +90,8 @@ function CopyBtn({ value }: { value: string }) {
 
 interface Invoice {
   address: string;
-  paymentUrl?: string; // hosted OxaPay page — separate from the on-chain address
+  paymentUrl?: string; // hosted OxaPay or MoonPay URL — not the on-chain address
+  method?: 'card' | 'crypto';
   cryptoAmount: string;
   coins: number;
   crypto: string;
@@ -224,6 +225,7 @@ export default function DepositPage() {
         setInvoice({
           address: data.walletAddress || data.paymentUrl,
           paymentUrl: data.paymentUrl, // keep the hosted page URL separate from the wallet address
+          method: paymentMethod === 'card' ? 'card' : 'crypto',
           cryptoAmount: '',
           coins: data.coins,
           crypto: paymentMethod === 'card' ? 'USDT' : selectedCrypto.symbol,
@@ -289,8 +291,10 @@ export default function DepositPage() {
               </div>
             </div>
 
-            {/* Reopen button — takes the user straight to OxaPay where they
-                pick a crypto and get the wallet address to send funds to. */}
+            {/* Reopen button — label depends on the flow chosen.
+                Crypto method → OxaPay hosted page (pick crypto + wallet addr).
+                Card method → MoonPay (OxaPay doesn't accept cards directly;
+                MoonPay converts CB → USDT and sends to our OxaPay address). */}
             {paymentUrl && (
               <a
                 href={paymentUrl}
@@ -299,8 +303,15 @@ export default function DepositPage() {
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-cinzel font-bold transition-colors"
                 style={{ background: '#ffc542', color: '#07060f' }}
               >
-                Aller sur OxaPay pour l'adresse wallet ↗
+                {invoice.method === 'card'
+                  ? 'Aller sur MoonPay pour payer par carte ↗'
+                  : 'Aller sur OxaPay pour l\'adresse wallet ↗'}
               </a>
+            )}
+            {invoice.method === 'card' && (
+              <p className="text-[11px] text-aoe-parchment-dim text-center -mt-1">
+                Tu veux aller directement sur OxaPay ? Reviens et choisis <span className="text-aoe-gold">Payer en crypto</span>.
+              </p>
             )}
 
             {/* Back button */}
