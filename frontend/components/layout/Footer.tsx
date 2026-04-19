@@ -178,7 +178,6 @@ export function Footer() {
 
   const PLATFORM_LINKS = [
     { href: '/support', label: t('footer_support') },
-    { href: '/faq', label: t('footer_faq') },
     { href: '/affiliate', label: t('footer_partners') },
   ];
 
