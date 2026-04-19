@@ -367,7 +367,7 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
               selected={selected === 1}
             />
             {p1Won && (
-              <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-3xl leading-none drop-shadow-[0_0_8px_rgba(255,197,66,0.6)]">👑</span>
+              <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-3xl leading-none drop-shadow-[0_0_8px_rgba(255,197,66,0.6)]">👑</span>
             )}
           </div>
           <div className="text-center">
@@ -473,7 +473,7 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
               selected={selected === 2}
             />
             {p2Won && (
-              <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-3xl leading-none drop-shadow-[0_0_8px_rgba(255,197,66,0.6)]">👑</span>
+              <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-3xl leading-none drop-shadow-[0_0_8px_rgba(255,197,66,0.6)]">👑</span>
             )}
           </div>
           <div className="text-center">
