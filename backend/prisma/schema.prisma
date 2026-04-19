@@ -65,6 +65,23 @@ model Player {
   matchesAsPlayer2 Match[]   @relation("Player2")
   matchHistory     PlayerMatchRecord[] @relation("PlayerHistory")
   opponentHistory  PlayerMatchRecord[] @relation("OpponentHistory")
+  rating           PlayerRating?
+}
+
+// Glicko-2 rating system (Phase 2 odds engine — gated by ODDS_ENGINE_V2_ENABLED).
+// One row per player. Updated after each match COMPLETED.
+model PlayerRating {
+  id           String    @id @default(cuid())
+  playerId     String    @unique
+  player       Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  rating       Float     @default(1500)  // Glicko rating (typical range 700-2500)
+  rd           Float     @default(350)   // rating deviation (uncertainty)
+  vol          Float     @default(0.06)  // volatility
+  gamesPlayed  Int       @default(0)
+  lastUpdate   DateTime  @default(now())
+  createdAt    DateTime  @default(now())
+
+  @@index([rating])
 }
 
 // Per-player tournament match history — AI-seeded or manually entered
@@ -327,8 +344,14 @@ model CoinFlip {
   creatorSide  String    // "crown" or "shield"
   winnerId     String?
   status       String    @default("WAITING") // WAITING | FLIPPING | COMPLETED | CANCELLED
-  serverSeed   String    // random hex — revealed after flip
-  seedHash     String    // SHA256(serverSeed) — shown before flip for provably fair
+  // Provably-fair (HMAC-SHA256 commit-reveal, aligned with roulette pattern):
+  //   result = HMAC_SHA256(serverSeed, clientSeed + ":" + nonce) → first 8 bytes
+  //            taken as uint64, rejection-sampled to eliminate modulo bias, then % 2.
+  //   seedHash = SHA256(serverSeed) is committed at creation, serverSeed revealed on completion.
+  serverSeed   String    // random 32-byte hex — revealed after flip
+  seedHash     String    // SHA256(serverSeed) — committed before flip
+  clientSeed   String?   // public salt derived at creation, mixed into HMAC
+  nonce        Int       @default(0) // per-game counter (always 0 today, reserved for future multi-roll games)
   result       String?   // "crown" or "shield"
   rake         Int       @default(0) // coins taken as house rake
   createdAt    DateTime  @default(now())
