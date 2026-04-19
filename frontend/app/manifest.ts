@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: 'AgeOfMoney',
     short_name: 'AgeOfMoney',
     description:
-      'Paris esport Age of Empires — matchs pro, roulette, tournois cash',
+      'Paris esport Age of Empires — matchs pro, roulette',
     start_url: '/',
     display: 'standalone',
     background_color: '#07060f',

@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     template: '%s · AgeOfMoney',
   },
   description:
-    "Paris en ligne sur les matchs pro Age of Empires (AoE4, AoE2, AoE3, AoM). Cotes en temps réel, roulette provably fair, tournois cash, dépôts crypto. La plateforme dédiée à la communauté AoE.",
+    "Paris en ligne sur les matchs pro Age of Empires (AoE4, AoE2, AoE3, AoM). Cotes en temps réel, roulette provably fair, dépôts crypto. La plateforme dédiée à la communauté AoE.",
   keywords: [
     // FR — priority audience
     'paris esport Age of Empires', 'paris AoE4', 'paris AoE2', 'paris Age of Empires',
@@ -71,7 +71,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'AgeOfMoney — Paris esport Age of Empires',
     description:
-      "Paris en ligne sur les matchs pro Age of Empires (AoE4, AoE2, AoE3, AoM). Cotes live, roulette provably fair, tournois cash, dépôts crypto.",
+      "Paris en ligne sur les matchs pro Age of Empires (AoE4, AoE2, AoE3, AoM). Cotes live, roulette provably fair, dépôts crypto.",
     type: 'website',
     url: 'https://ageof.money',
     siteName: 'AgeOfMoney',
@@ -90,7 +90,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'AgeOfMoney — Paris esport Age of Empires',
     description:
-      "Paris sur les matchs pro Age of Empires. Cotes live, roulette, tournois cash.",
+      "Paris sur les matchs pro Age of Empires. Cotes live, roulette",
     images: ['/banneraom.png'],
     site: '@ageofmoney',
     creator: '@ageofmoney',
@@ -141,7 +141,7 @@ const structuredData = {
       '@id': 'https://ageof.money/#website',
       url: 'https://ageof.money',
       name: 'AgeOfMoney',
-      description: 'Paris esport Age of Empires — matchs pro, roulette, tournois cash',
+      description: 'Paris esport Age of Empires — matchs pro, roulette',
       publisher: { '@id': 'https://ageof.money/#organization' },
       inLanguage: ['fr-FR', 'en-US', 'es-ES'],
       potentialAction: {
