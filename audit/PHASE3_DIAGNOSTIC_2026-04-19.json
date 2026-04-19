@@ -1,0 +1,1204 @@
+{
+  "metrics": {
+    "v1": {
+      "brier": 0.2103522504351167,
+      "logLoss": 0.611283724727688,
+      "accuracy": 0.7333333333333333,
+      "buckets": [
+        {
+          "predMean": 0,
+          "actMean": 0,
+          "n": 0
+        },
+        {
+          "predMean": 0,
+          "actMean": 0,
+          "n": 0
+        },
+        {
+          "predMean": 0,
+          "actMean": 0,
+          "n": 0
+        },
+        {
+          "predMean": 0.3615937109035438,
+          "actMean": 0.6666666666666666,
+          "n": 3
+        },
+        {
+          "predMean": 0.45022806468070253,
+          "actMean": 0.4444444444444444,
+          "n": 9
+        },
+        {
+          "predMean": 0.5457354647881276,
+          "actMean": 0.8,
+          "n": 20
+        },
+        {
+          "predMean": 0.651788096846725,
+          "actMean": 0.8181818181818182,
+          "n": 11
+        },
+        {
+          "predMean": 0.7322252077041804,
+          "actMean": 1,
+          "n": 2
+        },
+        {
+          "predMean": 0,
+          "actMean": 0,
+          "n": 0
+        },
+        {
+          "predMean": 0,
+          "actMean": 0,
+          "n": 0
+        }
+      ]
+    },
+    "v2": {
+      "brier": 0.2744785342624054,
+      "logLoss": 0.752037893326403,
+      "accuracy": 0.5555555555555556,
+      "buckets": [
+        {
+          "predMean": 0,
+          "actMean": 0,
+          "n": 0
+        },
+        {
+          "predMean": 0.15158138724491038,
+          "actMean": 1,
+          "n": 1
+        },
+        {
+          "predMean": 0.24665178688360478,
+          "actMean": 1,
+          "n": 1
+        },
+        {
+          "predMean": 0.3642253099457578,
+          "actMean": 0.7272727272727273,
+          "n": 11
+        },
+        {
+          "predMean": 0.43874619922001085,
+          "actMean": 0.5714285714285714,
+          "n": 7
+        },
+        {
+          "predMean": 0.5560733755183355,
+          "actMean": 0.875,
+          "n": 8
+        },
+        {
+          "predMean": 0.6477684452769286,
+          "actMean": 0.8571428571428571,
+          "n": 7
+        },
+        {
+          "predMean": 0.7358942642628089,
+          "actMean": 0.5,
+          "n": 4
+        },
+        {
+          "predMean": 0.8221479895799445,
+          "actMean": 0.6666666666666666,
+          "n": 6
+        },
+        {
+          "predMean": 0,
+          "actMean": 0,
+          "n": 0
+        }
+      ]
+    },
+    "v2pur": {
+      "brier": 0.3212909963825283,
+      "logLoss": 0.8980463737093434,
+      "accuracy": 0.4666666666666667,
+      "buckets": [
+        {
+          "predMean": 0.08,
+          "actMean": 1,
+          "n": 1
+        },
+        {
+          "predMean": 0.13998264413279463,
+          "actMean": 1,
+          "n": 2
+        },
+        {
+          "predMean": 0.2612869583987529,
+          "actMean": 0.5714285714285714,
+          "n": 7
+        },
+        {
+          "predMean": 0.3432890487685263,
+          "actMean": 0.875,
+          "n": 8
+        },
+        {
+          "predMean": 0.4634704615276683,
+          "actMean": 1,
+          "n": 2
+        },
+        {
+          "predMean": 0.5196961366186582,
+          "actMean": 0.6666666666666666,
+          "n": 6
+        },
+        {
+          "predMean": 0.6608053548564652,
+          "actMean": 0.3333333333333333,
+          "n": 3
+        },
+        {
+          "predMean": 0.7392639712839585,
+          "actMean": 1,
+          "n": 7
+        },
+        {
+          "predMean": 0.8826216670660868,
+          "actMean": 0.5,
+          "n": 4
+        },
+        {
+          "predMean": 0.9167971906082937,
+          "actMean": 0.6,
+          "n": 5
+        }
+      ]
+    }
+  },
+  "worst": [
+    {
+      "matchId": "cmo38awzd02pn57woygb1hdp1",
+      "label": "VortiX vs Scatterbrained",
+      "format": "BO5",
+      "tier": "A",
+      "tournamentName": "Epohers World Cup 2 - Group B",
+      "date": "2026-04-18T15:00:00.000Z",
+      "probV1": 0.5691699706172133,
+      "probV2": 0.15158138724491038,
+      "probV2pur": 0.08,
+      "oddsV1": 1.61,
+      "oddsV2": 6.05,
+      "oddsV2pur": 11.47,
+      "outcome": 1,
+      "p1Name": "VortiX",
+      "p2Name": "Scatterbrained",
+      "p1Id": "cmnbzzxck001g9ghsdtc6zvb1",
+      "p2Id": "cmnuib7d3016e106p68p4kkvc",
+      "p1Rating": 1337.6891060937023,
+      "p1Rd": 290.31896371798047,
+      "p2Rating": 1733.1655340901543,
+      "p2Rd": 195.20838999406823,
+      "glickoP": 0.1789408596434206,
+      "h2hCount": 0,
+      "errV2": 0.8484186127550897
+    },
+    {
+      "matchId": "cmo3gvjej06mnj1m5f97y61v5",
+      "label": "Lewis vs KingstoNe",
+      "format": "BO5",
+      "tier": "S",
+      "tournamentName": "Brazilian Dynasty: International Qualifier 2 - Bracket A",
+      "date": "2026-04-18T16:30:00.000Z",
+      "probV1": 0.6392768846164312,
+      "probV2": 0.8023274937318675,
+      "probV2pur": 0.8824551106833257,
+      "oddsV1": 1.44,
+      "oddsV2": 1.14,
+      "oddsV2pur": 1.05,
+      "outcome": 0,
+      "p1Name": "Lewis",
+      "p2Name": "KingstoNe",
+      "p1Id": "cmntqz1zr06lk1398y0z9ki7c",
+      "p2Id": "cmntqz4vs06lq1398mcomphe4",
+      "p1Rating": 1777.2410807096412,
+      "p1Rd": 201.43847669223547,
+      "p2Rating": 1522.1150235138723,
+      "p2Rd": 248.0696365752141,
+      "glickoP": 0.7371367022387422,
+      "h2hCount": 3,
+      "errV2": 0.8023274937318675
+    },
+    {
+      "matchId": "cmo44wxxp00127v0x5kcau8cs",
+      "label": "DauT vs Sora Kuma",
+      "format": "BO5",
+      "tier": "S",
+      "tournamentName": "Brazilian Dynasty: International Qualifier 2 - Bracket B",
+      "date": "2026-04-18T16:00:00.000Z",
+      "probV1": 0.4464241594216078,
+      "probV2": 0.8,
+      "probV2pur": 0.92,
+      "oddsV1": 2.06,
+      "oddsV2": 1.15,
+      "oddsV2pur": 1.05,
+      "outcome": 0,
+      "p1Name": "DauT",
+      "p2Name": "Sora Kuma",
+      "p1Id": "cmntqzljc06mt1398wwp64h2n",
+      "p2Id": "cmnts28xq08mk1398iynvf1hn",
+      "p1Rating": 1787.7543912594651,
+      "p1Rd": 181.0752362599687,
+      "p2Rating": 1337.6891060937023,
+      "p2Rd": 290.31896371798047,
+      "glickoP": 0.8525846782349148,
+      "h2hCount": 0,
+      "errV2": 0.8
+    },
+    {
+      "matchId": "cmo2vyzy601nuj1m51u615pih",
+      "label": "Ciskhan vs Prisma09",
+      "format": "BO5",
+      "tier": "S",
+      "tournamentName": "Brazilian Dynasty: International Qualifier 2 - Bracket C",
+      "date": "2026-04-17T16:00:00.000Z",
+      "probV1": 0.4757104322863833,
+      "probV2": 0.7564341571243471,
+      "probV2pur": 0.8821012237639276,
+      "oddsV1": 1.93,
+      "oddsV2": 1.21,
+      "oddsV2pur": 1.05,
+      "outcome": 0,
+      "p1Name": "Ciskhan",
+      "p2Name": "Prisma09",
+      "p1Id": "cmnts200a08k2139815ql5x8v",
+      "p2Id": "cmntmog5705gm1398x3e8grcg",
+      "p1Rating": 1612.1064286130602,
+      "p1Rd": 223.99387574207375,
+      "p2Rating": 1337.6891060937023,
+      "p2Rd": 290.31896371798047,
+      "glickoP": 0.7368227571123406,
+      "h2hCount": 0,
+      "errV2": 0.7564341571243471
+    },
+    {
+      "matchId": "cmo38avq902p557wov0x8rily",
+      "label": "1puppypaw vs Valdemar",
+      "format": "BO5",
+      "tier": "A",
+      "tournamentName": "Epohers World Cup 2 - Group D",
+      "date": "2026-04-18T15:00:00.000Z",
+      "probV1": 0.5796287190000234,
+      "probV2": 0.24665178688360478,
+      "probV2pur": 0.1033120843298578,
+      "oddsV1": 1.58,
+      "oddsV2": 3.72,
+      "oddsV2pur": 8.88,
+      "outcome": 1,
+      "p1Name": "1puppypaw",
+      "p2Name": "Valdemar",
+      "p1Id": "cmnbzzt3u001b9ghs2bsr9529",
+      "p2Id": "cmnuno0er05ap106pqkb85w89",
+      "p1Rating": 1337.6891060937023,
+      "p1Rd": 290.31896371798047,
+      "p2Rating": 1630.476734791034,
+      "p2Rd": 222.8493958401607,
+      "glickoP": 0.24980691386265946,
+      "h2hCount": 0,
+      "errV2": 0.7533482131163952
+    },
+    {
+      "matchId": "cmo2vyzhm01noj1m5g5crw3na",
+      "label": "Classicpro vs JorDan AoE",
+      "format": "BO5",
+      "tier": "S",
+      "tournamentName": "Brazilian Dynasty: International Qualifier 2 - Bracket B",
+      "date": "2026-04-17T15:30:00.000Z",
+      "probV1": 0.44471533669083074,
+      "probV2": 0.7487251168155603,
+      "probV2pur": 0.92,
+      "oddsV1": 2.06,
+      "oddsV2": 1.23,
+      "oddsV2pur": 1.05,
+      "outcome": 0,
+      "p1Name": "Classicpro",
+      "p2Name": "JorDan AoE",
+      "p1Id": "cmnr1m05y000c2zli7akprrr8",
+      "p2Id": "cmnts20pz08k91398ltg9b22t",
+      "p1Rating": 1699.1565201476496,
+      "p1Rd": 216.97252014294057,
+      "p2Rating": 1337.6891060937023,
+      "p2Rd": 290.31896371798047,
+      "glickoP": 0.7965992563789677,
+      "h2hCount": 0,
+      "errV2": 0.7487251168155603
+    },
+    {
+      "matchId": "cmo3gvajz06m1j1m5p7abtfyb",
+      "label": "Barles vs JorDan AoE",
+      "format": "BO5",
+      "tier": "S",
+      "tournamentName": "Brazilian Dynasty: International Qualifier 2 - Bracket B",
+      "date": "2026-04-18T13:00:00.000Z",
+      "probV1": 0.334424436444591,
+      "probV2": 0.312282010916797,
+      "probV2pur": 0.3181958779910406,
+      "oddsV1": 2.74,
+      "oddsV2": 2.94,
+      "oddsV2pur": 2.88,
+      "outcome": 1,
+      "p1Name": "Barles",
+      "p2Name": "JorDan AoE",
+      "p1Id": "cmnr1msz2001k2zliq8gwk86p",
+      "p2Id": "cmnts20pz08k91398ltg9b22t",
+      "p1Rating": 1502.5491476857726,
+      "p1Rd": 256.3451747338135,
+      "p2Rating": 1609.9136902156065,
+      "p2Rd": 260.3147886429694,
+      "glickoP": 0.40043727026817894,
+      "h2hCount": 0,
+      "errV2": 0.687717989083203
+    },
+    {
+      "matchId": "cmo3ihbnf05h957wo10ndgptk",
+      "label": "Hearttt vs Dark",
+      "format": "BO5",
+      "tier": "S",
+      "tournamentName": "Brazilian Dynasty: International Qualifier 2 - Bracket A",
+      "date": "2026-04-18T17:00:00.000Z",
+      "probV1": 0.6060666989918694,
+      "probV2": 0.657076480128801,
+      "probV2pur": 0.6724589200564391,
+      "oddsV1": 1.51,
+      "oddsV2": 1.4,
+      "oddsV2pur": 1.36,
+      "outcome": 0,
+      "p1Name": "Hearttt",
+      "p2Name": "Dark",
+      "p1Id": "cmnzw9lsf004n121039ntzbd2",
+      "p2Id": "cmnr1m306000g2zlijat2703w",
+      "p1Rating": 1720.3171984281491,
+      "p1Rd": 260.4887625445967,
+      "p2Rating": 1622.0864991751644,
+      "p2Rd": 226.337139473637,
+      "glickoP": 0.5941821702035828,
+      "h2hCount": 2,
+      "errV2": 0.657076480128801
+    },
+    {
+      "matchId": "cmo38awoc02pj57woe9qqz3i4",
+      "label": "Beastyqt vs Myriad",
+      "format": "BO5",
+      "tier": "A",
+      "tournamentName": "Epohers World Cup 2 - Group B",
+      "date": "2026-04-18T15:00:00.000Z",
+      "probV1": 0.41986931688036444,
+      "probV2": 0.35690267577059853,
+      "probV2pur": 0.37549162211005055,
+      "oddsV1": 2.19,
+      "oddsV2": 2.57,
+      "oddsV2pur": 2.44,
+      "outcome": 1,
+      "p1Name": "Beastyqt",
+      "p2Name": "Myriad",
+      "p1Id": "cmnunobjl05ba106pmhrnjjth",
+      "p2Id": "cmnuqvb2f05ky106pnl0qetsz",
+      "p1Rating": 1731.8848989957787,
+      "p1Rd": 286.9272097693199,
+      "p2Rating": 1809.0964316138718,
+      "p2Rd": 294.08369170447395,
+      "glickoP": 0.4327903323797326,
+      "h2hCount": 0,
+      "errV2": 0.6430973242294015
+    },
+    {
+      "matchId": "cmo38ax9w02pr57wofoz2092n",
+      "label": "Bee vs Corvinus1",
+      "format": "BO5",
+      "tier": "A",
+      "tournamentName": "Epohers World Cup 2 - Group B",
+      "date": "2026-04-18T15:00:00.000Z",
+      "probV1": 0.5466207451239761,
+      "probV2": 0.3673941134369966,
+      "probV2pur": 0.26703990620328494,
+      "oddsV1": 1.68,
+      "oddsV2": 2.5,
+      "oddsV2pur": 3.44,
+      "outcome": 1,
+      "p1Name": "Bee",
+      "p2Name": "Corvinus1",
+      "p1Id": "cmo38ax6502po57wo54miaj0t",
+      "p2Id": "cmnuno18705aq106pcj96p3pd",
+      "p1Rating": 1500,
+      "p1Rd": 350,
+      "p2Rating": 1662.3108939062977,
+      "p2Rd": 290.31896371798047,
+      "glickoP": 0.37001698179087067,
+      "h2hCount": 0,
+      "errV2": 0.6326058865630033
+    }
+  ],
+  "playerLastMatches": [
+    [
+      "cmnbzzxck001g9ghsdtc6zvb1|2026-04-18T15:00:00.000Z",
+      [
+        {
+          "date": "2026-03-17",
+          "opp": "Jabalí",
+          "tier": "C",
+          "won": true,
+          "score": "2-0"
+        },
+        {
+          "date": "2026-03-21",
+          "opp": "Franncow",
+          "tier": "C",
+          "won": true,
+          "score": "2-0"
+        },
+        {
+          "date": "2026-03-22",
+          "opp": "LucifroN7",
+          "tier": "C",
+          "won": true,
+          "score": "3-2"
+        },
+        {
+          "date": "2026-03-29",
+          "opp": "LucifroN7",
+          "tier": "C",
+          "won": true,
+          "score": "1-0"
+        },
+        {
+          "date": "2026-04-05",
+          "opp": "Wam01",
+          "tier": "S",
+          "won": false,
+          "score": "1-3"
+        }
+      ]
+    ],
+    [
+      "cmnuib7d3016e106p68p4kkvc|2026-04-18T15:00:00.000Z",
+      [
+        {
+          "date": "2026-04-11",
+          "opp": "Antoxa",
+          "tier": "B",
+          "won": true,
+          "score": "2-0"
+        },
+        {
+          "date": "2026-04-11",
+          "opp": "Starflark",
+          "tier": "B",
+          "won": true,
+          "score": "2-1"
+        },
+        {
+          "date": "2026-04-11",
+          "opp": "Myriad",
+          "tier": "B",
+          "won": false,
+          "score": "2-3"
+        },
+        {
+          "date": "2026-04-12",
+          "opp": "Antoxa",
+          "tier": "B",
+          "won": true,
+          "score": "2-1"
+        },
+        {
+          "date": "2026-04-12",
+          "opp": "Muhodo",
+          "tier": "B",
+          "won": true,
+          "score": "3-1"
+        }
+      ]
+    ],
+    [
+      "cmntqz1zr06lk1398y0z9ki7c|2026-04-18T16:30:00.000Z",
+      [
+        {
+          "date": "2026-04-10",
+          "opp": "ZARC",
+          "tier": "Qualifier",
+          "won": true,
+          "score": "3-0"
+        },
+        {
+          "date": "2026-04-11",
+          "opp": "LobodeLaNieve",
+          "tier": "B",
+          "won": true,
+          "score": "3-0"
+        },
+        {
+          "date": "2026-04-11",
+          "opp": "Dogao",
+          "tier": "B",
+          "won": true,
+          "score": "3-2"
+        },
+        {
+          "date": "2026-04-12",
+          "opp": "FreakinAndy",
+          "tier": "B",
+          "won": false,
+          "score": "3-4"
+        },
+        {
+          "date": "2026-04-16",
+          "opp": "Alive",
+          "tier": "B",
+          "won": true,
+          "score": "3-0"
+        }
+      ]
+    ],
+    [
+      "cmntqz4vs06lq1398mcomphe4|2026-04-18T16:30:00.000Z",
+      [
+        {
+          "date": "2026-03-25",
+          "opp": "Vinchester",
+          "tier": "Misc",
+          "won": false,
+          "score": "1-4"
+        },
+        {
+          "date": "2026-03-28",
+          "opp": "Dragonstar",
+          "tier": "B",
+          "won": false,
+          "score": "2-4"
+        },
+        {
+          "date": "2026-04-10",
+          "opp": "zankoku sekai no akuma",
+          "tier": "Qualifier",
+          "won": true,
+          "score": "3-0"
+        },
+        {
+          "date": "2026-04-11",
+          "opp": "Dogao",
+          "tier": "B",
+          "won": false,
+          "score": "3-1"
+        },
+        {
+          "date": "2026-04-17",
+          "opp": "DuDuZhu",
+          "tier": "B",
+          "won": true,
+          "score": "3-0"
+        }
+      ]
+    ],
+    [
+      "cmntqzljc06mt1398wwp64h2n|2026-04-18T16:00:00.000Z",
+      [
+        {
+          "date": "2023-10-15",
+          "opp": "Hera",
+          "tier": "B",
+          "won": false,
+          "score": "0-3"
+        },
+        {
+          "date": "2026-04-11",
+          "opp": "Villese",
+          "tier": "B",
+          "won": true,
+          "score": "3-1"
+        },
+        {
+          "date": "2026-04-11",
+          "opp": "StonePleaseAoE",
+          "tier": "B",
+          "won": true,
+          "score": "2-3"
+        },
+        {
+          "date": "2026-04-12",
+          "opp": "TheViper",
+          "tier": "B",
+          "won": false,
+          "score": "1-4"
+        },
+        {
+          "date": "2026-04-17",
+          "opp": "LobodeLaNieve",
+          "tier": "B",
+          "won": true,
+          "score": "3-1"
+        }
+      ]
+    ],
+    [
+      "cmnts28xq08mk1398iynvf1hn|2026-04-18T16:00:00.000Z",
+      [
+        {
+          "date": "2026-02-12",
+          "opp": "F1Re",
+          "tier": "A",
+          "won": true,
+          "score": "3-0"
+        },
+        {
+          "date": "2026-02-14",
+          "opp": "z40",
+          "tier": "A",
+          "won": true,
+          "score": "3-0"
+        },
+        {
+          "date": "2026-02-24",
+          "opp": "DauT",
+          "tier": "A",
+          "won": false,
+          "score": "1-2"
+        },
+        {
+          "date": "2026-02-28",
+          "opp": "wide",
+          "tier": "A",
+          "won": true,
+          "score": "4-0"
+        },
+        {
+          "date": "2026-04-11",
+          "opp": "Vivi",
+          "tier": "B",
+          "won": false,
+          "score": "3-1"
+        }
+      ]
+    ],
+    [
+      "cmnts200a08k2139815ql5x8v|2026-04-17T16:00:00.000Z",
+      [
+        {
+          "date": "2026-03-19",
+          "opp": "Kingstone",
+          "tier": "B",
+          "won": false,
+          "score": "0-4"
+        },
+        {
+          "date": "2026-04-08",
+          "opp": "Scotty",
+          "tier": "Qualifier",
+          "won": true,
+          "score": "3-0"
+        },
+        {
+          "date": "2026-04-11",
+          "opp": "JorDan AoE",
+          "tier": "B",
+          "won": true,
+          "score": "3-2"
+        },
+        {
+          "date": "2026-04-11",
+          "opp": "Liereyy",
+          "tier": "B",
+          "won": false,
+          "score": "0-3"
+        },
+        {
+          "date": "2026-04-16",
+          "opp": "Lighty",
+          "tier": "B",
+          "won": true,
+          "score": "3-0"
+        }
+      ]
+    ],
+    [
+      "cmntmog5705gm1398x3e8grcg|2026-04-17T16:00:00.000Z",
+      [
+        {
+          "date": "2026-03-08",
+          "opp": "Caguamas",
+          "tier": "B",
+          "won": true,
+          "score": "1-0"
+        },
+        {
+          "date": "2026-03-09",
+          "opp": "Gali",
+          "tier": "B",
+          "won": true,
+          "score": "3-0"
+        },
+        {
+          "date": "2026-03-13",
+          "opp": "Monoz",
+          "tier": "B",
+          "won": false,
+          "score": "1-2"
+        },
+        {
+          "date": "2026-04-08",
+          "opp": "Gali",
+          "tier": "B",
+          "won": false,
+          "score": "2-3"
+        },
+        {
+          "date": "2026-04-11",
+          "opp": "Sitaux",
+          "tier": "B",
+          "won": false,
+          "score": "2-3"
+        }
+      ]
+    ],
+    [
+      "cmnbzzt3u001b9ghs2bsr9529|2026-04-18T15:00:00.000Z",
+      [
+        {
+          "date": "2026-03-21",
+          "opp": "DeMu",
+          "tier": "Qualifier",
+          "won": true,
+          "score": "3-0"
+        },
+        {
+          "date": "2026-03-21",
+          "opp": "Valdemar",
+          "tier": "Qualifier",
+          "won": true,
+          "score": "3-0"
+        },
+        {
+          "date": "2026-03-22",
+          "opp": "Msn.dk",
+          "tier": "Qualifier",
+          "won": true,
+          "score": "4-0"
+        },
+        {
+          "date": "2026-03-22",
+          "opp": "Wam01",
+          "tier": "Qualifier",
+          "won": false,
+          "score": "1-4"
+        },
+        {
+          "date": "2026-04-04",
+          "opp": "MarineLorD",
+          "tier": "S",
+          "won": false,
+          "score": "1-3"
+        }
+      ]
+    ],
+    [
+      "cmnuno0er05ap106pqkb85w89|2026-04-18T15:00:00.000Z",
+      [
+        {
+          "date": "2026-04-11",
+          "opp": "Corvinus1",
+          "tier": "Qualifier",
+          "won": false,
+          "score": "0-3"
+        },
+        {
+          "date": "2026-04-11",
+          "opp": "hiyoko",
+          "tier": "Qualifier",
+          "won": true,
+          "score": "2-0"
+        },
+        {
+          "date": "2026-04-11",
+          "opp": "Corvinus1",
+          "tier": "B",
+          "won": false,
+          "score": "3-0"
+        },
+        {
+          "date": "2026-04-12",
+          "opp": "HOMS-.-SENPAI",
+          "tier": "B",
+          "won": true,
+          "score": "2-0"
+        },
+        {
+          "date": "2026-04-12",
+          "opp": "Gento",
+          "tier": "B",
+          "won": true,
+          "score": "3-0"
+        }
+      ]
+    ],
+    [
+      "cmnr1m05y000c2zli7akprrr8|2026-04-17T15:30:00.000Z",
+      [
+        {
+          "date": "1970-01-01",
+          "opp": "__claude_cache__",
+          "tier": "B",
+          "won": false,
+          "score": null
+        },
+        {
+          "date": "2026-04-10",
+          "opp": "ShiXo.",
+          "tier": "B",
+          "won": false,
+          "score": "3-0"
+        },
+        {
+          "date": "2026-04-11",
+          "opp": "Mihai06",
+          "tier": "B",
+          "won": true,
+          "score": "3-0"
+        },
+        {
+          "date": "2026-04-11",
+          "opp": "ACCM",
+          "tier": "B",
+          "won": true,
+          "score": "0-3"
+        },
+        {
+          "date": "2026-04-14",
+          "opp": "Sziky",
+          "tier": "B",
+          "won": true,
+          "score": "4-0"
+        }
+      ]
+    ],
+    [
+      "cmnts20pz08k91398ltg9b22t|2026-04-17T15:30:00.000Z",
+      [
+        {
+          "date": "2026-02-27",
+          "opp": "Ganji",
+          "tier": "A",
+          "won": true,
+          "score": "3-0"
+        },
+        {
+          "date": "2026-03-11",
+          "opp": "Flying Mouse",
+          "tier": "Qualifier",
+          "won": true,
+          "score": "3-0"
+        },
+        {
+          "date": "2026-03-25",
+          "opp": "DauT",
+          "tier": "Misc",
+          "won": true,
+          "score": "4-1"
+        },
+        {
+          "date": "2026-04-08",
+          "opp": "Gali",
+          "tier": "Qualifier",
+          "won": true,
+          "score": "3-1"
+        },
+        {
+          "date": "2026-04-11",
+          "opp": "Ciskhan",
+          "tier": "B",
+          "won": false,
+          "score": "2-3"
+        }
+      ]
+    ],
+    [
+      "cmnr1msz2001k2zliq8gwk86p|2026-04-18T13:00:00.000Z",
+      [
+        {
+          "date": "1970-01-01",
+          "opp": "__claude_cache__",
+          "tier": "B",
+          "won": false,
+          "score": null
+        },
+        {
+          "date": "2026-04-11",
+          "opp": "StonePleaseAoE",
+          "tier": "B",
+          "won": false,
+          "score": "3-2"
+        },
+        {
+          "date": "2026-04-16",
+          "opp": "WaRRioR",
+          "tier": "B",
+          "won": true,
+          "score": "3-0"
+        }
+      ]
+    ],
+    [
+      "cmnts20pz08k91398ltg9b22t|2026-04-18T13:00:00.000Z",
+      [
+        {
+          "date": "2026-03-11",
+          "opp": "Flying Mouse",
+          "tier": "Qualifier",
+          "won": true,
+          "score": "3-0"
+        },
+        {
+          "date": "2026-03-25",
+          "opp": "DauT",
+          "tier": "Misc",
+          "won": true,
+          "score": "4-1"
+        },
+        {
+          "date": "2026-04-08",
+          "opp": "Gali",
+          "tier": "Qualifier",
+          "won": true,
+          "score": "3-1"
+        },
+        {
+          "date": "2026-04-11",
+          "opp": "Ciskhan",
+          "tier": "B",
+          "won": false,
+          "score": "2-3"
+        },
+        {
+          "date": "2026-04-17",
+          "opp": "Classicpro",
+          "tier": "B",
+          "won": true,
+          "score": "0-3"
+        }
+      ]
+    ],
+    [
+      "cmnzw9lsf004n121039ntzbd2|2026-04-18T17:00:00.000Z",
+      [
+        {
+          "date": "2026-04-02",
+          "opp": "Yo",
+          "tier": "S",
+          "won": true,
+          "score": "3-2"
+        },
+        {
+          "date": "2026-04-03",
+          "opp": "MbL",
+          "tier": "S",
+          "won": true,
+          "score": "3-0"
+        },
+        {
+          "date": "2026-04-04",
+          "opp": "Sebastian",
+          "tier": "S",
+          "won": false,
+          "score": "3-4"
+        },
+        {
+          "date": "2026-04-16",
+          "opp": "Chanchilaru",
+          "tier": "B",
+          "won": true,
+          "score": "3-0"
+        },
+        {
+          "date": "2026-04-17",
+          "opp": "Chanchilaru",
+          "tier": "B",
+          "won": true,
+          "score": "3-0"
+        }
+      ]
+    ],
+    [
+      "cmnr1m306000g2zlijat2703w|2026-04-18T17:00:00.000Z",
+      [
+        {
+          "date": "2026-03-29",
+          "opp": "The_Beatleman",
+          "tier": "C",
+          "won": true,
+          "score": "1-0"
+        },
+        {
+          "date": "2026-03-29",
+          "opp": "AntagonisT",
+          "tier": "C",
+          "won": false,
+          "score": "0-1"
+        },
+        {
+          "date": "2026-04-09",
+          "opp": "Sziky",
+          "tier": "Qualifier",
+          "won": true,
+          "score": "3-0"
+        },
+        {
+          "date": "2026-04-11",
+          "opp": "Lucho",
+          "tier": "B",
+          "won": true,
+          "score": "1-3"
+        },
+        {
+          "date": "2026-04-11",
+          "opp": "FreakinAndy",
+          "tier": "B",
+          "won": false,
+          "score": "1-3"
+        }
+      ]
+    ],
+    [
+      "cmnunobjl05ba106pmhrnjjth|2026-04-18T15:00:00.000Z",
+      [
+        {
+          "date": "1970-01-01",
+          "opp": "__claude_cache__",
+          "tier": "B",
+          "won": false,
+          "score": null
+        },
+        {
+          "date": "2026-04-11",
+          "opp": "Muhodo",
+          "tier": "B",
+          "won": true,
+          "score": "3-0"
+        }
+      ]
+    ],
+    [
+      "cmnuqvb2f05ky106pnl0qetsz|2026-04-18T15:00:00.000Z",
+      [
+        {
+          "date": "2026-03-28",
+          "opp": "MrEggoWaffles",
+          "tier": "B",
+          "won": true,
+          "score": "3-0"
+        },
+        {
+          "date": "2026-03-29",
+          "opp": "Nasu",
+          "tier": "B",
+          "won": true,
+          "score": "3-0"
+        },
+        {
+          "date": "2026-03-31",
+          "opp": "Numudan",
+          "tier": "B",
+          "won": false,
+          "score": "2-3"
+        },
+        {
+          "date": "2026-04-11",
+          "opp": "The true bretonnian",
+          "tier": "Qualifier",
+          "won": true,
+          "score": "2-0"
+        },
+        {
+          "date": "2026-04-11",
+          "opp": "Scatterbrained",
+          "tier": "B",
+          "won": true,
+          "score": "3-2"
+        }
+      ]
+    ],
+    [
+      "cmo38ax6502po57wo54miaj0t|2026-04-18T15:00:00.000Z",
+      [
+        {
+          "date": "2023-11-19",
+          "opp": "Deniskya",
+          "tier": "B",
+          "won": true,
+          "score": "2-0"
+        },
+        {
+          "date": "2023-11-21",
+          "opp": "Wrongo Enj",
+          "tier": "C",
+          "won": false,
+          "score": "7-18"
+        },
+        {
+          "date": "2023-12-02",
+          "opp": "DeMu",
+          "tier": "S",
+          "won": false,
+          "score": "2-3"
+        },
+        {
+          "date": "2023-12-09",
+          "opp": "VortiX",
+          "tier": "S",
+          "won": true,
+          "score": "3-0"
+        },
+        {
+          "date": "2023-12-10",
+          "opp": "Beastyqt",
+          "tier": "S",
+          "won": false,
+          "score": "0-3"
+        }
+      ]
+    ],
+    [
+      "cmnuno18705aq106pcj96p3pd|2026-04-18T15:00:00.000Z",
+      [
+        {
+          "date": "2026-03-20",
+          "opp": "Valdemar",
+          "tier": "Qualifier",
+          "won": false,
+          "score": "1-3"
+        },
+        {
+          "date": "2026-03-20",
+          "opp": "Chrysaor",
+          "tier": "Qualifier",
+          "won": true,
+          "score": "3-1"
+        },
+        {
+          "date": "2026-04-11",
+          "opp": "Valdemar",
+          "tier": "Qualifier",
+          "won": true,
+          "score": "3-0"
+        },
+        {
+          "date": "2026-04-11",
+          "opp": "marcotamby",
+          "tier": "Qualifier",
+          "won": true,
+          "score": "2-0"
+        },
+        {
+          "date": "2026-04-11",
+          "opp": "Valdemar",
+          "tier": "B",
+          "won": true,
+          "score": "0-3"
+        }
+      ]
+    ]
+  ]
+}
