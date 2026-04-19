@@ -10,7 +10,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { calculateOddsV2, seriesWinProb, type MatchRecord, type H2HRecord } from '../src/services/oddsEngine';
-import { computeUpdatedRating, computeWinProbability as glickoWinProb, DEFAULT_RATING, DEFAULT_RD, DEFAULT_VOL, type RatingTriple } from '../src/services/glicko2';
+import { computeUpdatedRating, computeWinProbability as glickoWinProb, DEFAULT_RATING, DEFAULT_RD, DEFAULT_VOL, tierWeight, type RatingTriple } from '../src/services/glicko2';
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
 
@@ -255,8 +255,12 @@ async function main() {
     const score1: 0 | 0.5 | 1 = drawInfo.isDraw ? 0.5 : outcome === 1 ? 1 : outcome === 0 ? 0 : 0.5;
     if (outcome === null && !drawInfo.isDraw) continue;
     const score2: 0 | 0.5 | 1 = score1 === 1 ? 0 : score1 === 0 ? 1 : 0.5;
-    const r1N = computeUpdatedRating(r1Pre, [{ opponentRating: r2Pre.rating, opponentRd: r2Pre.rd, score: score1 }]);
-    const r2N = computeUpdatedRating(r2Pre, [{ opponentRating: r1Pre.rating, opponentRd: r1Pre.rd, score: score2 }]);
+    // Phase 4 : tier-weighted replay — la simulation chronologique doit utiliser
+    // le même Glicko que le rebuild live (sinon on évalue V2 avec des ratings
+    // vanilla, ce qui fausse la comparaison avec V1).
+    const weight = tierWeight(ev.tournamentTier);
+    const r1N = computeUpdatedRating(r1Pre, [{ opponentRating: r2Pre.rating, opponentRd: r2Pre.rd, score: score1, weight }]);
+    const r2N = computeUpdatedRating(r2Pre, [{ opponentRating: r1Pre.rating, opponentRd: r1Pre.rd, score: score2, weight }]);
     ratings.set(ev.player1Id, { ...r1N, lastMatchDate: ev.date });
     ratings.set(ev.player2Id, { ...r2N, lastMatchDate: ev.date });
   }

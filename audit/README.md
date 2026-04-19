@@ -4,9 +4,9 @@
 
 - **V1 blended est en prod** — blending heuristique (WR 50% / form 30% / H2H 0-30% / tier 10%) avec opponent-strength + step-up penalty + draws 1-1 neutres.
   - Brier ~0.21, accuracy ~73% sur les backtests N=45.
-- **V2 Glicko-2 est committed mais dormant**. Tous les backtests montrent V2 pire que V1 sur le dataset actuel (120 joueurs, 4407 events). Cause racine : Glicko ignore le tier des matchs → une win C-tier compte autant qu'une win S-tier, ce qui distord les ratings.
+- **V2 Glicko-2 (vanilla et tier-weighted) est committed mais dormant**. Tous les backtests Phase 2/3/4 montrent V2 pire que V1 sur le dataset actuel (120 joueurs, 4409 events, N=45 predictions valides). Phase 4 tier-weighted a même **aggravé** Phase 3 vanilla (Brier V2 0.3121 vs 0.2745). Cause racine mise à jour : dataset trop sparse — tier-weighting amplifie les mauvais signaux au lieu de les corriger.
   - Flag `ODDS_ENGINE_V2_ENABLED` par défaut **OFF** sur Railway.
-- **Phase 3 (Ensemble + Platt scaling)** non implémentée. Si V2 seul est pire que V1 de 0.06 Brier, ensemble serait mécaniquement pire. Pas d'investissement tant qu'on n'a pas plus de data.
+- **Phase 3 (Ensemble + Platt scaling)** non implémentée. Si V2 seul est à +0.10 Brier de V1, ensemble serait mécaniquement pire. Pas d'investissement tant qu'on n'a pas plus de data.
 
 ## Comment ré-activer V2 (si besoin)
 
@@ -55,7 +55,8 @@ Ordre chronologique — chacun construit sur le précédent.
 4. [PHASE2_GLICKO2_VALIDATION_2026-04-19.md](PHASE2_GLICKO2_VALIDATION_2026-04-19.md) — Phase 2 (Glicko-2 rating) : V2 pire que V1, flag OFF
 5. [PHASE3_STOP_FOR_ANALYSIS_2026-04-19.md](PHASE3_STOP_FOR_ANALYSIS_2026-04-19.md) — Phase 3 bugs #1/#2 fixés : toujours pire, STOP
 6. [PHASE3_DIAGNOSTIC_2026-04-19.md](PHASE3_DIAGNOSTIC_2026-04-19.md) — **Diagnostic final** : 3-config + analyse des 10 pires erreurs. 100% "rating faux" (RD > 150). Cause racine : Glicko ignore le tier.
-7. [PHASE4_TIER_WEIGHTED_GLICKO_2026-04-19.md](PHASE4_TIER_WEIGHTED_GLICKO_2026-04-19.md) — Phase 4 (Glicko-2 tier-weighted) : code + math mergés, tests PASS, flag toujours OFF. Rebuild + backtest empirique à lancer avec pooler URL.
+7. [PHASE4_TIER_WEIGHTED_GLICKO_2026-04-19.md](PHASE4_TIER_WEIGHTED_GLICKO_2026-04-19.md) — Phase 4 (Glicko-2 tier-weighted) : spec + implémentation.
+8. [PHASE4_BACKTEST_RESULTS_2026-04-19.md](PHASE4_BACKTEST_RESULTS_2026-04-19.md) — **résultats empiriques Phase 4** : Brier V2 0.3121 **pire** que V1 0.2104 et pire que Phase 3 vanilla 0.2745. Tier-weighting amplifie les mauvais signaux sur dataset sparse. Flag reste OFF, Phase 4 rangée.
 
 ## Code references
 
