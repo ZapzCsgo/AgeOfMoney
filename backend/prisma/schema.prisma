@@ -100,7 +100,14 @@ model OddsBacktestSnapshot {
   v2purBrier     Float
   v2purLogLoss   Float
   v2purAccuracy  Float
-  fullReport     Json     // dump complet (buckets + worst errors)
+  // Phase 6 — baseline Score Exact V1 (théorique binomial). Nullable parce
+  // qu'ajouté après coup : les snapshots antérieurs au 2026-04-19 ne les ont
+  // pas. Le check 3-semaines ignore les lignes où exactScoreRPS IS NULL.
+  exactScoreRPS     Float?
+  exactScoreBrier   Float?
+  exactScoreLogLoss Float?
+  exactScoreN       Int?
+  fullReport     Json     // dump complet (buckets + worst errors + exactScore)
 
   @@index([runAt])
 }

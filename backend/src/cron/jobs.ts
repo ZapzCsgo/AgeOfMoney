@@ -473,47 +473,64 @@ async function distributePayouts(): Promise<void> {
 async function runWeeklyOddsEngineBacktest(): Promise<void> {
   logger.info('[CRON] weeklyOddsEngineBacktest — starting…');
   const { runDiagnosticBacktest, formatBacktestMarkdown } = await import('../services/backtestHarness');
+  const { runExactScoreBacktest, formatExactScoreMarkdown } = await import('../services/exactScoreBacktestHarness');
 
-  const result = await runDiagnosticBacktest(50);
+  // Binaire (V1/V2/V2pur) + Score Exact (V1 théorique) en une passe.
+  const [binaryResult, exactResult] = await Promise.all([
+    runDiagnosticBacktest(50),
+    runExactScoreBacktest(),
+  ]);
+
   logger.info(
-    `[CRON] weeklyOddsEngineBacktest — N=${result.n} ` +
-    `V1 Brier=${result.v1.brier.toFixed(4)} (acc ${(result.v1.accuracy * 100).toFixed(1)}%) ` +
-    `V2 Brier=${result.v2.brier.toFixed(4)} (acc ${(result.v2.accuracy * 100).toFixed(1)}%) ` +
-    `V2pur Brier=${result.v2pur.brier.toFixed(4)}`
+    `[CRON] weeklyOddsEngineBacktest — Binaire N=${binaryResult.n} ` +
+    `V1 Brier=${binaryResult.v1.brier.toFixed(4)} (acc ${(binaryResult.v1.accuracy * 100).toFixed(1)}%) ` +
+    `V2 Brier=${binaryResult.v2.brier.toFixed(4)} (acc ${(binaryResult.v2.accuracy * 100).toFixed(1)}%) ` +
+    `V2pur Brier=${binaryResult.v2pur.brier.toFixed(4)}`
+  );
+  logger.info(
+    `[CRON] weeklyOddsEngineBacktest — ScoreExact N=${exactResult.overall.n} ` +
+    `RPS=${exactResult.overall.rps.toFixed(4)} ` +
+    `Brier=${exactResult.overall.brier.toFixed(4)} ` +
+    `LL=${exactResult.overall.logLoss.toFixed(4)} ` +
+    `TopAcc=${(exactResult.overall.topChoiceAccuracy * 100).toFixed(1)}%`
   );
 
-  // Persist snapshot via raw SQL (Prisma client may not have the new model yet)
+  // Persist snapshot via raw SQL (Prisma client may not have the new columns yet)
   const snapshotId = `obs_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const combinedReport = { binary: binaryResult, exact: exactResult };
   try {
     await prisma.$executeRawUnsafe(
       `INSERT INTO "OddsBacktestSnapshot"
        (id, "runAt", n, "v1Brier", "v1LogLoss", "v1Accuracy",
         "v2Brier", "v2LogLoss", "v2Accuracy",
-        "v2purBrier", "v2purLogLoss", "v2purAccuracy", "fullReport")
-       VALUES ($1, NOW(), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb)`,
-      snapshotId, result.n,
-      result.v1.brier, result.v1.logLoss, result.v1.accuracy,
-      result.v2.brier, result.v2.logLoss, result.v2.accuracy,
-      result.v2pur.brier, result.v2pur.logLoss, result.v2pur.accuracy,
-      JSON.stringify(result),
+        "v2purBrier", "v2purLogLoss", "v2purAccuracy",
+        "exactScoreRPS", "exactScoreBrier", "exactScoreLogLoss", "exactScoreN",
+        "fullReport")
+       VALUES ($1, NOW(), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::jsonb)`,
+      snapshotId, binaryResult.n,
+      binaryResult.v1.brier, binaryResult.v1.logLoss, binaryResult.v1.accuracy,
+      binaryResult.v2.brier, binaryResult.v2.logLoss, binaryResult.v2.accuracy,
+      binaryResult.v2pur.brier, binaryResult.v2pur.logLoss, binaryResult.v2pur.accuracy,
+      exactResult.overall.rps, exactResult.overall.brier, exactResult.overall.logLoss, exactResult.overall.n,
+      JSON.stringify(combinedReport),
     );
   } catch (err) {
     logger.error('[CRON] weeklyOddsEngineBacktest — DB persist failed:', err);
   }
 
-  // Best-effort : écrire le markdown sur disque (perdu au prochain deploy
-  // Railway mais utile pour les tests locaux et debug immédiat).
+  // Best-effort : écrire les 2 markdowns sur disque (perdus au prochain
+  // deploy Railway mais utiles pour les tests locaux et debug immédiat).
   try {
     const { writeFileSync, mkdirSync, existsSync } = await import('fs');
     const { join } = await import('path');
     const outDir = join(process.cwd(), 'audit', 'weekly');
     if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
-    const path = join(outDir, `${result.datestamp}.md`);
-    writeFileSync(path, formatBacktestMarkdown(result));
+    writeFileSync(join(outDir, `${binaryResult.datestamp}-binary.md`), formatBacktestMarkdown(binaryResult));
+    writeFileSync(join(outDir, `${exactResult.datestamp}-exact.md`), formatExactScoreMarkdown(exactResult));
   } catch { /* filesystem ephemeral, DB is the source of truth */ }
 
-  // Check the 3-week warning rule. V2 blended Brier < V1 Brier - 0.02 in all
-  // 3 most-recent snapshots (including this one) → warn.
+  // ── Check 3-week warning — binaire ─────────────────────────────────────
+  // V2 blended Brier < V1 Brier - 0.02 in all 3 most-recent snapshots → warn.
   try {
     const recent = await prisma.$queryRawUnsafe<Array<{
       v1brier: number; v2brier: number; runat: Date;
@@ -531,6 +548,36 @@ async function runWeeklyOddsEngineBacktest(): Promise<void> {
       );
     }
   } catch (err) {
-    logger.error('[CRON] weeklyOddsEngineBacktest — 3-week check failed:', err);
+    logger.error('[CRON] weeklyOddsEngineBacktest — 3-week check binaire failed:', err);
+  }
+
+  // ── Check 3-week warning — Score Exact ─────────────────────────────────
+  // Dégradation du RPS ≥ 0.05 vs baseline (snapshot #4 le plus récent)
+  // sur les 3 snapshots les plus récents → warn. Nécessite ≥ 4 snapshots
+  // avec exactScoreRPS non-null.
+  try {
+    const recentExact = await prisma.$queryRawUnsafe<Array<{
+      rps: number; runat: Date;
+    }>>(
+      `SELECT "exactScoreRPS" AS rps, "runAt" AS runat
+       FROM "OddsBacktestSnapshot"
+       WHERE "exactScoreRPS" IS NOT NULL
+       ORDER BY "runAt" DESC
+       LIMIT 4`,
+    );
+    if (recentExact.length === 4) {
+      const baseline = Number(recentExact[3].rps);
+      const last3 = recentExact.slice(0, 3).map(s => Number(s.rps));
+      if (last3.every(r => r >= baseline + 0.05)) {
+        logger.warn(
+          '[⚠️  ODDS_ENGINE_EXACT] RPS Score Exact dégradé de ≥ 0.05 sur 3 semaines consécutives ' +
+          `vs baseline (semaine -3, RPS=${baseline.toFixed(4)}). ` +
+          `3 dernières: ${last3.map(r => r.toFixed(4)).join(', ')}. ` +
+          'Inspecter si la couche blend H2H/player introduit des dérives ou si un changement de dataset a shifté la distribution théorique.'
+        );
+      }
+    }
+  } catch (err) {
+    logger.error('[CRON] weeklyOddsEngineBacktest — 3-week check exact failed:', err);
   }
 }
