@@ -61,13 +61,60 @@ function theoreticalDist(odds1: number, odds2: number, format: string, oddsDraw:
   return d;
 }
 
-function distToOdds(dist: Record<string, number>): Record<string, number> {
+// V1 : clamp les odds (le bug actuel — l'overround gonfle sur déséquilibre)
+function distToOddsV1(dist: Record<string, number>): Record<string, number> {
   const out: Record<string, number> = {};
   for (const [k, p] of Object.entries(dist)) {
     const raw = p > 0 ? (1 / p) * (1 - EXACT_MARGIN) : EXACT_MAX_ODDS;
     out[k] = Math.min(EXACT_MAX_ODDS, raw);
   }
   return out;
+}
+
+// V2 : force les scores qui seraient cappés à implied=1/CAP, puis scale les
+// scores normaux pour garder total_implied = 1/(1-margin) = 1.1765 (17.6 %
+// overround). Miroir exact de distributionToEntriesV2 dans bets.ts.
+function distToOddsV2(dist: Record<string, number>): Record<string, number> {
+  const keys = Object.keys(dist);
+  if (keys.length === 0) return {};
+  const rawTotal = Object.values(dist).reduce((a, b) => a + b, 0);
+  if (rawTotal <= 0) return {};
+  const p: Record<string, number> = {};
+  for (const k of keys) p[k] = (dist[k] ?? 0) / rawTotal;
+
+  const targetOverround = 1 / (1 - EXACT_MARGIN);
+  const implied: Record<string, number> = {};
+  for (const k of keys) implied[k] = p[k] / (1 - EXACT_MARGIN);
+
+  const IMPLIED_CAP = 1 / EXACT_MAX_ODDS;
+  const capped: string[] = [], normal: string[] = [];
+  for (const k of keys) (implied[k] < IMPLIED_CAP ? capped : normal).push(k);
+
+  const newImplied: Record<string, number> = {};
+  for (const k of capped) newImplied[k] = IMPLIED_CAP;
+  const cappedTotalNew = capped.length * IMPLIED_CAP;
+  const normalTotalOld = normal.reduce((s, k) => s + implied[k], 0);
+  const normalTargetTotal = targetOverround - cappedTotalNew;
+
+  if (normal.length === 0 || normalTargetTotal <= 0 || normalTotalOld <= 0) {
+    for (const k of keys) newImplied[k] = Math.max(IMPLIED_CAP, implied[k]);
+  } else {
+    const scale = normalTargetTotal / normalTotalOld;
+    for (const k of normal) newImplied[k] = implied[k] * scale;
+  }
+
+  const out: Record<string, number> = {};
+  for (const k of keys) {
+    const raw = 1 / newImplied[k];
+    out[k] = Math.min(EXACT_MAX_ODDS, raw);
+  }
+  return out;
+}
+
+function distToOdds(dist: Record<string, number>): Record<string, number> {
+  return process.env.ODDS_ENGINE_EXACT_V2_ENABLED === 'true'
+    ? distToOddsV2(dist)
+    : distToOddsV1(dist);
 }
 
 function parseScoreKey(s: string): { a: number; b: number } | null {

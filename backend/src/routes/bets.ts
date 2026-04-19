@@ -203,11 +203,109 @@ function distributionToEntries(dist: ScoreDistribution): ScoreEntry[] {
 }
 
 /**
+ * Phase 6 V2 — fix overround explosif.
+ *
+ * V1 (`distributionToEntries`) cape les odds à MAX=10 après margin, sans
+ * rééquilibrer. Problème mesuré (Test 1 stress) : sur un BO7 1.05/15, 4
+ * scores sur 8 se retrouvent avec fair odds > 10, sont cappés à 10 → chaque
+ * score cappé contribue implied=0.10, alors que leur fair implied était
+ * ~0.04. Excess d'implied = book-wide overround 50 % au lieu de 17.6 %.
+ * Margin effective sur le camp underdog : 44 %, très hors du cadre 9–15 %
+ * du skill odds-engine-aoe4.
+ *
+ * V2 redistribue l'excès : on identifie les scores qui seraient cappés,
+ * on force leur implied à 1/10=0.10, et on SCALE proportionnellement les
+ * implied des scores non-cappés pour que la somme totale reste = 1/(1-margin).
+ *
+ * Résultat : overround stable à ~17.6 % quel que soit le matchup. Les
+ * scores extrêmes gardent odds = 10 (UX), les scores normaux gagnent des
+ * odds meilleures (car on leur retire l'excès de margin qu'ils payaient
+ * silencieusement pour compenser le cap).
+ *
+ * Gated derrière ODDS_ENGINE_EXACT_V2_ENABLED (default OFF). Quand le flag
+ * est à false, distributionToEntries (V1) est utilisée et rien ne bouge.
+ */
+function distributionToEntriesV2(dist: ScoreDistribution): ScoreEntry[] {
+  const keys = Object.keys(dist);
+  if (keys.length === 0) return [];
+
+  // 1) Renormaliser les probas à somme = 1 (blend peut dévier légèrement).
+  const rawTotal = Object.values(dist).reduce((a, b) => a + b, 0);
+  if (rawTotal <= 0) return [];
+  const p: Record<string, number> = {};
+  for (const k of keys) p[k] = (dist[k] ?? 0) / rawTotal;
+
+  // 2) Appliquer la margin : implied_i = p_i / (1-margin). Target overround
+  //    = 1/(1-margin) ≈ 1.1765 pour margin 15 %.
+  const targetOverround = 1 / (1 - EXACT_SCORE_MARGIN);
+  const implied: Record<string, number> = {};
+  for (const k of keys) implied[k] = p[k] / (1 - EXACT_SCORE_MARGIN);
+
+  // 3) Identifier les scores dont fair odds > CAP → leur implied < 1/CAP.
+  //    Exemple MAX=10 → seuil implied = 0.10. Ces scores seront cappés à
+  //    l'implied CAP (= 0.10), les autres sont "normal".
+  const IMPLIED_CAP = 1 / EXACT_SCORE_MAX_ODDS;
+  const cappedKeys: string[] = [];
+  const normalKeys: string[] = [];
+  for (const k of keys) {
+    if (implied[k] < IMPLIED_CAP) cappedKeys.push(k);
+    else normalKeys.push(k);
+  }
+
+  // 4) Calculer le scale à appliquer aux scores normaux pour garder
+  //    total_implied = targetOverround après avoir forcé les cappés à 0.10.
+  const newImplied: Record<string, number> = {};
+  for (const k of cappedKeys) newImplied[k] = IMPLIED_CAP;
+  const cappedTotalNew = cappedKeys.length * IMPLIED_CAP;
+  const normalTotalOld = normalKeys.reduce((s, k) => s + implied[k], 0);
+  const normalTargetTotal = targetOverround - cappedTotalNew;
+
+  if (normalKeys.length === 0 || normalTargetTotal <= 0 || normalTotalOld <= 0) {
+    // Cas dégénéré : tous les scores seraient cappés OU le target est négatif
+    // (theoretical impossible : cap N*(1/CAP) > 1/(1-margin) dès que N > CAP*(1-margin)
+    // = 8.5 pour 15 % margin). Fallback : on utilise l'implied brut sans scale,
+    // l'overround peut dépasser la cible mais le moteur ne crash pas.
+    for (const k of keys) newImplied[k] = Math.max(IMPLIED_CAP, implied[k]);
+  } else {
+    const scale = normalTargetTotal / normalTotalOld;
+    for (const k of normalKeys) newImplied[k] = implied[k] * scale;
+  }
+
+  // 5) Convertir en odds, cap UX à MAX_ODDS en post-traitement.
+  //    Le scale step 4 garantit que les normaux restent ≤ MAX_ODDS dans
+  //    les cas usuels ; si un edge-case les fait dépasser (scale très
+  //    agressif), le min() rattrape et l'overround peut légèrement dévier.
+  const entries: ScoreEntry[] = [];
+  for (const k of keys) {
+    const [a, b] = k.split('-').map(Number);
+    const player: 0|1|2 = a === b ? 0 : a > b ? 1 : 2;
+    const loserGames = Math.min(a, b);
+    const rawOdds = 1 / newImplied[k];
+    const finalOdds = Math.min(rawOdds, EXACT_SCORE_MAX_ODDS);
+    entries.push({
+      score: k,
+      player,
+      loserGames,
+      odds: parseFloat(finalOdds.toFixed(2)),
+    });
+  }
+  return entries;
+}
+
+/** Dispatch V1/V2 en fonction du flag. Tous les autres call sites passent ici. */
+function emitEntries(dist: ScoreDistribution): ScoreEntry[] {
+  if (process.env.ODDS_ENGINE_EXACT_V2_ENABLED === 'true') {
+    return distributionToEntriesV2(dist);
+  }
+  return distributionToEntries(dist);
+}
+
+/**
  * Synchronous fallback (theoretical only) — used when we don't have player
  * IDs or when the DB blend fails. Keeps older call sites working.
  */
 function exactScoreOdds(odds1: number, odds2: number, format: string, oddsDraw?: number): ScoreEntry[] {
-  return distributionToEntries(theoreticalDistribution(odds1, odds2, format, oddsDraw));
+  return emitEntries(theoreticalDistribution(odds1, odds2, format, oddsDraw));
 }
 
 /**
@@ -235,7 +333,7 @@ async function exactScoreOddsBlended(
     const blended = await buildBlendedDistribution(
       theoretical, matchId, p1Id, p2Id, format as Bo, odds1, odds2, matchTier, oddsDraw,
     );
-    return distributionToEntries(blended);
+    return emitEntries(blended);
   } catch (err) {
     logger.warn('[ExactScore] Blend failed, falling back to theoretical:', err);
     return exactScoreOdds(odds1, odds2, format, oddsDraw);
