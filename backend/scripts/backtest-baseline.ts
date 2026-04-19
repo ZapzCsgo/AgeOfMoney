@@ -121,11 +121,25 @@ async function loadCompletedMatches(n: number): Promise<MatchRow[]> {
     }));
 }
 
+async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 3): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < maxAttempts; i++) {
+    try { return await fn(); }
+    catch (err) {
+      lastErr = err;
+      const msg = String((err as Error).message ?? '');
+      if (!msg.includes('reach database') && !msg.includes('P1001') && !msg.includes('P2024')) throw err;
+      await new Promise(r => setTimeout(r, 2000 * (i + 1)));
+    }
+  }
+  throw lastErr;
+}
+
 async function predictForMatch(m: MatchRow): Promise<Prediction | null> {
   // 1. Load records for both players, filtered to pre-match date only.
   //    This simulates what the engine could know BEFORE the match was played.
   const cutoff = m.scheduledAt;
-  const [p1Records, p2Records] = await Promise.all([
+  const [p1Records, p2Records] = await withRetry(() => Promise.all([
     prisma.playerMatchRecord.findMany({
       where: {
         playerId: m.player1Id,
@@ -148,13 +162,13 @@ async function predictForMatch(m: MatchRow): Promise<Prediction | null> {
       },
       select: { won: true, tier: true, matchDate: true, opponentId: true, score: true },
     }),
-  ]);
+  ]));
 
   // 2. Need at least some data on both sides to predict
   if (p1Records.length === 0 || p2Records.length === 0) return null;
 
   // 3. H2H — also filtered pre-match
-  const h2hRows = await prisma.playerMatchRecord.findMany({
+  const h2hRows = await withRetry(() => prisma.playerMatchRecord.findMany({
     where: {
       NOT: { opponentName: SENTINEL },
       OR: [
@@ -168,7 +182,7 @@ async function predictForMatch(m: MatchRow): Promise<Prediction | null> {
     orderBy: { matchDate: 'desc' },
     select: { playerId: true, won: true, tier: true, matchDate: true, confidence: true },
     take: 40,
-  });
+  }));
   const h2h: H2HRecord[] = h2hRows.map(r => ({
     winner: ((r.playerId === m.player1Id ? (r.won ? 1 : 2) : (r.won ? 2 : 1)) as 1 | 2),
     tier: r.tier ?? 'B',
@@ -183,10 +197,10 @@ async function predictForMatch(m: MatchRow): Promise<Prediction | null> {
   for (const r of [...p1Records, ...p2Records]) if (r.opponentId) opponentIds.add(r.opponentId);
   const oppMap = new Map<string, number>();
   if (opponentIds.size > 0) {
-    const oppRecs = await prisma.playerMatchRecord.findMany({
+    const oppRecs = await withRetry(() => prisma.playerMatchRecord.findMany({
       where: { playerId: { in: [...opponentIds] } },
       select: { playerId: true, won: true },
-    });
+    }));
     const grouped = new Map<string, { total: number; wins: number }>();
     for (const r of oppRecs) {
       const g = grouped.get(r.playerId) ?? { total: 0, wins: 0 };
