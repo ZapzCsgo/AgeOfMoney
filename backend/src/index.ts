@@ -211,6 +211,13 @@ app.use((err: Error & { status?: number }, _req: express.Request, res: express.R
 // Initialize Socket.io
 initSocket(httpServer);
 
+// ── Background services (cron, roulette, scorer, startup tasks) ──────────
+// All gated behind SKIP_SERVER so that standalone scripts importing prisma
+// from '../index' don't trigger a full backend boot. Without this gate,
+// cron queries and roulette writes compete with the script for the
+// Supabase pooler's connection budget → P2024 timeouts.
+if (!process.env.SKIP_SERVER) {
+
 // Stagger service startups to avoid exhausting Supabase connection pool.
 // Each service gets 2s to initialize before the next one starts.
 initCronJobs();
@@ -285,11 +292,12 @@ setTimeout(async () => {
   } catch (err) { logger.warn('[Startup] Dedup cleanup failed:', err); }
 }, 10_000);
 
+} // end if (!SKIP_SERVER) for background services
 
 const PORT = parseInt(process.env.PORT || '4000', 10);
 
-// Scripts that import from src/index (for `prisma`) set SKIP_SERVER=1 to
-// avoid "port already in use" when the dev server is also running.
+// Scripts set SKIP_SERVER=1 to avoid booting the HTTP listener + all the
+// background services above. The `prisma` export remains usable.
 if (!process.env.SKIP_SERVER) {
   httpServer.listen(PORT, () => {
     logger.info(`AgeOfMoney backend running on port ${PORT}`);
