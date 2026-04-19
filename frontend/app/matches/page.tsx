@@ -92,10 +92,9 @@ function MatchRow({ match }: { match: Match }) {
           <div className="relative shrink-0">
             <PlayerAvatar name={match.player1.name} playerId={match.player1.id} avatarUrl={match.player1.avatarUrl} size={32} />
             {p1Won && (
-              <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[8px]"
-                style={{ background: '#ffc542', boxShadow: '0 0 6px rgba(255,197,66,0.6)' }}>
+              <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[18px] leading-none drop-shadow-[0_0_6px_rgba(255,197,66,0.7)] select-none pointer-events-none">
                 👑
-              </div>
+              </span>
             )}
           </div>
           <div className="min-w-0 flex-1">
@@ -189,10 +188,9 @@ function MatchRow({ match }: { match: Match }) {
           <div className="relative shrink-0">
             <PlayerAvatar name={match.player2.name} playerId={match.player2.id} avatarUrl={match.player2.avatarUrl} size={32} />
             {p2Won && (
-              <div className="absolute -top-1 -left-1 w-4 h-4 rounded-full flex items-center justify-center text-[8px]"
-                style={{ background: '#ffc542', boxShadow: '0 0 6px rgba(255,197,66,0.6)' }}>
+              <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[18px] leading-none drop-shadow-[0_0_6px_rgba(255,197,66,0.7)] select-none pointer-events-none">
                 👑
-              </div>
+              </span>
             )}
           </div>
         </button>
