@@ -364,7 +364,7 @@ export default function CoinFlipPage() {
             ) : historyGames.length === 0 ? (
               <div className="text-center py-8 text-[12px]" style={{ color: '#6b6488' }}>Aucun flip terminé.</div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {historyGames.map((game) => {
                   const isCreatorWin = game.result === game.side;
                   const winnerName = isCreatorWin ? game.creator.username : (game.joiner?.username ?? '?');
@@ -374,7 +374,7 @@ export default function CoinFlipPage() {
                   return (
                     <div
                       key={game.id}
-                      className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px]"
+                      className="flex items-center gap-3 px-3 py-3 rounded-lg text-[13px]"
                       style={{
                         background: 'linear-gradient(90deg, rgba(255,197,66,0.05) 0%, rgba(10,8,23,1) 45%)',
                         border: '1px solid #1e1a30',
@@ -384,18 +384,18 @@ export default function CoinFlipPage() {
                       <div
                         className="shrink-0 flex items-center justify-center rounded-full relative"
                         style={{
-                          width: 32, height: 32,
+                          width: 44, height: 44,
                           background: isCrown
                             ? 'radial-gradient(ellipse at 35% 30%, #ffd97a 0%, #ffc542 45%, #b8860b 85%, #8b6914 100%)'
                             : 'radial-gradient(ellipse at 35% 30%, #c0c0c0 0%, #8a8a9a 45%, #6a6a7a 85%, #4a4a5a 100%)',
                           boxShadow: isCrown
-                            ? 'inset 0 -2px 4px rgba(0,0,0,0.35), inset 0 2px 3px rgba(255,230,120,0.35), 0 0 10px rgba(255,197,66,0.35)'
-                            : 'inset 0 -2px 4px rgba(0,0,0,0.35), inset 0 2px 3px rgba(200,200,220,0.3), 0 0 8px rgba(138,138,154,0.25)',
+                            ? 'inset 0 -2px 5px rgba(0,0,0,0.4), inset 0 2px 4px rgba(255,230,120,0.35), 0 0 12px rgba(255,197,66,0.4)'
+                            : 'inset 0 -2px 5px rgba(0,0,0,0.4), inset 0 2px 4px rgba(200,200,220,0.3), 0 0 10px rgba(138,138,154,0.3)',
                           border: `1.5px solid ${isCrown ? '#c4960f' : '#7a7a8a'}`,
                         }}
                       >
                         <span style={{
-                          fontSize: 14,
+                          fontSize: 20,
                           color: isCrown ? '#8b6914' : '#4a4a5a',
                           filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.4))',
                           lineHeight: 1,
@@ -405,8 +405,8 @@ export default function CoinFlipPage() {
                       </div>
 
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1 truncate">
-                          <span className="text-[12px]">👑</span>
+                        <div className="flex items-center gap-1.5 truncate">
+                          <span className="text-[14px]">👑</span>
                           <span className="font-bold truncate" style={{ color: '#ffd97a', textShadow: '0 0 6px rgba(255,197,66,0.35)' }}>
                             {winnerName}
                           </span>
@@ -414,11 +414,11 @@ export default function CoinFlipPage() {
                             +{winAmount.toLocaleString('fr-FR')} ⚜
                           </span>
                         </div>
-                        <div className="text-[10px] truncate" style={{ color: '#4a4468' }}>
-                          <span className="line-through">{loserName}</span>
-                          <span className="mx-1">·</span>
+                        <div className="text-[11px] truncate mt-0.5" style={{ color: '#6b6488' }}>
+                          vs <span style={{ color: '#8a8299' }}>{loserName}</span>
+                          <span className="mx-1.5" style={{ color: '#3a3560' }}>·</span>
                           mise {game.amount.toLocaleString('fr-FR')} ⚜
-                          <span className="mx-1">·</span>
+                          <span className="mx-1.5" style={{ color: '#3a3560' }}>·</span>
                           {new Date(game.createdAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                         </div>
                       </div>
@@ -428,7 +428,7 @@ export default function CoinFlipPage() {
                           setActiveGame(game);
                           setModalOpen(true);
                         }}
-                        className="shrink-0 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all hover:brightness-110"
+                        className="shrink-0 px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all hover:brightness-110"
                         style={{
                           background: 'rgba(255,197,66,0.1)',
                           color: '#ffd97a',
