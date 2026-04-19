@@ -105,15 +105,21 @@ export function CoinFlipModal({
         exit={{ opacity: 0 }}
         style={{ background: 'rgba(0,0,0,0.80)', backdropFilter: 'blur(8px)' }}
       >
-        {/* Close button */}
-        {showResult && (
-          <button
-            onClick={onClose}
-            className="absolute top-6 right-6 z-50 text-[#6b6488] hover:text-[#e8e2f5] transition-colors"
-          >
-            <X size={24} />
-          </button>
-        )}
+        {/* Close button — toujours visible pour pouvoir fermer pendant le
+            countdown / l'animation / le résultat. Le résultat backend est
+            déjà enregistré, sortir du popup ne change rien au settlement. */}
+        <button
+          onClick={onClose}
+          aria-label="Fermer"
+          className="absolute top-6 right-6 z-50 w-10 h-10 rounded-full flex items-center justify-center text-[#9990b8] hover:text-[#e8e2f5] transition-all hover:scale-110"
+          style={{
+            background: 'rgba(13,11,26,0.8)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            backdropFilter: 'blur(4px)',
+          }}
+        >
+          <X size={20} />
+        </button>
 
         <motion.div
           className="w-full max-w-2xl rounded-2xl overflow-hidden relative"

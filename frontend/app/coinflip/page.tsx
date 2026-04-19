@@ -364,56 +364,80 @@ export default function CoinFlipPage() {
             ) : historyGames.length === 0 ? (
               <div className="text-center py-8 text-[12px]" style={{ color: '#6b6488' }}>Aucun flip terminé.</div>
             ) : (
-              <div className="space-y-1.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {historyGames.map((game) => {
                   const isCreatorWin = game.result === game.side;
                   const winnerName = isCreatorWin ? game.creator.username : (game.joiner?.username ?? '?');
                   const loserName  = isCreatorWin ? (game.joiner?.username ?? '?') : game.creator.username;
-                  const winAmount  = game.amount * 2; // winner takes the pot
+                  const winAmount  = game.amount * 2;
+                  const isCrown = game.result === 'crown';
                   return (
-                    <button
+                    <div
                       key={game.id}
-                      onClick={() => {
-                        // Replay the flip animation by reopening the modal with
-                        // the saved result — the animation is deterministic on
-                        // result so it always lands on the same side.
-                        setActiveGame(game);
-                        setModalOpen(true);
-                      }}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[12px] transition-all text-left hover:scale-[1.005]"
+                      className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px]"
                       style={{
-                        background: 'linear-gradient(90deg, rgba(255,197,66,0.04) 0%, rgba(10,8,23,1) 40%)',
+                        background: 'linear-gradient(90deg, rgba(255,197,66,0.05) 0%, rgba(10,8,23,1) 45%)',
                         border: '1px solid #1e1a30',
                       }}
                     >
-                      <span style={{
-                        fontSize: 18,
-                        filter: `drop-shadow(0 0 10px ${game.result === 'crown' ? 'rgba(245,200,66,0.6)' : 'rgba(192,192,192,0.5)'})`,
-                      }}>
-                        {game.result === 'crown' ? '🏹' : '⚔️'}
-                      </span>
-                      <div className="flex-1 min-w-0 flex items-center gap-1.5">
-                        <span className="text-[13px]">👑</span>
-                        <span className="font-bold text-[13px]" style={{
-                          color: '#ffd97a',
-                          textShadow: '0 0 8px rgba(255,197,66,0.35)',
+                      {/* Mini coin with the winning side facing up */}
+                      <div
+                        className="shrink-0 flex items-center justify-center rounded-full relative"
+                        style={{
+                          width: 32, height: 32,
+                          background: isCrown
+                            ? 'radial-gradient(ellipse at 35% 30%, #ffd97a 0%, #ffc542 45%, #b8860b 85%, #8b6914 100%)'
+                            : 'radial-gradient(ellipse at 35% 30%, #c0c0c0 0%, #8a8a9a 45%, #6a6a7a 85%, #4a4a5a 100%)',
+                          boxShadow: isCrown
+                            ? 'inset 0 -2px 4px rgba(0,0,0,0.35), inset 0 2px 3px rgba(255,230,120,0.35), 0 0 10px rgba(255,197,66,0.35)'
+                            : 'inset 0 -2px 4px rgba(0,0,0,0.35), inset 0 2px 3px rgba(200,200,220,0.3), 0 0 8px rgba(138,138,154,0.25)',
+                          border: `1.5px solid ${isCrown ? '#c4960f' : '#7a7a8a'}`,
+                        }}
+                      >
+                        <span style={{
+                          fontSize: 14,
+                          color: isCrown ? '#8b6914' : '#4a4a5a',
+                          filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.4))',
+                          lineHeight: 1,
                         }}>
-                          {winnerName}
+                          {isCrown ? '🏹' : '⚔️'}
                         </span>
-                        <span className="font-bold ml-0.5" style={{ color: '#4ade80' }}>
-                          +{winAmount.toLocaleString('fr-FR')} ⚜
-                        </span>
-                        <span style={{ color: '#3a3560' }} className="mx-1">·</span>
-                        <span className="line-through" style={{ color: '#4a4468' }}>{loserName}</span>
                       </div>
-                      <span className="text-[11px] font-semibold tabular-nums" style={{ color: '#9990b8' }}>
-                        mise {game.amount.toLocaleString('fr-FR')} ⚜
-                      </span>
-                      <span className="text-[10px]" style={{ color: '#4a4468' }}>
-                        {new Date(game.createdAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                      <span className="text-[11px] opacity-60 group-hover:opacity-100" style={{ color: '#ffc542' }}>▶</span>
-                    </button>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1 truncate">
+                          <span className="text-[12px]">👑</span>
+                          <span className="font-bold truncate" style={{ color: '#ffd97a', textShadow: '0 0 6px rgba(255,197,66,0.35)' }}>
+                            {winnerName}
+                          </span>
+                          <span className="font-bold shrink-0" style={{ color: '#4ade80' }}>
+                            +{winAmount.toLocaleString('fr-FR')} ⚜
+                          </span>
+                        </div>
+                        <div className="text-[10px] truncate" style={{ color: '#4a4468' }}>
+                          <span className="line-through">{loserName}</span>
+                          <span className="mx-1">·</span>
+                          mise {game.amount.toLocaleString('fr-FR')} ⚜
+                          <span className="mx-1">·</span>
+                          {new Date(game.createdAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setActiveGame(game);
+                          setModalOpen(true);
+                        }}
+                        className="shrink-0 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all hover:brightness-110"
+                        style={{
+                          background: 'rgba(255,197,66,0.1)',
+                          color: '#ffd97a',
+                          border: '1px solid rgba(255,197,66,0.3)',
+                        }}
+                      >
+                        Rejouer
+                      </button>
+                    </div>
                   );
                 })}
               </div>
