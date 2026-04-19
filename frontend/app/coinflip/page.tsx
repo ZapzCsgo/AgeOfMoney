@@ -46,6 +46,52 @@ const GLOBAL_CSS = `
 
 const CANCEL_DELAY_MS = 15 * 60 * 1000; // 15 minutes
 
+/**
+ * Mini version of the flip coin — statique, utilisée dans la liste "flips
+ * ouverts" à la place du badge texte "🏹 Archers" / "⚔ Swords". Même
+ * gradient / shine que CoinFlipAnimation pour rester cohérent visuellement.
+ * VS16 sur l'arc (U+FE0F) pour forcer la présentation color-emoji sur
+ * Windows + Segoe UI Emoji (même correctif que CoinFlipAnimation).
+ */
+function MiniCoin({ side, size = 22 }: { side: CoinSide; size?: number }) {
+  const isArchers = side === 'crown';
+  return (
+    <span
+      className="inline-flex rounded-full items-center justify-center shrink-0 align-middle relative overflow-hidden"
+      style={{
+        width: size,
+        height: size,
+        background: isArchers
+          ? 'radial-gradient(ellipse at 35% 30%, #ffd97a 0%, #ffc542 40%, #b8860b 80%, #8b6914 100%)'
+          : 'radial-gradient(ellipse at 35% 30%, #c0c0c0 0%, #8a8a9a 40%, #6a6a7a 80%, #4a4a5a 100%)',
+        boxShadow: isArchers
+          ? 'inset 0 -1px 2px rgba(0,0,0,0.4), 0 0 8px rgba(255,197,66,0.35)'
+          : 'inset 0 -1px 2px rgba(0,0,0,0.4), 0 0 6px rgba(138,138,154,0.25)',
+        border: `1px solid ${isArchers ? '#c4960f' : '#7a7a8a'}`,
+      }}
+    >
+      <span
+        className="absolute inset-0 rounded-full pointer-events-none"
+        style={{
+          background: 'linear-gradient(135deg, rgba(255,255,255,0.18) 0%, transparent 55%, rgba(0,0,0,0.08) 100%)',
+        }}
+      />
+      <span
+        className="select-none relative"
+        style={{
+          fontSize: size * 0.58,
+          color: isArchers ? '#4a3804' : '#2a2a3a',
+          filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.35))',
+          lineHeight: 1,
+          fontFamily: '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","EmojiOne Color","Twemoji Mozilla",sans-serif',
+        }}
+      >
+        {isArchers ? '\u{1F3F9}\uFE0F' : '⚔️'}
+      </span>
+    </span>
+  );
+}
+
 function CancelOrWait({ gameId, createdAt, onCancel }: { gameId: string; createdAt: string; onCancel: (id: string) => void }) {
   const [now, setNow] = useState(Date.now());
 
@@ -676,9 +722,17 @@ export default function CoinFlipPage() {
                       >
                         {game.creator.username}
                       </p>
-                      <p className="text-[10px]" style={{ color: '#4a4468' }}>
-                        {game.side === 'crown' ? '🏹 Archers' : '⚔ Swords'}
-                      </p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <MiniCoin side={game.side} size={20} />
+                        <span
+                          className="text-[10px] uppercase tracking-wider"
+                          style={{
+                            color: game.side === 'crown' ? '#ffd97a' : '#c0c0c0',
+                          }}
+                        >
+                          {game.side === 'crown' ? 'Archers' : 'Swords'}
+                        </span>
+                      </div>
                     </div>
                     {/* Amount — fleur-de-lys in gold next to the number */}
                     <div className="text-right shrink-0 flex items-center gap-1.5">
@@ -709,7 +763,7 @@ export default function CoinFlipPage() {
                   ) : (
                     <button
                       onClick={() => handleJoin(game)}
-                      className="w-full py-2 rounded-lg text-[12px] font-bold uppercase tracking-wider transition-all hover:opacity-80"
+                      className="w-full py-2 rounded-lg text-[12px] font-bold uppercase tracking-wider transition-all hover:opacity-80 flex items-center justify-center gap-2"
                       style={{
                         background:
                           game.side === 'crown'
@@ -721,8 +775,11 @@ export default function CoinFlipPage() {
                         }`,
                       }}
                     >
-                      {t('coinflip_join')}{' '}
-                      {game.side === 'crown' ? '⚔ Swords' : '🏹 Archers'}
+                      <MiniCoin side={game.side === 'crown' ? 'shield' : 'crown'} size={20} />
+                      <span>
+                        {t('coinflip_join')}{' '}
+                        {game.side === 'crown' ? 'Swords' : 'Archers'}
+                      </span>
                     </button>
                   )}
                 </div>
