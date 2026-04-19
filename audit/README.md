@@ -2,11 +2,21 @@
 
 ## État final (avril 2026)
 
+### Moteur binaire (match winner)
 - **V1 blended est en prod** — blending heuristique (WR 50% / form 30% / H2H 0-30% / tier 10%) avec opponent-strength + step-up penalty + draws 1-1 neutres.
   - Brier ~0.21, accuracy ~73% sur les backtests N=45.
 - **V2 Glicko-2 (vanilla et tier-weighted) est committed mais dormant**. Tous les backtests Phase 2/3/4 montrent V2 pire que V1 sur le dataset actuel (120 joueurs, 4409 events, N=45 predictions valides). Phase 4 tier-weighted a même **aggravé** Phase 3 vanilla (Brier V2 0.3121 vs 0.2745). Cause racine mise à jour : dataset trop sparse — tier-weighting amplifie les mauvais signaux au lieu de les corriger.
   - Flag `ODDS_ENGINE_V2_ENABLED` par défaut **OFF** sur Railway.
-- **Phase 3 (Ensemble + Platt scaling)** non implémentée. Si V2 seul est à +0.10 Brier de V1, ensemble serait mécaniquement pire. Pas d'investissement tant qu'on n'a pas plus de data.
+- **Ensemble + Platt scaling** non implémentés. Si V2 seul est à +0.10 Brier de V1, ensemble serait mécaniquement pire. Pas d'investissement tant qu'on n'a pas plus de data.
+
+### Moteur Score Exact
+- **V2 overround-fix est ACTIVE en prod depuis 2026-04-19.** Flag `ODDS_ENGINE_EXACT_V2_ENABLED=true` sur Railway. Vérification live :
+  - 6/6 matchs UPCOMING testés sortent un overround ∈ [1.1762, 1.1770] (cible 1.1765 = 17.6 %)
+  - TaToH vs Running BO5 (odds 1.32/3.00, match le plus déséquilibré) : overround V2 1.1765 vs V1 théorique ~1.20+
+  - V1 comportement : overround explosait jusqu'à 1.47 sur matchs déséquilibrés → corrigé
+  - RPS de prédiction inchangé (V2 ne touche qu'à la couche margin, pas au modèle)
+- **BO1 retiré du marché exact-score** (commit `5d3f85d`, avril 2026) — redondant avec le winner market, margin trap de 7.3 %.
+- Cf [PHASE6_EXACT_SCORE_STRESS_TEST_2026-04-19.md](PHASE6_EXACT_SCORE_STRESS_TEST_2026-04-19.md) (diagnostic V1) et [PHASE6_FIX_OVERROUND_VALIDATION_2026-04-19.md](PHASE6_FIX_OVERROUND_VALIDATION_2026-04-19.md) (validation V2).
 
 ## Comment ré-activer V2 (si besoin)
 
