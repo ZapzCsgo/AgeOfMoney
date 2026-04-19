@@ -9,6 +9,7 @@ import { MobileNav } from '@/components/layout/MobileNav';
 import { Providers } from './providers';
 import { BetNotifications } from '@/components/BetNotifications';
 import { MyBetsPanel } from '@/components/MyBetsPanel';
+import { TotpChallengeModal } from '@/components/security/TotpChallengeModal';
 
 const cinzel = Cinzel({
   subsets: ['latin'],
@@ -196,6 +197,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
           {/* Floating "Mes Paris" panel */}
           <MyBetsPanel />
+
+          {/* Global 2FA challenge modal — rendu conditionnellement par l'axios
+              interceptor quand le backend répond TOTP_REQUIRED. */}
+          <TotpChallengeModal />
         </Providers>
       </body>
     </html>

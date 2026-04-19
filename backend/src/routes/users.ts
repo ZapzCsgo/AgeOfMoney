@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { requireAuth } from '../middleware/auth';
 import { generateToken } from '../middleware/auth';
+import { require2FAForTrustedIp } from '../middleware/require2fa';
 import { prisma } from '../index';
 import { z } from 'zod';
 import { authenticator } from 'otplib';
@@ -9,8 +10,12 @@ import { getIo } from '../socket';
 
 const router = Router();
 
-// GET /me - Current user profile
-router.get('/me', requireAuth, async (req: Request, res: Response): Promise<void> => {
+// GET /me - Current user profile. Gated par require2FAForTrustedIp :
+// si l'user a totpEnabled=true et que l'IP n'est pas dans trustedIps,
+// on renvoie TOTP_REQUIRED. Frontend catch l'erreur via axios interceptor
+// et affiche un modal demandant le code. Après succès, l'IP est ajoutée
+// à trustedIps et le user peut naviguer normalement.
+router.get('/me', requireAuth, require2FAForTrustedIp, async (req: Request, res: Response): Promise<void> => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user!.id },
@@ -212,6 +217,21 @@ router.post('/2fa/enable', requireAuth, async (req: Request, res: Response): Pro
     if (!isValid) { res.status(400).json({ error: 'Invalid code — check your authenticator app' }); return; }
 
     await prisma.user.update({ where: { id: req.user!.id }, data: { totpEnabled: true } });
+
+    // Ajoute l'IP courante aux trustedIps — sinon le user se ferait challenger
+    // immédiatement après activation sur sa propre IP, UX affreuse.
+    const rawIp = (req.ip || req.socket.remoteAddress || '').trim();
+    const ip = rawIp.startsWith('::ffff:') ? rawIp.slice(7) : rawIp;
+    if (ip) {
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO "UserTrustedIp" (id, "userId", ip, "firstSeen", "lastSeen", "userAgent")
+         VALUES ($1, $2, $3, NOW(), NOW(), $4)
+         ON CONFLICT ("userId", ip) DO UPDATE SET "lastSeen" = NOW()`,
+        `uti_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        req.user!.id, ip,
+        (req.headers['user-agent'] as string | undefined)?.slice(0, 200) ?? null,
+      ).catch(err => logger.warn('[2FA] trust IP on enable failed:', err));
+    }
     res.json({ data: { enabled: true } });
   } catch (error) {
     logger.error('POST /users/2fa/enable error:', error);

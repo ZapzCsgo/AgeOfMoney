@@ -3,6 +3,7 @@ import axios from 'axios';
 import crypto from 'crypto';
 import { prisma } from '../index';
 import { requireAuth } from '../middleware/auth';
+import { require2FAForSensitive } from '../middleware/require2fa';
 import { touchUserIp } from '../services/affiliateService';
 import logger from '../logger';
 import { getIo } from '../socket';
@@ -545,7 +546,7 @@ router.post('/crypto/webhook', async (req: Request, res: Response): Promise<void
 });
 
 // ── POST /payments/crypto/withdraw — Initiate withdrawal via OxaPay ──────────
-router.post('/crypto/withdraw', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.post('/crypto/withdraw', requireAuth, require2FAForSensitive, async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id;
     const { cryptoId, coins, address } = req.body;

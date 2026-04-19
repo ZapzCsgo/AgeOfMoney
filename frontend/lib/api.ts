@@ -1,5 +1,6 @@
-import axios, { AxiosInstance } from 'axios';
+import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import { Match, Player, Tournament, Bet, User, LeaderboardEntry, WeeklyLeaderboardEntry, PaginatedResponse, ApiResponse, UserStats, ScraperLog } from '@/types';
+import { requestTotpCode, markInvalidAttempt } from './totpChallenge';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -25,12 +26,46 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// Response error handling
+// Response error handling.
+// Deux chemins spéciaux avant l'erreur générique :
+//   1. 403 TOTP_REQUIRED → on pop le modal de challenge, on attend le code,
+//      on rejoue la requête avec `x-totp-code` en header.
+//   2. 401 TOTP_INVALID (le user a tapé un code faux) → on re-pop le modal
+//      avec un flag "essaye encore" sans casser la chaîne.
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     if (axios.isAxiosError(error)) {
-      const message = error.response?.data?.error || error.message || 'Request failed';
+      const cfg = error.config as (InternalAxiosRequestConfig & { __totpRetry?: boolean }) | undefined;
+      const body = (error.response?.data ?? {}) as { error?: string; reason?: 'unknown_ip' | 'sensitive_action' };
+
+      if (error.response?.status === 403 && body.error === 'TOTP_REQUIRED' && cfg && !cfg.__totpRetry) {
+        try {
+          const code = await requestTotpCode(body.reason ?? 'unknown_ip');
+          cfg.__totpRetry = true;
+          cfg.headers = cfg.headers ?? {};
+          (cfg.headers as Record<string, string>)['x-totp-code'] = code;
+          return apiClient.request(cfg);
+        } catch {
+          return Promise.reject(new Error('2FA required'));
+        }
+      }
+
+      if (error.response?.status === 401 && body.error === 'TOTP_INVALID' && cfg) {
+        // Le code était faux → rouvre le modal (sans casser le resolver
+        // courant si déjà en cours) pour que le user retape.
+        markInvalidAttempt();
+        try {
+          const code = await requestTotpCode();
+          cfg.headers = cfg.headers ?? {};
+          (cfg.headers as Record<string, string>)['x-totp-code'] = code;
+          return apiClient.request(cfg);
+        } catch {
+          return Promise.reject(new Error('2FA code invalide'));
+        }
+      }
+
+      const message = body.error || error.message || 'Request failed';
       return Promise.reject(new Error(message));
     }
     return Promise.reject(error);

@@ -36,10 +36,28 @@ model User {
   rouletteBets     RouletteBet[]
   coinflipsCreated CoinFlip[]    @relation("coinflipCreator")
   coinflipsJoined  CoinFlip[]    @relation("coinflipJoiner")
+  trustedIps      UserTrustedIp[]
 
   @@unique([provider, providerId])
   @@index([totalWagered])
   @@index([isBanned])
+}
+
+// Trusted IPs pour le 2FA : quand un user a totpEnabled=true, toute requête
+// sur une IP absente de cette table déclenche un challenge TOTP. Après succès,
+// l'IP est ajoutée ici et les requêtes suivantes depuis la même IP passent
+// sans re-demander le code.
+model UserTrustedIp {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ip         String
+  firstSeen  DateTime @default(now())
+  lastSeen   DateTime @default(now())
+  userAgent  String?  // premier UA vu pour cette IP (debug uniquement)
+
+  @@unique([userId, ip])
+  @@index([userId])
 }
 
 model Player {
