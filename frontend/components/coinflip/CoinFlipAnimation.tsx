@@ -175,26 +175,28 @@ export function CoinFlipAnimation({
                 border: '1.5px solid rgba(255,230,120,0.3)',
               }}
             />
-            {/* Bow symbol */}
-            <span
-              className="select-none"
-              style={{
-                fontSize: size * 0.4,
-                color: '#8b6914',
-                textShadow: '0 1px 2px rgba(0,0,0,0.3), 0 0 8px rgba(245,200,66,0.2)',
-                filter: 'drop-shadow(0 2px 2px rgba(0,0,0,0.3))',
-                lineHeight: 1,
-              }}
-            >
-              🏹
-            </span>
-            {/* Subtle shine overlay */}
+            {/* Subtle shine overlay — rendu AVANT l'emoji pour ne pas le masquer */}
             <div
-              className="absolute inset-0 rounded-full"
+              className="absolute inset-0 rounded-full pointer-events-none"
               style={{
                 background: 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 50%, rgba(0,0,0,0.1) 100%)',
               }}
             />
+            {/* Bow symbol */}
+            <span
+              className="select-none relative"
+              style={{
+                fontSize: size * 0.42,
+                color: '#4a3804',
+                textShadow: '0 1px 2px rgba(255,230,120,0.6), 0 0 8px rgba(245,200,66,0.3)',
+                filter: 'drop-shadow(0 2px 2px rgba(0,0,0,0.4))',
+                lineHeight: 1,
+                zIndex: 2,
+                fontFamily: '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","EmojiOne Color","Twemoji Mozilla",sans-serif',
+              }}
+            >
+              🏹
+            </span>
           </div>
 
           {/* Back face — Swords (silver) */}
@@ -221,26 +223,28 @@ export function CoinFlipAnimation({
                 border: '1.5px solid rgba(200,200,220,0.2)',
               }}
             />
-            {/* Swords symbol */}
-            <span
-              className="select-none"
-              style={{
-                fontSize: size * 0.35,
-                color: '#4a4a5a',
-                textShadow: '0 1px 2px rgba(0,0,0,0.3), 0 0 6px rgba(200,200,220,0.15)',
-                filter: 'drop-shadow(0 2px 2px rgba(0,0,0,0.3))',
-                lineHeight: 1,
-              }}
-            >
-              ⚔️
-            </span>
-            {/* Subtle shine overlay */}
+            {/* Subtle shine overlay — AVANT le symbole */}
             <div
-              className="absolute inset-0 rounded-full"
+              className="absolute inset-0 rounded-full pointer-events-none"
               style={{
                 background: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 50%, rgba(0,0,0,0.08) 100%)',
               }}
             />
+            {/* Swords symbol */}
+            <span
+              className="select-none relative"
+              style={{
+                fontSize: size * 0.4,
+                color: '#2a2a3a',
+                textShadow: '0 1px 2px rgba(220,220,240,0.6), 0 0 6px rgba(200,200,220,0.2)',
+                filter: 'drop-shadow(0 2px 2px rgba(0,0,0,0.4))',
+                lineHeight: 1,
+                zIndex: 2,
+                fontFamily: '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","EmojiOne Color","Twemoji Mozilla",sans-serif',
+              }}
+            >
+              ⚔️
+            </span>
           </div>
 
           {/* Edge — stacked thin layers for 3D thickness */}
