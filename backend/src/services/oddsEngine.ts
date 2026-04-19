@@ -164,19 +164,59 @@ export function calculateDrawProbability(pPerGame: number, boNum: number): numbe
  * series-win flag) but need a per-game probability to compute draw odds for
  * BO2/BO4 formats.
  */
+/**
+ * Convert a per-game win probability `p` to the **market-level** win
+ * probability for the given BO format.
+ *
+ * For odd-BO formats (BO1/3/5/7) the market is 2-way "who wins the series":
+ *   BO1 → p
+ *   BO3 → p²(3 - 2p)       = p²(3-2p)
+ *   BO5 → p³(1 + 3(1-p) + 6(1-p)²)
+ *   BO7 → p⁴(1 + 4(1-p) + 10(1-p)² + 20(1-p)³)
+ *
+ * For even-BO formats (BO2/BO4) the market is 2-way **void on draw**, so
+ * we return the CONDITIONAL prob p1 sweeps | no draw:
+ *   BO2 → p² / (p² + (1-p)²)
+ *   BO4 → P(p1 wins 3-1 or 4-0) / (P(p1 wins 3-1 or 4-0) + mirror)
+ *
+ * Unit test (p = 0.7) :
+ *   BO1 → 0.70
+ *   BO3 → 0.784
+ *   BO5 → 0.8369
+ *   BO7 → 0.874
+ *   BO2 → 0.49 / (0.49 + 0.09) = 0.8448
+ */
+export function seriesWinProb(pPerGame: number, format: string): number {
+  const p = Math.max(0, Math.min(1, pPerGame));
+  const q = 1 - p;
+  if (format === 'BO1') return p;
+  if (format === 'BO3') return p * p * (3 - 2 * p);
+  if (format === 'BO5') return p * p * p * (1 + 3 * q + 6 * q * q);
+  if (format === 'BO7') return p * p * p * p * (1 + 4 * q + 10 * q * q + 20 * q * q * q);
+  if (format === 'BO2') {
+    // Void-on-draw : return P(p1 sweeps | no draw)
+    const pSweep = p * p;
+    const qSweep = q * q;
+    const denom = pSweep + qSweep;
+    return denom > 0 ? pSweep / denom : 0.5;
+  }
+  if (format === 'BO4') {
+    // BO4 rare. First-to-3, ties broken by... well, BO4 can end 2-2 (draw).
+    // P(p1 sweeps: 3-0 or 3-1) vs P(p2 sweeps: 0-3 or 1-3), conditional on no draw.
+    const p1Win = p * p * p + 3 * p * p * p * q;
+    const p2Win = q * q * q + 3 * q * q * q * p;
+    const denom = p1Win + p2Win;
+    return denom > 0 ? p1Win / denom : 0.5;
+  }
+  return p;
+}
+
 export function solvePerGameProb(pMatch: number, format: string): number {
-  const seriesWin = (p: number): number => {
-    if (format === 'BO1') return p;
-    if (format === 'BO3') return p * p * (3 - 2 * p);
-    if (format === 'BO5') return p * p * p * (1 + 3 * (1 - p) + 6 * (1 - p) * (1 - p));
-    if (format === 'BO7') return p * p * p * p * (1 + 4 * (1 - p) + 10 * (1 - p) * (1 - p) + 20 * (1 - p) * (1 - p) * (1 - p));
-    return p;
-  };
   if (pMatch <= 0 || pMatch >= 1) return pMatch;
   let lo = 0.001, hi = 0.999;
   for (let i = 0; i < 60; i++) {
     const mid = (lo + hi) / 2;
-    if (seriesWin(mid) < pMatch) lo = mid; else hi = mid;
+    if (seriesWinProb(mid, format) < pMatch) lo = mid; else hi = mid;
   }
   return (lo + hi) / 2;
 }
@@ -488,11 +528,18 @@ export function calculateOddsV2(input: OddsInputV2): OddsResult {
   const hasGlicko =
     input.glickoRating1 !== undefined && input.glickoRd1 !== undefined &&
     input.glickoRating2 !== undefined && input.glickoRd2 !== undefined;
-  const wrProb1 = hasGlicko
+  // Bug #1 fix : Glicko retourne P(win d'un game). Le blending downstream
+  // attend une P(win du match). Convertir via seriesWinProb selon format.
+  // Pour p_map=0.7 → BO1 0.70, BO3 0.784, BO5 0.8369, BO7 0.874.
+  const glickoP = hasGlicko
     ? glickoWinProb(
         input.glickoRating1!, input.glickoRd1!,
         input.glickoRating2!, input.glickoRd2!,
       )
+    : null;
+  const matchFormat = input.format ?? 'BO3';
+  const wrProb1 = hasGlicko && glickoP !== null
+    ? seriesWinProb(glickoP, matchFormat)
     : wrHeuristicProb1;
   const wrConfidence = Math.sqrt(wr1.confidence * wr2.confidence);
 
@@ -626,7 +673,12 @@ export function calculateOddsV2(input: OddsInputV2): OddsResult {
   const boNum = parseInt(format.replace(/\D/g, ''), 10) || 3;
   let probDraw: number | undefined;
   if (boNum % 2 === 0) {
-    const pPerGame = solvePerGameProb(prob1, 'BO3');
+    // Bug #1 fix : quand Glicko est dispo, on a directement la per-game
+    // prob (glickoP). Pas besoin de backsolver via BO3 depuis la series prob.
+    // Sans Glicko, on backsolve depuis prob1 comme avant.
+    const pPerGame = hasGlicko && glickoP !== null
+      ? glickoP
+      : solvePerGameProb(prob1, 'BO3');
     // Shrinkage: pure binomial peaks at 50% at p=0.5, empirically BO2 draws
     // cluster around 30-40% in AoE/CS/LoL.
     const DRAW_SHRINKAGE_EVEN_BO = 0.70;
