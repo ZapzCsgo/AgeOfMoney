@@ -148,6 +148,19 @@ export function initCronJobs(): void {
     }
   });
 
+  // ── Every Monday 3h UTC : odds-engine weekly backtest ───────────────────
+  // Re-run the 3-config diagnostic (V1 / V2 blended / V2 pur) and persist a
+  // snapshot. Check the last 3 weeks — if V2 blended consistently beats V1
+  // by ≥ 0.02 Brier, log a warning so we know to re-evaluate activation.
+  // See audit/README.md for context.
+  cron.schedule('0 3 * * 1', async () => {
+    try {
+      await runWeeklyOddsEngineBacktest();
+    } catch (err) {
+      logger.error('[CRON] weeklyOddsEngineBacktest failed:', err);
+    }
+  });
+
   logger.info('All cron jobs initialized');
 
   // ── Run critical checks immediately on startup ────────────────────────────
@@ -445,4 +458,79 @@ async function distributePayouts(): Promise<void> {
         }
       })
   );
+}
+
+/**
+ * Weekly backtest of the odds engine — cron Monday 3h UTC.
+ *
+ * Runs the 3-config diagnostic (V1 / V2 blended / V2 pur) and persists a
+ * snapshot to `OddsBacktestSnapshot`. Also checks the last 3 weeks and
+ * emits a warning log if V2 blended consistently beats V1 by ≥ 0.02 Brier
+ * — signal that we may want to reconsider activating ODDS_ENGINE_V2_ENABLED.
+ *
+ * See audit/README.md for full context.
+ */
+async function runWeeklyOddsEngineBacktest(): Promise<void> {
+  logger.info('[CRON] weeklyOddsEngineBacktest — starting…');
+  const { runDiagnosticBacktest, formatBacktestMarkdown } = await import('../services/backtestHarness');
+
+  const result = await runDiagnosticBacktest(50);
+  logger.info(
+    `[CRON] weeklyOddsEngineBacktest — N=${result.n} ` +
+    `V1 Brier=${result.v1.brier.toFixed(4)} (acc ${(result.v1.accuracy * 100).toFixed(1)}%) ` +
+    `V2 Brier=${result.v2.brier.toFixed(4)} (acc ${(result.v2.accuracy * 100).toFixed(1)}%) ` +
+    `V2pur Brier=${result.v2pur.brier.toFixed(4)}`
+  );
+
+  // Persist snapshot via raw SQL (Prisma client may not have the new model yet)
+  const snapshotId = `obs_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  try {
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO "OddsBacktestSnapshot"
+       (id, "runAt", n, "v1Brier", "v1LogLoss", "v1Accuracy",
+        "v2Brier", "v2LogLoss", "v2Accuracy",
+        "v2purBrier", "v2purLogLoss", "v2purAccuracy", "fullReport")
+       VALUES ($1, NOW(), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb)`,
+      snapshotId, result.n,
+      result.v1.brier, result.v1.logLoss, result.v1.accuracy,
+      result.v2.brier, result.v2.logLoss, result.v2.accuracy,
+      result.v2pur.brier, result.v2pur.logLoss, result.v2pur.accuracy,
+      JSON.stringify(result),
+    );
+  } catch (err) {
+    logger.error('[CRON] weeklyOddsEngineBacktest — DB persist failed:', err);
+  }
+
+  // Best-effort : écrire le markdown sur disque (perdu au prochain deploy
+  // Railway mais utile pour les tests locaux et debug immédiat).
+  try {
+    const { writeFileSync, mkdirSync, existsSync } = await import('fs');
+    const { join } = await import('path');
+    const outDir = join(process.cwd(), 'audit', 'weekly');
+    if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
+    const path = join(outDir, `${result.datestamp}.md`);
+    writeFileSync(path, formatBacktestMarkdown(result));
+  } catch { /* filesystem ephemeral, DB is the source of truth */ }
+
+  // Check the 3-week warning rule. V2 blended Brier < V1 Brier - 0.02 in all
+  // 3 most-recent snapshots (including this one) → warn.
+  try {
+    const recent = await prisma.$queryRawUnsafe<Array<{
+      v1brier: number; v2brier: number; runat: Date;
+    }>>(
+      `SELECT "v1Brier" AS v1brier, "v2Brier" AS v2brier, "runAt" AS runat
+       FROM "OddsBacktestSnapshot"
+       ORDER BY "runAt" DESC
+       LIMIT 3`,
+    );
+    if (recent.length === 3 && recent.every(s => Number(s.v2brier) < Number(s.v1brier) - 0.02)) {
+      logger.warn(
+        '[⚠️  ODDS_ENGINE] V2 blended a battu V1 de ≥ 0.02 Brier sur 3 semaines consécutives. ' +
+        `Dernières valeurs : V1=${Number(recent[0].v1brier).toFixed(4)}, V2=${Number(recent[0].v2brier).toFixed(4)}. ` +
+        'Considérer activation de ODDS_ENGINE_V2_ENABLED en prod. Voir audit/README.md.'
+      );
+    }
+  } catch (err) {
+    logger.error('[CRON] weeklyOddsEngineBacktest — 3-week check failed:', err);
+  }
 }

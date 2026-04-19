@@ -84,6 +84,27 @@ model PlayerRating {
   @@index([rating])
 }
 
+// Weekly backtest snapshots — produit par le cron weeklyOddsEngineBacktest.
+// Sert à tracker Brier/accuracy dans le temps et déclencher un warning si
+// V2 blended commence à battre V1 régulièrement.
+model OddsBacktestSnapshot {
+  id             String   @id @default(cuid())
+  runAt          DateTime @default(now())
+  n              Int
+  v1Brier        Float
+  v1LogLoss      Float
+  v1Accuracy     Float
+  v2Brier        Float
+  v2LogLoss      Float
+  v2Accuracy     Float
+  v2purBrier     Float
+  v2purLogLoss   Float
+  v2purAccuracy  Float
+  fullReport     Json     // dump complet (buckets + worst errors)
+
+  @@index([runAt])
+}
+
 // Per-player tournament match history — AI-seeded or manually entered
 // One record per player per match (both players get their own record)
 model PlayerMatchRecord {
