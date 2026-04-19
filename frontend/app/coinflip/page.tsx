@@ -21,6 +21,7 @@ interface CoinFlipGame {
   amount: number;
   side: CoinSide;
   result?: CoinSide;
+  winnerId?: string;
   creator: {
     id: string;
     username: string;
@@ -816,6 +817,7 @@ export default function CoinFlipPage() {
           player2={modalPlayer2}
           betAmount={activeGame.amount}
           result={activeGame.result}
+          winnerId={activeGame.winnerId}
           currentUserId={userId}
         />
       )}

@@ -182,7 +182,10 @@ export function CoinFlipAnimation({
                 background: 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 50%, rgba(0,0,0,0.1) 100%)',
               }}
             />
-            {/* Bow symbol */}
+            {/* Bow symbol — VS16 (U+FE0F) forces color-emoji presentation on
+                Windows + Segoe UI Emoji; without it the bow falls back to a
+                monochrome text glyph that rendered dark on the gold coin and
+                looked invisible. */}
             <span
               className="select-none relative"
               style={{
@@ -195,7 +198,7 @@ export function CoinFlipAnimation({
                 fontFamily: '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","EmojiOne Color","Twemoji Mozilla",sans-serif',
               }}
             >
-              🏹
+              {'\u{1F3F9}\uFE0F'}
             </span>
           </div>
 

@@ -1,11 +1,20 @@
 /**
  * Coinflip PvP service — two players bet on a coin flip with 5% house rake.
  *
- * Provably fair: serverSeed is generated at creation, seedHash (SHA-256) is
- * shown immediately. The serverSeed is only revealed after the game completes,
- * so players can verify the result was predetermined.
+ * Provably fair (aligned with roulette commit-reveal):
+ *   - At creation: generate serverSeed (32 bytes hex), clientSeed (16 bytes hex),
+ *     nonce=0. Commit seedHash = SHA256(serverSeed). Only seedHash + clientSeed +
+ *     nonce are visible to clients until completion.
+ *   - Result derivation is deterministic from the triplet:
+ *         h = HMAC_SHA256(serverSeed, clientSeed + ":" + nonce)
+ *         take first 8 bytes as uint64, rejection-sample to kill modulo bias,
+ *         then result = value % 2 (0 = crown, 1 = shield).
+ *   - On completion, the serverSeed is revealed so anyone can recompute the
+ *     result off-chain and confirm it matches what was declared.
  *
- * Result derivation: first byte of serverSeed % 2 === 0 → "crown", else "shield"
+ * The `result` field (which drives the front-end animation) is the SAME value
+ * used to determine `winnerId`, so the coin landing on a side ALWAYS matches
+ * the declared winner. No separate RNG path anywhere.
  */
 
 import crypto from 'crypto';
@@ -19,16 +28,54 @@ const MIN_BET = 2;
 const MAX_BET = 500;
 const RESULT_DELAY_MS = 3_500; // delay before revealing result (animation time)
 
-/** Strip serverSeed from a coinflip record for client-safe emission. */
+/** Strip serverSeed from a coinflip record for client-safe emission while
+ *  exposing `side` (= creatorSide) so the existing frontend contract holds. */
 function sanitizeGame(game: Record<string, unknown>) {
   const { serverSeed: _seed, ...safe } = game;
+  // Alias creatorSide → side for frontend compatibility (frontend UI + winner
+  // determination both read `game.side`). Before this aliasing, `game.side`
+  // was `undefined`, which made `result === game.side` always false and
+  // caused the "winner n'est pas le bon winner" desync bug.
+  if (typeof safe.creatorSide === 'string') {
+    (safe as Record<string, unknown>).side = safe.creatorSide;
+  }
   return safe;
 }
 
-/** Derive result from serverSeed (deterministic). */
-function deriveResult(serverSeed: string): 'crown' | 'shield' {
-  const firstByte = parseInt(serverSeed.slice(0, 2), 16);
-  return firstByte % 2 === 0 ? 'crown' : 'shield';
+/** Same aliasing for records where the seed has already been revealed. */
+function revealGame(game: Record<string, unknown>) {
+  const out: Record<string, unknown> = { ...game };
+  if (typeof out.creatorSide === 'string') out.side = out.creatorSide;
+  return out;
+}
+
+/**
+ * Provably-fair result derivation — identical algorithmic shape to the
+ * roulette fallback (rejection-sampled HMAC), scaled to a 2-outcome space.
+ *
+ * h = HMAC_SHA256(serverSeed, `${clientSeed}:${nonce}`)
+ * pick the first 64-bit chunk, rejection-sample so the distribution over
+ * {0,1} has zero modulo bias, and return `crown` (0) or `shield` (1).
+ */
+export function deriveCoinflipResult(
+  serverSeed: string,
+  clientSeed: string,
+  nonce: number,
+): 'crown' | 'shield' {
+  const message = `${clientSeed}:${nonce}`;
+  const hmac = crypto.createHmac('sha256', serverSeed).update(message).digest('hex');
+
+  // 2^64 / 2 leaves a trivial tail — still rejection-sample for consistency
+  // with the roulette implementation. In practice the loop exits on iteration 0.
+  const MAX = 2n * (BigInt('0xffffffffffffffff') / 2n);
+  let pick = 0n;
+  let cursor = 0;
+  while (cursor + 16 <= hmac.length) {
+    pick = BigInt('0x' + hmac.slice(cursor, cursor + 16));
+    if (pick < MAX) break;
+    cursor += 16;
+  }
+  return pick % 2n === 0n ? 'crown' : 'shield';
 }
 
 export async function createCoinFlip(
@@ -51,9 +98,17 @@ export async function createCoinFlip(
   if (user.isBanned) return { ok: false, error: 'Account banned' };
   if (user.coins < amount) return { ok: false, error: 'Insufficient coins' };
 
-  // Generate provably fair seed
+  // Generate provably-fair material (commit-reveal, same shape as roulette):
+  //   - serverSeed : 32 random bytes, kept secret until completion
+  //   - seedHash   : SHA256(serverSeed), published at creation (the commit)
+  //   - clientSeed : 16 random bytes, publicly mixed into the HMAC so the
+  //                  result can't be pre-computed just from the seed
+  //   - nonce      : always 0 for a single-roll game; column reserved for
+  //                  future multi-roll mechanics
   const serverSeed = crypto.randomBytes(32).toString('hex');
-  const seedHash = crypto.createHash('sha256').update(serverSeed).digest('hex');
+  const clientSeed = crypto.randomBytes(16).toString('hex');
+  const nonce      = 0;
+  const seedHash   = crypto.createHash('sha256').update(serverSeed).digest('hex');
 
   // Atomic: deduct coins + create game
   const game = await prisma.$transaction(async (tx) => {
@@ -72,6 +127,8 @@ export async function createCoinFlip(
         creatorSide: side,
         serverSeed,
         seedHash,
+        clientSeed,
+        nonce,
         status: 'WAITING',
       },
       include: {
@@ -109,10 +166,14 @@ export async function joinCoinFlip(
   if (user.isBanned) return { ok: false, error: 'Account banned' };
   if (user.coins < game.amount) return { ok: false, error: 'Insufficient coins' };
 
-  // Determine result
-  const result = deriveResult(game.serverSeed);
+  // Provably-fair derivation. If clientSeed is missing (legacy pre-migration
+  // row created before the commit-reveal upgrade), generate one on the fly so
+  // old games still resolve — they just aren't fully verifiable.
+  const clientSeed = game.clientSeed ?? crypto.randomBytes(16).toString('hex');
+  const nonce      = game.nonce ?? 0;
+  const result     = deriveCoinflipResult(game.serverSeed, clientSeed, nonce);
   const creatorWon = game.creatorSide === result;
-  const winnerId = creatorWon ? game.creatorId : userId;
+  const winnerId   = creatorWon ? game.creatorId : userId;
 
   const totalPot = game.amount * 2;
   const rake = Math.floor(totalPot * RAKE_RATE);
@@ -135,7 +196,8 @@ export async function joinCoinFlip(
       data: { coins: { increment: payout } },
     });
 
-    // Update game
+    // Update game. If we had to backfill clientSeed (legacy row), persist it
+    // so the reveal payload remains consistent with what was used to derive.
     return tx.coinFlip.update({
       where: { id: gameId },
       data: {
@@ -144,6 +206,8 @@ export async function joinCoinFlip(
         result,
         winnerId,
         rake,
+        clientSeed,
+        nonce,
         completedAt: new Date(),
       },
       include: {
@@ -174,7 +238,8 @@ export async function joinCoinFlip(
       const winnerUser = await prisma.user.findUnique({ where: { id: winnerId }, select: { coins: true } });
       io?.to(`user:${winnerId}`).emit('coinsUpdate', { coins: winnerUser?.coins ?? 0, direction: 'up' });
 
-      // Reveal full result including serverSeed
+      // Reveal full result including serverSeed + clientSeed + nonce so any
+      // client can independently recompute the HMAC and verify the outcome.
       const completedGame = await prisma.coinFlip.findUnique({
         where: { id: gameId },
         include: {
@@ -183,7 +248,10 @@ export async function joinCoinFlip(
         },
       });
 
-      io?.to('coinflip:lobby').emit('coinflip:result', completedGame);
+      const revealed = completedGame
+        ? revealGame(completedGame as unknown as Record<string, unknown>)
+        : completedGame;
+      io?.to('coinflip:lobby').emit('coinflip:result', revealed);
 
       logger.info(`[Coinflip] Game ${gameId} completed — winner=${winnerId}, result=${result}, payout=${payout}, rake=${rake}`);
     } catch (err) {
@@ -309,8 +377,10 @@ export async function getActiveCoinFlips(): Promise<Record<string, unknown>[]> {
   const merged = [...openGames, ...recentCompleted];
   return merged.map((g) => {
     const plain = g as unknown as Record<string, unknown>;
+    // Completed rows expose serverSeed (revealed), others keep it hidden.
+    // Both paths must alias creatorSide → side for the frontend.
     if (g.status !== 'COMPLETED') return sanitizeGame(plain);
-    return plain;
+    return revealGame(plain);
   });
 }
 
@@ -329,7 +399,7 @@ export async function getAllCoinFlipHistory(limit = 50, offset = 0): Promise<Rec
     take: Math.min(limit, 100),
     skip: offset,
   });
-  return games as unknown as Record<string, unknown>[];
+  return games.map((g) => revealGame(g as unknown as Record<string, unknown>));
 }
 
 export async function getCoinFlipHistory(userId: string): Promise<Record<string, unknown>[]> {
@@ -348,5 +418,8 @@ export async function getCoinFlipHistory(userId: string): Promise<Record<string,
     take: 50,
   });
 
-  return games as unknown as Record<string, unknown>[];
+  return games.map((g) => {
+    const plain = g as unknown as Record<string, unknown>;
+    return g.status === 'COMPLETED' ? revealGame(plain) : sanitizeGame(plain);
+  });
 }

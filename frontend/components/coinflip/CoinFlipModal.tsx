@@ -22,6 +22,11 @@ interface CoinFlipModalProps {
   player2: Player;
   betAmount: number;
   result?: CoinSide;
+  /** Authoritative winner id from the backend. Takes precedence over the
+   *  side-based winner derivation when present — guards against the
+   *  "game.side undefined on legacy payloads" edge case that used to make
+   *  `player1.side === result` always false and flipped the displayed winner. */
+  winnerId?: string;
   currentUserId?: string;
 }
 
@@ -33,6 +38,7 @@ export function CoinFlipModal({
   player2,
   betAmount,
   result,
+  winnerId,
   currentUserId,
 }: CoinFlipModalProps) {
   const { t } = useT();
@@ -42,8 +48,15 @@ export function CoinFlipModal({
   const [displayedAmount, setDisplayedAmount] = useState(0);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const winner = result ? (player1.side === result ? player1 : player2) : null;
-  const loser = result ? (player1.side === result ? player2 : player1) : null;
+  // Pick winner from the backend's `winnerId` when available (authoritative),
+  // fall back to the side ↔ result comparison when the legacy payload only
+  // ships `result`.
+  const winner = winnerId
+    ? (winnerId === player1.id ? player1 : winnerId === player2.id ? player2 : null)
+    : result
+      ? (player1.side === result ? player1 : player2)
+      : null;
+  const loser = winner ? (winner.id === player1.id ? player2 : player1) : null;
   const currentUserWon = winner && currentUserId ? winner.id === currentUserId : null;
   const winAmount = betAmount * 2;
 
@@ -231,7 +244,11 @@ export function CoinFlipModal({
                   </motion.div>
                 ) : (
                   <CoinFlipAnimation
-                    result={result}
+                    // Lock the coin face to the winner's declared side when
+                    // the backend has named the winner — keeps the visual
+                    // result in sync with the winner-ring highlight even if
+                    // `result` ever drifts from `winnerId`.
+                    result={winner?.side ?? result}
                     isFlipping={isFlipping}
                     onComplete={handleFlipComplete}
                     size={160}
