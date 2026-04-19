@@ -49,8 +49,16 @@ const TIER_WEIGHT: Record<string, number> = {
 const PRIOR_WINRATE = 0.50;
 const PRIOR_STRENGTH = 5;
 
-// Temporal decay: half-life in days
-const HALF_LIFE_DAYS = 180;
+// ── Phase 1 feature flag ──────────────────────────────────────────────────
+// Quand ODDS_ENGINE_V2_ENABLED=true, on active : half-life 90j, wrLogitDiff
+// scale 1.15, momentum detector, rest factor non-linéaire, SOS boost.
+// Default false pour pouvoir A/B tester en prod sans régression.
+const V2_ENABLED = process.env.ODDS_ENGINE_V2_ENABLED === 'true';
+
+// Temporal decay: half-life in days. V1 = 180j (records 6 mois = 0.5×),
+// V2 = 90j (records 3 mois = 0.5×) — le baseline a montré que les matches
+// anciens pesaient trop et tiraient les probas vers un prior 50/50 obsolète.
+const HALF_LIFE_DAYS = V2_ENABLED ? 90 : 180;
 const DECAY_CONSTANT = Math.LN2 / HALF_LIFE_DAYS;
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -186,6 +194,29 @@ function computeTierSpecificWinrate(records: MatchRecord[], tier: string, minRec
  *
  * Returns { winrate: 0-1, confidence: 0-1, effectiveN: number }
  */
+/**
+ * V2 : Strength of Schedule — bonus logit additif si le joueur a passé son
+ * temps à affronter des joueurs forts (moyenne opp-WR > 0.60 → +0.10 logit,
+ * < 0.40 → -0.10 logit). Corrige le cas où un joueur avec 70% WR qui ne
+ * joue que contre des 30%-ers serait pris pour plus fort qu'il n'est.
+ */
+function computeSOS(records: MatchRecord[], opponentWinrates: Map<string, number>): number {
+  if (!V2_ENABLED) return 0;
+  let totalOppWr = 0;
+  let n = 0;
+  for (const r of records) {
+    if (!r.opponentId) continue;
+    const wr = opponentWinrates.get(r.opponentId);
+    if (wr === undefined) continue;
+    totalOppWr += wr;
+    n++;
+  }
+  if (n < 5) return 0; // pas assez de data opp-WR
+  const avgOppWr = totalOppWr / n;
+  // Linear map: 0.40 → -0.10, 0.50 → 0, 0.60 → +0.10 (capé ±0.15)
+  return Math.max(-0.15, Math.min(0.15, (avgOppWr - 0.50) * 1.0));
+}
+
 function computeCompetitiveWinrate(
   records: MatchRecord[],
   opponentWinrates?: Map<string, number>,
@@ -339,16 +370,56 @@ function computeFormFactor(records: MatchRecord[], now = Date.now()): number {
   // streak (ML sweeping Wam01 / 1puppypaw / Numudan 3-0, 4-0) pulls close to
   // +1.2, which combined with the base skill signal produces the 1.10-1.15
   // odds range that sharp books offer on crushing favorites.
-  return (formWinrate - 0.5) * 2.50;
+  let formLogit = (formWinrate - 0.5) * 2.50;
+
+  // V2 : momentum detector — bonus additif pour les streaks ≥3 consécutifs
+  // depuis le match le plus récent. +0.05 logit par win consécutive (cap +0.25),
+  // -0.05 par loss décisive consécutive (cap -0.25). Les 1-1 brisent la streak
+  // dans les deux sens (neutral).
+  if (V2_ENABLED && recent.length >= 3) {
+    let streakWins = 0;
+    let streakLosses = 0;
+    for (const r of recent) {
+      if (isDraw(r.score)) break; // draws break the streak (neutral)
+      if (r.won) {
+        if (streakLosses > 0) break;
+        streakWins++;
+      } else {
+        if (streakWins > 0) break;
+        streakLosses++;
+      }
+    }
+    if (streakWins >= 3) {
+      formLogit += Math.min(0.25, (streakWins - 2) * 0.05);
+    } else if (streakLosses >= 3) {
+      formLogit -= Math.min(0.25, (streakLosses - 2) * 0.05);
+    }
+  }
+
+  return formLogit;
 }
 
-// ── Core: Inactivity Penalty ───────────────────────────────────────────────────
+// ── Core: Rest / Fatigue / Rust factor ─────────────────────────────────────────
 /**
- * Penalty for inactive players — starts after 45 days, max at 120 days.
- * AoE tournaments are spaced out; 3-4 weeks between events is normal.
- * Returns a value from 0 (no penalty) to 0.04 (4% prob reduction).
+ * V1 : pénalité linéaire rust (inactivité > 45j).
+ * V2 : courbe non-linéaire — pénalise à la fois fatigue (< 24h = match joué
+ * la veille, potentiellement fatigué) et rust (> 30j = pas joué depuis
+ * longtemps).
+ *
+ * Retourne une valeur logit (pas prob) à SOUSTRAIRE. Positif = pénalité.
  */
 function computeRustPenalty(daysSinceLastMatch: number): number {
+  if (V2_ENABLED) {
+    // Fatigue : 0-24h → +0.03 logit de pénalité
+    if (daysSinceLastMatch < 1) return 0.03;
+    // Zone optimale : 1-7 jours
+    if (daysSinceLastMatch <= 7) return 0;
+    // Normal : 7-30 jours (joueur actif)
+    if (daysSinceLastMatch <= 30) return 0;
+    // Rust : > 30 jours, pénalité progressive capée à 0.15 logit
+    return Math.min(0.15, 0.05 + (daysSinceLastMatch - 30) * 0.002);
+  }
+  // V1 : linéaire après 45j, max 0.04
   if (daysSinceLastMatch <= 45) return 0;
   return Math.min(0.04, (daysSinceLastMatch - 45) * 0.0005);
 }
@@ -391,10 +462,15 @@ export function calculateOddsV2(input: OddsInputV2): OddsResult {
 
   // ── Factor 1: Competitive winrate (35%) ─────────────────────────────────
   const wrLogitDiff = logit(wr1.winrate) - logit(wr2.winrate);
-  // Scale 1.0: no damping. Our opponent-strength already corrects for weak
-  // opponents, so there's no need to artificially pull winrate gaps toward
-  // 50/50. A legend's 80%+ effective WR should read as a dominant favorite.
-  const wrProb1 = sigmoid(wrLogitDiff * 1.0);
+  // V1 scale: 1.0 (aucun damping). V2 scale: 1.15 — le baseline a montré que
+  // le modèle était sous-calibré (bucket 30-40% → actual 100% victoires P1).
+  // Un léger uplift du signal WR corrige la tendance à pousser vers 50/50.
+  const WR_LOGIT_SCALE = V2_ENABLED ? 1.15 : 1.0;
+  // V2 : SOS bonus — joueur qui affronte du 60%+ WR en moyenne a prouvé qu'il
+  // joue dans la cour des grands (signal indépendant du tier du match).
+  const sos1 = computeSOS(input.p1Records, oppWinrates);
+  const sos2 = computeSOS(input.p2Records, oppWinrates);
+  const wrProb1 = sigmoid(wrLogitDiff * WR_LOGIT_SCALE + (sos1 - sos2));
   const wrConfidence = Math.sqrt(wr1.confidence * wr2.confidence);
 
   // ── Factor 2: H2H direct (25%) ──────────────────────────────────────────
