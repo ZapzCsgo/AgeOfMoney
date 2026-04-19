@@ -104,23 +104,10 @@ export function CoinFlipModal({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         style={{ background: 'rgba(0,0,0,0.80)', backdropFilter: 'blur(8px)' }}
+        // Backdrop click → close. We check that the click target is the
+        // backdrop itself (not a bubbled event from inside the card).
+        onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       >
-        {/* Close button — toujours visible pour pouvoir fermer pendant le
-            countdown / l'animation / le résultat. Le résultat backend est
-            déjà enregistré, sortir du popup ne change rien au settlement. */}
-        <button
-          onClick={onClose}
-          aria-label="Fermer"
-          className="absolute top-6 right-6 z-50 w-10 h-10 rounded-full flex items-center justify-center text-[#9990b8] hover:text-[#e8e2f5] transition-all hover:scale-110"
-          style={{
-            background: 'rgba(13,11,26,0.8)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            backdropFilter: 'blur(4px)',
-          }}
-        >
-          <X size={20} />
-        </button>
-
         <motion.div
           className="w-full max-w-2xl rounded-2xl overflow-hidden relative"
           style={{
@@ -132,17 +119,25 @@ export function CoinFlipModal({
           animate={{ scale: 1, y: 0 }}
           transition={{ duration: 0.3, ease: 'easeOut' }}
         >
-          {/* Header */}
+          {/* Header — bouton fermer intégré en haut à droite de la card */}
           <div
-            className="flex items-center justify-center py-4"
+            className="flex items-center justify-between px-4 py-4 relative"
             style={{ borderBottom: '1px solid #1e1a30' }}
           >
+            <div className="w-8" />
             <h2
               className="text-lg font-bold tracking-widest uppercase"
               style={{ fontFamily: 'Cinzel, serif', color: '#ffd97a' }}
             >
               COINFLIP
             </h2>
+            <button
+              onClick={onClose}
+              aria-label="Fermer"
+              className="w-8 h-8 rounded-full flex items-center justify-center text-[#9990b8] hover:text-[#e8e2f5] transition-all hover:bg-[#1e1a30]"
+            >
+              <X size={18} />
+            </button>
           </div>
 
           {/* Main content */}
