@@ -268,7 +268,12 @@ export default function TournamentDetailPage() {
               <span>{tournament.twitchChannel}</span>
             </a>
           )}
-          {tournament.liquipediaUrl && (
+          {tournament.liquipediaUrl && !/_tba\b|_tbd\b|\/tba\b|_event_tba/i.test(tournament.liquipediaUrl) && (
+            // Masque le lien si l'URL ressemble à un placeholder TBA du
+            // scraper (ex : `/ageofempires2/membtv_event_tba`) — ces pages
+            // renvoient 404 sur Liquipedia car elles n'ont jamais existé.
+            // Apparaît dès qu'un match réel atterrit dans le tournoi avec
+            // une liquipediaUrl légitime.
             <a
               href={tournament.liquipediaUrl}
               target="_blank" rel="noopener noreferrer"
