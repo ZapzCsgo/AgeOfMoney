@@ -23,7 +23,10 @@ export async function downloadAndStoreAvatar(playerId: string, avatarUrl: string
         'Referer': 'https://liquipedia.net/',
       },
     });
-    const mime = imgRes.headers['content-type'] || 'image/jpeg';
+    // Axios 1.x types headers comme union `string | number | true | string[] | AxiosHeaders`
+    // donc on coerce avant d'envoyer à Prisma (`String?`) ou au memCache (`string`).
+    const rawMime = imgRes.headers['content-type'];
+    const mime: string = typeof rawMime === 'string' ? rawMime : 'image/jpeg';
     const blob = Buffer.from(imgRes.data);
     await prisma.player.update({
       where: { id: playerId },
@@ -195,7 +198,8 @@ router.get('/avatar/:playerId', async (req: Request, res: Response): Promise<voi
           'Referer': 'https://liquipedia.net/',
         },
       });
-      const mime = imgRes.headers['content-type'] || 'image/jpeg';
+      const rawMime = imgRes.headers['content-type'];
+      const mime: string = typeof rawMime === 'string' ? rawMime : 'image/jpeg';
       const data = Buffer.from(imgRes.data);
       // Store in DB so we never fetch from LP again
       await prisma.player.update({
