@@ -145,8 +145,8 @@ export default function DepositPage() {
 
   const applyPromo = async () => {
     const code = promoCode.trim().toUpperCase();
-    if (!code) { setPromoError('Code requis'); return; }
-    if (!session) { setPromoError('Connecte-toi pour utiliser un code'); return; }
+    if (!code) { setPromoError(t('deposit_promo_code_required')); return; }
+    if (!session) { setPromoError(t('deposit_promo_login_required')); return; }
     setPromoLoading(true);
     setPromoError('');
     try {
@@ -262,8 +262,8 @@ export default function DepositPage() {
                 <Clock size={22} className="text-aoe-gold" />
               </div>
               <div className="flex-1">
-                <h2 className="font-cinzel font-bold text-lg text-aoe-parchment">Paiement en attente</h2>
-                <p className="text-aoe-parchment-dim text-xs mt-0.5">Complète ton paiement sur la page OxaPay ouverte</p>
+                <h2 className="font-cinzel font-bold text-lg text-aoe-parchment">{t('deposit_payment_pending')}</h2>
+                <p className="text-aoe-parchment-dim text-xs mt-0.5">{t('deposit_complete_payment_oxapay')}</p>
               </div>
             </div>
 

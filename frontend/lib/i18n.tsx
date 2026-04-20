@@ -519,6 +519,20 @@ const t_fr = {
 
   // Tournament
   tournament_no_matches:   'Aucun match programmé',
+
+  // Strings ajoutés lors de l'audit 2026-04-20 (i18n coverage fix)
+  match_eliminated:             'Éliminé',
+  match_final_odds:             'Cote finale',
+  match_show_more_bets:         'Afficher plus de paris',
+  home_upcoming_tournaments:    'Prochains Tournois',
+  deposit_promo_code_required:  'Code requis',
+  deposit_promo_login_required: 'Connecte-toi pour utiliser un code',
+  deposit_payment_pending:      'Paiement en attente',
+  deposit_complete_payment_oxapay: 'Complète ton paiement sur la page OxaPay ouverte',
+  common_see_more:              'Voir plus',
+  sec_2fa_manual_entry:         'Impossible de scanner ? Entrer le secret manuellement',
+  profile_user_not_found:       'Utilisateur introuvable',
+  profile_back_to_profile:      '← Retour à mon profil',
 } as const;
 
 const t_en: Record<keyof typeof t_fr, string> = {
@@ -1012,6 +1026,20 @@ const t_en: Record<keyof typeof t_fr, string> = {
 
   // Tournament
   tournament_no_matches:   'No scheduled matches',
+
+  // i18n coverage additions 2026-04-20
+  match_eliminated:             'Eliminated',
+  match_final_odds:             'Final odds',
+  match_show_more_bets:         'Show more bets',
+  home_upcoming_tournaments:    'Upcoming Tournaments',
+  deposit_promo_code_required:  'Code required',
+  deposit_promo_login_required: 'Sign in to use a code',
+  deposit_payment_pending:      'Pending payment',
+  deposit_complete_payment_oxapay: 'Complete your payment on the OxaPay page',
+  common_see_more:              'See more',
+  sec_2fa_manual_entry:         "Can't scan? Enter the secret manually",
+  profile_user_not_found:       'User not found',
+  profile_back_to_profile:      '← Back to my profile',
 };
 
 const t_es: Record<keyof typeof t_fr, string> = {
@@ -1505,6 +1533,20 @@ const t_es: Record<keyof typeof t_fr, string> = {
 
   // Tournament
   tournament_no_matches:   'No hay partidas programadas',
+
+  // i18n coverage additions 2026-04-20
+  match_eliminated:             'Eliminado',
+  match_final_odds:             'Cuota final',
+  match_show_more_bets:         'Mostrar más apuestas',
+  home_upcoming_tournaments:    'Próximos Torneos',
+  deposit_promo_code_required:  'Código requerido',
+  deposit_promo_login_required: 'Inicia sesión para usar un código',
+  deposit_payment_pending:      'Pago pendiente',
+  deposit_complete_payment_oxapay: 'Completa tu pago en la página de OxaPay',
+  common_see_more:              'Ver más',
+  sec_2fa_manual_entry:         '¿No puedes escanear? Introduce el secreto manualmente',
+  profile_user_not_found:       'Usuario no encontrado',
+  profile_back_to_profile:      '← Volver a mi perfil',
 };
 
 export const translations = { fr: t_fr, en: t_en, es: t_es };

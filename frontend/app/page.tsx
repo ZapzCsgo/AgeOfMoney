@@ -306,7 +306,7 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
             {match.game || 'AoE4'}
           </span>
           <span className="text-aoe-parchment-dim text-xs truncate max-w-[180px]">
-            {match.tournament?.name ?? 'Tournoi'}
+            {match.tournament?.name ?? t('matches_no_tournament')}
           </span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -336,7 +336,7 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
             </span>
           ) : isCompleted ? (
             <span className="text-[11px] text-[#6b6488] font-cinzel border border-[#2a2540] rounded px-1.5 py-0.5">
-              Terminé
+              {t('matches_finished')}
             </span>
           ) : (
             <span className="flex items-center gap-1 text-[11px] text-aoe-parchment-dim">
@@ -385,10 +385,10 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
           {isCompleted ? (
             <div className="w-full rounded-lg px-3 py-2.5 text-center" style={{ background: p1Won ? 'rgba(255,197,66,0.08)' : 'rgba(255,255,255,0.02)', border: `1px solid ${p1Won ? 'rgba(255,197,66,0.25)' : 'rgba(255,255,255,0.05)'}` }}>
               <div className={cn('font-cinzel text-[11px] font-bold uppercase tracking-widest', p1Won ? 'text-[#ffc542]' : 'text-[#3d3860]')}>
-                {p1Won ? 'Vainqueur' : 'Éliminé'}
+                {p1Won ? t('match_winner') : t('match_eliminated')}
               </div>
               <div className="text-[10px] text-[#4a4570] mt-0.5 font-cinzel">
-                Cote finale {match.odds1.toFixed(2)}×
+                {t('match_final_odds')} {match.odds1.toFixed(2)}×
               </div>
             </div>
           ) : (
@@ -498,10 +498,10 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
           {isCompleted ? (
             <div className="w-full rounded-lg px-3 py-2.5 text-center" style={{ background: p2Won ? 'rgba(255,197,66,0.08)' : 'rgba(255,255,255,0.02)', border: `1px solid ${p2Won ? 'rgba(255,197,66,0.25)' : 'rgba(255,255,255,0.05)'}` }}>
               <div className={cn('font-cinzel text-[11px] font-bold uppercase tracking-widest', p2Won ? 'text-[#ffc542]' : 'text-[#3d3860]')}>
-                {p2Won ? 'Vainqueur' : 'Éliminé'}
+                {p2Won ? t('match_winner') : t('match_eliminated')}
               </div>
               <div className="text-[10px] text-[#4a4570] mt-0.5 font-cinzel">
-                Cote finale {match.odds2.toFixed(2)}×
+                {t('match_final_odds')} {match.odds2.toFixed(2)}×
               </div>
             </div>
           ) : (
@@ -549,7 +549,7 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
             className="flex items-center gap-1 text-[11px] font-cinzel text-[#6b6488] hover:text-[#ffc542] transition-colors"
             onClick={(e) => e.stopPropagation()}
           >
-            Afficher plus de paris <ChevronRight size={11} />
+            {t('match_show_more_bets')} <ChevronRight size={11} />
           </Link>
         </div>
       )}
@@ -967,7 +967,7 @@ export default function HomePage() {
           <div className="mt-8">
             <div className="flex items-center gap-3 mb-4">
               <h2 className="font-cinzel font-bold text-base tracking-[0.2em] text-aoe-gold uppercase">
-                Prochains Tournois
+                {t('home_upcoming_tournaments')}
               </h2>
               <span className="text-[11px] text-aoe-parchment-muted font-cinzel">{upcomingTourneys.length} tournoi{upcomingTourneys.length > 1 ? 's' : ''}</span>
             </div>

@@ -4,8 +4,39 @@ import { NextRequest, NextResponse } from 'next/server';
 const SUPPORTED_LANGS = ['fr', 'en', 'es'] as const;
 type Lang = (typeof SUPPORTED_LANGS)[number];
 
-function pickLanguage(acceptLanguage: string): Lang {
-  // Accept-Language: "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7"
+/**
+ * Détection de langue priorité géo > header Accept-Language.
+ *
+ * Règle user (2026-04-20) : si le user n'est pas en France ou Espagne, on
+ * default à l'anglais — peu importe ce que son navigateur demande. Raison :
+ * Accept-Language est peu fiable (nombreux users en Chrome EN partout), et
+ * on préfère un anglais universel plutôt que du FR sur un user italien ou
+ * allemand.
+ *
+ * Ordre :
+ *   1. Vercel geo header `x-vercel-ip-country` (disponible en prod)
+ *      → FR ⇒ fr, ES ⇒ es, reste du monde ⇒ en
+ *   2. Cloudflare fallback `cf-ipcountry` (si reverse proxy sous CF)
+ *   3. Accept-Language (dev local sans geo header)
+ *   4. Défaut final → en
+ */
+function pickLanguage(req: NextRequest): Lang {
+  // 1. Géo Vercel / Cloudflare en prod
+  const geoCountry = (
+    req.headers.get('x-vercel-ip-country') ||
+    req.headers.get('cf-ipcountry') ||
+    ''
+  ).toUpperCase().slice(0, 2);
+
+  if (geoCountry) {
+    if (geoCountry === 'FR') return 'fr';
+    if (geoCountry === 'ES') return 'es';
+    // User pas en FR/ES → anglais forcé, on ignore Accept-Language
+    return 'en';
+  }
+
+  // 2. Fallback Accept-Language (dev local, pas de geo header)
+  const acceptLanguage = req.headers.get('accept-language') ?? '';
   const candidates = acceptLanguage
     .split(',')
     .map(part => {
@@ -17,15 +48,15 @@ function pickLanguage(acceptLanguage: string): Lang {
   for (const c of candidates) {
     if ((SUPPORTED_LANGS as readonly string[]).includes(c.tag)) return c.tag as Lang;
   }
-  // International fallback → English
+
+  // 3. International fallback → English
   return 'en';
 }
 
 function applyLangCookie(req: NextRequest, res: NextResponse) {
   const existing = req.cookies.get('aom_lang')?.value;
   if (existing && (SUPPORTED_LANGS as readonly string[]).includes(existing)) return;
-  const accept = req.headers.get('accept-language') ?? '';
-  const lang = pickLanguage(accept);
+  const lang = pickLanguage(req);
   res.cookies.set('aom_lang', lang, {
     maxAge: 60 * 60 * 24 * 365, // 1 year
     path: '/',

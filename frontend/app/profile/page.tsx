@@ -412,7 +412,7 @@ function SecurityTab({ session }: { session: { user: { accessToken: string; id?:
               {otpauthUrl && (
                 <details className="text-[10px] text-[#4a4570] max-w-xs w-full">
                   <summary className="cursor-pointer hover:text-[#6b6488] text-center">
-                    Impossible de scanner ? Entrer le secret manuellement
+                    {t('sec_2fa_manual_entry')}
                   </summary>
                   <code className="block mt-2 break-all bg-[#13111f] rounded p-2 font-mono text-[#9990b8]">
                     {new URL(otpauthUrl).searchParams.get('secret') || '—'}
@@ -633,8 +633,8 @@ export default function ProfilePage() {
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#07060f' }}>
         <div className="text-center p-8 rounded-xl" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
           <div className="text-3xl mb-3">⚔</div>
-          <h2 className="font-bold text-lg text-[#ffc542] mb-2" style={{ fontFamily: 'Cinzel, serif' }}>Utilisateur introuvable</h2>
-          <Link href="/profile" className="text-[#6b6488] text-sm hover:text-[#ffc542]">← Retour à mon profil</Link>
+          <h2 className="font-bold text-lg text-[#ffc542] mb-2" style={{ fontFamily: 'Cinzel, serif' }}>{t('profile_user_not_found')}</h2>
+          <Link href="/profile" className="text-[#6b6488] text-sm hover:text-[#ffc542]">{t('profile_back_to_profile')}</Link>
         </div>
       </div>
     );
@@ -644,7 +644,7 @@ export default function ProfilePage() {
     return (
       <div className="min-h-screen" style={{ background: '#07060f' }}>
         <div className="max-w-2xl mx-auto px-4 py-10 space-y-4">
-          <Link href="/profile" className="text-[11px] text-[#6b6488] hover:text-[#ffc542] transition-colors">← Retour à mon profil</Link>
+          <Link href="/profile" className="text-[11px] text-[#6b6488] hover:text-[#ffc542] transition-colors">{t('profile_back_to_profile')}</Link>
           <div className="rounded-xl p-6 relative overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
             <div className="absolute inset-0 opacity-10" style={{ background: `radial-gradient(ellipse at top right, ${pubColor}, transparent 60%)` }} />
             <div className="relative flex items-center gap-5">
