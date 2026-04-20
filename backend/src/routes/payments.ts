@@ -88,6 +88,24 @@ async function oxaPost(path: string, body: Record<string, unknown>) {
 }
 
 /**
+ * OxaPay v1 GET — used for endpoints like `/payment/{track_id}` which take
+ * the identifier in the URL path, not the body. Differs from oxaPost in
+ * HTTP method only ; same auth headers + same browser-UA for CF WAF.
+ */
+async function oxaGet(path: string) {
+  return withRetry(async () => {
+    const res = await axios.get(`${OXAPAY_API}${path}`, {
+      headers: {
+        ...OXAPAY_HEADERS_BASE,
+        'merchant_api_key': OXAPAY_KEY(),
+      },
+      timeout: 15000,
+    });
+    return res.data;
+  }, `oxaGet ${path}`);
+}
+
+/**
  * Credit a deposit transaction that we've confirmed is "Paid" on OxaPay's
  * side. Used both by the webhook (real-time IPN) and by the admin sync
  * endpoint (poll-based recovery for deposits whose webhook was lost).
@@ -175,10 +193,27 @@ export async function creditPaidDeposit(transactionId: string): Promise<{ credit
 export async function syncOxaPayDepositStatus(transactionId: string): Promise<'unchanged' | 'paid' | 'expired' | 'failed' | 'no-track' | 'api-error'> {
   const tx = await prisma.transaction.findUnique({ where: { id: transactionId } });
   if (!tx || tx.type !== 'deposit' || tx.status !== 'pending') return 'unchanged';
+
+  // Safety net : auto-fail les pending deposits de plus de 48h. OxaPay
+  // invoices expirent côté leur service en ~24h, donc un pending > 48h
+  // sur notre côté = forcément zombie (user n'a jamais payé ou invoice
+  // expirée côté OxaPay). Évite d'accumuler du bruit dans la cron sync
+  // et libère le pool Supabase.
+  const ageHours = (Date.now() - tx.createdAt.getTime()) / 3_600_000;
+  if (ageHours > 48) {
+    await prisma.transaction.update({ where: { id: tx.id }, data: { status: 'failed' } });
+    logger.info(`[OxaPaySync] Transaction ${tx.id} auto-failed (pending ${ageHours.toFixed(0)}h > 48h)`);
+    return 'expired';
+  }
+
   if (!tx.stripeSessionId) return 'no-track';
 
   try {
-    const inquiry = await oxaPost('/payment/inquiry', { track_id: tx.stripeSessionId });
+    // OxaPay v1 endpoint : GET /payment/{track_id} (path param, pas body).
+    // Avant on faisait POST /payment/inquiry → 405 systématique car cette
+    // route n'existe pas (ou plus) dans la v1 publique. Reference :
+    //   https://docs.oxapay.com/api-reference/payment/payment-information
+    const inquiry = await oxaGet(`/payment/${encodeURIComponent(tx.stripeSessionId)}`);
     // OxaPay v1 wraps the payload in `{ status: 200, data: { status, ... } }`.
     // The inner `status` is the payment state ("Paid"/"Waiting"/"Expired"/...)
     const paymentStatus = (inquiry?.data?.status ?? inquiry?.status ?? '').toString().toLowerCase();
