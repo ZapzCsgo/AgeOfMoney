@@ -1,4 +1,15 @@
 import 'dotenv/config';
+import { EventEmitter } from 'events';
+
+// Ce backend fait beaucoup de HTTPS sortant en parallèle (aoe4world, OxaPay,
+// Liquipedia, 2captcha, Steam OpenID). Avec le pool TLS keepalive d'axios,
+// une même socket peut accumuler > 10 listeners `error`/`close` pendant un
+// burst (ex : updateAllPlayerStats qui fait 50 GET aoe4world en série).
+// Node warn à partir de 11 listeners par défaut. 30 est safe : les vrais
+// leaks passent rapidement au-delà, alors que nos bursts légitimes plafonnent
+// à ~15-20. Raise à 30 shut up le warning sans masquer un vrai leak.
+EventEmitter.defaultMaxListeners = 30;
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
