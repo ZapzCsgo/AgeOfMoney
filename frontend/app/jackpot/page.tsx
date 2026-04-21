@@ -297,6 +297,11 @@ export default function JackpotPage() {
   const [reveal, setReveal] = useState<{ winner: JackpotUser; netPayout: number; rngSource: string; winningTicket: number; potTotal: number; chance: number } | null>(null);
   const revealTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Tab state (Live / Historique) — same pattern as coinflip page
+  const [viewTab, setViewTab] = useState<'live' | 'history'>('live');
+  const [history, setHistory] = useState<JackpotRound[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
   const countdown = useCountdown(round?.closingAt ?? null);
 
   useEffect(() => {
@@ -314,6 +319,22 @@ export default function JackpotPage() {
   }, []);
 
   useEffect(() => { fetchRound(); }, [fetchRound]);
+
+  const fetchHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    try {
+      const res = await apiClient.get('/jackpot/history?limit=50');
+      setHistory(res.data.data ?? []);
+    } catch {
+      // silent
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (viewTab === 'history') fetchHistory();
+  }, [viewTab, fetchHistory]);
 
   // Fires gold confetti when the winner is revealed.
   // Dynamic import so canvas-confetti is only loaded in the browser and
@@ -478,6 +499,34 @@ export default function JackpotPage() {
           <p className="text-[11px] tracking-widest uppercase" style={{ color: '#6b6488' }}>
             Winner takes the pot · 5% rake · Provably fair
           </p>
+
+          {/* Tab switcher : En direct / Historique */}
+          <div className="flex items-center justify-center gap-1 mt-4">
+            <button
+              onClick={() => setViewTab('live')}
+              className="px-4 py-1.5 rounded-lg text-[11px] font-bold tracking-wider uppercase transition-all"
+              style={{
+                background: viewTab === 'live' ? 'rgba(255,197,66,0.15)' : 'transparent',
+                color: viewTab === 'live' ? '#ffd97a' : '#6b6488',
+                border: viewTab === 'live' ? '1px solid rgba(255,197,66,0.3)' : '1px solid transparent',
+              }}
+            >
+              <Users size={12} className="inline mr-1.5" />
+              En direct
+            </button>
+            <button
+              onClick={() => setViewTab('history')}
+              className="px-4 py-1.5 rounded-lg text-[11px] font-bold tracking-wider uppercase transition-all"
+              style={{
+                background: viewTab === 'history' ? 'rgba(255,197,66,0.15)' : 'transparent',
+                color: viewTab === 'history' ? '#ffd97a' : '#6b6488',
+                border: viewTab === 'history' ? '1px solid rgba(255,197,66,0.3)' : '1px solid transparent',
+              }}
+            >
+              <Trophy size={12} className="inline mr-1.5" />
+              Historique
+            </button>
+          </div>
         </div>
 
         {/* Flash message */}
@@ -494,6 +543,8 @@ export default function JackpotPage() {
           </div>
         )}
 
+        {viewTab === 'live' && (
+        <>
         {/* Main card: pot + timer + horizontal bar */}
         <div
           className="rounded-2xl p-6 mb-6"
@@ -760,6 +811,74 @@ export default function JackpotPage() {
               >
                 serial #{round.randomSerial} <ExternalLink size={10} />
               </a>
+            )}
+          </div>
+        )}
+        </>
+        )}
+
+        {/* Historique tab — past settled rounds */}
+        {viewTab === 'history' && (
+          <div className="rounded-2xl p-5" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+            <div className="flex items-center gap-2 mb-4">
+              <Trophy size={16} style={{ color: '#6b6488' }} />
+              <h2 className="text-[14px] font-bold tracking-wider uppercase" style={{ fontFamily: 'Cinzel, serif', color: '#e8e2f5' }}>
+                Historique des jackpots
+              </h2>
+              <span className="ml-auto text-[11px]" style={{ color: '#6b6488' }}>{history.length} rounds</span>
+            </div>
+            {historyLoading ? (
+              <div className="text-center py-8 text-[12px]" style={{ color: '#6b6488' }}>Chargement…</div>
+            ) : history.length === 0 ? (
+              <div className="text-center py-8 text-[12px]" style={{ color: '#6b6488' }}>Aucun round terminé pour l&apos;instant.</div>
+            ) : (
+              <div className="space-y-2">
+                {history.map((r) => {
+                  const winnerBets = r.bets.filter((b) => b.userId === r.winnerId);
+                  const winnerTotal = winnerBets.reduce((acc, b) => acc + b.amount, 0);
+                  const chance = r.potTotal > 0 ? (winnerTotal / r.potTotal) * 100 : 0;
+                  const dateStr = r.settledAt ? new Date(r.settledAt).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+                  return (
+                    <div
+                      key={r.id}
+                      className="rounded-lg p-3 flex items-center gap-3"
+                      style={{
+                        background: r.winnerId === userId ? 'rgba(255,197,66,0.08)' : 'rgba(255,255,255,0.02)',
+                        border: r.winnerId === userId ? '1px solid rgba(255,197,66,0.3)' : '1px solid rgba(255,255,255,0.04)',
+                      }}
+                    >
+                      {r.winner?.avatar ? (
+                        <img
+                          src={r.winner.avatar}
+                          alt={r.winner.username}
+                          className="w-9 h-9 rounded-full shrink-0"
+                          style={{ border: '2px solid #ffd97a' }}
+                        />
+                      ) : (
+                        <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0" style={{ background: '#ffd97a', color: '#1a1010' }}>
+                          {r.winner?.username?.slice(0, 2).toUpperCase() ?? '??'}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-bold truncate" style={{ color: '#ffd97a' }}>
+                          {r.winner?.username ?? 'Unknown'}
+                        </div>
+                        <div className="text-[11px] truncate" style={{ color: '#6b6488' }}>
+                          {r.participantCount} joueurs · chance {chance.toFixed(1)}% · {dateStr}
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="text-sm font-bold" style={{ color: '#ffd97a' }}>
+                          +{(r.netPayout ?? 0).toLocaleString()} ⚜
+                        </div>
+                        <div className="text-[10px] font-mono" style={{ color: '#6b6488' }}>
+                          pot {r.potTotal.toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
         )}
