@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import {
   Home, Swords, Trophy, User, Settings, Wallet, ChevronLeft, ChevronRight,
-  TrendingUp, Star, Bell, Users, Dices, Gift, Coins
+  TrendingUp, Star, Bell, Users, Dices, Gift, Coins, Crown
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/i18n';
@@ -34,6 +34,7 @@ export function LeftSidebar() {
   const gamesItems: NavItem[] = [
     { href: '/roulette', icon: Dices, label: t('nav_roulette') },
     { href: '/coinflip', icon: Coins, label: t('nav_coinflip') },
+    { href: '/jackpot',  icon: Crown, label: t('nav_jackpot') },
   ];
 
   const accountItems: NavItem[] = [

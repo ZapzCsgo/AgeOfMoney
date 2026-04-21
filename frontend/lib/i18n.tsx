@@ -499,6 +499,7 @@ const t_fr = {
 
   // Coinflip
   nav_coinflip:            'Coinflip',
+  nav_jackpot:             'Jackpot',
   coinflip_subtitle:       'Pile ou Face PvP — Misez et affrontez un adversaire',
   coinflip_create_title:   'Lancer un flip',
   coinflip_create_btn:     'Lancer pour',
@@ -1006,6 +1007,7 @@ const t_en: Record<keyof typeof t_fr, string> = {
 
   // Coinflip
   nav_coinflip:            'Coinflip',
+  nav_jackpot:             'Jackpot',
   coinflip_subtitle:       'PvP Coin Flip — Wager and face an opponent',
   coinflip_create_title:   'Create a flip',
   coinflip_create_btn:     'Flip for',
@@ -1513,6 +1515,7 @@ const t_es: Record<keyof typeof t_fr, string> = {
 
   // Coinflip
   nav_coinflip:            'Coinflip',
+  nav_jackpot:             'Jackpot',
   coinflip_subtitle:       'Cara o Cruz PvP — Apuesta y enfrenta a un oponente',
   coinflip_create_title:   'Crear un flip',
   coinflip_create_btn:     'Lanzar por',
