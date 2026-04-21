@@ -55,6 +55,12 @@ export function EventsDashboard() {
 
   const events = useEventsFetch<EventSuggestion[]>('/admin/events', query, { enabled: ready });
 
+  // Track active rain so we can gray out "Launch Manual Rain" when one is
+  // already running (backend enforces this via 409, but disabling the button
+  // gives immediate feedback).
+  const activeRain = useEventsFetch<{ id: string } | null>('/rain/active', {}, { enabled: ready });
+  const rainActive = !!activeRain.data;
+
   // Batch mark-seen on first load (only if we're showing NEW ones)
   const markSeenRef = useRef(false);
   useEffect(() => {
@@ -106,8 +112,13 @@ export function EventsDashboard() {
   // Acted modal
   const [actedTarget, setActedTarget] = useState<EventSuggestion | null>(null);
 
-  // Rain launch modal (opens when user clicks "Launch Rain" on a RAIN_OPPORTUNITY card)
+  // Rain launch modal — two entry points :
+  //  - Click "Launch Rain" on a RAIN_OPPORTUNITY card → rainTarget set, modal
+  //    pre-fills triggeredByEvent with the suggestion id.
+  //  - Click "Launch Manual Rain" in the top bar → manualRainOpen=true, no
+  //    event suggestion linked (rain is freestanding).
   const [rainTarget, setRainTarget] = useState<EventSuggestion | null>(null);
+  const [manualRainOpen, setManualRainOpen] = useState(false);
 
   const handleActedConfirm = useCallback(async (note: string) => {
     if (!actedTarget) return;
@@ -150,6 +161,8 @@ export function EventsDashboard() {
           ruleType={ruleType} onRuleType={setRuleType}
           onRefresh={events.refresh}
           onScanNow={handleScanNow}
+          onLaunchManualRain={() => setManualRainOpen(true)}
+          rainActive={rainActive}
           refreshing={events.loading}
           scanning={scanning}
           lastUpdatedAt={events.lastUpdatedAt}
@@ -224,14 +237,28 @@ export function EventsDashboard() {
         onConfirm={handleActedConfirm}
       />
 
+      {/* Modal for card-triggered rain (carries the EventSuggestion id) */}
       <RainLaunchModal
         open={rainTarget !== null}
         eventSuggestionId={rainTarget?.id ?? null}
         eventTitle={rainTarget?.title ?? null}
         onClose={() => setRainTarget(null)}
         onLaunched={() => {
-          // The backend auto-marks the suggestion ACTED, so refetching clears it
+          // Backend auto-marks the suggestion ACTED — refetching clears it.
           events.refresh();
+          activeRain.refresh();
+        }}
+      />
+
+      {/* Modal for the top-bar "Launch Manual Rain" — no suggestion linked */}
+      <RainLaunchModal
+        open={manualRainOpen}
+        eventSuggestionId={null}
+        eventTitle={null}
+        onClose={() => setManualRainOpen(false)}
+        onLaunched={() => {
+          // No suggestion to clear ; just refresh the rain-active status
+          activeRain.refresh();
         }}
       />
 

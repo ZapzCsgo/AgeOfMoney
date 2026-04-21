@@ -1,6 +1,6 @@
 'use client';
 
-import { RefreshCw, Zap } from 'lucide-react';
+import { RefreshCw, Zap, Droplets } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { RuleType, RULE_LABELS } from './types';
 
@@ -10,6 +10,8 @@ export function FilterBar({
   ruleType, onRuleType,
   onRefresh,
   onScanNow,
+  onLaunchManualRain,
+  rainActive,
   refreshing,
   scanning,
   lastUpdatedAt,
@@ -22,6 +24,8 @@ export function FilterBar({
   onRuleType: (v: 'all' | RuleType) => void;
   onRefresh: () => void;
   onScanNow: () => void;
+  onLaunchManualRain: () => void;
+  rainActive: boolean;
   refreshing: boolean;
   scanning: boolean;
   lastUpdatedAt: number | null;
@@ -83,6 +87,18 @@ export function FilterBar({
       </select>
 
       <div className="flex items-center gap-2 ml-auto flex-wrap">
+        <button
+          onClick={onLaunchManualRain}
+          disabled={rainActive}
+          title={rainActive ? 'Already 1 rain active' : 'Lancer un rain manuel (test ou action non motivée par une card)'}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold tracking-wider uppercase transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
+          style={{ background: 'transparent', border: '1px solid rgba(255,197,66,0.45)', color: '#ffd97a' }}
+          aria-label="lancer un rain manuel"
+        >
+          <Droplets size={12} />
+          Launch Manual Rain
+        </button>
+
         <button
           onClick={onScanNow}
           disabled={scanning}
