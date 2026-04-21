@@ -270,6 +270,239 @@ export async function computeFinanceOverview(preset: RangePreset): Promise<Overv
   });
 }
 
+// ─── Anomalies detection ────────────────────────────────────────────────────
+//
+// 5 detectors that flag accounts or products worth a look :
+//   - sharp               : win rate > 65 % on ≥ 20 bets in last 30 d
+//   - whale               : net bet gain > 10 000 ⚜ in last 7 d
+//   - gambling_deposits   : > 5 000 € deposited in 7 d (responsible gaming)
+//   - gambling_losses     : ≥ 20 lost bets in 24 h (responsible gaming)
+//   - rake_anomaly        : product's 30-d margin outside [5 %, 25 %]
+//
+// Dismissals : in-memory Map<key, expiresAt>. A dismissed key hides the
+// alert for 7 days. Resets when the Node process restarts — this is
+// acceptable for a solo-operator dashboard (a redeploy re-surfaces
+// whatever's still concerning) ; if we ever outgrow that, we'll move
+// the dismissals to an AnomalyDismissal table.
+
+export type AnomalySeverity = 'critical' | 'warning' | 'info';
+export type AnomalyType = 'sharp' | 'whale' | 'gambling_deposits' | 'gambling_losses' | 'rake_anomaly';
+
+export interface Anomaly {
+  key: string;                       // deterministic, stable across reloads
+  type: AnomalyType;
+  severity: AnomalySeverity;
+  title: string;
+  description: string;
+  evidence: Record<string, unknown>;
+  detectedAt: string;
+  userId?: string;
+  username?: string;
+}
+
+const DISMISSAL_TTL_MS = 7 * 86_400_000; // 7 days
+const dismissals = new Map<string, number>();
+
+// Sweep expired dismissals every 30 min so the Map doesn't grow forever
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, exp] of dismissals) {
+    if (exp < now) dismissals.delete(k);
+  }
+}, 30 * 60_000).unref?.();
+
+export function dismissAnomaly(key: string): void {
+  dismissals.set(key, Date.now() + DISMISSAL_TTL_MS);
+}
+
+function isDismissed(key: string): boolean {
+  const exp = dismissals.get(key);
+  if (exp == null) return false;
+  if (exp < Date.now()) { dismissals.delete(key); return false; }
+  return true;
+}
+
+const SEVERITY_ORDER: Record<AnomalySeverity, number> = { critical: 0, warning: 1, info: 2 };
+
+/**
+ * Compute all active anomalies. Always reads fresh (short TTL cache 60 s so
+ * the UI stays snappy on rapid refresh, but the operator still sees new
+ * flags within a minute).
+ */
+export async function detectAnomalies(): Promise<{
+  generatedAt: string;
+  anomalies: Anomaly[];
+}> {
+  return cached('finance:anomalies', 60_000, async () => {
+    const now = new Date();
+    const d1  = new Date(now.getTime() - 1  * 86_400_000);
+    const d7  = new Date(now.getTime() - 7  * 86_400_000);
+    const d30 = new Date(now.getTime() - 30 * 86_400_000);
+
+    const dayStamp = now.toISOString().slice(0, 10);
+
+    const anomalies: Anomaly[] = [];
+
+    // 1. Sharps — 30-day winrate > 65 % on ≥ 20 bets
+    const sharpRows = await prisma.$queryRaw<Array<{ user_id: string; username: string; bets: bigint; wins: bigint; winrate: number }>>`
+      SELECT
+        b."userId"                                               AS user_id,
+        u."username"                                             AS username,
+        COUNT(*)::bigint                                         AS bets,
+        COUNT(*) FILTER (WHERE b.status = 'WON')::bigint         AS wins,
+        (COUNT(*) FILTER (WHERE b.status = 'WON'))::float / GREATEST(COUNT(*)::float, 1) AS winrate
+      FROM "Bet" b
+      JOIN "User" u ON u.id = b."userId"
+      WHERE b."createdAt" >= ${d30} AND b.status IN ('WON','LOST')
+      GROUP BY b."userId", u."username"
+      HAVING COUNT(*) >= 20
+         AND (COUNT(*) FILTER (WHERE b.status = 'WON'))::float / COUNT(*)::float > 0.65
+      ORDER BY winrate DESC
+      LIMIT 20;
+    `;
+    for (const r of sharpRows) {
+      const key = `sharp:${r.user_id}:${dayStamp}`;
+      if (isDismissed(key)) continue;
+      anomalies.push({
+        key, type: 'sharp',
+        severity: 'warning',
+        title: `Sharp suspect — ${r.username}`,
+        description: `${Math.round(Number(r.winrate) * 100)} % de winrate sur ${Number(r.bets)} bets (30 derniers jours).`,
+        evidence: { bets: Number(r.bets), wins: Number(r.wins), winratePct: Number(r.winrate) * 100 },
+        detectedAt: now.toISOString(),
+        userId: r.user_id,
+        username: r.username,
+      });
+    }
+
+    // 2. Whales — net bet gain > 10 000 ⚜ in last 7 d (Bet only for V1,
+    //    documented ; extending to coinflip/roulette/jackpot later)
+    const whaleRows = await prisma.$queryRaw<Array<{ user_id: string; username: string; net_gain: number }>>`
+      SELECT
+        b."userId"   AS user_id,
+        u."username" AS username,
+        (SUM(CASE WHEN b.status = 'WON' THEN b.payout - b.amount ELSE 0 END)
+         - SUM(CASE WHEN b.status = 'LOST' THEN b.amount ELSE 0 END))::float AS net_gain
+      FROM "Bet" b
+      JOIN "User" u ON u.id = b."userId"
+      WHERE b."createdAt" >= ${d7} AND b.status IN ('WON','LOST')
+      GROUP BY b."userId", u."username"
+      HAVING (SUM(CASE WHEN b.status = 'WON' THEN b.payout - b.amount ELSE 0 END)
+            - SUM(CASE WHEN b.status = 'LOST' THEN b.amount ELSE 0 END)) > 10000
+      ORDER BY net_gain DESC
+      LIMIT 20;
+    `;
+    for (const r of whaleRows) {
+      const key = `whale:${r.user_id}:${dayStamp}`;
+      if (isDismissed(key)) continue;
+      anomalies.push({
+        key, type: 'whale',
+        severity: 'warning',
+        title: `Gros winner — ${r.username}`,
+        description: `+${Math.round(Number(r.net_gain)).toLocaleString('fr-FR')} ⚜ net sur 7 jours sur les bets.`,
+        evidence: { netGainCoins: Math.round(Number(r.net_gain)) },
+        detectedAt: now.toISOString(),
+        userId: r.user_id,
+        username: r.username,
+      });
+    }
+
+    // 3. Gambling flag — > 5 000 € déposés sur 7 jours
+    const bigDepositorRows = await prisma.$queryRaw<Array<{ user_id: string; username: string; total_cents: bigint }>>`
+      SELECT
+        t."userId"          AS user_id,
+        u."username"        AS username,
+        SUM(t."realAmount")::bigint AS total_cents
+      FROM "Transaction" t
+      JOIN "User" u ON u.id = t."userId"
+      WHERE t.type = 'deposit' AND t.status = 'completed' AND t."createdAt" >= ${d7}
+      GROUP BY t."userId", u."username"
+      HAVING SUM(t."realAmount") > 500000
+      ORDER BY total_cents DESC
+      LIMIT 20;
+    `;
+    for (const r of bigDepositorRows) {
+      const key = `gambling_deposits:${r.user_id}:${dayStamp}`;
+      if (isDismissed(key)) continue;
+      const eur = Number(r.total_cents) / 100;
+      anomalies.push({
+        key, type: 'gambling_deposits',
+        severity: 'critical',
+        title: `Responsible gaming — ${r.username}`,
+        description: `${eur.toLocaleString('fr-FR', { minimumFractionDigits: 0 })} € déposés sur 7 jours. Vérifier si un reality check est nécessaire.`,
+        evidence: { depositsEur: eur },
+        detectedAt: now.toISOString(),
+        userId: r.user_id,
+        username: r.username,
+      });
+    }
+
+    // 4. Gambling flag — ≥ 20 bets LOST en 24 h (proxy de "loss streak")
+    const lossRows = await prisma.$queryRaw<Array<{ user_id: string; username: string; losses: bigint }>>`
+      SELECT
+        b."userId"   AS user_id,
+        u."username" AS username,
+        COUNT(*)::bigint AS losses
+      FROM "Bet" b
+      JOIN "User" u ON u.id = b."userId"
+      WHERE b."createdAt" >= ${d1} AND b.status = 'LOST'
+      GROUP BY b."userId", u."username"
+      HAVING COUNT(*) >= 20
+      ORDER BY losses DESC
+      LIMIT 20;
+    `;
+    for (const r of lossRows) {
+      const key = `gambling_losses:${r.user_id}:${dayStamp}`;
+      if (isDismissed(key)) continue;
+      anomalies.push({
+        key, type: 'gambling_losses',
+        severity: 'critical',
+        title: `Responsible gaming — ${r.username}`,
+        description: `${Number(r.losses)} bets perdus sur les dernières 24 h. Contact ou pause recommandée.`,
+        evidence: { lostBets24h: Number(r.losses) },
+        detectedAt: now.toISOString(),
+        userId: r.user_id,
+        username: r.username,
+      });
+    }
+
+    // 5. Rake anomaly — produits avec margin hors [5 %, 25 %] sur 30 d
+    // On réutilise computeProductBreakdown('30d') — même calcul que la
+    // section Products.
+    try {
+      const products = await computeProductBreakdown('30d');
+      for (const row of products.rows) {
+        if (row.betsPlaced < 5) continue; // sample trop petit
+        const margin = row.marginPct;
+        const outOfBand = margin < 5 || margin > 25;
+        if (!outOfBand) continue;
+        const key = `rake_anomaly:${row.product}:${dayStamp}`;
+        if (isDismissed(key)) continue;
+        const direction = margin > 25 ? 'élevée' : margin < 5 ? 'basse' : 'négative';
+        anomalies.push({
+          key, type: 'rake_anomaly',
+          severity: margin < 0 ? 'critical' : 'warning',
+          title: `Margin anormale — ${row.label}`,
+          description: `Margin ${margin.toFixed(2)} % sur 30 jours (${direction}). Attendu [5 %, 25 %].`,
+          evidence: { marginPct: margin, volumeStaked: row.volumeStaked, betsPlaced: row.betsPlaced },
+          detectedAt: now.toISOString(),
+        });
+      }
+    } catch (err) {
+      logger.warn('[Anomalies] rake detection skipped:', err);
+    }
+
+    // Sort : critical first, then warning, then info ; timestamp desc as tiebreaker
+    anomalies.sort((a, b) => {
+      const s = SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity];
+      if (s !== 0) return s;
+      return b.detectedAt.localeCompare(a.detectedAt);
+    });
+
+    return { generatedAt: now.toISOString(), anomalies };
+  });
+}
+
 // ─── Cashflow detailed list ─────────────────────────────────────────────────
 //
 // Operational view — the auditable ledger of every Transaction row. Unlike

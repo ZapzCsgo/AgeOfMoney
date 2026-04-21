@@ -16,6 +16,8 @@ import {
   computeUserGrowth,
   queryCashflow,
   exportCashflowCsv,
+  detectAnomalies,
+  dismissAnomaly,
   CashflowType,
   CashflowStatus,
   CashflowFilters,
@@ -155,6 +157,37 @@ router.get('/cashflow/export', async (req: Request, res: Response): Promise<void
   } catch (err) {
     logger.error('GET /admin/finance/cashflow/export error:', err);
     res.status(500).json({ error: 'Failed to export cashflow' });
+  }
+});
+
+// GET /api/v1/admin/finance/anomalies
+// Returns the currently-active anomalies (dismissed ones filtered out).
+// Cached 60 s.
+router.get('/anomalies', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const data = await detectAnomalies();
+    res.json({ data });
+  } catch (err) {
+    logger.error('GET /admin/finance/anomalies error:', err);
+    res.status(500).json({ error: 'Failed to detect anomalies' });
+  }
+});
+
+// POST /api/v1/admin/finance/anomalies/:key/dismiss
+// Dismiss a specific anomaly for 7 days. The key is URL-encoded because it
+// contains colons.
+router.post('/anomalies/:key/dismiss', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const key = decodeURIComponent(req.params.key ?? '').trim();
+    if (!key) { res.status(400).json({ error: 'Key required' }); return; }
+    dismissAnomaly(key);
+    // Bust the anomalies cache so the next GET reflects the dismissal immediately
+    clearFinanceCache('finance:anomalies');
+    logger.info(`[Finance] Anomaly dismissed key=${key} by user=${req.user?.id}`);
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error('POST /admin/finance/anomalies/:key/dismiss error:', err);
+    res.status(500).json({ error: 'Failed to dismiss anomaly' });
   }
 });
 
