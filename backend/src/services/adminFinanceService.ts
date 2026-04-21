@@ -711,7 +711,9 @@ export interface UserGrowthResponse {
   };
 }
 
-async function countActiveUsers(from: Date, to: Date): Promise<number> {
+// Exported so /admin/events DAU_DROP detector can reuse the exact same
+// activity definition as the finance DAU KPI. Keep the two aligned.
+export async function countActiveUsers(from: Date, to: Date): Promise<number> {
   const rows = await prisma.$queryRaw<Array<{ count: bigint }>>`
     SELECT COUNT(DISTINCT uid)::bigint AS count FROM (
       SELECT "userId" AS uid FROM "Bet"

@@ -5,6 +5,7 @@ import { scrapeAoe4WorldTournaments } from '../scrapers/aoe4worldTournamentScrap
 import { scrapeUpcomingMatches } from '../scrapers/liquipediaScraper';
 import { syncAoeEventCalendar } from '../scrapers/aoeEventCalendarScraper';
 import { distributePayout, refundBets } from '../services/betService';
+import { detectAll as scanEventOpportunities } from '../services/eventOpportunityService';
 import { getIo } from '../socket';
 import logger from '../logger';
 
@@ -145,6 +146,19 @@ export function initCronJobs(): void {
       }
     } catch (err) {
       logger.error('[CRON] OxaPay sync failed:', err);
+    }
+  });
+
+  // ── Every 6 h : scan for event opportunities (engagement radar) ─────────
+  // Runs at 00:00 / 06:00 / 12:00 / 18:00 UTC. Pure read, no writes to
+  // gameplay tables — just inserts new rows into EventSuggestion when
+  // a rule triggers and its (ruleType, subjectKey) isn't already live.
+  cron.schedule('0 */6 * * *', async () => {
+    try {
+      const res = await scanEventOpportunities();
+      logger.info(`[EventScanner] Scanned ${res.scannedRules} rules — ${res.created} created, ${res.skipped} skipped`);
+    } catch (err) {
+      logger.error('[EventScanner] cron failed:', err);
     }
   });
 
