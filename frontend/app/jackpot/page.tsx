@@ -192,12 +192,13 @@ function TicketBar({
   winningTicket: number | null | undefined;
   isSpinning: boolean;
 }) {
-  // Target pointer position (%): centre of the winning segment, or 50 % when idle
+  // Target pointer position (%): winningTicket is now in basis points
+  // [0, 9999] = 0.00% to 99.99% drawn by Random.org. Map 1:1 to the bar.
+  // +0.005 centres the pointer inside the 0.01% slot (cosmetic).
   const targetPct = useMemo(() => {
-    if (winningTicket == null || potTotal === 0) return 50;
-    // Middle of the winning ticket, mapped to [0, 100]
-    return ((winningTicket + 0.5) / potTotal) * 100;
-  }, [winningTicket, potTotal]);
+    if (winningTicket == null) return 50;
+    return winningTicket / 100 + 0.005;
+  }, [winningTicket]);
 
   const showPointer = winningTicket != null;
 
@@ -621,18 +622,18 @@ export default function JackpotPage() {
             isSpinning={isSpinning}
           />
 
-          {/* Ticket range labels — normalisé en %, la barre représente toujours
-              0 → 100 % de chance cumulée. Le winningTicket est converti en
-              position % sur ce même repère pour rester cohérent avec la barre. */}
+          {/* Ticket range : Random.org tire un nombre en basis points [0, 9999]
+              affiché comme un % avec 2 décimales (0.00% → 99.99%). Modèle
+              identique à CSGOEmpire / CSGOLotto. */}
           {round && round.potTotal > 0 && (
             <div className="flex items-center justify-between text-[10px] mt-2 font-mono" style={{ color: '#4a4468' }}>
-              <span>0%</span>
+              <span>0.00%</span>
               {round.winningTicket != null && (
                 <span style={{ color: '#ffd97a' }}>
-                  tirage · {(((round.winningTicket + 0.5) / round.potTotal) * 100).toFixed(2)}%
+                  tirage · {(round.winningTicket / 100).toFixed(2)}%
                 </span>
               )}
-              <span>100%</span>
+              <span>100.00%</span>
             </div>
           )}
         </div>
@@ -672,7 +673,7 @@ export default function JackpotPage() {
                 +{reveal.netPayout.toLocaleString()} ⚜
               </div>
               <div className="text-[11px]" style={{ color: '#9b94b8' }}>
-                chance {reveal.chance.toFixed(2)}% · tiré à {(((reveal.winningTicket + 0.5) / reveal.potTotal) * 100).toFixed(2)}%
+                chance {reveal.chance.toFixed(2)}% · tiré à {(reveal.winningTicket / 100).toFixed(2)}%
               </div>
               <div className="text-[10px] mt-1" style={{ color: '#6b6488' }}>
                 RNG : {reveal.rngSource === 'random_org_signed' ? 'Random.org Signed API' : 'HMAC fallback'}

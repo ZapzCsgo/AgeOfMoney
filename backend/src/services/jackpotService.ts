@@ -8,11 +8,19 @@
  *   COMPLETED — winner credited (95 %), rake taken (5 %), seeds revealed
  *   CANCELLED — timer elapsed with < 2 participants, OR fatal error → refund
  *
- * Probability model (standard CSGO jackpot):
- *   Each bet reserves a contiguous ticket range [ticketFrom, ticketTo).
- *   The winning ticket is drawn uniformly in [0, potTotal) via Random.org
- *   Signed API (HMAC fallback if unavailable). The bet whose range contains
- *   the winning ticket wins — P(win) = amount / potTotal by construction.
+ * Probability model (CSGO-style jackpot):
+ *   Random.org draws a single integer in [0, 9999] — a 2-decimal percentage
+ *   (basis-point x100). At settle time, each bet is assigned a contiguous
+ *   range [fromBP, toBP) proportional to amount/potTotal × 10000. The last
+ *   bet absorbs any rounding residue so the ranges always cover 0..10000
+ *   fully (zero dead tickets). Winner = bet whose range contains the draw.
+ *
+ *   The DB fields ticketFrom/ticketTo on JackpotBet store COIN units (one
+ *   ticket per coin at bet time) — retained for audit / display. The
+ *   settle-time range in basis points is computed on the fly.
+ *
+ *   winningTicket on JackpotRound stores the Random.org draw (0..9999) —
+ *   the "Ticket %" seen on the public fairness page.
  *
  * Provably fair:
  *   At OPEN we commit seedHash = SHA256(serverSeed). clientSeed + nonce are
@@ -310,27 +318,45 @@ async function settleRound(roundId: string): Promise<void> {
     return;
   }
 
-  // RNG call — fallback to HMAC is transparent here.
+  // RNG call — draws in [0, 9999] = basis points of a percentage with 2
+  // decimals (0.00% to 99.99%). Fixed range, doesn't depend on pot size —
+  // this is the same model as CSGOEmpire / CSGOLotto. Fallback HMAC uses
+  // the same range transparently.
   const rng = await getSignedRandomInteger({
     min: 0,
-    max: round.potTotal - 1,
+    max: 9999,
     roundId: round.id,
     nonce: round.nonce,
     serverSeed: round.serverSeed,
     clientSeed: round.clientSeed,
   });
-  const winningTicket = rng.value;
+  const winningTicket = rng.value; // 0..9999
 
-  const winningBet = round.bets.find(
-    (b) => winningTicket >= b.ticketFrom && winningTicket < b.ticketTo,
-  );
-  if (!winningBet) {
+  // Assign each bet a contiguous [fromBP, toBP) range proportional to its
+  // share of the pot. Residue from Math.floor goes to the last bet so the
+  // ranges always cover [0, 10000) fully (zero dead tickets → perfect
+  // fairness down to 0.01%).
+  let cursor = 0;
+  const ranges: Array<{ bet: typeof round.bets[number]; fromBP: number; toBP: number }> = [];
+  for (let i = 0; i < round.bets.length; i++) {
+    const bet = round.bets[i];
+    const isLast = i === round.bets.length - 1;
+    const share = Math.floor((bet.amount / round.potTotal) * 10000);
+    const fromBP = cursor;
+    const toBP = isLast ? 10000 : cursor + share;
+    ranges.push({ bet, fromBP, toBP });
+    cursor = toBP;
+  }
+
+  const winning = ranges.find((r) => winningTicket >= r.fromBP && winningTicket < r.toBP);
+  if (!winning) {
     logger.error(
-      `[Jackpot] CRITICAL: no winning bet found for ticket=${winningTicket}, pot=${round.potTotal}, round=${roundId}`,
+      `[Jackpot] CRITICAL: no winning bet found for bp=${winningTicket}, pot=${round.potTotal}, round=${roundId}`,
     );
     await cancelRound(roundId);
     return;
   }
+  const winningBet = winning.bet;
 
   const rake = Math.floor(round.potTotal * RAKE_RATE);
   const netPayout = round.potTotal - rake;
