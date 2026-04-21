@@ -22,6 +22,7 @@ import { ProductsSection, ProductsResponse } from './ProductsSection';
 import { AffiliatesSection, AffiliatesResponse } from './AffiliatesSection';
 import { UsersSection, UserGrowthResponse } from './UsersSection';
 import { CashflowSection } from './CashflowSection';
+import { AnomaliesSection } from './AnomaliesSection';
 
 const ALLOWED_PRESETS: RangePreset[] = ['1d', '7d', '30d', '90d', 'mtd', 'all'];
 
@@ -149,6 +150,9 @@ export function FinanceDashboard() {
 
       {/* Cashflow ledger — paginated list of every Transaction with filters + CSV export */}
       <CashflowSection range={range} ready={ready} />
+
+      {/* Anomalies feed — 5 auto-detectors (sharps / whales / gambling flags / rake) */}
+      <AnomaliesSection ready={ready} />
     </div>
   );
 }
