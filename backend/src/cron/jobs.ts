@@ -6,6 +6,7 @@ import { scrapeUpcomingMatches } from '../scrapers/liquipediaScraper';
 import { syncAoeEventCalendar } from '../scrapers/aoeEventCalendarScraper';
 import { distributePayout, refundBets } from '../services/betService';
 import { detectAll as scanEventOpportunities } from '../services/eventOpportunityService';
+import { sweepExpiredRains } from '../services/rainService';
 import { getIo } from '../socket';
 import logger from '../logger';
 
@@ -146,6 +147,18 @@ export function initCronJobs(): void {
       }
     } catch (err) {
       logger.error('[CRON] OxaPay sync failed:', err);
+    }
+  });
+
+  // ── Every 10 s : close expired rains ─────────────────────────────────────
+  // The endsAt deadline isn't enforced at bet-place-time (joinRain rechecks),
+  // so we need a sweeper to flip ACTIVE → COMPLETED shortly after timeout.
+  // node-cron supports 6-field expressions, so "*/10 * * * * *" = every 10s.
+  cron.schedule('*/10 * * * * *', async () => {
+    try {
+      await sweepExpiredRains();
+    } catch (err) {
+      logger.error('[CRON] sweepExpiredRains failed:', err);
     }
   });
 
