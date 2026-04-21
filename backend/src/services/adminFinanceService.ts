@@ -270,6 +270,162 @@ export async function computeFinanceOverview(preset: RangePreset): Promise<Overv
   });
 }
 
+// ─── Cashflow detailed list ─────────────────────────────────────────────────
+//
+// Operational view — the auditable ledger of every Transaction row. Unlike
+// the summary services above, this one is intentionally uncached : the
+// user expects to see rows appear immediately after a deposit confirms
+// or a withdrawal is approved.
+
+export type CashflowType = 'all' | 'deposit' | 'withdrawal' | 'bet_win' | 'bet_loss' | 'refund' | 'bonus';
+export type CashflowStatus = 'all' | 'pending' | 'completed' | 'failed';
+
+export interface CashflowFilters {
+  range: RangePreset;
+  type?: CashflowType;
+  status?: CashflowStatus;
+  search?: string;      // substring match on username, case-insensitive
+  minAmount?: number;   // universal `amount` column (coins for virtual, cents for money)
+  maxAmount?: number;
+}
+
+export interface CashflowRow {
+  id: string;
+  userId: string;
+  username: string;
+  avatar: string | null;
+  type: string;
+  amount: number;            // generic — coins or cents depending on type
+  realAmountCents: number | null;
+  coins: number;
+  status: string;
+  stripeSessionId: string | null;
+  affiliateCodeId: string | null;
+  createdAt: string;
+}
+
+export interface CashflowResponse {
+  generatedAt: string;
+  range: { label: RangePreset; from: string; to: string };
+  page: number;
+  limit: number;
+  total: number;
+  rows: CashflowRow[];
+}
+
+function buildCashflowWhere(filters: CashflowFilters): Record<string, unknown> {
+  const { from, to } = resolveRange(filters.range);
+  const where: Record<string, unknown> = {
+    createdAt: { gte: from, lt: to },
+  };
+  if (filters.type && filters.type !== 'all') where.type = filters.type;
+  if (filters.status && filters.status !== 'all') where.status = filters.status;
+  if (filters.search && filters.search.trim().length > 0) {
+    where.user = { username: { contains: filters.search.trim(), mode: 'insensitive' } };
+  }
+  if (filters.minAmount != null || filters.maxAmount != null) {
+    const amountFilter: Record<string, number> = {};
+    if (filters.minAmount != null) amountFilter.gte = filters.minAmount;
+    if (filters.maxAmount != null) amountFilter.lte = filters.maxAmount;
+    where.amount = amountFilter;
+  }
+  return where;
+}
+
+export async function queryCashflow(
+  filters: CashflowFilters,
+  page = 1,
+  limit = 50,
+): Promise<CashflowResponse> {
+  const { from, to, label } = resolveRange(filters.range);
+  const take = Math.max(1, Math.min(limit, 100));
+  const skip = Math.max(0, (Math.max(1, page) - 1) * take);
+
+  const where = buildCashflowWhere(filters);
+
+  const [rows, total] = await Promise.all([
+    prisma.transaction.findMany({
+      where,
+      include: { user: { select: { id: true, username: true, avatar: true } } },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take,
+    }),
+    prisma.transaction.count({ where }),
+  ]);
+
+  return {
+    generatedAt: new Date().toISOString(),
+    range: { label, from: from.toISOString(), to: to.toISOString() },
+    page: Math.max(1, page),
+    limit: take,
+    total,
+    rows: rows.map((r) => ({
+      id: r.id,
+      userId: r.userId,
+      username: r.user?.username ?? '—',
+      avatar: r.user?.avatar ?? null,
+      type: r.type,
+      amount: r.amount,
+      realAmountCents: r.realAmount,
+      coins: r.coins,
+      status: r.status,
+      stripeSessionId: r.stripeSessionId,
+      affiliateCodeId: r.affiliateCodeId,
+      createdAt: r.createdAt.toISOString(),
+    })),
+  };
+}
+
+/** Escape a field for inclusion in a CSV cell — wraps in quotes when the
+ *  value contains commas, quotes or newlines, and doubles internal quotes. */
+function csvEscape(v: string | number | null | undefined): string {
+  if (v == null) return '';
+  const s = typeof v === 'number' ? String(v) : v;
+  if (/[",\n\r]/.test(s)) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+}
+
+/**
+ * Stream a full CSV dump of matching transactions (no pagination, capped
+ * at 10 000 rows for safety). UTF-8 with BOM so Excel opens it with the
+ * right encoding on Windows.
+ */
+export async function exportCashflowCsv(filters: CashflowFilters): Promise<string> {
+  const where = buildCashflowWhere(filters);
+  const rows = await prisma.transaction.findMany({
+    where,
+    include: { user: { select: { username: true } } },
+    orderBy: { createdAt: 'desc' },
+    take: 10_000,
+  });
+
+  const header = [
+    'Date (UTC)', 'Transaction ID', 'User ID', 'Username',
+    'Type', 'Status', 'Amount', 'Real Amount (EUR)', 'Coins',
+    'Stripe Session', 'Affiliate Code',
+  ].join(',');
+
+  const lines = rows.map((r) => [
+    r.createdAt.toISOString(),
+    r.id,
+    r.userId,
+    r.user?.username ?? '',
+    r.type,
+    r.status,
+    r.amount,
+    r.realAmount != null ? (r.realAmount / 100).toFixed(2) : '',
+    r.coins,
+    r.stripeSessionId ?? '',
+    r.affiliateCodeId ?? '',
+  ].map(csvEscape).join(','));
+
+  // UTF-8 BOM so Excel stops mangling French characters
+  return '﻿' + [header, ...lines].join('\r\n') + '\r\n';
+}
+
 // ─── User growth & retention ────────────────────────────────────────────────
 //
 // Activity definition (consistent across DAU / WAU / MAU / retention):
