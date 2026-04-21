@@ -21,6 +21,7 @@ import { PnlSection, PnlResponse } from './PnlSection';
 import { ProductsSection, ProductsResponse } from './ProductsSection';
 import { AffiliatesSection, AffiliatesResponse } from './AffiliatesSection';
 import { UsersSection, UserGrowthResponse } from './UsersSection';
+import { CashflowSection } from './CashflowSection';
 
 const ALLOWED_PRESETS: RangePreset[] = ['1d', '7d', '30d', '90d', 'mtd', 'all'];
 
@@ -145,6 +146,9 @@ export function FinanceDashboard() {
 
       {/* User growth & retention — DAU/WAU/MAU + retention curve + signups + deposits histogram */}
       <UsersSection data={users.data} loading={users.loading && !users.data} />
+
+      {/* Cashflow ledger — paginated list of every Transaction with filters + CSV export */}
+      <CashflowSection range={range} ready={ready} />
     </div>
   );
 }
