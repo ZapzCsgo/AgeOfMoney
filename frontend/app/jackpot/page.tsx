@@ -8,7 +8,7 @@ import { apiClient, setAuthToken } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Users, Clock, Trophy, Shield, ExternalLink } from 'lucide-react';
+import { Users, Clock, Trophy, ShieldCheck, ExternalLink, Copy, Check, X } from 'lucide-react';
 
 interface JackpotUser {
   id: string;
@@ -60,11 +60,28 @@ interface ParticipantAggregate {
   total: number;
   chance: number;         // 0..100
   color: string;
-  // Cumulative ticket range covering ALL bets from this user.
-  // Used to draw the horizontal stacked bar. Ranges are sorted by first
-  // bet time so earlier bettors appear on the left of the bar.
-  ticketFrom: number;     // inclusive — min ticketFrom of any of their bets
-  ticketTo: number;       // exclusive — max ticketTo of any of their bets
+  ticketFrom: number;     // inclusive — min ticketFrom across bets
+  ticketTo: number;       // exclusive — max ticketTo across bets
+  // Individual bets (sorted by ticketFrom) to print accurate ranges even
+  // when a user has non-contiguous ranges (someone else bet in between).
+  bets: JackpotBet[];
+}
+
+/** Format the user's ticket ranges. "0–9" if contiguous, "0–9, 20–29" if
+ *  the user has multiple bets split by another user. Inclusive display
+ *  (ticketTo - 1). Returns null if there's nothing to show (pot empty). */
+function formatTicketRanges(bets: JackpotBet[]): string {
+  if (bets.length === 0) return '';
+  // Merge contiguous bets: if bet[i].ticketFrom === bet[i-1].ticketTo
+  // (user bet twice in a row), collapse into a single range.
+  const sorted = bets.slice().sort((a, b) => a.ticketFrom - b.ticketFrom);
+  const merged: Array<{ from: number; to: number }> = [];
+  for (const b of sorted) {
+    const last = merged[merged.length - 1];
+    if (last && last.to === b.ticketFrom) last.to = b.ticketTo;
+    else merged.push({ from: b.ticketFrom, to: b.ticketTo });
+  }
+  return merged.map((r) => `${r.from}\u2013${r.to - 1}`).join(', ');
 }
 
 function userColor(userId: string): string {
@@ -98,6 +115,7 @@ function buildParticipantsView(bets: JackpotBet[], potTotal: number): Participan
       existing.total += bet.amount;
       existing.ticketFrom = Math.min(existing.ticketFrom, bet.ticketFrom);
       existing.ticketTo = Math.max(existing.ticketTo, bet.ticketTo);
+      existing.bets.push(bet);
     } else {
       byUser.set(bet.userId, {
         user: bet.user,
@@ -106,6 +124,7 @@ function buildParticipantsView(bets: JackpotBet[], potTotal: number): Participan
         color,
         ticketFrom: bet.ticketFrom,
         ticketTo: bet.ticketTo,
+        bets: [bet],
       });
     }
   }
@@ -182,11 +201,11 @@ function CircularTimer({ seconds, total = ROUND_DURATION_S }: { seconds: number 
  * de 5 tours complets + stop sur le segment gagnant, 5 s cubic-bezier ease-out.
  */
 
-const WHEEL_SIZE = 300;
-const WHEEL_OUTER_R = 138;
-const WHEEL_INNER_R = 92;
+const WHEEL_SIZE = 380;
+const WHEEL_OUTER_R = 178;
+const WHEEL_INNER_R = 118;
 const AVATAR_RADIUS = (WHEEL_OUTER_R + WHEEL_INNER_R) / 2;
-const AVATAR_SIZE = 36;
+const AVATAR_SIZE = 44;
 
 function polarToCartesian(r: number, angleDeg: number) {
   const rad = ((angleDeg - 90) * Math.PI) / 180;
@@ -425,6 +444,23 @@ export default function JackpotPage() {
   const [viewTab, setViewTab] = useState<'live' | 'history'>('live');
   const [history, setHistory] = useState<JackpotRound[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+
+  // Provably-fair modal (pattern aligned with /roulette)
+  const [showFairness, setShowFairness] = useState(false);
+  const [fairnessRound, setFairnessRound] = useState<JackpotRound | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  function openFairness(r: JackpotRound) {
+    setFairnessRound(r);
+    setShowFairness(true);
+  }
+
+  function copyToClipboard(text: string, key: string) {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(key);
+      setTimeout(() => setCopied(null), 2000);
+    });
+  }
 
   const countdown = useCountdown(round?.closingAt ?? null);
 
@@ -916,9 +952,14 @@ export default function JackpotPage() {
                         {p.user.username.slice(0, 2).toUpperCase()}
                       </div>
                     )}
-                    <div className="flex-1 min-w-0 text-sm font-bold truncate" style={{ color: '#e8e2f5' }}>
-                      {p.user.username}
-                      {isWinner && <span className="ml-2 text-[10px] font-bold" style={{ color: '#ffd97a' }}>WINNER</span>}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-bold truncate" style={{ color: '#e8e2f5' }}>
+                        {p.user.username}
+                        {isWinner && <span className="ml-2 text-[10px] font-bold" style={{ color: '#ffd97a' }}>WINNER</span>}
+                      </div>
+                      <div className="text-[10px] font-mono mt-0.5" style={{ color: '#6b6488' }}>
+                        tickets {formatTicketRanges(p.bets)}
+                      </div>
                     </div>
                     <div className="text-right shrink-0">
                       <div className="text-sm font-bold" style={{ color: p.color }}>
@@ -935,35 +976,163 @@ export default function JackpotPage() {
           )}
         </div>
 
-        {/* Provably fair footer */}
+        {/* Provably Fair button (same pattern as /roulette) */}
         {round && (
-          <div
-            className="rounded-2xl p-4 mt-6 text-[11px] font-mono flex flex-wrap items-center gap-x-4 gap-y-1"
-            style={{ background: '#0d0b1a', border: '1px solid #1e1a30', color: '#6b6488' }}
-          >
-            <span className="flex items-center gap-1">
-              <Shield size={12} /> round={round.id.slice(0, 6)}…{round.id.slice(-4)}
-            </span>
-            <span>hash={round.seedHash.slice(0, 10)}…</span>
-            {round.rngSource && (
-              <span>
-                RNG: {round.rngSource === 'random_org_signed' ? 'random.org' : 'HMAC'}
-              </span>
-            )}
-            {round.randomSerial && (
-              <a
-                href="https://api.random.org/signatures/form"
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-1 hover:underline"
-                style={{ color: '#9b94b8' }}
-              >
-                serial #{round.randomSerial} <ExternalLink size={10} />
-              </a>
-            )}
+          <div className="mt-4 flex justify-center">
+            <button
+              onClick={() => openFairness(round)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wider uppercase hover:opacity-80 transition-opacity"
+              style={{ background: '#13111f', border: '1px solid #2a2640', color: '#9990b8' }}
+            >
+              <ShieldCheck size={12} style={{ color: '#34d399' }} />
+              Provably Fair
+            </button>
           </div>
         )}
         </>
+        )}
+
+        {/* ── Provably Fair Modal ── */}
+        {showFairness && fairnessRound && (
+          <div
+            className="fixed inset-0 z-[200] flex items-center justify-center px-4"
+            style={{ background: 'rgba(7,6,15,0.85)', backdropFilter: 'blur(6px)' }}
+            onClick={() => setShowFairness(false)}
+          >
+            <div
+              className="w-full max-w-lg rounded-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
+              style={{ background: '#0d0b1a', border: '1px solid #1e1a30', boxShadow: '0 0 60px rgba(255,197,66,0.15)' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid #1e1a30' }}>
+                <div className="flex items-center gap-2">
+                  <ShieldCheck size={16} style={{ color: '#34d399' }} />
+                  <span className="font-bold text-[14px] tracking-widest" style={{ fontFamily: 'Cinzel,serif', color: '#e8e2f5' }}>
+                    PROVABLY FAIR
+                  </span>
+                </div>
+                <button onClick={() => setShowFairness(false)} className="hover:opacity-60 transition-opacity">
+                  <X size={16} style={{ color: '#6b6488' }} />
+                </button>
+              </div>
+
+              {/* Intro */}
+              <div className="px-6 py-4 text-[12px] leading-relaxed space-y-2" style={{ borderBottom: '1px solid #1e1a30', color: '#9990b8' }}>
+                <p>
+                  À l&apos;ouverture du round, on publie <span style={{ color: '#34d399' }}>seedHash = SHA256(serverSeed)</span> —
+                  un engagement cryptographique pour que le serverSeed ne puisse pas être modifié ensuite.
+                </p>
+                <p>
+                  À la clôture, <span style={{ color: '#34d399' }}>Random.org</span> tire un nombre dans [0, 9999] (= %). Le résultat
+                  est signé RSA-SHA512 par leurs serveurs et la signature est vérifiable publiquement sur{' '}
+                  <a
+                    href="https://api.random.org/signatures/form"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:opacity-80 transition-opacity"
+                    style={{ color: '#34d399' }}
+                  >
+                    api.random.org/signatures/form
+                  </a>.
+                </p>
+                <p>
+                  Si Random.org est injoignable, on bascule sur un fallback <span style={{ color: '#34d399' }}>HMAC-SHA256(serverSeed, clientSeed + &quot;:&quot; + nonce)</span>{' '}
+                  — le serverSeed révélé à la fin permet à n&apos;importe qui de recalculer le tirage.
+                </p>
+              </div>
+
+              {/* Source badge */}
+              <div className="px-6 pt-4 pb-0 flex items-center gap-2">
+                <div
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold"
+                  style={{
+                    background: fairnessRound.rngSource === 'random_org_signed' ? 'rgba(52,211,153,0.1)'
+                      : fairnessRound.rngSource === 'hmac_fallback' ? 'rgba(99,102,241,0.1)' : 'rgba(107,100,136,0.1)',
+                    border: `1px solid ${fairnessRound.rngSource === 'random_org_signed' ? '#34d39940'
+                      : fairnessRound.rngSource === 'hmac_fallback' ? '#6366f140' : '#6b648840'}`,
+                    color: fairnessRound.rngSource === 'random_org_signed' ? '#34d399'
+                      : fairnessRound.rngSource === 'hmac_fallback' ? '#818cf8' : '#6b6488',
+                  }}
+                >
+                  {fairnessRound.rngSource === 'random_org_signed' ? '✓ random.org Signed API'
+                    : fairnessRound.rngSource === 'hmac_fallback' ? '✓ HMAC fallback'
+                    : 'tirage en attente'}
+                </div>
+                <span className="text-[10px]" style={{ color: '#6b6488' }}>
+                  statut : {fairnessRound.status}
+                </span>
+              </div>
+
+              {/* Data rows */}
+              <div className="px-6 py-4 space-y-3">
+                {(() => {
+                  const rows: Array<{ label: string; value: string; key: string }> = [
+                    { label: 'Round ID', value: fairnessRound.id, key: 'id' },
+                    { label: 'Nonce', value: String(fairnessRound.nonce), key: 'nonce' },
+                    { label: 'Seed Hash (commit)', value: fairnessRound.seedHash, key: 'hash' },
+                    { label: 'Client Seed', value: fairnessRound.clientSeed, key: 'clientSeed' },
+                  ];
+                  if (fairnessRound.serverSeed) rows.push({ label: 'Server Seed (reveal)', value: fairnessRound.serverSeed, key: 'serverSeed' });
+                  if (fairnessRound.winningTicket != null) rows.push({
+                    label: 'Winning Ticket',
+                    value: `${fairnessRound.winningTicket} / 9999 (= ${(fairnessRound.winningTicket / 100).toFixed(2)}%)`,
+                    key: 'winning',
+                  });
+                  if (fairnessRound.randomSerial) rows.push({ label: 'Random.org Serial', value: String(fairnessRound.randomSerial), key: 'serial' });
+                  if (fairnessRound.randomSignature) rows.push({ label: 'Signature', value: fairnessRound.randomSignature, key: 'sig' });
+                  if (fairnessRound.randomJson) rows.push({ label: 'Random JSON', value: fairnessRound.randomJson, key: 'json' });
+                  return rows.map(({ label, value, key }) => (
+                    <div key={key} className="flex items-start justify-between gap-3">
+                      <span className="text-[11px] shrink-0 mt-0.5" style={{ color: '#6b6488', minWidth: 110 }}>{label}:</span>
+                      <div
+                        className="flex items-center gap-2 flex-1 min-w-0 px-3 py-2 rounded-lg"
+                        style={{ background: '#13111f', border: '1px solid #1a1730' }}
+                      >
+                        <span className="flex-1 text-[11px] font-mono break-all" style={{ color: '#c8c0e0' }}>
+                          {value || <span style={{ color: '#3d3860' }}>—</span>}
+                        </span>
+                        {value && (
+                          <button onClick={() => copyToClipboard(value, key)} className="shrink-0 hover:opacity-70 transition-opacity" aria-label="copy">
+                            {copied === key ? <Check size={12} style={{ color: '#34d399' }} /> : <Copy size={12} style={{ color: '#4a4468' }} />}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+
+              {/* Verify block */}
+              {fairnessRound.rngSource === 'random_org_signed' && fairnessRound.randomSignature && (
+                <div className="mx-6 mb-5 rounded-lg p-4" style={{ background: '#13111f', border: '1px solid #1a1730' }}>
+                  <p className="text-[10px] mb-2" style={{ color: '#6b6488' }}>
+                    Vérifiez ce résultat sur random.org :
+                  </p>
+                  <a
+                    href="https://api.random.org/signatures/form"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-[11px] font-bold hover:opacity-80 transition-opacity"
+                    style={{ color: '#34d399' }}
+                  >
+                    <ShieldCheck size={12} /> api.random.org/signatures/form <ExternalLink size={10} />
+                  </a>
+                  <p className="text-[10px] mt-2" style={{ color: '#4a4468' }}>
+                    Collez la <b>Signature</b> et le <b>Random JSON</b> pour vérifier l&apos;authenticité.
+                  </p>
+                </div>
+              )}
+              {fairnessRound.rngSource === 'hmac_fallback' && (
+                <div className="mx-6 mb-5 rounded-lg p-4" style={{ background: '#13111f', border: '1px solid #1a1730' }}>
+                  <p className="text-[10px] font-mono" style={{ color: '#6b6488' }}>
+                    winningTicket = HMAC_SHA256(serverSeed, clientSeed + &quot;:&quot; + nonce).hex
+                    <br />→ rejection-sampled to [0, 9999]
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
         )}
 
         {/* Historique tab — past settled rounds */}
@@ -1016,13 +1185,21 @@ export default function JackpotPage() {
                           {r.participantCount} joueurs · chance {chance.toFixed(1)}% · {dateStr}
                         </div>
                       </div>
-                      <div className="text-right shrink-0">
+                      <div className="text-right shrink-0 flex flex-col items-end gap-1">
                         <div className="text-sm font-bold" style={{ color: '#ffd97a' }}>
                           +{(r.netPayout ?? 0).toLocaleString()} ⚜
                         </div>
                         <div className="text-[10px] font-mono" style={{ color: '#6b6488' }}>
                           pot {r.potTotal.toLocaleString()}
                         </div>
+                        <button
+                          onClick={() => openFairness(r)}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wider uppercase hover:opacity-80 transition-opacity"
+                          style={{ background: '#13111f', border: '1px solid #2a2640', color: '#9990b8' }}
+                        >
+                          <ShieldCheck size={9} style={{ color: '#34d399' }} />
+                          Fair
+                        </button>
                       </div>
                     </div>
                   );
