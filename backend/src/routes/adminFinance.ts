@@ -4,43 +4,64 @@
  * Every route is gated by `requireOwner` (see middleware/auth.ts). Non-owner
  * attempts are logged with full context so any privilege-escalation probing
  * is visible in Railway logs.
- *
- * This file ships stubs for step 1 — the real aggregations arrive in step 2
- * (adminFinanceService). The stubs respond 200 with a shape the frontend
- * can already consume, so the end-to-end auth check is live without waiting
- * for the heavy SQL work.
  */
 
 import { Router, Request, Response } from 'express';
 import { requireOwner } from '../middleware/auth';
+import {
+  computeFinanceOverview,
+  computeProductBreakdown,
+  clearFinanceCache,
+  RangePreset,
+} from '../services/adminFinanceService';
 import logger from '../logger';
 
 const router = Router();
 
 router.use(requireOwner);
 
-// GET /api/v1/admin/finance/overview — placeholder until step 2 lands.
+const ALLOWED_RANGES: RangePreset[] = ['1d', '7d', '30d', '90d', 'mtd', 'all'];
+
+function parseRange(q: unknown): RangePreset {
+  if (typeof q === 'string' && (ALLOWED_RANGES as string[]).includes(q)) {
+    return q as RangePreset;
+  }
+  return '7d';
+}
+
+// GET /api/v1/admin/finance/overview?range=7d
+// Aggregate KPIs for the period + previous-period deltas + 7-day sparklines.
 router.get('/overview', async (req: Request, res: Response): Promise<void> => {
   try {
-    res.json({
-      data: {
-        range: 'placeholder',
-        generatedAt: new Date().toISOString(),
-        ggr: 0,
-        ngr: 0,
-        cashPosition: 0,
-        activeUserLiability: 0,
-        totalDeposits: 0,
-        totalWithdrawals: 0,
-        deltas: null,
-        sparklines: {},
-        note: 'Step 1 stub — real aggregations land in step 2 (adminFinanceService).',
-      },
-    });
+    const range = parseRange(req.query.range);
+    const data = await computeFinanceOverview(range);
+    res.json({ data });
   } catch (err) {
     logger.error('GET /admin/finance/overview error:', err);
     res.status(500).json({ error: 'Failed to compute finance overview' });
   }
+});
+
+// GET /api/v1/admin/finance/products?range=7d
+// Per-product breakdown: bets placed, volume staked, house revenue, margin%.
+router.get('/products', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const range = parseRange(req.query.range);
+    const data = await computeProductBreakdown(range);
+    res.json({ data });
+  } catch (err) {
+    logger.error('GET /admin/finance/products error:', err);
+    res.status(500).json({ error: 'Failed to compute product breakdown' });
+  }
+});
+
+// POST /api/v1/admin/finance/cache/clear — drop the in-memory cache
+// (useful to force-refresh without waiting for TTL). Optional ?prefix=overview
+router.post('/cache/clear', async (req: Request, res: Response): Promise<void> => {
+  const prefix = typeof req.query.prefix === 'string' ? req.query.prefix : undefined;
+  clearFinanceCache(prefix ? `finance:${prefix}:` : undefined);
+  logger.info(`[Finance] Cache cleared (prefix=${prefix ?? 'all'}) by user=${req.user?.id}`);
+  res.json({ ok: true });
 });
 
 export default router;
