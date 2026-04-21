@@ -42,8 +42,13 @@ export function ProductsSection({
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   const rows = data?.rows ?? [];
+  // Donut slices only count positive revenue (can't render negative arcs).
+  // The net GGR (positive + negative) is shown inline under the donut so
+  // the user doesn't confuse the donut total with the real GGR KPI at
+  // the top of the page.
   const totalRevenue = rows.reduce((s, r) => s + Math.max(0, r.houseRevenue), 0);
-  const anyActivity = rows.some((r) => r.betsPlaced > 0 || r.volumeStaked > 0);
+  const netRevenue   = rows.reduce((s, r) => s + r.houseRevenue, 0);
+  const anyActivity  = rows.some((r) => r.betsPlaced > 0 || r.volumeStaked > 0);
 
   // Pre-sort for the table (donut always keeps its product order so colours stay stable)
   const sortedRows = [...rows].sort((a, b) => {
@@ -105,6 +110,16 @@ export function ProductsSection({
               centerValue={coinsFmt(totalRevenue)}
               centerLabel="COINS"
             />
+            {/* Clarify that the donut is positive-only — the real GGR can
+                be lower (or higher) when some products are in the red. */}
+            {netRevenue !== totalRevenue && (
+              <div className="mt-2 text-[11px] text-center" style={{ color: '#888' }}>
+                Net GGR · <span className="font-mono" style={{ color: '#c8c0e0' }}>
+                  {coinsFmt(netRevenue)} ⚜
+                </span>
+                <span className="opacity-60"> — volume positif affiché ci-dessus</span>
+              </div>
+            )}
             <ul className="mt-4 space-y-1 w-full max-w-[220px]">
               {rows.map((r, i) => {
                 const pct = totalRevenue > 0 ? (Math.max(0, r.houseRevenue) / totalRevenue) * 100 : 0;

@@ -27,7 +27,20 @@ export interface FetchState<T> {
   refresh: () => Promise<void>;
 }
 
-export function useFinanceFetch<T>(path: string, query: Record<string, string | boolean>): FetchState<T> {
+export interface UseFinanceFetchOptions {
+  /** When false, the hook will skip ALL network activity. Flip to true
+   *  only once the apiClient has an auth token set — otherwise the
+   *  request goes out without the Bearer header and the backend replies
+   *  401 "Authentication required", which flashes in the UI. */
+  enabled?: boolean;
+}
+
+export function useFinanceFetch<T>(
+  path: string,
+  query: Record<string, string | boolean>,
+  options: UseFinanceFetchOptions = {},
+): FetchState<T> {
+  const { enabled = true } = options;
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -63,22 +76,26 @@ export function useFinanceFetch<T>(path: string, query: Record<string, string | 
     }
   }, []);
 
-  // (Re)fetch whenever the URL changes, including the initial mount
+  // (Re)fetch whenever the URL changes, including the initial mount — but
+  // only when the caller marks us as enabled (i.e. auth token is ready).
   useEffect(() => {
+    if (!enabled) return;
     setLoading(true);
     fetchOnce();
-  }, [url, fetchOnce]);
+  }, [url, fetchOnce, enabled]);
 
   // Poll every 60 s while the document is visible
   useEffect(() => {
+    if (!enabled) return;
     const id = setInterval(() => {
       if (document.visibilityState === 'visible') fetchOnce();
     }, REVALIDATE_INTERVAL_MS);
     return () => clearInterval(id);
-  }, [fetchOnce]);
+  }, [fetchOnce, enabled]);
 
   // Refetch on window focus (user returns to the tab after a while)
   useEffect(() => {
+    if (!enabled) return;
     const onFocus = () => { if (document.visibilityState === 'visible') fetchOnce(); };
     window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onFocus);
@@ -86,12 +103,13 @@ export function useFinanceFetch<T>(path: string, query: Record<string, string | 
       window.removeEventListener('focus', onFocus);
       document.removeEventListener('visibilitychange', onFocus);
     };
-  }, [fetchOnce]);
+  }, [fetchOnce, enabled]);
 
   const refresh = useCallback(async () => {
+    if (!enabled) return;
     setLoading(true);
     await fetchOnce();
-  }, [fetchOnce]);
+  }, [fetchOnce, enabled]);
 
   return { data, error, loading, lastUpdatedAt, refresh };
 }

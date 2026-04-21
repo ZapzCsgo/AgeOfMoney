@@ -36,11 +36,18 @@ export function FinanceDashboard() {
   // session role changes.
   const isOwner = !!session?.user?.isOwner;
 
-  // Sync the axios module token so apiClient calls carry the JWT
+  // Sync the axios module token so apiClient calls carry the JWT. We also
+  // surface a `ready` flag so we only start fetching once the token is
+  // actually set — otherwise the first request races the effect and fires
+  // without Authorization, yielding a flash "Authentication required".
+  const accessToken = (session?.user as { accessToken?: string } | undefined)?.accessToken ?? null;
+  const [tokenReady, setTokenReady] = useState(false);
   useEffect(() => {
-    const token = (session?.user as { accessToken?: string } | undefined)?.accessToken;
-    setAuthToken(token ?? null);
-  }, [session]);
+    setAuthToken(accessToken);
+    setTokenReady(!!accessToken);
+  }, [accessToken]);
+
+  const ready = isOwner && tokenReady;
 
   // URL-backed filter state so the view is shareable / bookmarkable.
   const [range, setRange] = useState<RangePreset>(parsePreset(searchParams.get('range')));
@@ -54,11 +61,11 @@ export function FinanceDashboard() {
     router.replace(`/admin/finance?${p.toString()}`, { scroll: false });
   }, [range, compare, router]);
 
-  const overview = useFinanceFetch<OverviewResponse>('/admin/finance/overview', { range });
-  const products = useFinanceFetch<ProductsResponse>('/admin/finance/products', { range });
+  const overview = useFinanceFetch<OverviewResponse>('/admin/finance/overview', { range }, { enabled: ready });
+  const products = useFinanceFetch<ProductsResponse>('/admin/finance/products', { range }, { enabled: ready });
   // P&L ignores the range filter — it always shows today / 7d / 30d / lifetime
   // side-by-side. Passing an empty query still makes the hook fetch once.
-  const pnl = useFinanceFetch<PnlResponse>('/admin/finance/pnl', {});
+  const pnl = useFinanceFetch<PnlResponse>('/admin/finance/pnl', {}, { enabled: ready });
 
   const refreshing = overview.loading || products.loading || pnl.loading;
   const lastUpdatedAt = Math.max(
