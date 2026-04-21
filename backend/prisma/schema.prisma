@@ -39,6 +39,8 @@ model User {
   coinflipsJoined  CoinFlip[]    @relation("coinflipJoiner")
   jackpotBets      JackpotBet[]
   jackpotsWon      JackpotRound[] @relation("jackpotWinner")
+  rainsTriggered   Rain[]         @relation("rainTriggerer")
+  rainClaims       RainParticipant[]
   trustedIps      UserTrustedIp[]
 
   @@unique([provider, providerId])
@@ -478,6 +480,58 @@ model JackpotBet {
 
   @@index([roundId, createdAt])
   @@index([userId, createdAt])
+}
+
+// ── Rain (admin-triggered coin drop) ────────────────────────────────────────
+//
+// When the admin spots an engagement window ("42 users online right now,
+// volume up 80 %"), they can launch a Rain : a pool of coins that users
+// claim individually via a small math captcha. Coins are split equally
+// across the claimants up to maxParticipants, then the window closes.
+//
+// At most 1 Rain is ACTIVE at any time. The rainCompleter cron (10 s)
+// marks expired Rains COMPLETED and broadcasts the final stats.
+//
+// All claim ledger rows go through Transaction too (type='rain_claimed')
+// so the finance dashboard reports the spend cleanly. The `triggeredBy`
+// FK tracks which admin launched what — useful for the audit trail.
+model Rain {
+  id                 String           @id @default(cuid())
+  triggeredBy        String
+  admin              User             @relation("rainTriggerer", fields: [triggeredBy], references: [id])
+  // Optional back-reference to the EventSuggestion that motivated the launch.
+  // Stored as a plain String (no FK) because suggestions can be deleted or
+  // archived and we want the Rain record to outlive them.
+  triggeredByEvent   String?
+  amount             Int              // total coins pledged to the pool
+  maxParticipants    Int
+  duration           Int              // total duration in seconds
+  status             String           @default("ACTIVE") // "ACTIVE" | "COMPLETED" | "EXPIRED"
+  startedAt          DateTime         @default(now())
+  endsAt             DateTime
+  completedAt        DateTime?
+  actualParticipants Int              @default(0)
+  actualPerUser      Int?             // coins credited per claimant once the pool is split
+  participants       RainParticipant[]
+
+  @@index([status, startedAt])
+  @@index([triggeredBy])
+}
+
+model RainParticipant {
+  id            String   @id @default(cuid())
+  rainId        String
+  rain          Rain     @relation(fields: [rainId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  claimedAt     DateTime @default(now())
+  coinsReceived Int      // credited at claim time — may be adjusted at settle if pool redivides
+  captchaMs     Int      // ms between captcha show and submit. < 500 → suspicious=true.
+  ipHash        String?  // SHA-256 of claim IP for abuse review
+  suspicious    Boolean  @default(false)
+
+  @@unique([rainId, userId])
+  @@index([userId, claimedAt])
 }
 
 // ── Event Opportunities ─────────────────────────────────────────────────────
