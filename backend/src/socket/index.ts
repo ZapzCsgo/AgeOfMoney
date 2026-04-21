@@ -208,6 +208,11 @@ export function initSocket(httpServer: HttpServer): void {
     socket.on('coinflip:joinLobby', () => socket.join('coinflip:lobby'));
     socket.on('coinflip:leaveLobby', () => socket.leave('coinflip:lobby'));
 
+    // Jackpot lobby — receives: jackpot:round:open | bet:new | round:closing |
+    // round:spinning | round:settled | round:cancelled
+    socket.on('jackpot:joinLobby', () => socket.join('jackpot:lobby'));
+    socket.on('jackpot:leaveLobby', () => socket.leave('jackpot:lobby'));
+
     // Global chat
     socket.on('globalChat', async (data: GlobalChatMessage) => {
       if (!socket.userId || !socket.username) {
