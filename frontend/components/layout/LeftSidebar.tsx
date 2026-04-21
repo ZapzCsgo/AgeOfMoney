@@ -6,10 +6,11 @@ import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import {
   Home, Swords, Trophy, User, Settings, Wallet, ChevronLeft, ChevronRight,
-  TrendingUp, Star, Bell, Users, Dices, Gift, Coins, Crown, LineChart
+  TrendingUp, Star, Bell, Users, Dices, Gift, Coins, Crown, LineChart, Radar
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/i18n';
+import { useEventBadge } from '@/lib/useEventBadge';
 
 interface NavItem {
   href: string;
@@ -23,6 +24,7 @@ export function LeftSidebar() {
   const { data: session } = useSession();
   const [expanded, setExpanded] = useState(true);
   const { t } = useT();
+  const eventBadge = useEventBadge();
 
   const bettingItems: NavItem[] = [
     { href: '/',            icon: Home,       label: t('nav_home') },
@@ -137,11 +139,20 @@ export function LeftSidebar() {
             <div className="mx-3 my-3 border-t border-[#1a1730]" />
             <div className="px-2">
               <NavLink href="/admin" icon={Settings} label={t('nav_admin')} />
-              {/* Finance — OWNER only (Zapz). Regular admins/mods never
-                  see this link, and if they try /admin/finance directly
-                  the page SSR-redirects to 404 (does not confirm the route exists). */}
+              {/* Finance + Events — OWNER only (Zapz). Regular admins/mods
+                  never see these links, and if they try /admin/finance or
+                  /admin/events directly the page SSR-redirects to 404
+                  (does not confirm the route exists). */}
               {session.user.isOwner && (
-                <NavLink href="/admin/finance" icon={LineChart} label="Finance" />
+                <>
+                  <NavLink href="/admin/finance" icon={LineChart} label="Finance" />
+                  <NavLink
+                    href="/admin/events"
+                    icon={Radar}
+                    label="Events"
+                    badge={eventBadge > 0 ? String(eventBadge) : undefined}
+                  />
+                </>
               )}
             </div>
           </>
