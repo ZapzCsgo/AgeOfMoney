@@ -35,7 +35,8 @@ export type RuleType =
   | 'AFFILIATE_SURGE'
   | 'LOW_JACKPOT'
   | 'VOLUME_RECORD'
-  | 'BIG_WINNER';
+  | 'BIG_WINNER'
+  | 'RAIN_OPPORTUNITY';
 
 export interface DetectedSuggestion {
   ruleType: RuleType;
@@ -523,6 +524,119 @@ export async function detectBigWinner(): Promise<DetectedSuggestion[]> {
   });
 }
 
+// ─── Rule 9 — RAIN_OPPORTUNITY ──────────────────────────────────────────────
+// Transient "hot moment" : the site is unusually busy RIGHT NOW, the admin
+// should launch a Rain while the iron is hot. Expires in < 30 min, so this
+// rule uses a per-hour subjectKey to escape the orchestrator's 7 d dedup —
+// each hour can surface its own card.
+//
+// Data signals :
+//   1. Users with activity in the last 30 min > 1.8× half-hour baseline
+//   2. Volume staked in the last 30 min > 1.5× half-hour baseline
+// Trigger requires BOTH. Chat-message velocity (spec option 3) is absent
+// because we don't persist ChatMessage in the DB.
+//
+// Guards :
+//   - Skip if a Rain is already ACTIVE (silly to suggest another).
+//   - Noise guards : baselines need to be > 0 and recent activity > 3
+//     users / > 50 coins to fire at all.
+export async function detectRainOpportunity(): Promise<DetectedSuggestion | null> {
+  // Don't suggest a new Rain while one is ACTIVE — widget already up
+  const activeRainCount = await prisma.rain.count({ where: { status: 'ACTIVE' } });
+  if (activeRainCount > 0) return null;
+
+  const now = new Date();
+  const thirtyMinAgo = new Date(now.getTime() - 30 * 60 * 1000);
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * DAY_MS);
+
+  // Recent activity signal : distinct users active in the last 30 min
+  const recentUsers = await countActiveUsers(thirtyMinAgo, now);
+
+  // Half-hour baseline : 30-day total activity divided by 30 × 48 half-hour
+  // slots. Not time-of-day aware — good enough for V1 on small volumes.
+  const totalMonth = await countActiveUsers(thirtyDaysAgo, now);
+  const halfHourBaseline = totalMonth / (30 * 48);
+
+  // Volume signal
+  async function volumeBetween(from: Date, to: Date): Promise<number> {
+    const [b, c, r, j] = await Promise.all([
+      prisma.bet.aggregate({ _sum: { amount: true }, where: { createdAt: { gte: from, lt: to } } }),
+      prisma.coinFlip.aggregate({ _sum: { amount: true }, where: { createdAt: { gte: from, lt: to } } }),
+      prisma.rouletteBet.aggregate({ _sum: { amount: true }, where: { createdAt: { gte: from, lt: to } } }),
+      prisma.jackpotBet.aggregate({ _sum: { amount: true }, where: { createdAt: { gte: from, lt: to } } }),
+    ]);
+    return (b._sum.amount ?? 0) + (c._sum.amount ?? 0) + (r._sum.amount ?? 0) + (j._sum.amount ?? 0);
+  }
+  const recentVolume = await volumeBetween(thirtyMinAgo, now);
+  const monthVolume = await volumeBetween(thirtyDaysAgo, now);
+  const halfHourVolumeBaseline = monthVolume / (30 * 48);
+
+  // Noise guards : don't fire if baselines or recent numbers are tiny
+  if (halfHourBaseline === 0 || halfHourVolumeBaseline === 0) return null;
+  if (recentUsers < 3 || recentVolume < 50) return null;
+
+  const usersHot  = recentUsers >= 1.8 * halfHourBaseline;
+  const volumeHot = recentVolume >= 1.5 * halfHourVolumeBaseline;
+  if (!(usersHot && volumeHot)) return null;
+
+  // Hour-scoped subjectKey — lets each hour surface its own card even
+  // though the global dedup window is 7 d on (ruleType, subjectKey).
+  const hourStamp = now.toISOString().slice(0, 13); // "YYYY-MM-DDTHH"
+  return {
+    ruleType: 'RAIN_OPPORTUNITY',
+    subjectKey: `hour:${hourStamp}`,
+    priority: 'HIGH',
+    title: 'Moment chaud — rain opportunity',
+    contextData: {
+      recentUsers,
+      halfHourBaselineUsers: Math.round(halfHourBaseline * 10) / 10,
+      userMultiplier: Math.round((recentUsers / halfHourBaseline) * 10) / 10,
+      recentVolume,
+      halfHourBaselineVolume: Math.round(halfHourVolumeBaseline),
+      volumeMultiplier: Math.round((recentVolume / halfHourVolumeBaseline) * 10) / 10,
+      capturedAt: now.toISOString(),
+    },
+    suggestedAction: `Lance un rain 500-1 000 ⚜ pour capitaliser sur le momentum. Fenêtre < 30 min.`,
+    estimatedBudget: '500-1 000 ⚜',
+    estimatedImpact: 'claim rate élevé vu l\'affluence, contenu social gratuit',
+  };
+}
+
+// Convenience for a fast-cadence cron : runs ONLY the rain opportunity rule
+// (every 5 min) and persists with the same dedup logic as detectAll.
+export async function detectRainOpportunityAndPersist(): Promise<{ created: boolean }> {
+  const sug = await detectRainOpportunity();
+  if (!sug) return { created: false };
+
+  const now = new Date();
+  const existing = await prisma.eventSuggestion.findFirst({
+    where: {
+      ruleType: sug.ruleType,
+      subjectKey: sug.subjectKey,
+      OR: [
+        { status: { in: ['NEW', 'SEEN', 'ACTED'] } },
+        { status: 'DISMISSED', dismissedUntil: { gt: now } },
+      ],
+    },
+    select: { id: true },
+  });
+  if (existing) return { created: false };
+
+  await prisma.eventSuggestion.create({
+    data: {
+      ruleType: sug.ruleType,
+      subjectKey: sug.subjectKey,
+      priority: sug.priority,
+      title: sug.title,
+      contextData: sug.contextData as never,
+      suggestedAction: sug.suggestedAction,
+      estimatedBudget: sug.estimatedBudget ?? null,
+      estimatedImpact: sug.estimatedImpact ?? null,
+    },
+  });
+  return { created: true };
+}
+
 // ─── Orchestration + persistence ─────────────────────────────────────────────
 
 const DEDUP_WINDOW_DAYS = 7;
@@ -537,6 +651,7 @@ export async function detectAll(): Promise<{ created: number; skipped: number; s
     detectLowJackpot(),
     detectVolumeRecord(),
     detectBigWinner(),
+    detectRainOpportunity(),
   ]);
 
   const all: DetectedSuggestion[] = [];
@@ -587,7 +702,7 @@ export async function detectAll(): Promise<{ created: number; skipped: number; s
     created += 1;
   }
 
-  return { created, skipped, scannedRules: 8 };
+  return { created, skipped, scannedRules: 9 };
 }
 
 // ─── Panel-side reads + actions ─────────────────────────────────────────────

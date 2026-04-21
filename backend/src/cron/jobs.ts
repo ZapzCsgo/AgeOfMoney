@@ -5,7 +5,7 @@ import { scrapeAoe4WorldTournaments } from '../scrapers/aoe4worldTournamentScrap
 import { scrapeUpcomingMatches } from '../scrapers/liquipediaScraper';
 import { syncAoeEventCalendar } from '../scrapers/aoeEventCalendarScraper';
 import { distributePayout, refundBets } from '../services/betService';
-import { detectAll as scanEventOpportunities } from '../services/eventOpportunityService';
+import { detectAll as scanEventOpportunities, detectRainOpportunityAndPersist } from '../services/eventOpportunityService';
 import { sweepExpiredRains } from '../services/rainService';
 import { getIo } from '../socket';
 import logger from '../logger';
@@ -159,6 +159,21 @@ export function initCronJobs(): void {
       await sweepExpiredRains();
     } catch (err) {
       logger.error('[CRON] sweepExpiredRains failed:', err);
+    }
+  });
+
+  // ── Every 5 min : scan for transient RAIN opportunities ────────────────
+  // The rain rule fires on 30-min momentum windows — 6 h is way too slow
+  // to catch these. We run it alone on its own 5-min cadence. Cheap :
+  // it's 2 COUNT queries + a comparison, and the dedup prevents DB spam.
+  cron.schedule('*/5 * * * *', async () => {
+    try {
+      const res = await detectRainOpportunityAndPersist();
+      if (res.created) {
+        logger.info('[EventScanner] RAIN_OPPORTUNITY detected — suggestion created');
+      }
+    } catch (err) {
+      logger.error('[EventScanner] rain opportunity cron failed:', err);
     }
   });
 
