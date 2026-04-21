@@ -279,6 +279,7 @@ declare module 'next-auth' {
       steamId?: string | null;
       coins: number;
       isAdmin: boolean;
+      isOwner: boolean;
       accessToken: string;
     };
   }

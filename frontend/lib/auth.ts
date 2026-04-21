@@ -47,14 +47,15 @@ export function getAuthOptions(req?: NextRequest): NextAuthOptions {
           }
 
           const data = await response.json() as {
-            data: { token: string; user: { id: string; coins: number; isAdmin: boolean } };
+            data: { token: string; user: { id: string; coins: number; isAdmin: boolean; isOwner?: boolean } };
           };
-          type ExtUser = typeof user & { backendToken?: string; backendId?: string; coins?: number; isAdmin?: boolean; steamId?: string };
+          type ExtUser = typeof user & { backendToken?: string; backendId?: string; coins?: number; isAdmin?: boolean; isOwner?: boolean; steamId?: string };
           const u = user as ExtUser;
           u.backendToken = data.data.token;
           u.backendId = data.data.user.id;
           u.coins = data.data.user.coins;
           u.isAdmin = data.data.user.isAdmin;
+          u.isOwner = data.data.user.isOwner ?? false;
           u.steamId = steamProfile.steamid;
 
           return true;
@@ -71,22 +72,28 @@ export function getAuthOptions(req?: NextRequest): NextAuthOptions {
             backendId?: string;
             coins?: number;
             isAdmin?: boolean;
+            isOwner?: boolean;
             steamId?: string;
           };
           token.accessToken = u.backendToken ?? '';
           token.userId = u.backendId ?? '';
           token.coins = u.coins ?? 0;
           token.isAdmin = u.isAdmin ?? false;
+          token.isOwner = u.isOwner ?? false;
           token.steamId = u.steamId ?? '';
         } else if (token.accessToken) {
-          // Refresh coins from backend on every token check
+          // Refresh coins + role flags from backend on every token check. isOwner
+          // can flip (either direction) if Zapz adjusts it in DB without asking
+          // the user to re-login.
           try {
             const res = await fetch(`${API_URL}/api/v1/users/me`, {
               headers: { Authorization: `Bearer ${token.accessToken}` },
             });
             if (res.ok) {
-              const data = await res.json() as { data: { coins: number } };
+              const data = await res.json() as { data: { coins: number; isAdmin?: boolean; isOwner?: boolean } };
               token.coins = data.data.coins;
+              if (typeof data.data.isAdmin === 'boolean') token.isAdmin = data.data.isAdmin;
+              if (typeof data.data.isOwner === 'boolean') token.isOwner = data.data.isOwner;
             }
           } catch { /* keep existing value */ }
         }
@@ -97,6 +104,7 @@ export function getAuthOptions(req?: NextRequest): NextAuthOptions {
         session.user.id = token.userId as string;
         session.user.coins = token.coins as number;
         session.user.isAdmin = token.isAdmin as boolean;
+        session.user.isOwner = (token.isOwner as boolean | undefined) ?? false;
         session.user.accessToken = token.accessToken as string;
         session.user.steamId = token.steamId as string;
         return session;

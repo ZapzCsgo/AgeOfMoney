@@ -22,6 +22,7 @@ model User {
   isAdmin       Boolean       @default(false)
   isMod         Boolean       @default(false)
   isPartner     Boolean       @default(false)
+  isOwner       Boolean       @default(false)  // site operator (Zapz) — strictly above ADMIN, gates /admin/finance
   isBanned      Boolean       @default(false)
   mutedUntil    DateTime?
   totpSecret    String?                         // TOTP secret for 2FA (null = not set up)

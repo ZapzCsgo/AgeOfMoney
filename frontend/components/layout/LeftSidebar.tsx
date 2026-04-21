@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import {
   Home, Swords, Trophy, User, Settings, Wallet, ChevronLeft, ChevronRight,
-  TrendingUp, Star, Bell, Users, Dices, Gift, Coins, Crown
+  TrendingUp, Star, Bell, Users, Dices, Gift, Coins, Crown, LineChart
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/i18n';
@@ -137,6 +137,12 @@ export function LeftSidebar() {
             <div className="mx-3 my-3 border-t border-[#1a1730]" />
             <div className="px-2">
               <NavLink href="/admin" icon={Settings} label={t('nav_admin')} />
+              {/* Finance — OWNER only (Zapz). Regular admins/mods never
+                  see this link, and if they try /admin/finance directly
+                  the page SSR-redirects to 404 (does not confirm the route exists). */}
+              {session.user.isOwner && (
+                <NavLink href="/admin/finance" icon={LineChart} label="Finance" />
+              )}
             </div>
           </>
         )}

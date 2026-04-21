@@ -7,6 +7,7 @@ export interface JwtPayload {
   userId: string;
   email: string;
   isAdmin: boolean;
+  isOwner?: boolean;  // site operator flag — undefined on legacy tokens, treated as false
 }
 
 declare global {
@@ -16,6 +17,7 @@ declare global {
         id: string;
         email: string;
         isAdmin: boolean;
+        isOwner: boolean;
         coins: number;
         isBanned: boolean;
       };
@@ -64,6 +66,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
         id: true,
         email: true,
         isAdmin: true,
+        isOwner: true,
         coins: true,
         isBanned: true,
       },
@@ -98,6 +101,32 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
   await requireAuth(req, res, async () => {
     if (!req.user?.isAdmin) {
       res.status(403).json({ error: 'Admin access required' });
+      return;
+    }
+    next();
+  });
+}
+
+/**
+ * Strictly above requireAdmin — reserved for the site operator (Zapz).
+ * Gates /admin/finance/* and any future owner-only route.
+ *
+ * Security posture:
+ *   - Any attempt from a non-owner (including regular admins/mods) is logged
+ *     at warn level with enough context to catch privilege-escalation
+ *     probing. Returns 403 (finance routes, upstream rewrites to 404 on
+ *     the frontend page so we don't confirm the page exists).
+ *   - Bans + banned cascade from requireAuth.
+ */
+export async function requireOwner(req: Request, res: Response, next: NextFunction): Promise<void> {
+  await requireAuth(req, res, async () => {
+    if (!req.user?.isOwner) {
+      logger.warn(
+        `[Security] Non-owner tried owner-gated route ${req.method} ${req.originalUrl} ` +
+        `— userId=${req.user?.id ?? 'unknown'} email=${req.user?.email ?? 'unknown'} ` +
+        `isAdmin=${req.user?.isAdmin ?? false} ip=${req.ip}`,
+      );
+      res.status(403).json({ error: 'Forbidden' });
       return;
     }
     next();

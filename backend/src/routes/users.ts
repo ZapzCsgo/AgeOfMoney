@@ -29,6 +29,7 @@ router.get('/me', requireAuth, require2FAForTrustedIp, async (req: Request, res:
         isAdmin: true,
         isMod: true,
         isPartner: true,
+        isOwner: true,
         totpEnabled: true,
         createdAt: true,
         lastActiveAt: true,
@@ -153,6 +154,7 @@ router.post('/auth/login', async (req: Request, res: Response): Promise<void> =>
       userId: user.id,
       email: user.email ?? '',
       isAdmin: user.isAdmin,
+      isOwner: user.isOwner,
     });
 
     res.json({
@@ -165,6 +167,7 @@ router.post('/auth/login', async (req: Request, res: Response): Promise<void> =>
           avatar: user.avatar,
           coins: user.coins,
           isAdmin: user.isAdmin,
+          isOwner: user.isOwner,
         },
       },
     });
