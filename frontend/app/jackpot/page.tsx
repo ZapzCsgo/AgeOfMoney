@@ -52,7 +52,7 @@ interface JackpotRound {
 }
 
 const MIN_BET = 1;
-const MAX_BET = 5000;
+const MAX_BET = 500;
 const ROUND_DURATION_S = 90;
 
 interface ParticipantAggregate {
@@ -707,7 +707,7 @@ export default function JackpotPage() {
             </h1>
           </div>
           <p className="text-[11px] tracking-widest uppercase" style={{ color: '#6b6488' }}>
-            Winner takes the pot · 5% rake · Provably fair
+            Winner takes the pot · Provably fair
           </p>
 
           {/* Tab switcher : En direct / Historique */}
@@ -757,13 +757,25 @@ export default function JackpotPage() {
         <>
         {/* Main card: wheel + status row */}
         <div
-          className="rounded-2xl p-6 mb-6"
+          className="rounded-2xl p-6 mb-6 relative"
           style={{
             background: 'linear-gradient(135deg, #0d0b1a 0%, #110e24 100%)',
             border: '1px solid rgba(255,197,66,0.25)',
             boxShadow: '0 0 40px rgba(255,197,66,0.08)',
           }}
         >
+          {/* Provably Fair button — absolute top-right of the wheel card */}
+          {round && (
+            <button
+              onClick={() => openFairness(round)}
+              className="absolute top-3 right-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase hover:opacity-80 transition-opacity z-10"
+              style={{ background: '#13111f', border: '1px solid #2a2640', color: '#9990b8' }}
+            >
+              <ShieldCheck size={11} style={{ color: '#34d399' }} />
+              Provably Fair
+            </button>
+          )}
+
           {/* Status row above the wheel : timer · joueurs · status · my chance */}
           <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
             <div className="flex items-center gap-3">
@@ -982,19 +994,6 @@ export default function JackpotPage() {
           )}
         </div>
 
-        {/* Provably Fair button (same pattern as /roulette) */}
-        {round && (
-          <div className="mt-4 flex justify-center">
-            <button
-              onClick={() => openFairness(round)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wider uppercase hover:opacity-80 transition-opacity"
-              style={{ background: '#13111f', border: '1px solid #2a2640', color: '#9990b8' }}
-            >
-              <ShieldCheck size={12} style={{ color: '#34d399' }} />
-              Provably Fair
-            </button>
-          </div>
-        )}
         </>
         )}
 

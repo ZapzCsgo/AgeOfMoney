@@ -38,7 +38,7 @@ import { getSignedRandomInteger, logRngStartupState } from './randomOrgClient';
 import logger from '../logger';
 
 const MIN_BET = 1;
-const MAX_BET = 5_000;
+const MAX_BET = 500;
 const RAKE_RATE = 0.05;                    // 5 % house rake
 const ROUND_DURATION_MS = 90_000;          // 90 s countdown once 2+ participants
 const PARTICIPANT_THRESHOLD = 2;           // timer only kicks in at 2 distinct users
