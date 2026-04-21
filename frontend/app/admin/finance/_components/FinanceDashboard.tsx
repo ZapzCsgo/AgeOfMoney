@@ -23,6 +23,7 @@ import { AffiliatesSection, AffiliatesResponse } from './AffiliatesSection';
 import { UsersSection, UserGrowthResponse } from './UsersSection';
 import { CashflowSection } from './CashflowSection';
 import { AnomaliesSection } from './AnomaliesSection';
+import { SectionFade, InlineError } from './SectionFade';
 
 const ALLOWED_PRESETS: RangePreset[] = ['1d', '7d', '30d', '90d', 'mtd', 'all'];
 
@@ -121,38 +122,51 @@ export function FinanceDashboard() {
         />
       </div>
 
-      {/* Combined error banner (all endpoints surface here) */}
-      {(overview.error || products.error || pnl.error || affiliates.error || users.error) && (
-        <div
-          className="mb-4 rounded-lg px-4 py-2 text-[12px]"
-          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', color: '#fca5a5' }}
-        >
-          {overview.error ?? products.error ?? pnl.error ?? affiliates.error ?? users.error}
-        </div>
-      )}
+      {/* Errors are surfaced inline inside each section (isolated failures
+          don't blank out the whole page). Sections that haven't failed keep
+          rendering with whatever data they already have. */}
 
       {/* P&L Summary — today/7d/30d/lifetime pills */}
-      <PnlSection data={pnl.data} loading={pnl.loading && !pnl.data} />
+      <SectionFade delay={0}>
+        {pnl.error && <div className="mb-3"><InlineError message={`P&L : ${pnl.error}`} onRetry={pnl.refresh} /></div>}
+        <PnlSection data={pnl.data} loading={pnl.loading && !pnl.data} />
+      </SectionFade>
 
       {/* KPIs for the selected range */}
-      <div className="mb-6">
-        <KpiCards data={overview.data} loading={overview.loading && !overview.data} compare={compare} />
-      </div>
+      <SectionFade delay={0.05}>
+        {overview.error && <div className="mb-3"><InlineError message={`Overview : ${overview.error}`} onRetry={overview.refresh} /></div>}
+        <div className="mb-6">
+          <KpiCards data={overview.data} loading={overview.loading && !overview.data} compare={compare} />
+        </div>
+      </SectionFade>
 
       {/* Products */}
-      <ProductsSection data={products.data} loading={products.loading && !products.data} />
+      <SectionFade delay={0.1}>
+        {products.error && <div className="mb-3"><InlineError message={`Products : ${products.error}`} onRetry={products.refresh} /></div>}
+        <ProductsSection data={products.data} loading={products.loading && !products.data} />
+      </SectionFade>
 
       {/* Affiliate program — top 10 affiliates + global KPIs */}
-      <AffiliatesSection data={affiliates.data} loading={affiliates.loading && !affiliates.data} />
+      <SectionFade delay={0.15}>
+        {affiliates.error && <div className="mt-8 mb-3"><InlineError message={`Affiliates : ${affiliates.error}`} onRetry={affiliates.refresh} /></div>}
+        <AffiliatesSection data={affiliates.data} loading={affiliates.loading && !affiliates.data} />
+      </SectionFade>
 
       {/* User growth & retention — DAU/WAU/MAU + retention curve + signups + deposits histogram */}
-      <UsersSection data={users.data} loading={users.loading && !users.data} />
+      <SectionFade delay={0.2}>
+        {users.error && <div className="mt-8 mb-3"><InlineError message={`Users : ${users.error}`} onRetry={users.refresh} /></div>}
+        <UsersSection data={users.data} loading={users.loading && !users.data} />
+      </SectionFade>
 
       {/* Cashflow ledger — paginated list of every Transaction with filters + CSV export */}
-      <CashflowSection range={range} ready={ready} />
+      <SectionFade delay={0.25}>
+        <CashflowSection range={range} ready={ready} />
+      </SectionFade>
 
       {/* Anomalies feed — 5 auto-detectors (sharps / whales / gambling flags / rake) */}
-      <AnomaliesSection ready={ready} />
+      <SectionFade delay={0.3}>
+        <AnomaliesSection ready={ready} />
+      </SectionFade>
     </div>
   );
 }
