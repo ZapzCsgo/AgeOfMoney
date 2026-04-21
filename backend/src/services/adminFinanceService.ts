@@ -270,6 +270,168 @@ export async function computeFinanceOverview(preset: RangePreset): Promise<Overv
   });
 }
 
+// ─── Affiliates ──────────────────────────────────────────────────────────────
+//
+// Limitation honnête : l'actuelle table AffiliateReferral stocke la commission
+// cumulée lifetime (pas un journal par période). On ne peut donc pas isoler
+// exactement « commission payée sur les 7 derniers jours ». Pour l'approximation,
+// on prend les referrals dont `lastActiveAt` tombe dans la fenêtre et on utilise
+// leur `commission` lifetime comme proxy. Sur 'all' le chiffre est exact.
+//
+// Pour la part du revenu générée par les affiliés on fait le vrai calcul :
+// volume staked des users référés ÷ volume staked total, tous deux agrégés
+// depuis les bets + coinflip + roulette + jackpot sur la période.
+
+export interface AffiliateKpis {
+  totalCommissionPaid: number;        // coins
+  activeAffiliatesCount: number;      // affiliate codes with ≥ 1 referral active in window
+  avgCommissionPerAffiliate: number;  // coins
+  affiliateRevenueSharePct: number;   // 0..100, share of volume staked that came from referred users
+  isApproximation: boolean;           // true when period < all (journal not available)
+}
+
+export interface AffiliateRow {
+  userId: string;
+  username: string;
+  avatar: string | null;
+  promoCode: string;
+  commissionRate: number;             // 0.25 / 0.30 / 0.35
+  referredUsersCount: number;         // users active in window
+  volumeStakedByReferred: number;     // coins
+  commissionPaid: number;             // coins (lifetime for referrals active in window — approx)
+  roiRate: number;                    // commissionPaid / volumeStakedByReferred (0..1), or 0 if no volume
+}
+
+export interface AffiliatesResponse {
+  generatedAt: string;
+  range: { label: RangePreset; from: string; to: string };
+  kpis: AffiliateKpis;
+  topAffiliates: AffiliateRow[];
+}
+
+/** Volume staked by a given set of users across all 4 products, aggregated. */
+async function volumeStakedByUsers(userIds: string[], from: Date, to: Date): Promise<number> {
+  if (userIds.length === 0) return 0;
+  const [b, c, r, j] = await Promise.all([
+    prisma.bet.aggregate({
+      _sum: { amount: true },
+      where: { userId: { in: userIds }, createdAt: { gte: from, lt: to } },
+    }),
+    prisma.coinFlip.aggregate({
+      _sum: { amount: true },
+      where: {
+        OR: [{ creatorId: { in: userIds } }, { joinerId: { in: userIds } }],
+        createdAt: { gte: from, lt: to },
+      },
+    }),
+    prisma.rouletteBet.aggregate({
+      _sum: { amount: true },
+      where: { userId: { in: userIds }, createdAt: { gte: from, lt: to } },
+    }),
+    prisma.jackpotBet.aggregate({
+      _sum: { amount: true },
+      where: { userId: { in: userIds }, createdAt: { gte: from, lt: to } },
+    }),
+  ]);
+  return (b._sum.amount ?? 0) + (c._sum.amount ?? 0) + (r._sum.amount ?? 0) + (j._sum.amount ?? 0);
+}
+
+/** Same as above but across ALL users — for the denominator of revenue-share. */
+async function totalVolumeStaked(from: Date, to: Date): Promise<number> {
+  const [b, c, r, j] = await Promise.all([
+    prisma.bet.aggregate({ _sum: { amount: true }, where: { createdAt: { gte: from, lt: to } } }),
+    prisma.coinFlip.aggregate({ _sum: { amount: true }, where: { createdAt: { gte: from, lt: to } } }),
+    prisma.rouletteBet.aggregate({ _sum: { amount: true }, where: { createdAt: { gte: from, lt: to } } }),
+    prisma.jackpotBet.aggregate({ _sum: { amount: true }, where: { createdAt: { gte: from, lt: to } } }),
+  ]);
+  return (b._sum.amount ?? 0) + (c._sum.amount ?? 0) + (r._sum.amount ?? 0) + (j._sum.amount ?? 0);
+}
+
+export async function computeAffiliateStats(preset: RangePreset, limit = 10): Promise<AffiliatesResponse> {
+  const { from, to, label } = resolveRange(preset);
+  const isLifetime = label === 'all';
+
+  return cached(`finance:affiliates:${label}:${limit}`, 300_000, async () => {
+    // Fetch affiliate codes + their referrals. We filter referrals by
+    // lastActiveAt in window for period queries (except 'all' which takes
+    // every referral regardless).
+    const codes = await prisma.affiliateCode.findMany({
+      include: {
+        referrals: {
+          where: isLifetime ? undefined : { lastActiveAt: { gte: from, lt: to } },
+          select: { referredUserId: true, commission: true, lastActiveAt: true, isActive: true },
+        },
+      },
+    });
+
+    // Map affiliate-code → owner user for name/avatar
+    const ownerUserIds = codes.map((c) => c.userId);
+    const owners = await prisma.user.findMany({
+      where: { id: { in: ownerUserIds } },
+      select: { id: true, username: true, avatar: true },
+    });
+    const ownerById = new Map(owners.map((u) => [u.id, u]));
+
+    // Per-affiliate row
+    const rows: AffiliateRow[] = [];
+    const allActiveReferredIds = new Set<string>();
+
+    for (const code of codes) {
+      const refs = code.referrals;
+      if (refs.length === 0 && !isLifetime) continue; // no activity in window
+
+      const referredIds = refs.map((r) => r.referredUserId);
+      referredIds.forEach((id) => allActiveReferredIds.add(id));
+
+      const commissionPaid = refs.reduce((s, r) => s + r.commission, 0);
+      const volume = await volumeStakedByUsers(referredIds, from, to);
+      const owner = ownerById.get(code.userId);
+
+      rows.push({
+        userId: code.userId,
+        username: owner?.username ?? 'unknown',
+        avatar: owner?.avatar ?? null,
+        promoCode: code.code,
+        commissionRate: code.commissionRate,
+        referredUsersCount: referredIds.length,
+        volumeStakedByReferred: volume,
+        commissionPaid,
+        roiRate: volume > 0 ? commissionPaid / volume : 0,
+      });
+    }
+
+    rows.sort((a, b) => b.commissionPaid - a.commissionPaid);
+    const topAffiliates = rows.slice(0, limit);
+
+    const totalCommissionPaid   = rows.reduce((s, r) => s + r.commissionPaid, 0);
+    const activeAffiliatesCount = rows.filter((r) => r.referredUsersCount > 0).length;
+    const avgCommissionPerAffiliate = activeAffiliatesCount > 0
+      ? Math.round(totalCommissionPaid / activeAffiliatesCount)
+      : 0;
+
+    const [referredVolume, totalVolume] = await Promise.all([
+      volumeStakedByUsers(Array.from(allActiveReferredIds), from, to),
+      totalVolumeStaked(from, to),
+    ]);
+    const affiliateRevenueSharePct = totalVolume > 0
+      ? (referredVolume / totalVolume) * 100
+      : 0;
+
+    return {
+      generatedAt: new Date().toISOString(),
+      range: { label, from: from.toISOString(), to: to.toISOString() },
+      kpis: {
+        totalCommissionPaid,
+        activeAffiliatesCount,
+        avgCommissionPerAffiliate,
+        affiliateRevenueSharePct,
+        isApproximation: !isLifetime,
+      },
+      topAffiliates,
+    };
+  });
+}
+
 // ─── P&L summary (today / 7d / 30d / lifetime) ──────────────────────────────
 //
 // Operator-friendly view : one row per well-known period + a bottom-line

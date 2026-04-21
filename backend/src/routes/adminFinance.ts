@@ -12,6 +12,7 @@ import {
   computeFinanceOverview,
   computeProductBreakdown,
   computePnlSummary,
+  computeAffiliateStats,
   clearFinanceCache,
   RangePreset,
 } from '../services/adminFinanceService';
@@ -53,6 +54,20 @@ router.get('/products', async (req: Request, res: Response): Promise<void> => {
   } catch (err) {
     logger.error('GET /admin/finance/products error:', err);
     res.status(500).json({ error: 'Failed to compute product breakdown' });
+  }
+});
+
+// GET /api/v1/admin/finance/affiliates?range=7d&limit=10
+// Global affiliate KPIs + top N affiliates ranked by commission paid in window.
+router.get('/affiliates', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const range = parseRange(req.query.range);
+    const limit = Math.max(1, Math.min(parseInt(String(req.query.limit ?? '10'), 10) || 10, 50));
+    const data = await computeAffiliateStats(range, limit);
+    res.json({ data });
+  } catch (err) {
+    logger.error('GET /admin/finance/affiliates error:', err);
+    res.status(500).json({ error: 'Failed to compute affiliate stats' });
   }
 });
 
