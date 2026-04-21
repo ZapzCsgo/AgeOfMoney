@@ -30,6 +30,7 @@ import adminRouter from './routes/admin';
 import paymentsRouter from './routes/payments';
 import rouletteRouter from './routes/roulette';
 import coinflipRouter from './routes/coinflip';
+import jackpotRouter from './routes/jackpot';
 import affiliateRouter from './routes/affiliate';
 import supportRouter from './routes/support';
 import devRouter from './routes/dev';
@@ -161,6 +162,15 @@ const rouletteLimiter = rateLimit({
   message: { error: 'Too many roulette requests.' },
 });
 
+// Jackpot: bet + poll are the main entry points; same budget as roulette.
+const jackpotLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many jackpot requests.' },
+});
+
 // Affiliate: prevent code enumeration via /validate + claim flood
 const affiliateLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -191,6 +201,7 @@ app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/payments', paymentLimiter, paymentsRouter);
 app.use('/api/v1/roulette', rouletteLimiter, rouletteRouter);
 app.use('/api/v1/coinflip', coinflipLimiter, coinflipRouter);
+app.use('/api/v1/jackpot', jackpotLimiter, jackpotRouter);
 app.use('/api/v1/affiliate', affiliateLimiter, affiliateRouter);
 app.use('/api/v1/support', supportRouter);
 
@@ -238,6 +249,12 @@ setTimeout(() => {
     initRoulette().catch(err => logger.error('[Roulette] Init failed:', err));
   });
 }, 2000);
+
+setTimeout(() => {
+  import('./services/jackpotService').then(({ initJackpot }) => {
+    initJackpot().catch(err => logger.error('[Jackpot] Init failed:', err));
+  });
+}, 3000);
 
 setTimeout(() => startMatchVerifier(), 4000);
 setTimeout(() => startLiquipediaLiveScorer(), 6000);
