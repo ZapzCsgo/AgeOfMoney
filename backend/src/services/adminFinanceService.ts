@@ -270,6 +270,277 @@ export async function computeFinanceOverview(preset: RangePreset): Promise<Overv
   });
 }
 
+// ─── User growth & retention ────────────────────────────────────────────────
+//
+// Activity definition (consistent across DAU / WAU / MAU / retention):
+// a user is "active" on a given day if they have ≥ 1 row in any of
+//   Bet, CoinFlip (creator OR joiner), RouletteBet, JackpotBet, Transaction
+// created that day. We UNION those 6 sources in a single $queryRaw instead
+// of doing 6 separate Prisma calls in the app layer.
+//
+// Retention uses the same activity definition: a cohort of users who
+// signed up on day D is "retained at day N" if any of them has activity
+// on exactly day D+N. We only include cohorts old enough to have a shot
+// at retention at D+N (cohort_day + N <= today), otherwise we'd artificially
+// depress the number with too-young cohorts.
+
+export interface UserGrowthKpis {
+  dau: number;
+  wau: number;
+  mau: number;
+  stickinessPct: number; // DAU / MAU × 100, 0 when MAU = 0
+}
+
+export interface UserGrowthResponse {
+  generatedAt: string;
+  range: { label: RangePreset; from: string; to: string };
+  kpis: UserGrowthKpis & {
+    deltas: {
+      dauPct: number | null;
+      wauPct: number | null;
+      mauPct: number | null;
+      stickinessPct: number | null;
+    };
+  };
+  sparklines: {
+    dauDaily: number[]; // last 7 daily DAU points, oldest → newest
+  };
+  signupsDaily: Array<{ day: string; count: number }>;
+  retention: {
+    d1: number;
+    d7: number;
+    d14: number;
+    d30: number;
+    cohortCount: number;
+  };
+  depositsFrequency: {
+    depositors1x: number;
+    depositors2x: number;
+    depositors3to5x: number;
+    depositors6to10x: number;
+    depositors10plus: number;
+  };
+}
+
+async function countActiveUsers(from: Date, to: Date): Promise<number> {
+  const rows = await prisma.$queryRaw<Array<{ count: bigint }>>`
+    SELECT COUNT(DISTINCT uid)::bigint AS count FROM (
+      SELECT "userId" AS uid FROM "Bet"
+        WHERE "createdAt" >= ${from} AND "createdAt" < ${to}
+      UNION
+      SELECT "creatorId" FROM "CoinFlip"
+        WHERE "createdAt" >= ${from} AND "createdAt" < ${to}
+      UNION
+      SELECT "joinerId" FROM "CoinFlip"
+        WHERE "joinerId" IS NOT NULL AND "createdAt" >= ${from} AND "createdAt" < ${to}
+      UNION
+      SELECT "userId" FROM "RouletteBet"
+        WHERE "createdAt" >= ${from} AND "createdAt" < ${to}
+      UNION
+      SELECT "userId" FROM "JackpotBet"
+        WHERE "createdAt" >= ${from} AND "createdAt" < ${to}
+      UNION
+      SELECT "userId" FROM "Transaction"
+        WHERE "createdAt" >= ${from} AND "createdAt" < ${to}
+    ) AS active_union;
+  `;
+  return Number(rows[0]?.count ?? 0);
+}
+
+export async function computeUserGrowth(preset: RangePreset): Promise<UserGrowthResponse> {
+  const { from, to, label } = resolveRange(preset);
+
+  return cached(`finance:users:${label}`, 600_000, async () => {
+    const now = to;
+    const d1Start = new Date(now.getTime() - 1 * 86_400_000);
+    const d7Start = new Date(now.getTime() - 7 * 86_400_000);
+    const d30Start = new Date(now.getTime() - 30 * 86_400_000);
+
+    // Previous-period windows for deltas (shifted back by the same span)
+    const spanMs = to.getTime() - from.getTime();
+    const prevTo = from;
+    const _prevFrom = new Date(from.getTime() - spanMs);
+    const prevD1Start = new Date(prevTo.getTime() - 1 * 86_400_000);
+    const prevD7Start = new Date(prevTo.getTime() - 7 * 86_400_000);
+    const prevD30Start = new Date(prevTo.getTime() - 30 * 86_400_000);
+
+    // Parallelize all the independent queries
+    const [dau, wau, mau, prevDau, prevWau, prevMau, dauDaily, signupsDaily, retention, depositsFrequency] = await Promise.all([
+      countActiveUsers(d1Start, now),
+      countActiveUsers(d7Start, now),
+      countActiveUsers(d30Start, now),
+      countActiveUsers(prevD1Start, prevTo),
+      countActiveUsers(prevD7Start, prevTo),
+      countActiveUsers(prevD30Start, prevTo),
+      (async () => {
+        const points: number[] = [];
+        for (let i = 6; i >= 0; i--) {
+          const dayEnd = new Date(now.getTime() - i * 86_400_000);
+          const dayStart = new Date(dayEnd.getTime() - 86_400_000);
+          points.push(await countActiveUsers(dayStart, dayEnd));
+        }
+        return points;
+      })(),
+      // Signups daily. When the range is wider than ~90 days we aggregate
+      // by month instead of day so the chart stays readable (≤ ~90 points).
+      (async () => {
+        const wideRange = label === 'all' || label === '90d';
+        const rows = wideRange
+          ? await prisma.$queryRaw<Array<{ day: Date; count: bigint }>>`
+              SELECT DATE_TRUNC('month', "createdAt") AS day, COUNT(*)::bigint AS count
+              FROM "User"
+              WHERE "createdAt" >= ${from} AND "createdAt" < ${to}
+              GROUP BY DATE_TRUNC('month', "createdAt")
+              ORDER BY day ASC;
+            `
+          : await prisma.$queryRaw<Array<{ day: Date; count: bigint }>>`
+              SELECT DATE_TRUNC('day', "createdAt") AS day, COUNT(*)::bigint AS count
+              FROM "User"
+              WHERE "createdAt" >= ${from} AND "createdAt" < ${to}
+              GROUP BY DATE_TRUNC('day', "createdAt")
+              ORDER BY day ASC;
+            `;
+        return rows.map((r) => ({
+          day: new Date(r.day).toISOString().slice(0, 10),
+          count: Number(r.count),
+        }));
+      })(),
+      // Retention — average over cohorts old enough for each checkpoint.
+      // We compute per cohort : was ANY user from that cohort active on
+      // exactly cohort_day + N? Averaged across eligible cohorts.
+      (async () => {
+        // Only include cohorts in the selected range. We need cohort_day
+        // to be at least 1/7/14/30 days old relative to `to` for each DN.
+        // cohortCount reports the number of cohorts old enough for D30
+        // (the strictest filter) to give a single honest denominator.
+        const rows = await prisma.$queryRaw<Array<{
+          cohort_count: bigint;
+          d1: number | null;
+          d7: number | null;
+          d14: number | null;
+          d30: number | null;
+        }>>`
+          WITH cohorts AS (
+            SELECT id AS user_id, DATE_TRUNC('day', "createdAt") AS cohort_day
+            FROM "User"
+            WHERE "createdAt" >= ${from} AND "createdAt" < ${to}
+          ),
+          activity AS (
+            SELECT DISTINCT "userId" AS uid, DATE_TRUNC('day', "createdAt") AS day
+            FROM "Bet"
+            UNION
+            SELECT DISTINCT "creatorId", DATE_TRUNC('day', "createdAt") FROM "CoinFlip"
+            UNION
+            SELECT DISTINCT "joinerId", DATE_TRUNC('day', "createdAt") FROM "CoinFlip" WHERE "joinerId" IS NOT NULL
+            UNION
+            SELECT DISTINCT "userId", DATE_TRUNC('day', "createdAt") FROM "RouletteBet"
+            UNION
+            SELECT DISTINCT "userId", DATE_TRUNC('day', "createdAt") FROM "JackpotBet"
+            UNION
+            SELECT DISTINCT "userId", DATE_TRUNC('day', "createdAt") FROM "Transaction"
+          ),
+          scored AS (
+            SELECT
+              c.user_id,
+              c.cohort_day,
+              CASE
+                WHEN c.cohort_day + INTERVAL '1 day'  <= ${now}
+                THEN CASE WHEN EXISTS (SELECT 1 FROM activity a WHERE a.uid = c.user_id AND a.day = c.cohort_day + INTERVAL '1 day')  THEN 1.0 ELSE 0.0 END
+                ELSE NULL
+              END AS retained_d1,
+              CASE
+                WHEN c.cohort_day + INTERVAL '7 days' <= ${now}
+                THEN CASE WHEN EXISTS (SELECT 1 FROM activity a WHERE a.uid = c.user_id AND a.day = c.cohort_day + INTERVAL '7 days') THEN 1.0 ELSE 0.0 END
+                ELSE NULL
+              END AS retained_d7,
+              CASE
+                WHEN c.cohort_day + INTERVAL '14 days' <= ${now}
+                THEN CASE WHEN EXISTS (SELECT 1 FROM activity a WHERE a.uid = c.user_id AND a.day = c.cohort_day + INTERVAL '14 days') THEN 1.0 ELSE 0.0 END
+                ELSE NULL
+              END AS retained_d14,
+              CASE
+                WHEN c.cohort_day + INTERVAL '30 days' <= ${now}
+                THEN CASE WHEN EXISTS (SELECT 1 FROM activity a WHERE a.uid = c.user_id AND a.day = c.cohort_day + INTERVAL '30 days') THEN 1.0 ELSE 0.0 END
+                ELSE NULL
+              END AS retained_d30
+            FROM cohorts c
+          )
+          SELECT
+            COUNT(DISTINCT cohort_day)::bigint AS cohort_count,
+            AVG(retained_d1)  AS d1,
+            AVG(retained_d7)  AS d7,
+            AVG(retained_d14) AS d14,
+            AVG(retained_d30) AS d30
+          FROM scored;
+        `;
+        const r = rows[0];
+        return {
+          d1:  r?.d1  ? Number(r.d1)  : 0,
+          d7:  r?.d7  ? Number(r.d7)  : 0,
+          d14: r?.d14 ? Number(r.d14) : 0,
+          d30: r?.d30 ? Number(r.d30) : 0,
+          cohortCount: Number(r?.cohort_count ?? 0),
+        };
+      })(),
+      // Deposits frequency — LIFETIME distribution (not period-scoped).
+      // Period-scoped buckets ("how many deposits on this 7-day window")
+      // lose meaning on a small user base.
+      (async () => {
+        const rows = await prisma.$queryRaw<Array<{
+          depositors1x: bigint;
+          depositors2x: bigint;
+          depositors3to5x: bigint;
+          depositors6to10x: bigint;
+          depositors10plus: bigint;
+        }>>`
+          WITH user_deposits AS (
+            SELECT "userId", COUNT(*)::int AS n
+            FROM "Transaction"
+            WHERE type = 'deposit' AND status = 'completed'
+            GROUP BY "userId"
+          )
+          SELECT
+            COUNT(*) FILTER (WHERE n = 1)::bigint                 AS "depositors1x",
+            COUNT(*) FILTER (WHERE n = 2)::bigint                 AS "depositors2x",
+            COUNT(*) FILTER (WHERE n BETWEEN 3 AND 5)::bigint     AS "depositors3to5x",
+            COUNT(*) FILTER (WHERE n BETWEEN 6 AND 10)::bigint    AS "depositors6to10x",
+            COUNT(*) FILTER (WHERE n > 10)::bigint                AS "depositors10plus"
+          FROM user_deposits;
+        `;
+        const r = rows[0];
+        return {
+          depositors1x:      Number(r?.depositors1x      ?? 0),
+          depositors2x:      Number(r?.depositors2x      ?? 0),
+          depositors3to5x:   Number(r?.depositors3to5x   ?? 0),
+          depositors6to10x:  Number(r?.depositors6to10x  ?? 0),
+          depositors10plus:  Number(r?.depositors10plus  ?? 0),
+        };
+      })(),
+    ]);
+
+    const stickinessPct     = mau > 0 ? (dau / mau) * 100 : 0;
+    const prevStickinessPct = prevMau > 0 ? (prevDau / prevMau) * 100 : 0;
+
+    return {
+      generatedAt: new Date().toISOString(),
+      range: { label, from: from.toISOString(), to: to.toISOString() },
+      kpis: {
+        dau, wau, mau, stickinessPct,
+        deltas: {
+          dauPct:        pctDelta(dau, prevDau),
+          wauPct:        pctDelta(wau, prevWau),
+          mauPct:        pctDelta(mau, prevMau),
+          stickinessPct: pctDelta(stickinessPct, prevStickinessPct),
+        },
+      },
+      sparklines: { dauDaily },
+      signupsDaily,
+      retention,
+      depositsFrequency,
+    };
+  });
+}
+
 // ─── Affiliates ──────────────────────────────────────────────────────────────
 //
 // Limitation honnête : l'actuelle table AffiliateReferral stocke la commission

@@ -13,6 +13,7 @@ import {
   computeProductBreakdown,
   computePnlSummary,
   computeAffiliateStats,
+  computeUserGrowth,
   clearFinanceCache,
   RangePreset,
 } from '../services/adminFinanceService';
@@ -68,6 +69,20 @@ router.get('/affiliates', async (req: Request, res: Response): Promise<void> => 
   } catch (err) {
     logger.error('GET /admin/finance/affiliates error:', err);
     res.status(500).json({ error: 'Failed to compute affiliate stats' });
+  }
+});
+
+// GET /api/v1/admin/finance/users?range=7d
+// DAU / WAU / MAU / Stickiness + sparkline + signups daily + retention
+// (D1/D7/D14/D30) + lifetime deposits frequency histogram.
+router.get('/users', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const range = parseRange(req.query.range);
+    const data = await computeUserGrowth(range);
+    res.json({ data });
+  } catch (err) {
+    logger.error('GET /admin/finance/users error:', err);
+    res.status(500).json({ error: 'Failed to compute user growth' });
   }
 });
 
