@@ -2,12 +2,13 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useSession, signIn } from 'next-auth/react';
 import { apiClient, setAuthToken } from '@/lib/api';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Crown, Users, Clock, Trophy, Shield, ExternalLink } from 'lucide-react';
+import { Users, Clock, Trophy, Shield, ExternalLink } from 'lucide-react';
 
 interface JackpotUser {
   id: string;
@@ -34,7 +35,7 @@ interface JackpotRound {
   nonce: number;
   seedHash: string;
   clientSeed: string;
-  serverSeed?: string | null;  // revealed only on COMPLETED / CANCELLED
+  serverSeed?: string | null;
   rngSource?: 'random_org_signed' | 'hmac_fallback' | null;
   randomJson?: string | null;
   randomSignature?: string | null;
@@ -52,50 +53,72 @@ interface JackpotRound {
 
 const MIN_BET = 1;
 const MAX_BET = 5000;
+const ROUND_DURATION_S = 90;
 
-/**
- * Per-player aggregate: total wagered + cumulative chance. Stable colour per
- * user based on a hash of their id so the bars & avatar rings match across
- * the participant list and (future) wheel.
- */
 interface ParticipantAggregate {
   user: JackpotUser;
   total: number;
-  chance: number;  // 0..100
+  chance: number;         // 0..100
   color: string;
-  bets: JackpotBet[];
+  // Cumulative ticket range covering ALL bets from this user.
+  // Used to draw the horizontal stacked bar. Ranges are sorted by first
+  // bet time so earlier bettors appear on the left of the bar.
+  ticketFrom: number;     // inclusive — min ticketFrom of any of their bets
+  ticketTo: number;       // exclusive — max ticketTo of any of their bets
 }
 
 function userColor(userId: string): string {
-  // Deterministic hue from the user id. 20 buckets → distinguishable colours.
   let h = 0;
   for (let i = 0; i < userId.length; i++) h = (h * 31 + userId.charCodeAt(i)) | 0;
   const hue = Math.abs(h) % 360;
-  return `hsl(${hue}, 70%, 55%)`;
+  return `hsl(${hue}, 72%, 58%)`;
 }
 
-function aggregateByUser(bets: JackpotBet[], potTotal: number): ParticipantAggregate[] {
+/**
+ * Aggregate bets by user. Since bets are placed one at a time and each bet
+ * claims a contiguous range right after the previous one, all bets from one
+ * user don't always form a single contiguous range (another user could have
+ * bet in between). For the bar we display each BET as its own segment
+ * coloured by its user — this matches CSGO jackpot UIs exactly and keeps
+ * the visual ordering (earlier = left).
+ */
+interface ParticipantsView {
+  /** Aggregated by user — for the participant list + my-chance display. */
+  aggregates: ParticipantAggregate[];
+  /** One segment per bet — for the horizontal bar. Ordered by ticketFrom. */
+  segments: Array<{ bet: JackpotBet; color: string }>;
+}
+
+function buildParticipantsView(bets: JackpotBet[], potTotal: number): ParticipantsView {
   const byUser = new Map<string, ParticipantAggregate>();
   for (const bet of bets) {
+    const color = userColor(bet.userId);
     const existing = byUser.get(bet.userId);
     if (existing) {
       existing.total += bet.amount;
-      existing.bets.push(bet);
+      existing.ticketFrom = Math.min(existing.ticketFrom, bet.ticketFrom);
+      existing.ticketTo = Math.max(existing.ticketTo, bet.ticketTo);
     } else {
       byUser.set(bet.userId, {
         user: bet.user,
         total: bet.amount,
         chance: 0,
-        color: userColor(bet.userId),
-        bets: [bet],
+        color,
+        ticketFrom: bet.ticketFrom,
+        ticketTo: bet.ticketTo,
       });
     }
   }
-  const list = Array.from(byUser.values());
-  for (const p of list) p.chance = potTotal > 0 ? (p.total / potTotal) * 100 : 0;
-  // Biggest bet first — whales up top
-  list.sort((a, b) => b.total - a.total);
-  return list;
+  const aggregates = Array.from(byUser.values());
+  for (const p of aggregates) p.chance = potTotal > 0 ? (p.total / potTotal) * 100 : 0;
+  aggregates.sort((a, b) => b.total - a.total);
+
+  const segments = bets
+    .slice()
+    .sort((a, b) => a.ticketFrom - b.ticketFrom)
+    .map((bet) => ({ bet, color: userColor(bet.userId) }));
+
+  return { aggregates, segments };
 }
 
 /** Countdown from closingAt → 0. Returns seconds remaining, or null if no timer. */
@@ -115,6 +138,154 @@ function useCountdown(closingAt: string | null | undefined): number | null {
   return remaining;
 }
 
+/** Circular SVG timer that fills as the countdown drops. */
+function CircularTimer({ seconds, total = ROUND_DURATION_S }: { seconds: number | null; total?: number }) {
+  if (seconds == null) return null;
+  const R = 22;
+  const C = 2 * Math.PI * R;
+  const pct = Math.max(0, Math.min(1, seconds / total));
+  const dashOffset = C * (1 - pct);
+  const isUrgent = seconds <= 10;
+  const color = isUrgent ? '#f87171' : '#ffd97a';
+  return (
+    <motion.div
+      animate={isUrgent ? { scale: [1, 1.06, 1] } : { scale: 1 }}
+      transition={isUrgent ? { duration: 1, repeat: Infinity } : { duration: 0 }}
+      className="relative shrink-0"
+      style={{ width: 56, height: 56 }}
+    >
+      <svg width="56" height="56" viewBox="0 0 56 56">
+        <circle cx="28" cy="28" r={R} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="3" />
+        <circle
+          cx="28" cy="28" r={R}
+          fill="none" stroke={color} strokeWidth="3" strokeLinecap="round"
+          strokeDasharray={C} strokeDashoffset={dashOffset}
+          transform="rotate(-90 28 28)"
+          style={{ transition: 'stroke-dashoffset 0.25s linear, stroke 0.3s' }}
+        />
+      </svg>
+      <div
+        className="absolute inset-0 flex items-center justify-center text-sm font-bold"
+        style={{ color }}
+      >
+        {seconds}
+      </div>
+    </motion.div>
+  );
+}
+
+/**
+ * Horizontal ticket bar — CSGO-style.
+ * Each bet is a coloured segment whose width = bet.amount / potTotal.
+ * When SPINNING or COMPLETED, a pointer is animated to the winning
+ * segment's centre. The pointer is framer-motion animated from 50 % →
+ * target % with a 3.5 s cubic-bezier ease-out.
+ */
+function TicketBar({
+  segments,
+  potTotal,
+  winningTicket,
+  isSpinning,
+}: {
+  segments: Array<{ bet: JackpotBet; color: string }>;
+  potTotal: number;
+  winningTicket: number | null | undefined;
+  isSpinning: boolean;
+}) {
+  // Target pointer position (%): centre of the winning segment, or 50 % when idle
+  const targetPct = useMemo(() => {
+    if (winningTicket == null || potTotal === 0) return 50;
+    // Middle of the winning ticket, mapped to [0, 100]
+    return ((winningTicket + 0.5) / potTotal) * 100;
+  }, [winningTicket, potTotal]);
+
+  const showPointer = winningTicket != null;
+
+  return (
+    <div className="relative w-full" style={{ height: 44 }}>
+      {/* The bar itself */}
+      <div
+        className="absolute inset-x-0 top-1/2 -translate-y-1/2 overflow-hidden rounded-lg flex"
+        style={{
+          height: 32,
+          background: '#0a0818',
+          border: '1px solid #1e1a30',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+        }}
+      >
+        {potTotal === 0 ? (
+          <div
+            className="w-full h-full flex items-center justify-center text-[11px] tracking-wider uppercase"
+            style={{ color: '#4a4468' }}
+          >
+            Bar remplie dès la 1ʳᵉ mise
+          </div>
+        ) : (
+          segments.map(({ bet, color }) => {
+            const widthPct = (bet.amount / potTotal) * 100;
+            return (
+              <motion.div
+                key={bet.id}
+                initial={{ opacity: 0, flexGrow: 0 }}
+                animate={{ opacity: 1, flexGrow: widthPct }}
+                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                style={{
+                  flexBasis: 0,
+                  minWidth: 2,
+                  background: color,
+                  borderRight: '1px solid rgba(0,0,0,0.25)',
+                }}
+                title={`${bet.user.username} · ${bet.amount} ⚜`}
+              />
+            );
+          })
+        )}
+      </div>
+
+      {/* Animated pointer (absolute, its left is interpolated) */}
+      {showPointer && (
+        <motion.div
+          className="absolute top-1/2 -translate-y-1/2 pointer-events-none"
+          style={{ width: 0, height: 0, left: `50%` }}
+          initial={{ left: '50%' }}
+          animate={{ left: `${targetPct}%` }}
+          transition={{
+            duration: isSpinning ? 3.5 : 0.8,
+            ease: isSpinning ? [0.12, 0.8, 0.3, 1] : [0.22, 1, 0.36, 1],
+          }}
+        >
+          {/* Vertical line */}
+          <div
+            className="absolute"
+            style={{
+              left: -1,
+              top: -26,
+              width: 2,
+              height: 52,
+              background: '#fff8dc',
+              boxShadow: '0 0 12px rgba(255,248,220,0.8), 0 0 24px rgba(255,197,66,0.5)',
+            }}
+          />
+          {/* Triangle top */}
+          <div
+            className="absolute"
+            style={{
+              left: -6,
+              top: -34,
+              width: 0,
+              height: 0,
+              borderLeft: '6px solid transparent',
+              borderRight: '6px solid transparent',
+              borderTop: '8px solid #fff8dc',
+              filter: 'drop-shadow(0 0 6px rgba(255,197,66,0.7))',
+            }}
+          />
+        </motion.div>
+      )}
+    </div>
+  );
+}
+
 export default function JackpotPage() {
   const { data: session } = useSession();
   const userId = (session?.user as { id?: string } | undefined)?.id;
@@ -123,14 +294,11 @@ export default function JackpotPage() {
   const [betAmount, setBetAmount] = useState('10');
   const [placing, setPlacing] = useState(false);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [reveal, setReveal] = useState<{ winner: JackpotUser; netPayout: number; rngSource: string } | null>(null);
+  const [reveal, setReveal] = useState<{ winner: JackpotUser; netPayout: number; rngSource: string; winningTicket: number; potTotal: number; chance: number } | null>(null);
   const revealTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const countdown = useCountdown(round?.closingAt ?? null);
 
-  // Sync the apiClient JWT so POST /jackpot/bet carries the Bearer token.
-  // Every authenticated page in this app does this — pattern is to set on
-  // session change (token rotates on refresh).
   useEffect(() => {
     const token = (session?.user as { accessToken?: string } | undefined)?.accessToken;
     setAuthToken(token ?? null);
@@ -147,7 +315,23 @@ export default function JackpotPage() {
 
   useEffect(() => { fetchRound(); }, [fetchRound]);
 
-  // Socket setup: join lobby, subscribe to all round events
+  // Fires gold confetti when the winner is revealed.
+  // Dynamic import so canvas-confetti is only loaded in the browser and
+  // doesn't pull SSR issues (it touches window).
+  async function fireConfetti() {
+    try {
+      const confetti = (await import('canvas-confetti')).default;
+      const colors = ['#ffd97a', '#f5c842', '#d4a017', '#ffffff'];
+      confetti({ particleCount: 80, spread: 70, origin: { x: 0.2, y: 0.6 }, colors });
+      confetti({ particleCount: 80, spread: 70, origin: { x: 0.8, y: 0.6 }, colors });
+      setTimeout(() => {
+        confetti({ particleCount: 120, spread: 120, origin: { x: 0.5, y: 0.4 }, colors });
+      }, 300);
+    } catch {
+      // confetti failure is non-critical
+    }
+  }
+
   useEffect(() => {
     const { connectSocket, getSocket } = require('@/lib/socket');
     connectSocket();
@@ -162,7 +346,6 @@ export default function JackpotPage() {
     s.on('jackpot:bet:new', (data: { roundId: string; potTotal: number; participantCount: number; bet: JackpotBet }) => {
       setRound((prev) => {
         if (!prev || prev.id !== data.roundId) return prev;
-        // Avoid dupes if the bet already arrived via placeBet response
         const hasBet = prev.bets.some((b) => b.id === data.bet.id);
         return {
           ...prev,
@@ -203,11 +386,29 @@ export default function JackpotPage() {
           }
         : prev
       );
-      // Show reveal banner after a short delay (future commit: wheel animation)
+      // Compute the winner's chance % from current bets for the reveal banner.
+      // We use a fresh read via the setState callback below; outside of React
+      // state the current `round.bets` in this closure is stale.
       if (revealTimer.current) clearTimeout(revealTimer.current);
+      // Delay the reveal banner until the pointer animation finishes.
       revealTimer.current = setTimeout(() => {
-        setReveal({ winner: data.winner, netPayout: data.netPayout, rngSource: data.rngSource });
-      }, 1500);
+        setRound((prev) => {
+          if (!prev) return prev;
+          const winnerBets = prev.bets.filter((b) => b.userId === data.winnerId);
+          const winnerTotal = winnerBets.reduce((acc, b) => acc + b.amount, 0);
+          const chance = data.potTotal > 0 ? (winnerTotal / data.potTotal) * 100 : 0;
+          setReveal({
+            winner: data.winner,
+            netPayout: data.netPayout,
+            rngSource: data.rngSource,
+            winningTicket: data.winningTicket,
+            potTotal: data.potTotal,
+            chance,
+          });
+          fireConfetti();
+          return prev;
+        });
+      }, 3800); // slightly longer than the 3.5s pointer animation
     });
 
     s.on('jackpot:round:settled', (data: JackpotRound) => {
@@ -242,18 +443,11 @@ export default function JackpotPage() {
   async function handleBet() {
     if (!session) { signIn('steam'); return; }
     const amount = parseInt(betAmount);
-    if (!amount || amount < MIN_BET) {
-      showMsg('error', `Minimum ${MIN_BET} ⚜`);
-      return;
-    }
-    if (amount > MAX_BET) {
-      showMsg('error', `Maximum ${MAX_BET} ⚜`);
-      return;
-    }
+    if (!amount || amount < MIN_BET) { showMsg('error', `Minimum ${MIN_BET} ⚜`); return; }
+    if (amount > MAX_BET) { showMsg('error', `Maximum ${MAX_BET} ⚜`); return; }
     setPlacing(true);
     try {
       await apiClient.post('/jackpot/bet', { amount });
-      // Socket event will refresh the pot/bets
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: string } }; message?: string };
       showMsg('error', err?.response?.data?.error ?? err?.message ?? 'Erreur');
@@ -262,12 +456,13 @@ export default function JackpotPage() {
     }
   }
 
-  const participants = round ? aggregateByUser(round.bets, round.potTotal) : [];
-  const myAggregate = participants.find((p) => p.user.id === userId);
+  const view = round ? buildParticipantsView(round.bets, round.potTotal) : { aggregates: [], segments: [] };
+  const myAggregate = view.aggregates.find((p) => p.user.id === userId);
   const myChance = myAggregate?.chance ?? 0;
 
   const isLive = round && ['OPEN', 'CLOSING', 'SPINNING'].includes(round.status);
   const canBet = round && (round.status === 'OPEN' || round.status === 'CLOSING');
+  const isSpinning = round?.status === 'SPINNING';
 
   return (
     <div className="min-h-screen" style={{ background: '#07060f', color: '#e8e2f5' }}>
@@ -299,104 +494,139 @@ export default function JackpotPage() {
           </div>
         )}
 
-        {/* Pot + timer + status */}
+        {/* Main card: pot + timer + horizontal bar */}
         <div
-          className="rounded-2xl p-8 mb-6 text-center"
+          className="rounded-2xl p-6 mb-6"
           style={{
             background: 'linear-gradient(135deg, #0d0b1a 0%, #110e24 100%)',
             border: '1px solid rgba(255,197,66,0.25)',
             boxShadow: '0 0 40px rgba(255,197,66,0.08)',
           }}
         >
-          <div className="text-[10px] tracking-[0.3em] uppercase mb-2" style={{ color: '#6b6488' }}>
-            Total pot
-          </div>
-          <div
-            className="text-6xl font-bold mb-3"
-            style={{ fontFamily: 'Cinzel, serif', color: '#ffd97a', textShadow: '0 0 24px rgba(255,197,66,0.3)' }}
-          >
-            {round?.potTotal.toLocaleString() ?? 0} ⚜
-          </div>
+          <div className="flex items-center gap-5 mb-5">
+            {/* Timer */}
+            <div className="w-14 flex items-center justify-center">
+              {countdown != null && round?.status === 'CLOSING' ? (
+                <CircularTimer seconds={countdown} />
+              ) : (
+                <div
+                  className="w-14 h-14 rounded-full flex items-center justify-center"
+                  style={{ border: '2px solid rgba(255,255,255,0.05)', color: '#4a4468' }}
+                >
+                  <Clock size={20} />
+                </div>
+              )}
+            </div>
 
-          {/* Status line */}
-          <div className="flex items-center justify-center gap-4 text-[12px]" style={{ color: '#9b94b8' }}>
-            <span className="flex items-center gap-1.5">
-              <Users size={14} />
-              {round?.participantCount ?? 0} {round?.participantCount === 1 ? 'participant' : 'participants'}
-            </span>
-
-            {countdown != null && round?.status === 'CLOSING' && (
-              <span
-                className="flex items-center gap-1.5 font-bold"
-                style={{ color: countdown <= 10 ? '#f87171' : '#ffd97a' }}
+            {/* Pot + status */}
+            <div className="flex-1 min-w-0">
+              <div className="text-[10px] tracking-[0.3em] uppercase mb-1" style={{ color: '#6b6488' }}>
+                Total pot
+              </div>
+              <div
+                className="text-4xl md:text-5xl font-bold leading-none"
+                style={{ fontFamily: 'Cinzel, serif', color: '#ffd97a', textShadow: '0 0 24px rgba(255,197,66,0.3)' }}
               >
-                <Clock size={14} />
-                {countdown}s
-              </span>
-            )}
+                {round?.potTotal.toLocaleString() ?? 0} ⚜
+              </div>
+              <div className="mt-2 flex items-center gap-4 text-[12px]" style={{ color: '#9b94b8' }}>
+                <span className="flex items-center gap-1.5">
+                  <Users size={13} />
+                  {round?.participantCount ?? 0} {round?.participantCount === 1 ? 'joueur' : 'joueurs'}
+                </span>
+                {round?.status === 'OPEN' && round.participantCount < 2 && (
+                  <span style={{ color: '#6b6488' }}>En attente d&apos;un 2ᵉ joueur…</span>
+                )}
+                {isSpinning && (
+                  <span className="font-bold" style={{ color: '#ffd97a' }}>Tirage en cours…</span>
+                )}
+                {round?.status === 'COMPLETED' && (
+                  <span className="font-bold" style={{ color: '#4ade80' }}>Round terminé</span>
+                )}
+              </div>
+            </div>
 
-            {round?.status === 'OPEN' && round.participantCount < 2 && (
-              <span className="flex items-center gap-1.5" style={{ color: '#6b6488' }}>
-                En attente d&apos;un 2ᵉ joueur…
-              </span>
-            )}
-
-            {round?.status === 'SPINNING' && (
-              <span className="flex items-center gap-1.5 font-bold" style={{ color: '#ffd97a' }}>
-                Tirage en cours…
-              </span>
+            {/* My chance */}
+            {userId && myAggregate && round && round.potTotal > 0 && (
+              <div className="hidden md:block text-right">
+                <div className="text-[10px] tracking-[0.2em] uppercase" style={{ color: '#6b6488' }}>
+                  Votre chance
+                </div>
+                <div className="text-xl font-bold" style={{ color: myAggregate.color }}>
+                  {myChance.toFixed(1)}%
+                </div>
+                <div className="text-[11px]" style={{ color: '#9b94b8' }}>
+                  {myAggregate.total.toLocaleString()} ⚜ misés
+                </div>
+              </div>
             )}
           </div>
 
-          {/* My chance (connected user) */}
-          {userId && myAggregate && round && round.potTotal > 0 && (
-            <div className="mt-4 text-[12px]" style={{ color: '#9b94b8' }}>
-              Votre chance :{' '}
-              <span className="font-bold" style={{ color: myAggregate.color }}>
-                {myChance.toFixed(1)}%
-              </span>{' '}
-              ({myAggregate.total.toLocaleString()} ⚜ misés)
+          {/* Horizontal ticket bar */}
+          <TicketBar
+            segments={view.segments}
+            potTotal={round?.potTotal ?? 0}
+            winningTicket={round?.winningTicket ?? null}
+            isSpinning={isSpinning}
+          />
+
+          {/* Ticket range labels */}
+          {round && round.potTotal > 0 && (
+            <div className="flex items-center justify-between text-[10px] mt-2 font-mono" style={{ color: '#4a4468' }}>
+              <span>ticket 0</span>
+              {round.winningTicket != null && (
+                <span style={{ color: '#ffd97a' }}>
+                  winning ticket · {round.winningTicket.toLocaleString()}
+                </span>
+              )}
+              <span>ticket {(round.potTotal - 1).toLocaleString()}</span>
             </div>
           )}
         </div>
 
         {/* Winner reveal banner */}
-        {reveal && (
-          <div
-            className="rounded-2xl p-6 mb-6 text-center"
-            style={{
-              background: 'linear-gradient(135deg, rgba(255,197,66,0.15) 0%, rgba(255,217,122,0.08) 100%)',
-              border: '1px solid rgba(255,197,66,0.5)',
-              boxShadow: '0 0 32px rgba(255,197,66,0.2)',
-            }}
-          >
-            <div className="text-[10px] tracking-[0.3em] uppercase mb-2" style={{ color: '#ffd97a' }}>
-              Winner
-            </div>
-            <div className="flex items-center justify-center gap-3 mb-2">
-              {reveal.winner.avatar && (
-                <img
-                  src={reveal.winner.avatar}
-                  alt={reveal.winner.username}
-                  className="w-12 h-12 rounded-full"
-                  style={{ border: '2px solid #ffd97a' }}
-                />
-              )}
-              <div
-                className="text-2xl font-bold"
-                style={{ fontFamily: 'Cinzel, serif', color: '#ffd97a' }}
-              >
-                {reveal.winner.username}
+        <AnimatePresence>
+          {reveal && (
+            <motion.div
+              initial={{ opacity: 0, y: 12, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -12, scale: 0.95 }}
+              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              className="rounded-2xl p-6 mb-6 text-center"
+              style={{
+                background: 'linear-gradient(135deg, rgba(255,197,66,0.18) 0%, rgba(255,217,122,0.08) 100%)',
+                border: '1px solid rgba(255,197,66,0.5)',
+                boxShadow: '0 0 40px rgba(255,197,66,0.25)',
+              }}
+            >
+              <div className="text-[10px] tracking-[0.3em] uppercase mb-3" style={{ color: '#ffd97a' }}>
+                Winner
               </div>
-            </div>
-            <div className="text-xl font-bold" style={{ color: '#e8e2f5' }}>
-              +{reveal.netPayout.toLocaleString()} ⚜
-            </div>
-            <div className="text-[10px] mt-1" style={{ color: '#6b6488' }}>
-              RNG : {reveal.rngSource === 'random_org_signed' ? 'Random.org Signed API' : 'HMAC fallback'}
-            </div>
-          </div>
-        )}
+              <div className="flex items-center justify-center gap-3 mb-3">
+                {reveal.winner.avatar ? (
+                  <img
+                    src={reveal.winner.avatar}
+                    alt={reveal.winner.username}
+                    className="w-14 h-14 rounded-full"
+                    style={{ border: '2px solid #ffd97a', boxShadow: '0 0 16px rgba(255,197,66,0.5)' }}
+                  />
+                ) : null}
+                <div className="text-2xl font-bold" style={{ fontFamily: 'Cinzel, serif', color: '#ffd97a' }}>
+                  {reveal.winner.username}
+                </div>
+              </div>
+              <div className="text-2xl font-bold mb-1" style={{ color: '#e8e2f5' }}>
+                +{reveal.netPayout.toLocaleString()} ⚜
+              </div>
+              <div className="text-[11px]" style={{ color: '#9b94b8' }}>
+                chance {reveal.chance.toFixed(2)}% · ticket #{reveal.winningTicket.toLocaleString()} / {reveal.potTotal.toLocaleString()}
+              </div>
+              <div className="text-[10px] mt-1" style={{ color: '#6b6488' }}>
+                RNG : {reveal.rngSource === 'random_org_signed' ? 'Random.org Signed API' : 'HMAC fallback'}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Bet input */}
         <div
@@ -440,74 +670,72 @@ export default function JackpotPage() {
           )}
         </div>
 
-        {/* Participants list */}
+        {/* Participants list — simplified (no individual bars, bar above is the source of truth) */}
         <div
           className="rounded-2xl p-6"
           style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}
         >
           <div className="text-[11px] tracking-wider uppercase mb-3 flex items-center justify-between" style={{ color: '#9b94b8' }}>
             <span>Participants</span>
-            <span>{participants.length}</span>
+            <span>{view.aggregates.length}</span>
           </div>
 
-          {participants.length === 0 ? (
+          {view.aggregates.length === 0 ? (
             <div className="text-center py-8 text-sm" style={{ color: '#6b6488' }}>
               Personne n&apos;a encore misé. Soyez le premier !
             </div>
           ) : (
-            <div className="space-y-2">
-              {participants.map((p) => (
-                <div
-                  key={p.user.id}
-                  className="rounded-lg p-3 flex items-center gap-3"
-                  style={{
-                    background: p.user.id === userId ? 'rgba(255,197,66,0.08)' : 'rgba(255,255,255,0.02)',
-                    border: p.user.id === userId
-                      ? '1px solid rgba(255,197,66,0.3)'
-                      : '1px solid rgba(255,255,255,0.04)',
-                  }}
-                >
-                  {p.user.avatar ? (
-                    <img
-                      src={p.user.avatar}
-                      alt={p.user.username}
-                      className="w-9 h-9 rounded-full"
-                      style={{ border: `2px solid ${p.color}` }}
-                    />
-                  ) : (
-                    <div
-                      className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold"
-                      style={{ background: p.color, color: '#1a1010' }}
-                    >
-                      {p.user.username.slice(0, 2).toUpperCase()}
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-bold truncate" style={{ color: '#e8e2f5' }}>
-                      {p.user.username}
-                    </div>
-                    <div className="h-1.5 rounded-full mt-1 overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{ width: `${p.chance}%`, background: p.color }}
+            <div className="space-y-1">
+              {view.aggregates.map((p) => {
+                const isWinner = round?.status === 'COMPLETED' && round.winnerId === p.user.id;
+                return (
+                  <div
+                    key={p.user.id}
+                    className="rounded-lg p-3 flex items-center gap-3"
+                    style={{
+                      background: p.user.id === userId ? 'rgba(255,197,66,0.08)' : 'rgba(255,255,255,0.02)',
+                      border: isWinner
+                        ? '1px solid rgba(255,197,66,0.6)'
+                        : p.user.id === userId
+                          ? '1px solid rgba(255,197,66,0.3)'
+                          : '1px solid rgba(255,255,255,0.04)',
+                    }}
+                  >
+                    {p.user.avatar ? (
+                      <img
+                        src={p.user.avatar}
+                        alt={p.user.username}
+                        className="w-9 h-9 rounded-full"
+                        style={{ border: `2px solid ${p.color}` }}
                       />
+                    ) : (
+                      <div
+                        className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold"
+                        style={{ background: p.color, color: '#1a1010' }}
+                      >
+                        {p.user.username.slice(0, 2).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0 text-sm font-bold truncate" style={{ color: '#e8e2f5' }}>
+                      {p.user.username}
+                      {isWinner && <span className="ml-2 text-[10px] font-bold" style={{ color: '#ffd97a' }}>WINNER</span>}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-sm font-bold" style={{ color: p.color }}>
+                        {p.chance.toFixed(1)}%
+                      </div>
+                      <div className="text-[11px]" style={{ color: '#9b94b8' }}>
+                        {p.total.toLocaleString()} ⚜
+                      </div>
                     </div>
                   </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-sm font-bold" style={{ color: '#ffd97a' }}>
-                      {p.total.toLocaleString()} ⚜
-                    </div>
-                    <div className="text-[11px]" style={{ color: '#9b94b8' }}>
-                      {p.chance.toFixed(1)}%
-                    </div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
 
-        {/* Provably fair footer — minimal first pass, dedicated modal in next commit */}
+        {/* Provably fair footer */}
         {round && (
           <div
             className="rounded-2xl p-4 mt-6 text-[11px] font-mono flex flex-wrap items-center gap-x-4 gap-y-1"
