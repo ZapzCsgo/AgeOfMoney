@@ -175,114 +175,237 @@ function CircularTimer({ seconds, total = ROUND_DURATION_S }: { seconds: number 
 }
 
 /**
- * Horizontal ticket bar — CSGO-style.
- * Each bet is a coloured segment whose width = bet.amount / potTotal.
- * When SPINNING or COMPLETED, a pointer is animated to the winning
- * segment's centre. The pointer is framer-motion animated from 50 % →
- * target % with a 3.5 s cubic-bezier ease-out.
+ * Circular jackpot wheel — CSGO-style (inspiré Skinbet / CSGOEmpire).
+ * Anneau doughnut segmenté, 1 arc par participant (largeur = amount / pot),
+ * avatar au milieu de chaque segment. Pointeur triangle fixe en haut.
+ * Quand winningTicket est connu (SPINNING → COMPLETED), rotation framer-motion
+ * de 5 tours complets + stop sur le segment gagnant, 5 s cubic-bezier ease-out.
  */
-function TicketBar({
+
+const WHEEL_SIZE = 300;
+const WHEEL_OUTER_R = 138;
+const WHEEL_INNER_R = 92;
+const AVATAR_RADIUS = (WHEEL_OUTER_R + WHEEL_INNER_R) / 2;
+const AVATAR_SIZE = 36;
+
+function polarToCartesian(r: number, angleDeg: number) {
+  const rad = ((angleDeg - 90) * Math.PI) / 180;
+  return { x: r * Math.cos(rad), y: r * Math.sin(rad) };
+}
+
+function arcPath(startAngle: number, endAngle: number, rIn: number, rOut: number): string {
+  const startO = polarToCartesian(rOut, startAngle);
+  const endO   = polarToCartesian(rOut, endAngle);
+  const startI = polarToCartesian(rIn,  startAngle);
+  const endI   = polarToCartesian(rIn,  endAngle);
+  const large  = endAngle - startAngle > 180 ? 1 : 0;
+  return [
+    `M ${startO.x} ${startO.y}`,
+    `A ${rOut} ${rOut} 0 ${large} 1 ${endO.x} ${endO.y}`,
+    `L ${endI.x} ${endI.y}`,
+    `A ${rIn} ${rIn} 0 ${large} 0 ${startI.x} ${startI.y}`,
+    'Z',
+  ].join(' ');
+}
+
+/** SVG cannot draw a 360° arc — use this full-ring path instead for solo case. */
+function fullRingPath(rIn: number, rOut: number): string {
+  return [
+    `M ${rOut} 0`,
+    `A ${rOut} ${rOut} 0 1 1 ${-rOut} 0`,
+    `A ${rOut} ${rOut} 0 1 1 ${rOut} 0`,
+    'Z',
+    `M ${rIn} 0`,
+    `A ${rIn} ${rIn} 0 1 0 ${-rIn} 0`,
+    `A ${rIn} ${rIn} 0 1 0 ${rIn} 0`,
+    'Z',
+  ].join(' ');
+}
+
+interface WheelSegment {
+  key: string;
+  userId: string;
+  username: string;
+  avatar: string | null;
+  color: string;
+  startAngle: number;
+  endAngle: number;
+  avatarX: number;
+  avatarY: number;
+  shareDeg: number;
+}
+
+function JackpotWheel({
   segments,
   potTotal,
   winningTicket,
   isSpinning,
+  roundId,
 }: {
-  segments: Array<{ bet: JackpotBet; color: string }>;
+  segments: WheelSegment[];
   potTotal: number;
   winningTicket: number | null | undefined;
   isSpinning: boolean;
+  roundId: string | null;
 }) {
-  // Target pointer position (%): winningTicket is now in basis points
-  // [0, 9999] = 0.00% to 99.99% drawn by Random.org. Map 1:1 to the bar.
-  // +0.005 centres the pointer inside the 0.01% slot (cosmetic).
-  const targetPct = useMemo(() => {
-    if (winningTicket == null) return 50;
-    return winningTicket / 100 + 0.005;
+  // Rotation: winningTicket is in basis points [0, 9999]. Convert to angle
+  // (0..360°) starting from 12 o'clock. To bring that angle under the top
+  // pointer, rotate the wheel by -angle. Add 5 full turns for drama.
+  const targetRotation = useMemo(() => {
+    if (winningTicket == null) return 0;
+    const winningAngle = (winningTicket / 10000) * 360;
+    return -winningAngle - 5 * 360;
   }, [winningTicket]);
 
-  const showPointer = winningTicket != null;
+  const cx = WHEEL_SIZE / 2;
+  const cy = WHEEL_SIZE / 2;
 
   return (
-    <div className="relative w-full" style={{ height: 44 }}>
-      {/* The bar itself */}
-      <div
-        className="absolute inset-x-0 top-1/2 -translate-y-1/2 overflow-hidden rounded-lg flex"
-        style={{
-          height: 32,
-          background: '#0a0818',
-          border: '1px solid #1e1a30',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
-        }}
-      >
-        {potTotal === 0 ? (
-          <div
-            className="w-full h-full flex items-center justify-center text-[11px] tracking-wider uppercase"
-            style={{ color: '#4a4468' }}
-          >
-            Bar remplie dès la 1ʳᵉ mise
-          </div>
-        ) : (
-          segments.map(({ bet, color }) => {
-            const widthPct = (bet.amount / potTotal) * 100;
-            return (
-              <motion.div
-                key={bet.id}
-                initial={{ opacity: 0, flexGrow: 0 }}
-                animate={{ opacity: 1, flexGrow: widthPct }}
-                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                style={{
-                  flexBasis: 0,
-                  minWidth: 2,
-                  background: color,
-                  borderRight: '1px solid rgba(0,0,0,0.25)',
-                }}
-                title={`${bet.user.username} · ${bet.amount} ⚜`}
-              />
-            );
-          })
-        )}
-      </div>
+    <div className="relative mx-auto" style={{ width: WHEEL_SIZE, height: WHEEL_SIZE }}>
+      <svg width={WHEEL_SIZE} height={WHEEL_SIZE} viewBox={`0 0 ${WHEEL_SIZE} ${WHEEL_SIZE}`}>
+        <defs>
+          {/* Soft gold glow filter reused by centre text */}
+          <filter id="wheel-gold-glow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="2" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
 
-      {/* Animated pointer (absolute, its left is interpolated) */}
-      {showPointer && (
-        <motion.div
-          className="absolute top-1/2 -translate-y-1/2 pointer-events-none"
-          style={{ width: 0, height: 0, left: `50%` }}
-          initial={{ left: '50%' }}
-          animate={{ left: `${targetPct}%` }}
-          transition={{
-            duration: isSpinning ? 3.5 : 0.8,
-            ease: isSpinning ? [0.12, 0.8, 0.3, 1] : [0.22, 1, 0.36, 1],
-          }}
-        >
-          {/* Vertical line */}
-          <div
-            className="absolute"
-            style={{
-              left: -1,
-              top: -26,
-              width: 2,
-              height: 52,
-              background: '#fff8dc',
-              boxShadow: '0 0 12px rgba(255,248,220,0.8), 0 0 24px rgba(255,197,66,0.5)',
+        <g transform={`translate(${cx}, ${cy})`}>
+          {/* Rotating group (segments + avatars). key on roundId to reset
+              rotation to 0 instantly at the start of each new round, then
+              framer-motion animates to targetRotation when winningTicket is set. */}
+          <motion.g
+            key={roundId ?? 'idle'}
+            initial={{ rotate: 0 }}
+            animate={{ rotate: targetRotation }}
+            transition={{
+              duration: isSpinning ? 5 : winningTicket != null ? 0.8 : 0,
+              ease: isSpinning ? [0.12, 0.8, 0.3, 1] : [0.22, 1, 0.36, 1],
             }}
-          />
-          {/* Triangle top */}
-          <div
-            className="absolute"
-            style={{
-              left: -6,
-              top: -34,
-              width: 0,
-              height: 0,
-              borderLeft: '6px solid transparent',
-              borderRight: '6px solid transparent',
-              borderTop: '8px solid #fff8dc',
-              filter: 'drop-shadow(0 0 6px rgba(255,197,66,0.7))',
-            }}
-          />
-        </motion.div>
-      )}
+            style={{ transformOrigin: '0px 0px' }}
+          >
+            {segments.length === 0 ? (
+              <circle
+                r={(WHEEL_INNER_R + WHEEL_OUTER_R) / 2}
+                fill="none"
+                stroke="rgba(255,255,255,0.04)"
+                strokeWidth={WHEEL_OUTER_R - WHEEL_INNER_R}
+                strokeDasharray="4 6"
+              />
+            ) : segments.length === 1 ? (
+              <path
+                d={fullRingPath(WHEEL_INNER_R, WHEEL_OUTER_R)}
+                fill={segments[0].color}
+                fillRule="evenodd"
+                stroke="#0a0818"
+                strokeWidth="1"
+              />
+            ) : (
+              segments.map((s) => (
+                <path
+                  key={s.key}
+                  d={arcPath(s.startAngle, s.endAngle, WHEEL_INNER_R, WHEEL_OUTER_R)}
+                  fill={s.color}
+                  stroke="#0a0818"
+                  strokeWidth="1"
+                />
+              ))
+            )}
+
+            {segments.map((s) => {
+              if (s.shareDeg < 14) return null; // segment too thin for an avatar
+              return (
+                <g key={'av-' + s.key} transform={`translate(${s.avatarX}, ${s.avatarY})`}>
+                  <defs>
+                    <clipPath id={`clip-${s.key}`}>
+                      <circle r={AVATAR_SIZE / 2} />
+                    </clipPath>
+                  </defs>
+                  <circle r={AVATAR_SIZE / 2 + 2} fill="#07060f" stroke={s.color} strokeWidth="2" />
+                  {s.avatar ? (
+                    <image
+                      href={s.avatar}
+                      x={-AVATAR_SIZE / 2}
+                      y={-AVATAR_SIZE / 2}
+                      width={AVATAR_SIZE}
+                      height={AVATAR_SIZE}
+                      clipPath={`url(#clip-${s.key})`}
+                    />
+                  ) : (
+                    <text
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      fontSize="11"
+                      fontWeight="bold"
+                      fill="#1a1010"
+                    >
+                      {s.username.slice(0, 2).toUpperCase()}
+                    </text>
+                  )}
+                </g>
+              );
+            })}
+          </motion.g>
+
+          {/* Centre disk */}
+          <circle r={WHEEL_INNER_R - 4} fill="#0b0818" stroke="rgba(255,197,66,0.18)" strokeWidth="1" />
+          <text
+            textAnchor="middle"
+            dominantBaseline="central"
+            y={-6}
+            fontSize={segments.length === 0 ? 20 : 26}
+            fontWeight="bold"
+            fill="#ffd97a"
+            style={{ fontFamily: 'Cinzel, serif' }}
+            filter="url(#wheel-gold-glow)"
+          >
+            {potTotal.toLocaleString()} ⚜
+          </text>
+          <text
+            textAnchor="middle"
+            dominantBaseline="central"
+            y={18}
+            fontSize="9"
+            fill="#6b6488"
+            style={{ letterSpacing: '2px' }}
+          >
+            TOTAL POT
+          </text>
+        </g>
+      </svg>
+
+      {/* Fixed top pointer (does NOT rotate with the wheel) */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          top: 0,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: 0,
+          height: 0,
+          borderLeft: '10px solid transparent',
+          borderRight: '10px solid transparent',
+          borderTop: '16px solid #fff8dc',
+          filter: 'drop-shadow(0 0 8px rgba(255,197,66,0.9))',
+          zIndex: 3,
+        }}
+      />
+      <div
+        className="absolute pointer-events-none rounded-full"
+        style={{
+          top: 14,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: 8,
+          height: 8,
+          background: '#fff8dc',
+          boxShadow: '0 0 12px rgba(255,197,66,0.9)',
+        }}
+      />
     </div>
   );
 }
@@ -486,6 +609,50 @@ export default function JackpotPage() {
   const canBet = round && (round.status === 'OPEN' || round.status === 'CLOSING');
   const isSpinning = round?.status === 'SPINNING';
 
+  // Build wheel segments — one per user (aggregate bets). Ordered by first
+  // bet (stable visual). Avatar position at segment midAngle.
+  const wheelSegments: WheelSegment[] = useMemo(() => {
+    if (!round || round.potTotal === 0) return [];
+    const firstBetAtByUser = new Map<string, number>();
+    for (const b of round.bets) {
+      const t = new Date(b.createdAt).getTime();
+      const prev = firstBetAtByUser.get(b.userId);
+      if (prev == null || t < prev) firstBetAtByUser.set(b.userId, t);
+    }
+    const byUser = new Map<string, { user: JackpotUser; total: number; color: string }>();
+    for (const b of round.bets) {
+      const existing = byUser.get(b.userId);
+      if (existing) existing.total += b.amount;
+      else byUser.set(b.userId, { user: b.user, total: b.amount, color: userColor(b.userId) });
+    }
+    const users = Array.from(byUser.values()).sort((a, b) => {
+      const ta = firstBetAtByUser.get(a.user.id) ?? 0;
+      const tb = firstBetAtByUser.get(b.user.id) ?? 0;
+      return ta - tb;
+    });
+    let cursor = 0;
+    return users.map((u) => {
+      const share = u.total / round.potTotal;
+      const startAngle = cursor * 360;
+      const endAngle = (cursor + share) * 360;
+      cursor += share;
+      const midAngle = (startAngle + endAngle) / 2;
+      const pos = polarToCartesian(AVATAR_RADIUS, midAngle);
+      return {
+        key: u.user.id,
+        userId: u.user.id,
+        username: u.user.username,
+        avatar: u.user.avatar,
+        color: u.color,
+        startAngle,
+        endAngle,
+        avatarX: pos.x,
+        avatarY: pos.y,
+        shareDeg: endAngle - startAngle,
+      };
+    });
+  }, [round]);
+
   return (
     <div className="min-h-screen" style={{ background: '#07060f', color: '#e8e2f5' }}>
       <div className="max-w-5xl mx-auto px-4 py-8">
@@ -546,7 +713,7 @@ export default function JackpotPage() {
 
         {viewTab === 'live' && (
         <>
-        {/* Main card: pot + timer + horizontal bar */}
+        {/* Main card: wheel + status row */}
         <div
           className="rounded-2xl p-6 mb-6"
           style={{
@@ -555,9 +722,9 @@ export default function JackpotPage() {
             boxShadow: '0 0 40px rgba(255,197,66,0.08)',
           }}
         >
-          <div className="flex items-center gap-5 mb-5">
-            {/* Timer */}
-            <div className="w-14 flex items-center justify-center">
+          {/* Status row above the wheel : timer · joueurs · status · my chance */}
+          <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
               {countdown != null && round?.status === 'CLOSING' ? (
                 <CircularTimer seconds={countdown} />
               ) : (
@@ -568,39 +735,25 @@ export default function JackpotPage() {
                   <Clock size={20} />
                 </div>
               )}
-            </div>
-
-            {/* Pot + status */}
-            <div className="flex-1 min-w-0">
-              <div className="text-[10px] tracking-[0.3em] uppercase mb-1" style={{ color: '#6b6488' }}>
-                Total pot
-              </div>
-              <div
-                className="text-4xl md:text-5xl font-bold leading-none"
-                style={{ fontFamily: 'Cinzel, serif', color: '#ffd97a', textShadow: '0 0 24px rgba(255,197,66,0.3)' }}
-              >
-                {round?.potTotal.toLocaleString() ?? 0} ⚜
-              </div>
-              <div className="mt-2 flex items-center gap-4 text-[12px]" style={{ color: '#9b94b8' }}>
-                <span className="flex items-center gap-1.5">
+              <div className="text-[12px]" style={{ color: '#9b94b8' }}>
+                <div className="flex items-center gap-1.5">
                   <Users size={13} />
                   {round?.participantCount ?? 0} {round?.participantCount === 1 ? 'joueur' : 'joueurs'}
-                </span>
-                {round?.status === 'OPEN' && round.participantCount < 2 && (
-                  <span style={{ color: '#6b6488' }}>En attente d&apos;un 2ᵉ joueur…</span>
-                )}
-                {isSpinning && (
-                  <span className="font-bold" style={{ color: '#ffd97a' }}>Tirage en cours…</span>
-                )}
-                {round?.status === 'COMPLETED' && (
-                  <span className="font-bold" style={{ color: '#4ade80' }}>Round terminé</span>
-                )}
+                </div>
+                <div className="text-[10px] tracking-wider uppercase mt-0.5" style={{ color: '#6b6488' }}>
+                  {round?.status === 'OPEN' && (round.participantCount < 2
+                    ? 'En attente d\u2019un 2ᵉ joueur…'
+                    : 'Ouvert aux paris'
+                  )}
+                  {round?.status === 'CLOSING' && 'Timer en cours'}
+                  {isSpinning && <span style={{ color: '#ffd97a' }}>Tirage…</span>}
+                  {round?.status === 'COMPLETED' && <span style={{ color: '#4ade80' }}>Round terminé</span>}
+                </div>
               </div>
             </div>
 
-            {/* My chance */}
             {userId && myAggregate && round && round.potTotal > 0 && (
-              <div className="hidden md:block text-right">
+              <div className="text-right">
                 <div className="text-[10px] tracking-[0.2em] uppercase" style={{ color: '#6b6488' }}>
                   Votre chance
                 </div>
@@ -614,26 +767,19 @@ export default function JackpotPage() {
             )}
           </div>
 
-          {/* Horizontal ticket bar */}
-          <TicketBar
-            segments={view.segments}
+          {/* The wheel */}
+          <JackpotWheel
+            segments={wheelSegments}
             potTotal={round?.potTotal ?? 0}
             winningTicket={round?.winningTicket ?? null}
             isSpinning={isSpinning}
+            roundId={round?.id ?? null}
           />
 
-          {/* Ticket range : Random.org tire un nombre en basis points [0, 9999]
-              affiché comme un % avec 2 décimales (0.00% → 99.99%). Modèle
-              identique à CSGOEmpire / CSGOLotto. */}
-          {round && round.potTotal > 0 && (
-            <div className="flex items-center justify-between text-[10px] mt-2 font-mono" style={{ color: '#4a4468' }}>
-              <span>0.00%</span>
-              {round.winningTicket != null && (
-                <span style={{ color: '#ffd97a' }}>
-                  tirage · {(round.winningTicket / 100).toFixed(2)}%
-                </span>
-              )}
-              <span>100.00%</span>
+          {/* Draw position (basis-point % from Random.org) */}
+          {round && round.winningTicket != null && (
+            <div className="text-center mt-3 text-[10px] font-mono" style={{ color: '#ffd97a' }}>
+              tirage · {(round.winningTicket / 100).toFixed(2)}%
             </div>
           )}
         </div>
