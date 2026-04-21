@@ -741,7 +741,9 @@ export default function JackpotPage() {
             className="rounded-2xl p-4 mt-6 text-[11px] font-mono flex flex-wrap items-center gap-x-4 gap-y-1"
             style={{ background: '#0d0b1a', border: '1px solid #1e1a30', color: '#6b6488' }}
           >
-            <span className="flex items-center gap-1"><Shield size={12} /> nonce=#{round.nonce}</span>
+            <span className="flex items-center gap-1">
+              <Shield size={12} /> round={round.id.slice(0, 6)}…{round.id.slice(-4)}
+            </span>
             <span>hash={round.seedHash.slice(0, 10)}…</span>
             {round.rngSource && (
               <span>
