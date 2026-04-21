@@ -8,6 +8,7 @@ import { Footer } from '@/components/layout/Footer';
 import { MobileNav } from '@/components/layout/MobileNav';
 import { Providers } from './providers';
 import { BetNotifications } from '@/components/BetNotifications';
+import { JackpotCountdownAlert } from '@/components/JackpotCountdownAlert';
 import { MyBetsPanel } from '@/components/MyBetsPanel';
 import { TotpChallengeModal } from '@/components/security/TotpChallengeModal';
 
@@ -194,6 +195,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
           {/* Global bet result notifications */}
           <BetNotifications />
+
+          {/* Global jackpot "8s before launch" toast — fires anywhere on the site */}
+          <JackpotCountdownAlert />
 
           {/* Floating "Mes Paris" panel */}
           <MyBetsPanel />
