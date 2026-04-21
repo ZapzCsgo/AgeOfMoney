@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSession, signIn } from 'next-auth/react';
-import { apiClient } from '@/lib/api';
+import { apiClient, setAuthToken } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Crown, Users, Clock, Trophy, Shield, ExternalLink } from 'lucide-react';
@@ -127,6 +127,14 @@ export default function JackpotPage() {
   const revealTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const countdown = useCountdown(round?.closingAt ?? null);
+
+  // Sync the apiClient JWT so POST /jackpot/bet carries the Bearer token.
+  // Every authenticated page in this app does this — pattern is to set on
+  // session change (token rotates on refresh).
+  useEffect(() => {
+    const token = (session?.user as { accessToken?: string } | undefined)?.accessToken;
+    setAuthToken(token ?? null);
+  }, [session]);
 
   const fetchRound = useCallback(async () => {
     try {
