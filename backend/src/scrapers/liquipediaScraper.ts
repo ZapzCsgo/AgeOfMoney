@@ -760,19 +760,49 @@ export async function scrapeUpcomingMatches(): Promise<void> {
           }
         }
 
-        // If an UPCOMING/LIVE match already exists for these players within ±2h,
-        // make sure its game/tournament link reflects what we just (re-)detected
-        // — old matches from a wrong wiki classification get healed here.
+        // Dedup élargi à TOUS les statuts (y compris CANCELLED). Avant, le check
+        // ignorait les CANCELLED → un match stale auto-cancellé après 8h
+        // laissait le scraper créer un NOUVEAU duplicate au cycle suivant, puis
+        // cycle de doublons (observé : 13 Capoch vs Combito du 2026-04-20
+        // tous CANCELLED, same scheduledAt).
+        //
+        // Règle :
+        //   - Si match existant (quel que soit le statut) dans la fenêtre ±2h
+        //     même tournoi → on ne crée PAS de nouveau match.
+        //   - Si l'existant est CANCELLED mais le nouveau scheduledAt est
+        //     clairement futur (≥ 30 min), on le RESSUSCITE en UPCOMING
+        //     (cas : match reprogrammé après auto-cancel).
+        //   - Sinon heal du game/tournament link seulement.
         const existing = await prisma.match.findFirst({
           where: {
             OR: [{ player1Id: p1.id, player2Id: p2.id }, { player1Id: p2.id, player2Id: p1.id }],
             scheduledAt: { gte: windowStart, lte: windowEnd },
-            status: { in: ['UPCOMING', 'LIVE'] },
+            tournamentId: tournament.id,
           },
-          select: { id: true, game: true, tournamentId: true },
+          select: { id: true, status: true, game: true, tournamentId: true },
         });
         if (existing) {
           const tournGameNow = (tournament as { game?: string }).game ?? correctGame;
+
+          // Résurrection : CANCELLED + scheduledAt futur = match reprogrammé
+          if (existing.status === 'CANCELLED' && m.scheduledAt > new Date(Date.now() + 30 * 60 * 1000)) {
+            await prisma.match.update({
+              where: { id: existing.id },
+              data: {
+                status: 'UPCOMING',
+                scheduledAt: m.scheduledAt,
+                betsClosedAt: new Date(m.scheduledAt.getTime() - 5 * 60 * 1000),
+                betsOpen: true,
+                verificationFlag: false,
+                game: tournGameNow,
+                tournamentId: tournament.id,
+              },
+            });
+            logger.info(`[Liquipedia] Resurrected CANCELLED match ${existing.id} → UPCOMING at ${m.scheduledAt.toISOString()}`);
+            continue;
+          }
+
+          // Heal game/tournament link
           if (existing.game !== tournGameNow || existing.tournamentId !== tournament.id) {
             await prisma.match.update({
               where: { id: existing.id },
