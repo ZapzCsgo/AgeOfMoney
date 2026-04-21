@@ -479,3 +479,42 @@ model JackpotBet {
   @@index([roundId, createdAt])
   @@index([userId, createdAt])
 }
+
+// ── Event Opportunities ─────────────────────────────────────────────────────
+//
+// Marketing radar : 8 rule-based detectors run on a 6 h cron, insert
+// suggestions into this table. The owner reviews them on /admin/events
+// and marks each one "acted" (with an optional note for the audit trail)
+// or "dismissed" for 7 days (dismissedUntil).
+//
+// Dedup is composite : (ruleType, subjectKey). Subject key varies per rule :
+//   - "user:${userId}"             for rules 2 (deposits_not_activated), 3 (vip_inactive), 8 (big_winner)
+//   - "affiliate:${codeId}"        for rule 5 (affiliate_surge)
+//   - "tournament:${tournamentId}" for rule 4 (s_tier_incoming)
+//   - ""                           (empty string, singleton) for rules 1 (dau_drop), 6 (low_jackpot), 7 (volume_record)
+// A fresh detection within 7 days of an existing NEW/SEEN entry with the
+// same composite key is skipped so the panel doesn't spam the operator.
+//
+// Status lifecycle : NEW → SEEN (opened the panel) → ACTED (marked handled)
+//   OR NEW → DISMISSED (dismissedUntil set, re-scans check this before
+//   creating a new suggestion).
+model EventSuggestion {
+  id              String    @id @default(cuid())
+  ruleType        String    // "DAU_DROP" | "DEPOSITS_NOT_ACTIVATED" | "VIP_INACTIVE" | "S_TIER_INCOMING" | "AFFILIATE_SURGE" | "LOW_JACKPOT" | "VOLUME_RECORD" | "BIG_WINNER"
+  subjectKey      String    // composite dedup key (see above)
+  priority        String    // "LOW" | "MEDIUM" | "HIGH"
+  title           String
+  contextData     Json      // the figures that triggered the rule (rendered on the card)
+  suggestedAction String
+  estimatedBudget String?
+  estimatedImpact String?
+  status          String    @default("NEW") // "NEW" | "SEEN" | "ACTED" | "DISMISSED"
+  dismissedUntil  DateTime?
+  actedAt         DateTime?
+  actedNote       String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([status, priority, createdAt])
+  @@index([ruleType, subjectKey, createdAt])
+}
