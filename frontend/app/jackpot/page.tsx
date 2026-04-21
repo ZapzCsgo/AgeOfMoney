@@ -67,13 +67,13 @@ interface ParticipantAggregate {
   bets: JackpotBet[];
 }
 
-/** Format the user's ticket ranges. "0–9" if contiguous, "0–9, 20–29" if
- *  the user has multiple bets split by another user. Inclusive display
- *  (ticketTo - 1). Returns null if there's nothing to show (pot empty). */
-function formatTicketRanges(bets: JackpotBet[]): string {
-  if (bets.length === 0) return '';
-  // Merge contiguous bets: if bet[i].ticketFrom === bet[i-1].ticketTo
-  // (user bet twice in a row), collapse into a single range.
+/** Format the user's ticket ranges in percentage terms (matches the
+ *  Random.org draw space [0.00%, 100.00%]). Merges contiguous bets if
+ *  the user wagered multiple times in a row. Ranges are always relative
+ *  to the CURRENT potTotal — so a solo user sees "0.00% → 100.00%", and
+ *  when someone else bets, the display re-scales automatically. */
+function formatTicketRanges(bets: JackpotBet[], potTotal: number): string {
+  if (bets.length === 0 || potTotal === 0) return '';
   const sorted = bets.slice().sort((a, b) => a.ticketFrom - b.ticketFrom);
   const merged: Array<{ from: number; to: number }> = [];
   for (const b of sorted) {
@@ -81,7 +81,13 @@ function formatTicketRanges(bets: JackpotBet[]): string {
     if (last && last.to === b.ticketFrom) last.to = b.ticketTo;
     else merged.push({ from: b.ticketFrom, to: b.ticketTo });
   }
-  return merged.map((r) => `${r.from}\u2013${r.to - 1}`).join(', ');
+  return merged
+    .map((r) => {
+      const from = (r.from / potTotal) * 100;
+      const to   = (r.to   / potTotal) * 100;
+      return `${from.toFixed(2)}%\u2013${to.toFixed(2)}%`;
+    })
+    .join(', ');
 }
 
 function userColor(userId: string): string {
@@ -921,7 +927,7 @@ export default function JackpotPage() {
               Personne n&apos;a encore misé. Soyez le premier !
             </div>
           ) : (
-            <div className="space-y-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {view.aggregates.map((p) => {
                 const isWinner = round?.status === 'COMPLETED' && round.winnerId === p.user.id;
                 return (
@@ -957,8 +963,8 @@ export default function JackpotPage() {
                         {p.user.username}
                         {isWinner && <span className="ml-2 text-[10px] font-bold" style={{ color: '#ffd97a' }}>WINNER</span>}
                       </div>
-                      <div className="text-[10px] font-mono mt-0.5" style={{ color: '#6b6488' }}>
-                        tickets {formatTicketRanges(p.bets)}
+                      <div className="text-[10px] font-mono mt-0.5 truncate" style={{ color: '#6b6488' }}>
+                        {formatTicketRanges(p.bets, round?.potTotal ?? 0)}
                       </div>
                     </div>
                     <div className="text-right shrink-0">
