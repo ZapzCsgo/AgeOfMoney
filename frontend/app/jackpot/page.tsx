@@ -621,16 +621,18 @@ export default function JackpotPage() {
             isSpinning={isSpinning}
           />
 
-          {/* Ticket range labels */}
+          {/* Ticket range labels — normalisé en %, la barre représente toujours
+              0 → 100 % de chance cumulée. Le winningTicket est converti en
+              position % sur ce même repère pour rester cohérent avec la barre. */}
           {round && round.potTotal > 0 && (
             <div className="flex items-center justify-between text-[10px] mt-2 font-mono" style={{ color: '#4a4468' }}>
-              <span>ticket 0</span>
+              <span>0%</span>
               {round.winningTicket != null && (
                 <span style={{ color: '#ffd97a' }}>
-                  winning ticket · {round.winningTicket.toLocaleString()}
+                  tirage · {(((round.winningTicket + 0.5) / round.potTotal) * 100).toFixed(2)}%
                 </span>
               )}
-              <span>ticket {(round.potTotal - 1).toLocaleString()}</span>
+              <span>100%</span>
             </div>
           )}
         </div>
@@ -670,7 +672,7 @@ export default function JackpotPage() {
                 +{reveal.netPayout.toLocaleString()} ⚜
               </div>
               <div className="text-[11px]" style={{ color: '#9b94b8' }}>
-                chance {reveal.chance.toFixed(2)}% · ticket #{reveal.winningTicket.toLocaleString()} / {reveal.potTotal.toLocaleString()}
+                chance {reveal.chance.toFixed(2)}% · tiré à {(((reveal.winningTicket + 0.5) / reveal.potTotal) * 100).toFixed(2)}%
               </div>
               <div className="text-[10px] mt-1" style={{ color: '#6b6488' }}>
                 RNG : {reveal.rngSource === 'random_org_signed' ? 'Random.org Signed API' : 'HMAC fallback'}
