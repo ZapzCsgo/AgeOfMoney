@@ -19,6 +19,7 @@ import { DateRangePicker, RangePreset } from './DateRangePicker';
 import { KpiCards, OverviewResponse } from './KpiCards';
 import { PnlSection, PnlResponse } from './PnlSection';
 import { ProductsSection, ProductsResponse } from './ProductsSection';
+import { AffiliatesSection, AffiliatesResponse } from './AffiliatesSection';
 
 const ALLOWED_PRESETS: RangePreset[] = ['1d', '7d', '30d', '90d', 'mtd', 'all'];
 
@@ -61,22 +62,24 @@ export function FinanceDashboard() {
     router.replace(`/admin/finance?${p.toString()}`, { scroll: false });
   }, [range, compare, router]);
 
-  const overview = useFinanceFetch<OverviewResponse>('/admin/finance/overview', { range }, { enabled: ready });
-  const products = useFinanceFetch<ProductsResponse>('/admin/finance/products', { range }, { enabled: ready });
+  const overview   = useFinanceFetch<OverviewResponse>('/admin/finance/overview', { range }, { enabled: ready });
+  const products   = useFinanceFetch<ProductsResponse>('/admin/finance/products', { range }, { enabled: ready });
+  const affiliates = useFinanceFetch<AffiliatesResponse>('/admin/finance/affiliates', { range }, { enabled: ready });
   // P&L ignores the range filter — it always shows today / 7d / 30d / lifetime
   // side-by-side. Passing an empty query still makes the hook fetch once.
   const pnl = useFinanceFetch<PnlResponse>('/admin/finance/pnl', {}, { enabled: ready });
 
-  const refreshing = overview.loading || products.loading || pnl.loading;
+  const refreshing = overview.loading || products.loading || pnl.loading || affiliates.loading;
   const lastUpdatedAt = Math.max(
-    overview.lastUpdatedAt ?? 0,
-    products.lastUpdatedAt ?? 0,
-    pnl.lastUpdatedAt ?? 0,
+    overview.lastUpdatedAt   ?? 0,
+    products.lastUpdatedAt   ?? 0,
+    pnl.lastUpdatedAt        ?? 0,
+    affiliates.lastUpdatedAt ?? 0,
   ) || null;
 
   const handleRefresh = useCallback(async () => {
-    await Promise.all([overview.refresh(), products.refresh(), pnl.refresh()]);
-  }, [overview, products, pnl]);
+    await Promise.all([overview.refresh(), products.refresh(), pnl.refresh(), affiliates.refresh()]);
+  }, [overview, products, pnl, affiliates]);
 
   if (!isOwner) {
     return (
@@ -108,12 +111,12 @@ export function FinanceDashboard() {
       </div>
 
       {/* Combined error banner (all endpoints surface here) */}
-      {(overview.error || products.error || pnl.error) && (
+      {(overview.error || products.error || pnl.error || affiliates.error) && (
         <div
           className="mb-4 rounded-lg px-4 py-2 text-[12px]"
           style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', color: '#fca5a5' }}
         >
-          {overview.error ?? products.error ?? pnl.error}
+          {overview.error ?? products.error ?? pnl.error ?? affiliates.error}
         </div>
       )}
 
@@ -127,6 +130,9 @@ export function FinanceDashboard() {
 
       {/* Products */}
       <ProductsSection data={products.data} loading={products.loading && !products.data} />
+
+      {/* Affiliate program — top 10 affiliates + global KPIs */}
+      <AffiliatesSection data={affiliates.data} loading={affiliates.loading && !affiliates.data} />
     </div>
   );
 }
