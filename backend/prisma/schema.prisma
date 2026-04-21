@@ -36,6 +36,8 @@ model User {
   rouletteBets     RouletteBet[]
   coinflipsCreated CoinFlip[]    @relation("coinflipCreator")
   coinflipsJoined  CoinFlip[]    @relation("coinflipJoiner")
+  jackpotBets      JackpotBet[]
+  jackpotsWon      JackpotRound[] @relation("jackpotWinner")
   trustedIps      UserTrustedIp[]
 
   @@unique([provider, providerId])
@@ -406,4 +408,73 @@ model CoinFlip {
   @@index([status])
   @@index([creatorId])
   @@index([joinerId])
+}
+
+// ── Jackpot PvP (CSGO-style pot game) ────────────────────────────────────────
+//
+// Round lifecycle:
+//   OPEN      → betting open, anyone can enter. Timer NOT started.
+//   CLOSING   → 2+ participants reached, 90s countdown running (closingAt set).
+//   SPINNING  → timer expired, RNG call in progress, pot locked.
+//   COMPLETED → winner credited (95 %), house took rake (5 %), seeds revealed.
+//   CANCELLED → only 1 participant at timer end OR API fatal error — refunded.
+//
+// Provably-fair (hybrid commit-reveal + Random.org Signed API when available):
+//   1. At round open, generate serverSeed (32-byte hex) + publish seedHash = SHA256(serverSeed).
+//   2. clientSeed = round id + serial nonce — public from the start.
+//   3. When round closes, call Random.org generateSignedIntegers with
+//      userData = { roundId, nonce } → get data[0] + signature.
+//      rngSource = "random_org_signed", persist randomJson + randomSignature.
+//   4. Fallback if Random.org unreachable (3× consecutive fails, timeout 10s,
+//      or RANDOM_ORG_API_KEY absent): rngSource = "hmac_fallback",
+//      winningTicket = HMAC_SHA256(serverSeed, clientSeed + ":" + nonce) % potTotal.
+//   5. Winner = the bet whose [ticketFrom, ticketTo) contains winningTicket.
+//   6. settledAt set, serverSeed revealed, users can verify on /fair/jackpot/:id.
+model JackpotRound {
+  id               String       @id @default(cuid())
+  status           String       @default("OPEN")  // OPEN | CLOSING | SPINNING | COMPLETED | CANCELLED
+  potTotal         Int          @default(0)       // sum of all bets in coins
+  participantCount Int          @default(0)       // distinct users in round (for timer trigger)
+  nonce            Int          @unique           // round serial, monotonic — feeds RNG userData
+  // Provably-fair commit-reveal
+  serverSeed       String                         // 32-byte hex — revealed at settle
+  seedHash         String                         // SHA256(serverSeed) — committed at open
+  clientSeed       String                         // public salt (round id + nonce)
+  // RNG output (null until SPINNING → COMPLETED)
+  rngSource        String?                        // "random_org_signed" | "hmac_fallback"
+  randomJson       String?                        // exact JSON of Random.org's `random` object (signature source)
+  randomSignature  String?                        // base64 RSA-SHA512 signature
+  randomSerial     BigInt?                        // Random.org serialNumber
+  winningTicket    Int?                           // roll result in [0, potTotal)
+  winnerId         String?
+  winner           User?        @relation("jackpotWinner", fields: [winnerId], references: [id])
+  rake             Int          @default(0)       // 5 % of pot, credited to house
+  netPayout        Int?         // potTotal - rake — credited to winner
+  startedAt        DateTime     @default(now())
+  closingAt        DateTime?                      // timer end — set when round transitions to CLOSING
+  settledAt        DateTime?
+  bets             JackpotBet[]
+  createdAt        DateTime     @default(now())
+
+  @@index([status])
+  @@index([winnerId])
+  @@index([createdAt])
+}
+
+// Each bet reserves a contiguous ticket range [ticketFrom, ticketTo) sized by
+// the bet amount. Winner is the user whose range contains the winning ticket.
+// This is the standard CSGO jackpot probability model: chance = amount / potTotal.
+model JackpotBet {
+  id         String       @id @default(cuid())
+  round      JackpotRound @relation(fields: [roundId], references: [id])
+  roundId    String
+  user       User         @relation(fields: [userId], references: [id])
+  userId     String
+  amount     Int          // coins wagered (min 1, max 5000 enforced in service)
+  ticketFrom Int          // inclusive — equals prior potTotal at time of bet
+  ticketTo   Int          // exclusive — equals ticketFrom + amount
+  createdAt  DateTime     @default(now())
+
+  @@index([roundId, createdAt])
+  @@index([userId, createdAt])
 }
