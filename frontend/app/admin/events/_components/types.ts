@@ -6,7 +6,8 @@ export type RuleType =
   | 'AFFILIATE_SURGE'
   | 'LOW_JACKPOT'
   | 'VOLUME_RECORD'
-  | 'BIG_WINNER';
+  | 'BIG_WINNER'
+  | 'RAIN_OPPORTUNITY';
 
 export type Priority = 'LOW' | 'MEDIUM' | 'HIGH';
 export type Status = 'NEW' | 'SEEN' | 'ACTED' | 'DISMISSED';
@@ -38,9 +39,12 @@ export const RULE_LABELS: Record<RuleType, string> = {
   LOW_JACKPOT:            "Jackpot en sommeil",
   VOLUME_RECORD:          "Record de volume",
   BIG_WINNER:             "Big winner",
+  RAIN_OPPORTUNITY:       "Rain opportunity",
 };
 
-export const RULE_CATEGORY: Record<RuleType, 'engagement' | 'tournament' | 'affiliate' | 'milestone' | 'user'> = {
+export type RuleCategory = 'engagement' | 'tournament' | 'affiliate' | 'milestone' | 'user' | 'rain';
+
+export const RULE_CATEGORY: Record<RuleType, RuleCategory> = {
   DAU_DROP:               'engagement',
   DEPOSITS_NOT_ACTIVATED: 'engagement',
   VIP_INACTIVE:           'user',
@@ -49,14 +53,16 @@ export const RULE_CATEGORY: Record<RuleType, 'engagement' | 'tournament' | 'affi
   LOW_JACKPOT:            'engagement',
   VOLUME_RECORD:          'milestone',
   BIG_WINNER:             'user',
+  RAIN_OPPORTUNITY:       'rain',
 };
 
-export const CATEGORY_LABELS: Record<typeof RULE_CATEGORY[RuleType], string> = {
+export const CATEGORY_LABELS: Record<RuleCategory, string> = {
   engagement: 'ENGAGEMENT',
   tournament: 'TOURNAMENT',
   affiliate:  'AFFILIATE',
   milestone:  'MILESTONE',
   user:       'USER',
+  rain:       'RAIN',
 };
 
 export const PRIORITY_STYLE: Record<Priority, { border: string; badgeBg: string; badgeColor: string; accent: string }> = {

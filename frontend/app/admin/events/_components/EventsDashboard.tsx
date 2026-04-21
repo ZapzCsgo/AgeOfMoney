@@ -26,6 +26,8 @@ import { useEventsFetch } from '../_hooks/useEventsFetch';
 import { FilterBar } from './FilterBar';
 import { EventCard } from './EventCard';
 import { ActedModal } from './ActedModal';
+import { RainLaunchModal } from './RainLaunchModal';
+import { RainHistorySection } from './RainHistorySection';
 import { EventSuggestion, RuleType } from './types';
 
 export function EventsDashboard() {
@@ -103,6 +105,9 @@ export function EventsDashboard() {
 
   // Acted modal
   const [actedTarget, setActedTarget] = useState<EventSuggestion | null>(null);
+
+  // Rain launch modal (opens when user clicks "Launch Rain" on a RAIN_OPPORTUNITY card)
+  const [rainTarget, setRainTarget] = useState<EventSuggestion | null>(null);
 
   const handleActedConfirm = useCallback(async (note: string) => {
     if (!actedTarget) return;
@@ -202,6 +207,7 @@ export function EventsDashboard() {
                   event={event}
                   onActed={(e) => setActedTarget(e)}
                   onDismiss={handleDismiss}
+                  onLaunchRain={(e) => setRainTarget(e)}
                   busy={busyId === event.id}
                 />
               </motion.div>
@@ -217,6 +223,20 @@ export function EventsDashboard() {
         onClose={() => setActedTarget(null)}
         onConfirm={handleActedConfirm}
       />
+
+      <RainLaunchModal
+        open={rainTarget !== null}
+        eventSuggestionId={rainTarget?.id ?? null}
+        eventTitle={rainTarget?.title ?? null}
+        onClose={() => setRainTarget(null)}
+        onLaunched={() => {
+          // The backend auto-marks the suggestion ACTED, so refetching clears it
+          events.refresh();
+        }}
+      />
+
+      {/* Past rains audit trail */}
+      <RainHistorySection ready={ready} />
     </div>
   );
 }

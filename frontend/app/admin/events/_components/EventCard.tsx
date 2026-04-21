@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Check, X, ChevronDown, ChevronUp, Flame, Lightbulb, Wallet, TrendingUp } from 'lucide-react';
+import { Check, X, ChevronDown, ChevronUp, Flame, Lightbulb, Wallet, TrendingUp, Droplets } from 'lucide-react';
 import { EventSuggestion, RULE_LABELS, RULE_CATEGORY, CATEGORY_LABELS, PRIORITY_STYLE } from './types';
 
 /** Friendly relative "il y a X min / h / j" for createdAt */
@@ -25,11 +25,13 @@ export function EventCard({
   event,
   onActed,
   onDismiss,
+  onLaunchRain,
   busy,
 }: {
   event: EventSuggestion;
   onActed: (e: EventSuggestion) => void;
   onDismiss: (id: string) => void;
+  onLaunchRain?: (e: EventSuggestion) => void;
   busy: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -105,15 +107,32 @@ export function EventCard({
 
         {/* Actions */}
         <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={() => onActed(event)}
-            disabled={busy}
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold tracking-wider uppercase hover:opacity-80 transition-opacity disabled:opacity-50"
-            style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.35)', color: '#10b981' }}
-          >
-            <Check size={11} />
-            Marquer traité
-          </button>
+          {event.ruleType === 'RAIN_OPPORTUNITY' && onLaunchRain ? (
+            <button
+              onClick={() => onLaunchRain(event)}
+              disabled={busy}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold tracking-wider uppercase hover:opacity-90 transition-opacity disabled:opacity-50"
+              style={{
+                background: 'linear-gradient(135deg, #f5c842 0%, #d4a017 100%)',
+                color: '#1a1010',
+                border: 'none',
+                boxShadow: '0 1px 8px rgba(255,197,66,0.25)',
+              }}
+            >
+              <Droplets size={11} />
+              Launch Rain
+            </button>
+          ) : (
+            <button
+              onClick={() => onActed(event)}
+              disabled={busy}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold tracking-wider uppercase hover:opacity-80 transition-opacity disabled:opacity-50"
+              style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.35)', color: '#10b981' }}
+            >
+              <Check size={11} />
+              Marquer traité
+            </button>
+          )}
           <button
             onClick={() => onDismiss(event.id)}
             disabled={busy}
