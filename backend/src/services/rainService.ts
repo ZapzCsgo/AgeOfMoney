@@ -91,8 +91,8 @@ export async function createRain(adminId: string, input: CreateRainInput): Promi
   const amount = Math.floor(input.amount);
   const maxP   = Math.floor(input.maxParticipants);
   const dur    = Math.floor(input.duration);
-  if (!(amount >= 50 && amount <= 10_000)) {
-    return { ok: false, reason: 'INVALID_INPUT', message: 'amount hors bornes [50, 10000]' };
+  if (!(amount >= 10 && amount <= 10_000)) {
+    return { ok: false, reason: 'INVALID_INPUT', message: 'amount hors bornes [10, 10000]' };
   }
   if (!(maxP >= 5 && maxP <= 500)) {
     return { ok: false, reason: 'INVALID_INPUT', message: 'maxParticipants hors bornes [5, 500]' };

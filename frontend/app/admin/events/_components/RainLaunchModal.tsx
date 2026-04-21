@@ -18,7 +18,7 @@ import { apiClient } from '@/lib/api';
 
 const DEFAULTS = { amount: 500, maxParticipants: 50, duration: 120 };
 const BOUNDS = {
-  amount:          { min: 50, max: 10_000 },
+  amount:          { min: 10, max: 10_000 },
   maxParticipants: { min: 5,  max: 500 },
   duration:        { min: 30, max: 600 },
 };

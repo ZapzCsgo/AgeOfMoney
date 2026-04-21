@@ -9,7 +9,8 @@ import { MobileNav } from '@/components/layout/MobileNav';
 import { Providers } from './providers';
 import { BetNotifications } from '@/components/BetNotifications';
 import { JackpotCountdownAlert } from '@/components/JackpotCountdownAlert';
-import { RainWidget } from '@/components/rain/RainWidget';
+// RainWidget is mounted inside ChatPanel (top of the right column) so it
+// doesn't overlay the navbar. See components/layout/ChatPanel.tsx.
 import { MyBetsPanel } from '@/components/MyBetsPanel';
 import { TotpChallengeModal } from '@/components/security/TotpChallengeModal';
 
@@ -200,9 +201,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {/* Global jackpot "8s before launch" toast — fires anywhere on the site */}
           <JackpotCountdownAlert />
 
-          {/* Global Rain widget — appears on every page when a rain is ACTIVE.
-              Admin-triggered, all users see it, dismissible only once claimed. */}
-          <RainWidget />
+          {/* RainWidget is rendered inside ChatPanel (top of the right column)
+              so it never overlays the navbar. See components/layout/ChatPanel.tsx. */}
 
           {/* Floating "Mes Paris" panel */}
           <MyBetsPanel />

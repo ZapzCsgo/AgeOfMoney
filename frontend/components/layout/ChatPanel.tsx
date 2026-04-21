@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { connectSocket, getSocket } from '@/lib/socket';
 import { useT } from '@/lib/i18n';
 import { apiClient } from '@/lib/api';
+import { RainWidget } from '@/components/rain/RainWidget';
 
 // Custom image emojis — also used for rendering shortcodes in messages
 const CUSTOM_EMOJIS: { name: string; file: string }[] = [
@@ -341,6 +342,10 @@ export function ChatPanel() {
           <Users size={11} className="text-[#3d3860]" />
         </div>
       </div>
+
+      {/* Rain widget — pinned at the top of the chat column so it never
+          overlays the navbar. Renders null when no rain is active. */}
+      <RainWidget />
 
       {/* Messages */}
       <div

@@ -170,88 +170,88 @@ export function RainWidget() {
       <AnimatePresence>
         <motion.div
           key={rain.id}
-          initial={{ y: -20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: -20, opacity: 0 }}
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
           transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-          className="fixed left-0 right-0 z-[100]"
-          style={{ top: 0 }}
+          className="w-full"
         >
           <div
-            className="mx-auto w-full max-w-5xl px-3 py-2 flex items-center gap-3 flex-wrap"
+            className="w-full px-3 py-2 flex flex-col gap-2"
             style={{
               background: 'linear-gradient(135deg, rgba(255,197,66,0.14) 0%, rgba(255,217,122,0.08) 50%, rgba(255,197,66,0.14) 100%)',
               borderBottom: '1px solid rgba(255,197,66,0.35)',
-              boxShadow: '0 2px 16px rgba(255,197,66,0.18)',
+              boxShadow: '0 2px 12px rgba(255,197,66,0.14)',
             }}
           >
-            <div className="shrink-0 rounded-full p-1.5" style={{ background: 'rgba(255,197,66,0.2)', border: '1px solid rgba(255,197,66,0.4)' }}>
-              <Droplets size={14} style={{ color: '#ffd97a' }} />
-            </div>
-
-            <div className="flex-1 min-w-[200px]">
-              <div className="flex items-center gap-2 flex-wrap text-[12px]" style={{ color: '#e5e5e5' }}>
-                <span className="font-bold tracking-wider uppercase" style={{ fontFamily: 'Cinzel, serif', color: '#ffd97a' }}>
+            {/* Top row : icon + title + close (if dismissible) */}
+            <div className="flex items-center gap-2">
+              <div className="shrink-0 rounded-full p-1.5" style={{ background: 'rgba(255,197,66,0.2)', border: '1px solid rgba(255,197,66,0.4)' }}>
+                <Droplets size={13} style={{ color: '#ffd97a' }} />
+              </div>
+              <div className="flex-1 min-w-0 text-[11px]" style={{ color: '#e5e5e5' }}>
+                <div className="font-bold tracking-wider uppercase" style={{ fontFamily: 'Cinzel, serif', color: '#ffd97a' }}>
                   {ended ? 'Rain ended' : 'Rain in progress'}
-                </span>
-                <span style={{ color: '#9990b8' }}>·</span>
-                <span>
-                  <strong>{rain.amount.toLocaleString('fr-FR')} ⚜</strong> up for grabs
-                </span>
+                </div>
+                <div style={{ color: '#9990b8' }}>
+                  <strong style={{ color: '#e5e5e5' }}>{rain.amount.toLocaleString('fr-FR')} ⚜</strong> up for grabs
+                </div>
               </div>
-              <div className="text-[11px] mt-0.5" style={{ color: '#9990b8' }}>
-                <strong style={{ color: '#c8c0e0' }}>{rain.actualParticipants}</strong> / {rain.maxParticipants} participants
-                {!ended && (
-                  <> · <strong style={{ color: secondsLeft <= 10 ? '#f87171' : '#ffd97a' }}>{mm}:{ss}</strong> remaining</>
-                )}
-                {' · '}<strong style={{ color: '#c8c0e0' }}>{perUserToShow} ⚜</strong> each
-              </div>
-              {error && (
-                <div className="text-[11px] mt-0.5" style={{ color: '#f87171' }}>{error}</div>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2 flex-wrap">
-              {!ended && !claimed && (
-                <button
-                  onClick={handleOpenCaptcha}
-                  disabled={claiming || rain.actualParticipants >= rain.maxParticipants}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold tracking-wider uppercase hover:opacity-90 transition-opacity disabled:opacity-60"
-                  style={{ background: 'linear-gradient(135deg, #f5c842 0%, #d4a017 100%)', color: '#1a1010', border: 'none' }}
-                >
-                  <Droplets size={12} />
-                  Claim your share
-                </button>
-              )}
-              {claimed && coinsReceived != null && (
-                <span
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold tracking-wider uppercase"
-                  style={{ background: 'rgba(16,185,129,0.12)', color: '#10b981', border: '1px solid rgba(16,185,129,0.35)' }}
-                >
-                  <Check size={11} />
-                  +{coinsReceived} ⚜
-                </span>
-              )}
-              {claimed && coinsReceived == null && (
-                <span
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold tracking-wider uppercase"
-                  style={{ background: 'rgba(16,185,129,0.12)', color: '#10b981', border: '1px solid rgba(16,185,129,0.35)' }}
-                >
-                  <Check size={11} />
-                  Claimé
-                </span>
-              )}
               {canDismiss && (
                 <button
                   onClick={() => setDismissed(true)}
                   aria-label="fermer la bannière"
-                  className="p-1 rounded hover:opacity-80 transition-opacity"
+                  className="shrink-0 p-1 rounded hover:opacity-80 transition-opacity"
                   style={{ color: '#6b6488' }}
                 >
-                  <X size={14} />
+                  <X size={12} />
                 </button>
               )}
             </div>
+
+            {/* Stats line */}
+            <div className="text-[10px] font-mono" style={{ color: '#9990b8' }}>
+              <strong style={{ color: '#c8c0e0' }}>{rain.actualParticipants}</strong>/{rain.maxParticipants}
+              {!ended && (
+                <> · <strong style={{ color: secondsLeft <= 10 ? '#f87171' : '#ffd97a' }}>{mm}:{ss}</strong></>
+              )}
+              {' · '}<strong style={{ color: '#c8c0e0' }}>{perUserToShow} ⚜</strong> each
+            </div>
+
+            {error && (
+              <div className="text-[10px]" style={{ color: '#f87171' }}>{error}</div>
+            )}
+
+            {/* Action */}
+            {!ended && !claimed && (
+              <button
+                onClick={handleOpenCaptcha}
+                disabled={claiming || rain.actualParticipants >= rain.maxParticipants}
+                className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold tracking-wider uppercase hover:opacity-90 transition-opacity disabled:opacity-60"
+                style={{ background: 'linear-gradient(135deg, #f5c842 0%, #d4a017 100%)', color: '#1a1010', border: 'none' }}
+              >
+                <Droplets size={11} />
+                Claim your share
+              </button>
+            )}
+            {claimed && coinsReceived != null && (
+              <span
+                className="w-full inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold tracking-wider uppercase"
+                style={{ background: 'rgba(16,185,129,0.12)', color: '#10b981', border: '1px solid rgba(16,185,129,0.35)' }}
+              >
+                <Check size={11} />
+                +{coinsReceived} ⚜
+              </span>
+            )}
+            {claimed && coinsReceived == null && (
+              <span
+                className="w-full inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold tracking-wider uppercase"
+                style={{ background: 'rgba(16,185,129,0.12)', color: '#10b981', border: '1px solid rgba(16,185,129,0.35)' }}
+              >
+                <Check size={11} />
+                Claimé
+              </span>
+            )}
           </div>
         </motion.div>
       </AnimatePresence>
