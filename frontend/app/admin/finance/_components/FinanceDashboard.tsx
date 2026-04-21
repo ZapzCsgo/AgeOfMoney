@@ -17,6 +17,7 @@ import { setAuthToken } from '@/lib/api';
 import { useFinanceFetch } from '../_hooks/useFinanceFetch';
 import { DateRangePicker, RangePreset } from './DateRangePicker';
 import { KpiCards, OverviewResponse } from './KpiCards';
+import { PnlSection, PnlResponse } from './PnlSection';
 import { ProductsSection, ProductsResponse } from './ProductsSection';
 
 const ALLOWED_PRESETS: RangePreset[] = ['1d', '7d', '30d', '90d', 'mtd', 'all'];
@@ -55,13 +56,20 @@ export function FinanceDashboard() {
 
   const overview = useFinanceFetch<OverviewResponse>('/admin/finance/overview', { range });
   const products = useFinanceFetch<ProductsResponse>('/admin/finance/products', { range });
+  // P&L ignores the range filter — it always shows today / 7d / 30d / lifetime
+  // side-by-side. Passing an empty query still makes the hook fetch once.
+  const pnl = useFinanceFetch<PnlResponse>('/admin/finance/pnl', {});
 
-  const refreshing = overview.loading || products.loading;
-  const lastUpdatedAt = Math.max(overview.lastUpdatedAt ?? 0, products.lastUpdatedAt ?? 0) || null;
+  const refreshing = overview.loading || products.loading || pnl.loading;
+  const lastUpdatedAt = Math.max(
+    overview.lastUpdatedAt ?? 0,
+    products.lastUpdatedAt ?? 0,
+    pnl.lastUpdatedAt ?? 0,
+  ) || null;
 
   const handleRefresh = useCallback(async () => {
-    await Promise.all([overview.refresh(), products.refresh()]);
-  }, [overview, products]);
+    await Promise.all([overview.refresh(), products.refresh(), pnl.refresh()]);
+  }, [overview, products, pnl]);
 
   if (!isOwner) {
     return (
@@ -92,17 +100,20 @@ export function FinanceDashboard() {
         />
       </div>
 
-      {/* Combined error banner (both endpoints surface here) */}
-      {(overview.error || products.error) && (
+      {/* Combined error banner (all endpoints surface here) */}
+      {(overview.error || products.error || pnl.error) && (
         <div
           className="mb-4 rounded-lg px-4 py-2 text-[12px]"
           style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', color: '#fca5a5' }}
         >
-          {overview.error ?? products.error}
+          {overview.error ?? products.error ?? pnl.error}
         </div>
       )}
 
-      {/* KPIs */}
+      {/* P&L Summary — today/7d/30d/lifetime pills */}
+      <PnlSection data={pnl.data} loading={pnl.loading && !pnl.data} />
+
+      {/* KPIs for the selected range */}
       <div className="mb-6">
         <KpiCards data={overview.data} loading={overview.loading && !overview.data} compare={compare} />
       </div>

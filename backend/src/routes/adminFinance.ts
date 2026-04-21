@@ -11,6 +11,7 @@ import { requireOwner } from '../middleware/auth';
 import {
   computeFinanceOverview,
   computeProductBreakdown,
+  computePnlSummary,
   clearFinanceCache,
   RangePreset,
 } from '../services/adminFinanceService';
@@ -52,6 +53,20 @@ router.get('/products', async (req: Request, res: Response): Promise<void> => {
   } catch (err) {
     logger.error('GET /admin/finance/products error:', err);
     res.status(500).json({ error: 'Failed to compute product breakdown' });
+  }
+});
+
+// GET /api/v1/admin/finance/pnl
+// P&L summary — today / 7d / 30d / lifetime, each with NGR in coins + EUR
+// equivalent and net cash. Lifetime row also returns the realized profit
+// (net deposits - current liability in cents).
+router.get('/pnl', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const data = await computePnlSummary();
+    res.json({ data });
+  } catch (err) {
+    logger.error('GET /admin/finance/pnl error:', err);
+    res.status(500).json({ error: 'Failed to compute P&L summary' });
   }
 });
 

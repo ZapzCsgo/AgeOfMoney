@@ -1,7 +1,8 @@
 'use client';
 
-import { ArrowDown, ArrowUp, Minus, Info } from 'lucide-react';
+import { ArrowDown, ArrowUp, Minus } from 'lucide-react';
 import { Sparkline } from './Sparkline';
+import { InfoTooltip } from './InfoTooltip';
 import type { RangePreset } from './DateRangePicker';
 
 // ─── Types — mirror the backend `OverviewResponse` shape ────────────────────
@@ -94,9 +95,7 @@ function KpiCard({ label, value, suffix, tooltip, delta, sparkline, loading, com
       <div>
         <div className="flex items-center gap-1 text-[10px] tracking-[0.2em] uppercase" style={{ color: '#6b6488' }}>
           {label}
-          <span title={tooltip} className="cursor-help opacity-60 hover:opacity-100 transition-opacity">
-            <Info size={10} />
-          </span>
+          <InfoTooltip content={tooltip} />
         </div>
 
         <div className="mt-2 flex items-baseline gap-1.5 min-h-[28px]">

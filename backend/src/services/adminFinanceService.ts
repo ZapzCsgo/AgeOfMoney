@@ -270,6 +270,105 @@ export async function computeFinanceOverview(preset: RangePreset): Promise<Overv
   });
 }
 
+// ─── P&L summary (today / 7d / 30d / lifetime) ──────────────────────────────
+//
+// Operator-friendly view : one row per well-known period + a bottom-line
+// number in EUR so you know instantly "am I up or down".
+//
+// Per-period metric = NGR (coins) × EUR-per-coin at withdrawal rate.
+// Rationale : NGR captures the real gaming margin you earn on bets minus
+// affiliate commissions. Converting at the withdrawal rate tells you what
+// that margin is worth in EUR if users were to cash out right now.
+//
+// Lifetime gets a stricter calculation : actual cash position minus
+// outstanding liability. This is the "what's really in the bank right now"
+// number.
+//
+// Exchange rate comes from CLAUDE.md : withdrawal is 1.69 ⚜ → $0.99,
+// i.e. 1 ⚜ ≈ $0.586. App displays € and USD ≈ EUR at this granularity;
+// admin view treats the two as equivalent.
+
+const COIN_TO_EUR = 0.99 / 1.69; // ≈ 0.5858
+
+export interface PnlPeriod {
+  label: 'today' | '7d' | '30d' | 'lifetime';
+  ngrCoins: number;
+  ngrEur: number;
+  netCashEurCents: number;     // deposits - withdrawals in the period (cents)
+  realizedProfitEurCents: number | null; // lifetime only : net cash - liability (cents), null for shorter periods
+}
+
+export async function computePnlSummary(): Promise<{
+  generatedAt: string;
+  periods: PnlPeriod[];
+}> {
+  return cached('finance:pnl', 60_000, async () => {
+    const now = new Date();
+    const start = (daysBack: number) => new Date(now.getTime() - daysBack * 86_400_000);
+    const epoch = new Date(0);
+
+    // Helper — NGR coins for a window
+    async function ngrCoins(from: Date, to: Date): Promise<number> {
+      const [ggr, affiliateAgg] = await Promise.all([
+        computeGgrForWindow(from, to),
+        prisma.affiliateReferral.aggregate({
+          _sum: { commission: true },
+          where: { lastActiveAt: { gte: from, lt: to } },
+        }),
+      ]);
+      return ggr - (affiliateAgg._sum.commission ?? 0);
+    }
+
+    // Helper — net cash in cents for a window
+    async function netCashCents(from: Date, to: Date): Promise<number> {
+      const [dep, wdr] = await Promise.all([
+        prisma.transaction.aggregate({
+          _sum: { realAmount: true },
+          where: { type: 'deposit', status: 'completed', createdAt: { gte: from, lt: to } },
+        }),
+        prisma.transaction.aggregate({
+          _sum: { realAmount: true },
+          where: { type: 'withdrawal', status: 'completed', createdAt: { gte: from, lt: to } },
+        }),
+      ]);
+      return (dep._sum.realAmount ?? 0) - (wdr._sum.realAmount ?? 0);
+    }
+
+    const [todayNgr, week7Ngr, day30Ngr, lifetimeNgr,
+           todayCash, week7Cash, day30Cash, lifetimeCash,
+           liabilityAgg] = await Promise.all([
+      ngrCoins(start(1), now),
+      ngrCoins(start(7), now),
+      ngrCoins(start(30), now),
+      ngrCoins(epoch, now),
+      netCashCents(start(1), now),
+      netCashCents(start(7), now),
+      netCashCents(start(30), now),
+      netCashCents(epoch, now),
+      prisma.user.aggregate({
+        _sum: { coins: true },
+        where: { isBanned: false },
+      }),
+    ]);
+
+    const currentLiabilityCoins = liabilityAgg._sum.coins ?? 0;
+    const currentLiabilityEurCents = Math.round(currentLiabilityCoins * COIN_TO_EUR * 100);
+    const realizedProfitLifetimeCents = lifetimeCash - currentLiabilityEurCents;
+
+    const coinsToEurCents = (c: number) => Math.round(c * COIN_TO_EUR * 100);
+
+    return {
+      generatedAt: new Date().toISOString(),
+      periods: [
+        { label: 'today',    ngrCoins: todayNgr,    ngrEur: coinsToEurCents(todayNgr),    netCashEurCents: todayCash,    realizedProfitEurCents: null },
+        { label: '7d',       ngrCoins: week7Ngr,    ngrEur: coinsToEurCents(week7Ngr),    netCashEurCents: week7Cash,    realizedProfitEurCents: null },
+        { label: '30d',      ngrCoins: day30Ngr,    ngrEur: coinsToEurCents(day30Ngr),    netCashEurCents: day30Cash,    realizedProfitEurCents: null },
+        { label: 'lifetime', ngrCoins: lifetimeNgr, ngrEur: coinsToEurCents(lifetimeNgr), netCashEurCents: lifetimeCash, realizedProfitEurCents: realizedProfitLifetimeCents },
+      ],
+    };
+  });
+}
+
 // ─── Product breakdown ───────────────────────────────────────────────────────
 
 export interface ProductRow {
