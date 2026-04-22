@@ -502,21 +502,140 @@ async function cancelRound(roundId: string): Promise<void> {
   }, RESTART_DELAY_MS);
 }
 
-/** Startup: cancel orphaned rounds (refund), log RNG mode, open first round. */
+/**
+ * Startup : preserve in-flight rounds instead of refunding.
+ *
+ * Previous behaviour refunded every OPEN/CLOSING/SPINNING round on boot,
+ * which was brutal — a Railway redeploy in the middle of a 90 s timer
+ * would wipe the pot and force users to bet again. The new flow resumes
+ * each state :
+ *
+ *   OPEN     → just re-point currentRoundId at it. No timer running yet
+ *              (it only starts on the 2nd participant).
+ *   CLOSING  → re-point currentRoundId AND re-arm the closingTimer for
+ *              the remaining duration (closingAt - now). If the timer
+ *              should have fired during downtime (remaining ≤ 0), settle
+ *              immediately.
+ *   SPINNING → the RNG step was mid-flight :
+ *              - winnerId + netPayout already written → credit the winner
+ *                and mark COMPLETED (the 6 s payout setTimeout was lost)
+ *              - no winner yet → reset to CLOSING with closingAt=now so
+ *                settleRound() retries the RNG on the next tick
+ *
+ * If no live round exists → createRound() as before.
+ * If multiple OPEN/CLOSING exist (race from old bugs), keep the most
+ * recent and cancel+refund the extras — only 1 current round allowed.
+ */
 export async function initJackpot(): Promise<void> {
-  const orphans = await prisma.jackpotRound.findMany({
+  logRngStartupState('[Jackpot]');
+  const now = new Date();
+  const io = getIo();
+
+  const alive = await prisma.jackpotRound.findMany({
     where: { status: { in: ['OPEN', 'CLOSING', 'SPINNING'] } },
-    select: { id: true, status: true },
+    orderBy: { createdAt: 'desc' },
   });
-  for (const r of orphans) {
-    logger.warn(`[Jackpot] Orphaned round ${r.id} (${r.status}) on boot — refunding`);
-    await cancelRound(r.id).catch((err) =>
-      logger.error(`[Jackpot] orphan cancel failed for ${r.id}:`, err),
+
+  if (alive.length === 0) {
+    await createRound();
+    logger.info('[Jackpot] Service initialized (fresh start, no live round)');
+    return;
+  }
+
+  logger.info(`[Jackpot] Found ${alive.length} live round(s) on boot — resuming instead of refunding`);
+
+  // ─── SPINNING : finish the settle that got interrupted ───
+  const spinning = alive.filter((r) => r.status === 'SPINNING');
+  for (const r of spinning) {
+    if (r.winnerId && r.netPayout != null) {
+      logger.warn(`[Jackpot] Resuming SPINNING ${r.id} — crediting winner ${r.winnerId} +${r.netPayout}⚜ (payout timeout lost on crash)`);
+      try {
+        await prisma.$transaction(async (tx) => {
+          await tx.user.update({
+            where: { id: r.winnerId! },
+            data: { coins: { increment: r.netPayout! } },
+          });
+          await tx.jackpotRound.update({
+            where: { id: r.id },
+            data: { status: 'COMPLETED', settledAt: now },
+          });
+        });
+        const winnerFresh = await prisma.user.findUnique({
+          where: { id: r.winnerId },
+          select: { coins: true },
+        });
+        io?.to(`user:${r.winnerId}`).emit('coinsUpdate', {
+          coins: winnerFresh?.coins ?? 0,
+          direction: 'up',
+        });
+        const completed = await prisma.jackpotRound.findUnique({
+          where: { id: r.id },
+          include: {
+            winner: { select: { id: true, username: true, avatar: true } },
+            bets: {
+              include: { user: { select: { id: true, username: true, avatar: true } } },
+              orderBy: { createdAt: 'asc' },
+            },
+          },
+        });
+        if (completed) io?.to('jackpot:lobby').emit('jackpot:round:settled', completed);
+      } catch (err) {
+        logger.error(`[Jackpot] Failed to resume SPINNING ${r.id}:`, err);
+      }
+    } else {
+      // RNG never completed — roll back to CLOSING so settleRound() retries
+      logger.warn(`[Jackpot] SPINNING ${r.id} has no winner persisted — rolling back to CLOSING for retry`);
+      await prisma.jackpotRound.update({
+        where: { id: r.id },
+        data: { status: 'CLOSING', closingAt: now },
+      });
+    }
+  }
+
+  // ─── Refresh list after SPINNING resolutions ───
+  const resumable = await prisma.jackpotRound.findMany({
+    where: { status: { in: ['OPEN', 'CLOSING'] } },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  if (resumable.length === 0) {
+    await createRound();
+    logger.info('[Jackpot] Service initialized (fresh round after SPINNING resume)');
+    return;
+  }
+
+  // ─── Keep the most recent as current, cancel extras ───
+  const chosen = resumable[0];
+  currentRoundId = chosen.id;
+  logger.info(`[Jackpot] Resumed ${chosen.status} round ${chosen.id} as current (${chosen.participantCount} joueurs, pot=${chosen.potTotal}⚜)`);
+
+  if (chosen.status === 'CLOSING' && chosen.closingAt) {
+    const remainingMs = chosen.closingAt.getTime() - now.getTime();
+    if (remainingMs <= 0) {
+      logger.warn(`[Jackpot] CLOSING ${chosen.id} expired during downtime — settling now`);
+      settleRound(chosen.id).catch((err) =>
+        logger.error(`[Jackpot] settle error for ${chosen.id}:`, err),
+      );
+    } else {
+      logger.info(`[Jackpot] Re-arming CLOSING timer for ${chosen.id} (${Math.round(remainingMs / 1000)}s remaining)`);
+      if (closingTimer) clearTimeout(closingTimer);
+      closingTimer = setTimeout(
+        () => settleRound(chosen.id).catch((err) =>
+          logger.error(`[Jackpot] settle error for ${chosen.id}:`, err),
+        ),
+        remainingMs,
+      );
+    }
+  }
+
+  // Extra concurrent rounds shouldn't exist, but if they do : only 1 can be
+  // "current" in memory, the others are historical junk to clean up.
+  for (const extra of resumable.slice(1)) {
+    logger.warn(`[Jackpot] Extra orphan ${extra.status} ${extra.id} — cancelling (only 1 current round allowed)`);
+    await cancelRound(extra.id).catch((err) =>
+      logger.error(`[Jackpot] cancel extra failed for ${extra.id}:`, err),
     );
   }
 
-  logRngStartupState('[Jackpot]');
-
-  await createRound();
-  logger.info('[Jackpot] Service initialized');
+  logger.info('[Jackpot] Service initialized (resumed active round)');
 }
