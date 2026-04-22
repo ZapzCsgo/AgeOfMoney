@@ -841,9 +841,30 @@ async function syncMatchScore(matchId: string): Promise<void> {
   const p1Score = reversed ? lpMatch.p2Score : lpMatch.p1Score;
   const p2Score = reversed ? lpMatch.p1Score : lpMatch.p2Score;
 
-  // Use DB format as authoritative source for wins needed (LP bestof can be missing/wrong)
-  const boNum = parseInt(match.format.replace(/\D/g, ''), 10) || 3;
-  const dbNeeded = Math.ceil(boNum / 2);
+  // DB format is usually authoritative (LP bestof from parsed wikitext can
+  // be missing). BUT : when a player's LP score exceeds what the DB format
+  // can physically produce (e.g. DB says BO5 / dbNeeded=3 but LP shows 4
+  // wins), the DB format is DEMONSTRABLY wrong and we self-correct. Typical
+  // cause : the bracket overview at scrape time labelled early rounds
+  // "Bo5" while the playoff match on its own detail page is actually "Bo7".
+  // See liquipediaScraper.ts:488 for the initial-parse fallback that
+  // missed the true format.
+  let boNum = parseInt(match.format.replace(/\D/g, ''), 10) || 3;
+  let dbNeeded = Math.ceil(boNum / 2);
+  if (lpMatch.bestof >= 3 && lpMatch.bestof > boNum && Math.max(p1Score, p2Score) > dbNeeded) {
+    const correctedBo = lpMatch.bestof;
+    logger.warn(
+      `[LPScorer] Match ${matchId}: auto-correcting format BO${boNum} → BO${correctedBo} ` +
+      `(LP score ${p1Score}-${p2Score} exceeds BO${boNum} max)`,
+    );
+    await prisma.match.update({
+      where: { id: matchId },
+      data: { format: `BO${correctedBo}` },
+    });
+    match.format = `BO${correctedBo}`;
+    boNum = correctedBo;
+    dbNeeded = Math.ceil(boNum / 2);
+  }
   const lpNeeded = lpMatch.bestof > 0 ? Math.ceil(lpMatch.bestof / 2) : dbNeeded;
   // Take the higher of the two — be conservative, don't complete early
   const needed = Math.max(dbNeeded, lpNeeded);
