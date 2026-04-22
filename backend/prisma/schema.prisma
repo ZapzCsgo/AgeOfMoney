@@ -554,7 +554,13 @@ model RainParticipant {
 //   creating a new suggestion).
 model EventSuggestion {
   id              String    @id @default(cuid())
-  ruleType        String    // "DAU_DROP" | "DEPOSITS_NOT_ACTIVATED" | "VIP_INACTIVE" | "S_TIER_INCOMING" | "AFFILIATE_SURGE" | "LOW_JACKPOT" | "VOLUME_RECORD" | "BIG_WINNER"
+  // v2 rule list (site-wide opportunities, not CRM) :
+  // CONCURRENT_SPIKE | VOLUME_BURST | CHAT_ON_FIRE | S_TIER_INCOMING
+  // | LIVE_EVENT_IN_PROGRESS | TOURNAMENT_FINAL_NEAR | WEEKEND_MOMENTUM
+  // | SIGNUP_BURST_WITH_SOURCE
+  // Legacy rule types from v1 (DAU_DROP, VIP_INACTIVE, AFFILIATE_SURGE,
+  // BIG_WINNER, etc.) exist in DB until the cleanup script dismisses them.
+  ruleType        String
   subjectKey      String    // composite dedup key (see above)
   priority        String    // "LOW" | "MEDIUM" | "HIGH"
   title           String
@@ -562,6 +568,21 @@ model EventSuggestion {
   suggestedAction String
   estimatedBudget String?
   estimatedImpact String?
+  // Action-oriented trio (v2) : what the operator should actually do, one
+  // click away. actionType drives the primary button :
+  //   "LAUNCH_RAIN"         → pre-filled RainLaunchModal
+  //   "LAUNCH_ANNOUNCEMENT" → textual suggestion (infra TODO)
+  //   "LAUNCH_BONUS"        → textual suggestion (infra TODO)
+  //   "MANUAL"              → no primary action, just "Marquer traité"
+  // actionParams carries the context needed to pre-fill the modal (e.g.
+  // amount, maxParticipants, duration for a rain).
+  actionType      String    @default("MANUAL")
+  actionParams    Json?
+  // Short one-line strings the card surfaces prominently to help the
+  // operator decide fast. reasonShort = "pourquoi c'est une opportunity",
+  // ifIgnoredCost = "ce qu'on perd en ne faisant rien".
+  reasonShort     String?
+  ifIgnoredCost   String?
   status          String    @default("NEW") // "NEW" | "SEEN" | "ACTED" | "DISMISSED"
   dismissedUntil  DateTime?
   actedAt         DateTime?
