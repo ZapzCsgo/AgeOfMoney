@@ -303,12 +303,17 @@ function detectGame(tournamentUrl: string, name: string, wikiGame: string, playe
   if (tournamentUrl.includes('/ageofmythology/')) return 'AoM';
   if (tournamentUrl.includes('/ageofempires/'))   return 'AoE4';
 
-  // Fallback: broad name keywords
+  // Fallback: broad name keywords. Order matters — longer/more specific
+  // patterns first so "Age of Empires IV" doesn't match "Age of Empires I"
+  // by prefix. AoE1 comes last with distinctive keywords (rise of rome,
+  // aoe1) plus "aoe league" which is the Vietnamese AoE1 circuit's
+  // signature prefix.
   const n = name.toLowerCase();
-  if (n.includes('age of empires ii') || n.includes('aoe2') || n.includes('aoe ii')) return 'AoE2';
-  if (n.includes('age of empires iii') || n.includes('aoe3') || n.includes('age iii')) return 'AoE3';
-  if (n.includes('age of mythology') || n.includes('aom') || n.includes('mytholog')) return 'AoM';
   if (n.includes('age of empires iv') || n.includes('aoe4') || n.includes('age iv')) return 'AoE4';
+  if (n.includes('age of empires iii') || n.includes('aoe3') || n.includes('age iii')) return 'AoE3';
+  if (n.includes('age of empires ii') || n.includes('aoe2') || n.includes('aoe ii')) return 'AoE2';
+  if (n.includes('age of mythology') || n.includes('aom') || n.includes('mytholog')) return 'AoM';
+  if (n.includes('rise of rome') || /\baoe\s?1\b/.test(n) || /\baoe\s?i\b/.test(n) || /\baoe\s+league\b/i.test(n)) return 'AoE1';
   return wikiGame;
 }
 
@@ -479,9 +484,20 @@ function parseMatchBlocks(html: string, wikiPath: string, game: string): Array<{
       // the old selector .match-info-tournament a hit the icon link (empty text).
       const tournEl        = $(el).find('.match-info-tournament-name a').first();
       const tournElFallback = tournEl.length ? tournEl : $(el).find('.match-info-tournament a').first();
-      const tournamentName = tournElFallback.text().trim() || 'Unknown Tournament';
+      // Strip round / phase suffixes so we get ONE tournament in DB, not
+      // one per round. LP match blocks often render as
+      // "AOE League Spring Cup 2026: League 1 - Round 11" — we want the
+      // tournament name stable across rounds for proper grouping.
+      const rawName = tournElFallback.text().trim();
+      const tournamentName = rawName.replace(
+        /\s*[-–—:]\s*(?:Round\s*\d+|Playoffs?|Group\s*[A-Z0-9]+|Quarterfinals?|Semifinals?|Grand\s*Finals?|Finals?|Qualifiers?|Upper\s*Bracket|Lower\s*Bracket|Losers?\s*Bracket|Winners?\s*Bracket)\s*$/i,
+        '',
+      ) || 'Unknown Tournament';
       const tournPath      = tournElFallback.attr('href') || '';
-      const tournamentUrl  = tournPath.startsWith('http') ? tournPath : `https://liquipedia.net${tournPath}`;
+      // Strip the section anchor (#Round_11, #Playoffs, etc.). Without this,
+      // each round creates a new Tournament row because liquipediaUrl is @unique.
+      const rawUrl         = tournPath.startsWith('http') ? tournPath : `https://liquipedia.net${tournPath}`;
+      const tournamentUrl  = rawUrl.split('#')[0];
 
       const scoreLower = $(el).find('.match-info-header-scoreholder-lower').first().text().trim();
       const boMatch = scoreLower.match(/Bo(\d+)/i);
