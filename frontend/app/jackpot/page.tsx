@@ -890,36 +890,39 @@ export default function JackpotPage() {
           <div className="text-[11px] tracking-wider uppercase mb-3" style={{ color: '#9b94b8' }}>
             Place your bet ({MIN_BET} – {MAX_BET} ⚜)
           </div>
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-start gap-3 flex-wrap">
             <Input
               type="number"
               min={MIN_BET}
               max={MAX_BET}
               value={betAmount}
               onChange={(e) => setBetAmount(e.target.value)}
-              className="flex-1 min-w-[120px]"
+              className="flex-1 min-w-[140px]"
               placeholder={`${MIN_BET} – ${MAX_BET}`}
               disabled={!canBet || placing}
             />
-            {/* Quick-bet presets — integer values only (coins are Int).
-                MAX snaps to MAX_BET so the all-in is 1 click away. */}
-            <div className="flex items-center gap-1.5">
+            {/* Quick-bet presets — 2-col × 3-row grid. Integer values only
+                (User.coins / JackpotBet.amount are Int in Prisma ; a 2.5
+                preset would be rejected by server-side validation). Ladder
+                matches the classic 1-2-5-10-20 half-decade scale + MAX. */}
+            <div className="grid grid-cols-2 gap-1.5" style={{ width: 120 }}>
               {[
                 { label: '1',   value: 1 },
+                { label: '2',   value: 2 },
                 { label: '5',   value: 5 },
                 { label: '10',  value: 10 },
+                { label: '20',  value: 20 },
                 { label: 'MAX', value: MAX_BET },
               ].map((preset) => (
                 <button
                   key={preset.label}
                   onClick={() => setBetAmount(String(preset.value))}
                   disabled={!canBet || placing}
-                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold tracking-wider uppercase transition-opacity hover:opacity-80 disabled:opacity-40"
+                  className="px-2 py-1 rounded-lg text-[11px] font-bold tracking-wider uppercase transition-opacity hover:opacity-80 disabled:opacity-40"
                   style={{
                     background: '#13111f',
                     border: '1px solid rgba(255,197,66,0.25)',
                     color: '#ffd97a',
-                    minWidth: 40,
                   }}
                 >
                   {preset.label}
