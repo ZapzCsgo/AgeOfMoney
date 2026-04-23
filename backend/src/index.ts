@@ -10,6 +10,17 @@ import { EventEmitter } from 'events';
 // à ~15-20. Raise à 30 shut up le warning sans masquer un vrai leak.
 EventEmitter.defaultMaxListeners = 30;
 
+// JSON.stringify throws on BigInt by default — JackpotRound.randomSerial
+// (BIGINT in Postgres → JS BigInt from Prisma) was crashing socket.io
+// emits on `jackpot:round:settled` AND any res.json() returning a
+// COMPLETED round. Patching BigInt.prototype.toJSON once at boot makes
+// every JSON.stringify call auto-coerce to string transparently. The
+// frontend types already declare `randomSerial?: string | null`, so the
+// shape matches.
+(BigInt.prototype as unknown as { toJSON: () => string }).toJSON = function () {
+  return this.toString();
+};
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
