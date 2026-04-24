@@ -433,6 +433,7 @@ router.post('/fix-tournament-games', async (_req: Request, res: Response): Promi
     };
     let fixed = 0;
     for (const t of tournaments) {
+      if (!t.liquipediaUrl) continue; // null URL (AoE calendar origin) — skip
       const correct = urlToGame(t.liquipediaUrl);
       if (t.game !== correct) {
         await prisma.tournament.update({ where: { id: t.id }, data: { game: correct } });
@@ -1069,7 +1070,8 @@ router.post('/tournaments/recompute-tiers', async (req: Request, res: Response):
       let failed = 0;
       for (const t of tournaments) {
         try {
-          const info = await fetchTournamentInfo(t.liquipediaUrl!);
+          if (!t.liquipediaUrl) { failed++; continue; } // AoE calendar origin, no LP URL yet
+          const info = await fetchTournamentInfo(t.liquipediaUrl);
           if (!info.tier) { failed++; continue; }
           if (info.tier !== t.tier) {
             await prisma.tournament.update({ where: { id: t.id }, data: { tier: info.tier } });

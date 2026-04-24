@@ -170,7 +170,11 @@ model Tournament {
   prizePool     String?
   startDate     DateTime
   endDate       DateTime?
-  liquipediaUrl String    @unique
+  // Nullable : tournaments created from the AoE events calendar start with
+  // `null` until the liquipediaScraper finds their real href in the upcoming-
+  // matches federation. Postgres treats NULLs as distinct in unique indexes,
+  // so multiple nulls coexist safely.
+  liquipediaUrl String?   @unique
   logoUrl       String?
   twitchChannel String?   // e.g. "ageofempires" for twitch.tv/ageofempires
   isActive      Boolean   @default(true)

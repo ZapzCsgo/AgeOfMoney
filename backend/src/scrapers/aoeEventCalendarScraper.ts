@@ -29,15 +29,6 @@ const GAME_MAP: Record<string, string> = {
   aoe:  'AoE4',  // fallback
 };
 
-// Map AoE game names to Liquipedia wiki game slugs (for building Liquipedia URLs)
-export const LIQUIPEDIA_GAME_SLUG: Record<string, string> = {
-  AoE4: 'ageofempires',
-  AoE2: 'ageofempires2',
-  AoE3: 'ageofempires3',
-  AoM:  'ageofmythology',
-  AoE1: 'ageofempires',
-};
-
 interface AoeCalendarEvent {
   id: number;
   title: string;
@@ -121,70 +112,57 @@ export async function syncAoeEventCalendar(): Promise<{ name: string; game: stri
 
   for (const event of relevant) {
     const game = GAME_MAP[event.game] ?? 'AoE4';
-    const liquipediaSlug = LIQUIPEDIA_GAME_SLUG[game] ?? 'ageofempires';
-    // Construct a best-guess Liquipedia URL from the AoE calendar permalink
-    const liquipediaUrl  = `https://liquipedia.net/${liquipediaSlug}/${event.permalink
-      .split('/').pop()?.replace(/-/g, '_') ?? event.permalink}`;
-
     const tier = guessTier(event.title, game);
 
     try {
-      // Before upserting with our guessed URL, check if the Liquipedia scraper already
-      // created this tournament with its real URL. If so, just update that record.
+      // No URL minting. AoE calendar permalinks don't always map to real
+      // Liquipedia slugs (e.g. "membtv-warlords-v-showmatch-2" → the guessed
+      // `.../ageofempires2/membtv_warlords_v_showmatch_2` 404s; the real LP
+      // page is `MembTV_Warlords_V/Showmatch/2` or `Warlords_V/...`). Storing
+      // a bogus URL kept the live scorer stuck 404-ing forever.
+      //
+      // Source of truth for liquipediaUrl is liquipediaScraper.ts (reads the
+      // real href from the LP upcoming-matches widget). The AoE calendar only
+      // announces events — it enriches an existing Tournament row, and if
+      // none exists it creates one with `liquipediaUrl=null`, which the LP
+      // scraper later backfills via its name-based dedup path.
       const myNorm = normalizeName(event.title);
-      const existing = await prisma.tournament.findFirst({
+      const candidates = await prisma.tournament.findMany({
         where: {
           game,
-          NOT: { liquipediaUrl },
           startDate: { gte: new Date(Date.now() - 90 * 24 * 3600 * 1000) },
         },
         select: { id: true, name: true, liquipediaUrl: true },
       });
-      const realRecord = existing && (() => {
-        const eNorm = normalizeName(existing.name);
-        return myNorm === eNorm || myNorm.startsWith(eNorm) || eNorm.startsWith(myNorm) ? existing : null;
-      })();
+      const realRecord = candidates.find((c) => {
+        const eNorm = normalizeName(c.name);
+        return myNorm === eNorm || myNorm.startsWith(eNorm) || eNorm.startsWith(myNorm);
+      });
 
       if (realRecord) {
-        // The Liquipedia scraper already has the real URL — just update dates/tier.
-        // NEVER touch `game` here: the Liquipedia infobox probe is the source of
-        // truth, and the calendar's game tag is unreliable for cross-game events.
+        // Enrich existing tournament (created by LP scraper with the real URL,
+        // or by an earlier calendar pass). NEVER touch `game` — LP infobox
+        // probe is authoritative and cross-game events lie in the calendar.
         const tourn = await prisma.tournament.update({
           where: { id: realRecord.id },
           data: { tier, isActive: true, startDate: new Date(event.start), endDate: new Date(event.end) },
         });
         synced.push({ name: event.title, game, id: tourn.id });
       } else {
-        // Upsert path: only set `game` on CREATE. On update, leave the existing
-        // value alone (it may have been corrected by the Liquipedia infobox probe
-        // or by the admin's manual override).
-        const existing = await prisma.tournament.findUnique({ where: { liquipediaUrl } });
-        if (existing) {
-          const tourn = await prisma.tournament.update({
-            where: { liquipediaUrl },
-            data: {
-              name: event.title,
-              tier,
-              isActive: true,
-              startDate: new Date(event.start),
-              endDate: new Date(event.end),
-            },
-          });
-          synced.push({ name: event.title, game: tourn.game, id: tourn.id });
-        } else {
-          const tourn = await prisma.tournament.create({
-            data: {
-              name: event.title,
-              game,
-              tier,
-              liquipediaUrl,
-              startDate: new Date(event.start),
-              endDate: new Date(event.end),
-              isActive: true,
-            },
-          });
-          synced.push({ name: event.title, game, id: tourn.id });
-        }
+        // Fresh event with no LP counterpart yet — create with URL = null and
+        // let the LP scraper backfill when it federates the bracket.
+        const tourn = await prisma.tournament.create({
+          data: {
+            name: event.title,
+            game,
+            tier,
+            liquipediaUrl: null,
+            startDate: new Date(event.start),
+            endDate: new Date(event.end),
+            isActive: true,
+          },
+        });
+        synced.push({ name: event.title, game, id: tourn.id });
       }
     } catch (err) {
       logger.warn(`[AoeCalendar] Failed to upsert tournament "${event.title}": ${err}`);
