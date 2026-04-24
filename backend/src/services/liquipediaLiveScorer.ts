@@ -802,8 +802,16 @@ async function syncMatchScore(matchId: string): Promise<void> {
   }
   if (!wikitext) {
     logger.info(`[LPScorer] Match ${matchId}: could not fetch wikitext for page "${page}" (wiki candidates: ${wikiCandidates.join(', ')})`);
+    // Flag this match as a wikitext miss for the current cycle. runScorer
+    // aggregates these at the end of the cycle and applies the threshold +
+    // LP-outage logic (see currentCycleWikitextMisses).
+    currentCycleWikitextMisses.add(matchId);
     return;
   }
+
+  // Wikitext fetched successfully — reset the miss counter in case we had
+  // a transient 404 run that's now recovered (admin fixed the URL, etc.).
+  matchWikitextMissCount.delete(matchId);
 
   let lpMatches = parseMatches(wikitext);
   logger.info(`[LPScorer] Match ${matchId}: parsed ${lpMatches.length} match blocks from "${page}"`);
@@ -1081,6 +1089,26 @@ let lastLoggedInterval = 0;
 const matchNotFoundCount = new Map<string, number>();
 const NOT_FOUND_CANCEL_THRESHOLD = 10; // cancel after ~5 min of polling (10 × 30s)
 
+// ── Wikitext-unfetchable safety net ────────────────────────────────────────
+// If we can never fetch the wikitext at all (404 Liquipedia page — typical
+// when the stored liquipediaUrl is a bad mint from the AoE events calendar),
+// the old path just logged and returned → match stayed LIVE until the 8h
+// tickMatchStatuses timeout. Instead, count consecutive wikitext-fetch
+// failures per match and auto-cancel + refund after WIKITEXT_MISS_THRESHOLD.
+//
+// Two guardrails prevent false positives:
+//   - Only count misses AFTER scheduledAt + grace window (pre-start glitches
+//     aren't the scorer's problem).
+//   - If ≥ LP_OUTAGE_THRESHOLD different matches miss wikitext on the SAME
+//     cycle, assume Liquipedia itself is down and skip all increments this
+//     round.
+const matchWikitextMissCount = new Map<string, { misses: number; firstMissAt: number }>();
+const WIKITEXT_MISS_THRESHOLD     = 15;       // 15 consecutive cycles
+const WIKITEXT_MISS_GRACE_MS      = 30 * 60_000; // only count misses ≥ 30 min past scheduledAt
+const LP_OUTAGE_THRESHOLD         = 3;        // ≥3 distinct matches missing in same cycle = LP down
+// Per-cycle buffer — populated by syncMatchScore, consumed by runScorer.
+let currentCycleWikitextMisses: Set<string> = new Set();
+
 /**
  * Compute the poll interval based on how many unique LP pages we need to
  * fetch.  Target: stay under ~400 req/h to never trigger a 429.
@@ -1106,6 +1134,81 @@ export function startLiquipediaLiveScorer(): void {
   if (scorerTimeout) return;
   logger.info('[LPScorer] Starting Liquipedia live scorer (adaptive interval, 30s base)');
   runScorer();
+}
+
+/**
+ * Consume this cycle's wikitext-miss set :
+ *   - If ≥ LP_OUTAGE_THRESHOLD distinct matches missed, assume Liquipedia
+ *     itself is down, log once, and skip all counter increments this round.
+ *   - Otherwise bump each match's persistent counter. Once a match has
+ *     missed WIKITEXT_MISS_THRESHOLD cycles in a row AND is at least
+ *     WIKITEXT_MISS_GRACE_MS past scheduledAt, auto-cancel + refund it.
+ *
+ * Extracted so runScorer stays readable and the counter map stays local to
+ * this module.
+ */
+async function evaluateWikitextMisses(misses: Set<string>): Promise<void> {
+  if (misses.size === 0) return;
+
+  if (misses.size >= LP_OUTAGE_THRESHOLD) {
+    logger.warn(
+      `[LPScorer] Detected likely LP outage (${misses.size} matches missing wikitext simultaneously), skipping miss counter this cycle`,
+    );
+    return;
+  }
+
+  const now = Date.now();
+  for (const matchId of misses) {
+    // Fetch the match to check its age — pre-scheduledAt or in the grace
+    // window, wikitext misses are often transient (tournament page not
+    // published yet, bracket generating, etc.) and shouldn't count.
+    const match = await prisma.match.findUnique({
+      where: { id: matchId },
+      select: {
+        id: true, status: true, scheduledAt: true, liquipediaUrl: true,
+        player1: { select: { name: true } },
+        player2: { select: { name: true } },
+        tournament: { select: { liquipediaUrl: true } },
+      },
+    });
+    if (!match || match.status !== 'LIVE') {
+      matchWikitextMissCount.delete(matchId);
+      continue;
+    }
+    if (match.scheduledAt.getTime() + WIKITEXT_MISS_GRACE_MS > now) {
+      // Too early — don't count.
+      continue;
+    }
+
+    const prior = matchWikitextMissCount.get(matchId);
+    const misses2 = (prior?.misses ?? 0) + 1;
+    const firstMissAt = prior?.firstMissAt ?? now;
+    matchWikitextMissCount.set(matchId, { misses: misses2, firstMissAt });
+
+    if (misses2 >= WIKITEXT_MISS_THRESHOLD) {
+      const badUrl = match.liquipediaUrl ?? match.tournament?.liquipediaUrl ?? '(none)';
+      logger.warn(
+        `[LPScorer] Match ${matchId} auto-cancelled after ${misses2} consecutive wikitext fetch failures (URL: ${badUrl})`,
+      );
+      try {
+        await prisma.match.update({
+          where: { id: matchId },
+          data: { status: 'CANCELLED', betsOpen: false, verificationFlag: false },
+        });
+        const { refundBets } = await import('./betService');
+        await refundBets(
+          matchId,
+          `Match annulé — Liquipedia URL introuvable (${match.player1.name} vs ${match.player2.name}). Si le match a bien eu lieu, un admin doit corriger l'URL manuellement.`,
+        );
+        const io = getIo();
+        io?.emit('matchUpdate', { matchId, status: 'CANCELLED' });
+      } catch (err) {
+        logger.error(`[LPScorer] Failed to auto-cancel ${matchId}:`, err);
+      } finally {
+        matchWikitextMissCount.delete(matchId);
+      }
+    }
+  }
 }
 
 async function runScorer(): Promise<void> {
@@ -1145,7 +1248,14 @@ async function runScorer(): Promise<void> {
 
     // Sync all matches — Bottleneck + cache ensure same-page matches share
     // a single HTTP fetch within the same cycle
+    currentCycleWikitextMisses = new Set();
     await Promise.all(liveMatches.map((m: any) => syncMatchScore(m.id)));
+
+    // ── Wikitext-miss evaluation pass ────────────────────────────────────
+    // syncMatchScore populates currentCycleWikitextMisses when a match's LP
+    // page 404s / times out. Evaluate all misses in a single pass so the
+    // "LP outage" heuristic has a complete view of this cycle.
+    await evaluateWikitextMisses(currentCycleWikitextMisses);
 
     // Schedule next cycle
     scorerTimeout = setTimeout(runScorer, interval);
