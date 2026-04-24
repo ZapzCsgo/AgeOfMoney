@@ -104,10 +104,13 @@ export function tripCircuitBreaker(reason: '429' | 'network' = '429'): void {
  *  1. GET /token/generate → returns plain text with an unblock URL:
  *     "Please visit the following URL in a browser to unblock X.X.X.X:
  *      https://liquipedia.net/token/unblock?token=..."
- *  2. GET that unblock URL → returns HTML with reCAPTCHA v2 + terms checkbox
- *  3. Solve reCAPTCHA via 2captcha.com ($0.003 per solve)
- *  4. POST the unblock URL with g-recaptcha-response + terms agreement
- *  5. IP unblocked → verify with a real LP API request → reset circuit breaker
+ *  2. GET that unblock URL → returns HTML with a CAPTCHA + terms checkbox.
+ *     LP now ships Cloudflare Turnstile (sitekey prefix "0x..."), but older
+ *     pages used reCAPTCHA v2 (sitekey prefix "6L..."). We autodetect from the
+ *     scraped sitekey and pick the correct 2captcha method + response field.
+ *  3. Solve via 2captcha (Turnstile ≈ $0.001, reCAPTCHA v2 ≈ $0.003 per solve).
+ *  4. POST the unblock URL with the right response field name + terms agreement.
+ *  5. IP unblocked → verify with a real LP API request → reset circuit breaker.
  *
  * If IP is not blocked, /token/generate returns:
  *   "This IP address is not blocked."
@@ -150,11 +153,11 @@ export async function attemptAutoUnblock(): Promise<{ success: boolean; message:
     logger.info(`[LPScorer] Auto-unblock: got unblock URL for IP`);
 
     if (!CAPTCHA_KEY) {
-      logger.warn(`[LPScorer] Auto-unblock: reCAPTCHA required but TWOCAPTCHA_API_KEY not set. Visit manually: ${unblockUrl}`);
+      logger.warn(`[LPScorer] Auto-unblock: CAPTCHA required but TWOCAPTCHA_API_KEY not set. Visit manually: ${unblockUrl}`);
       return { success: false, message: `CAPTCHA required, no 2captcha key. Manual URL: ${unblockUrl}` };
     }
 
-    // ── Step 2: fetch the unblock page to get the reCAPTCHA sitekey ───────
+    // ── Step 2: fetch the unblock page and scrape the CAPTCHA widget ──────
     // We fetch from Railway's IP so the page shows the CAPTCHA for that IP.
     const unblockRes = await axios.get(unblockUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
@@ -165,26 +168,50 @@ export async function attemptAutoUnblock(): Promise<{ success: boolean; message:
     // Extract sitekey from data-sitekey="..." (no quotes around value in LP's HTML)
     const sitekeyMatch = unblockHtml.match(/data-sitekey=["']?([^"'\s>]+)["']?/);
     if (!sitekeyMatch) {
-      logger.warn(`[LPScorer] Auto-unblock: could not find reCAPTCHA sitekey. Page snippet: ${unblockHtml.slice(0, 500)}`);
-      return { success: false, message: 'No reCAPTCHA sitekey found on unblock page' };
+      logger.warn(`[LPScorer] Auto-unblock: could not find CAPTCHA sitekey. Page snippet: ${unblockHtml.slice(0, 500)}`);
+      return { success: false, message: 'No CAPTCHA sitekey found on unblock page' };
     }
     const sitekey = sitekeyMatch[1];
+
+    // Autodetect captcha type from sitekey prefix:
+    //   "0x..." → Cloudflare Turnstile (method=turnstile, field=cf-turnstile-response)
+    //   "6L..." → Google reCAPTCHA v2  (method=userrecaptcha, field=g-recaptcha-response)
+    const isTurnstile = sitekey.startsWith('0x');
+    const captchaKind = isTurnstile ? 'Turnstile' : 'reCAPTCHA';
+
+    // Turnstile widgets sometimes ship data-action / data-cdata that must be
+    // echoed back to 2captcha, otherwise the returned token is rejected by CF.
+    // These are optional — only attached if present on the widget div.
+    const actionMatch = isTurnstile
+      ? unblockHtml.match(/data-action=["']?([^"'\s>]+)["']?/)
+      : null;
+    const cdataMatch = isTurnstile
+      ? unblockHtml.match(/data-cdata=["']?([^"'\s>]+)["']?/)
+      : null;
 
     // Extract the token from the hidden input (needed for the POST)
     const tokenMatch = unblockHtml.match(/name=["']?token["']?\s+value=["']?([^"'\s>]+)/);
     const formToken = tokenMatch?.[1] ?? '';
 
-    logger.info(`[LPScorer] Auto-unblock: found reCAPTCHA sitekey (${sitekey.slice(0, 15)}...), sending to 2captcha...`);
+    logger.info(`[LPScorer] Auto-unblock: found ${captchaKind} sitekey (${sitekey.slice(0, 15)}...), sending to 2captcha...`);
 
-    // ── Step 3: solve reCAPTCHA via 2captcha ──────────────────────────────
+    // ── Step 3: submit to 2captcha with the right method + param ──────────
+    const submitParams: Record<string, string | number> = {
+      key: CAPTCHA_KEY,
+      method: isTurnstile ? 'turnstile' : 'userrecaptcha',
+      pageurl: unblockUrl,
+      json: 1,
+    };
+    if (isTurnstile) {
+      submitParams.sitekey = sitekey;
+      if (actionMatch?.[1]) submitParams.action = actionMatch[1];
+      if (cdataMatch?.[1])  submitParams.data   = cdataMatch[1];
+    } else {
+      submitParams.googlekey = sitekey;
+    }
+
     const submitRes = await axios.get('https://2captcha.com/in.php', {
-      params: {
-        key: CAPTCHA_KEY,
-        method: 'userrecaptcha',
-        googlekey: sitekey,
-        pageurl: unblockUrl,
-        json: 1,
-      },
+      params: submitParams,
       timeout: 15000,
     });
 
@@ -193,7 +220,7 @@ export async function attemptAutoUnblock(): Promise<{ success: boolean; message:
     }
 
     const taskId = submitRes.data.request;
-    logger.info(`[LPScorer] Auto-unblock: 2captcha task ${taskId}, waiting for solution (~15-30s)...`);
+    logger.info(`[LPScorer] Auto-unblock: 2captcha task ${taskId} (${captchaKind}), waiting for solution (~15-30s)...`);
 
     // Poll for solution (max ~120s)
     let solution = '';
@@ -216,14 +243,17 @@ export async function attemptAutoUnblock(): Promise<{ success: boolean; message:
       return { success: false, message: '2captcha timeout (120s)' };
     }
 
-    logger.info('[LPScorer] Auto-unblock: reCAPTCHA solved, submitting to Liquipedia...');
+    logger.info(`[LPScorer] Auto-unblock: ${captchaKind} solved, submitting to Liquipedia...`);
 
-    // ── Step 4: POST to /unblock (the form action is /unblock, NOT the token URL) ──
+    // ── Step 4: POST to /unblock with the right response field name ───────
+    // Turnstile    → cf-turnstile-response
+    // reCAPTCHA v2 → g-recaptcha-response
+    const responseField = isTurnstile ? 'cf-turnstile-response' : 'g-recaptcha-response';
     await axios.post('https://liquipedia.net/unblock',
       new URLSearchParams({
         'r': '/',
         'token': formToken,
-        'g-recaptcha-response': solution,
+        [responseField]: solution,
         'agree': '1',
       }).toString(),
       {
