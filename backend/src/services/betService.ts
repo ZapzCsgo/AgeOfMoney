@@ -459,6 +459,10 @@ export async function refundBets(matchId: string, reason?: string): Promise<void
       io.to(`user:${bet.userId}`).emit('betResult', {
         matchId,
         betId: bet.id,
+        // Frontend should branch on `status === 'REFUNDED'` before reading
+        // `won`. Legacy `won: false, refunded: true` fields are kept for
+        // back-compat with the old UI that flashes red "Perdu" briefly.
+        status: 'REFUNDED',
         won: false,
         refunded: true,
         reason: refundReason,

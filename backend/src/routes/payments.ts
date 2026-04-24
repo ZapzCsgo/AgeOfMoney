@@ -605,16 +605,15 @@ router.post('/crypto/withdraw', requireAuth, require2FAForSensitive, async (req:
 
     const usdAmount = parseFloat((coinsInt * WITHDRAW_RATE).toFixed(2));
 
-    // Atomic transaction: re-check balance + debit coins + create pending transaction
+    // Atomic + race-safe: updateMany with `coins: { gte }` guard kills the
+    // TOCTOU where two concurrent withdraws both pass the balance check and
+    // end up with negative coins.
     const transaction = await prisma.$transaction(async (tx) => {
-      const freshUser = await tx.user.findUnique({ where: { id: userId }, select: { coins: true } });
-      if (!freshUser || freshUser.coins < coinsInt) {
-        throw new Error('Solde insuffisant');
-      }
-      await tx.user.update({
-        where: { id: userId },
+      const decResult = await tx.user.updateMany({
+        where: { id: userId, coins: { gte: coinsInt } },
         data:  { coins: { decrement: coinsInt } },
       });
+      if (decResult.count === 0) throw new Error('Solde insuffisant');
       return tx.transaction.create({
         data: {
           userId,
@@ -626,6 +625,14 @@ router.post('/crypto/withdraw', requireAuth, require2FAForSensitive, async (req:
         },
       });
     });
+
+    // Notify the user of the debit so the wallet badge updates live.
+    try {
+      const freshUser = await prisma.user.findUnique({ where: { id: userId }, select: { coins: true } });
+      if (freshUser) {
+        getIo()?.to(`user:${userId}`).emit('coinsUpdate', { coins: freshUser.coins, direction: 'down' });
+      }
+    } catch { /* non-blocking */ }
 
     // Initiate payout via OxaPay
     try {

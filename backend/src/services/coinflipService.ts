@@ -110,15 +110,16 @@ export async function createCoinFlip(
   const nonce      = 0;
   const seedHash   = crypto.createHash('sha256').update(serverSeed).digest('hex');
 
-  // Atomic: deduct coins + create game
+  // Atomic: deduct coins + create game. The `coins: { gte: amount }` guard
+  // inside updateMany makes the balance check + decrement a single SQL
+  // UPDATE, which kills the race where two concurrent creates both read
+  // coins=100 and decrement 100 each (ending at -100).
   const game = await prisma.$transaction(async (tx) => {
-    const freshUser = await tx.user.findUnique({ where: { id: userId }, select: { coins: true } });
-    if (!freshUser || freshUser.coins < amount) throw new Error('Insufficient coins');
-
-    await tx.user.update({
-      where: { id: userId },
+    const decResult = await tx.user.updateMany({
+      where: { id: userId, coins: { gte: amount } },
       data: { coins: { decrement: amount }, totalWagered: { increment: amount } },
     });
+    if (decResult.count === 0) throw new Error('Insufficient coins');
 
     return tx.coinFlip.create({
       data: {
@@ -179,16 +180,13 @@ export async function joinCoinFlip(
   const rake = Math.floor(totalPot * RAKE_RATE);
   const payout = totalPot - rake;
 
-  // Atomic: deduct joiner coins, credit winner, update game
+  // Atomic: deduct joiner coins (race-safe), credit winner, update game.
   const updatedGame = await prisma.$transaction(async (tx) => {
-    const freshUser = await tx.user.findUnique({ where: { id: userId }, select: { coins: true } });
-    if (!freshUser || freshUser.coins < game.amount) throw new Error('Insufficient coins');
-
-    // Deduct joiner coins + track wager
-    await tx.user.update({
-      where: { id: userId },
+    const decResult = await tx.user.updateMany({
+      where: { id: userId, coins: { gte: game.amount } },
       data: { coins: { decrement: game.amount }, totalWagered: { increment: game.amount } },
     });
+    if (decResult.count === 0) throw new Error('Insufficient coins');
 
     // Credit winner
     await tx.user.update({

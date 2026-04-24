@@ -786,21 +786,47 @@ router.post('/users/:id/adjust-coins', async (req: Request, res: Response): Prom
       return;
     }
 
-    const user = await prisma.user.findUnique({ where: { id } });
-    if (!user) {
-      res.status(404).json({ error: 'User not found' });
-      return;
+    // Atomic increment/decrement. For a debit we need the `coins: { gte }`
+    // guard so we don't go below 0; for a credit we just increment.
+    let finalBalance: number;
+    if (amount >= 0) {
+      const updated = await prisma.user.update({
+        where: { id },
+        data:  { coins: { increment: amount } },
+        select: { coins: true },
+      }).catch(() => null);
+      if (!updated) { res.status(404).json({ error: 'User not found' }); return; }
+      finalBalance = updated.coins;
+    } else {
+      const debit = Math.abs(amount);
+      // updateMany with gte guard: will return count=0 if insufficient balance.
+      const res1 = await prisma.user.updateMany({
+        where: { id, coins: { gte: debit } },
+        data:  { coins: { decrement: debit } },
+      });
+      if (res1.count === 0) {
+        // Either user not found OR insufficient coins — clamp to 0 to mirror
+        // the old behaviour (admin debits never fail loudly, they just zero out).
+        const exists = await prisma.user.findUnique({ where: { id }, select: { id: true } });
+        if (!exists) { res.status(404).json({ error: 'User not found' }); return; }
+        await prisma.user.update({ where: { id }, data: { coins: 0 } });
+        finalBalance = 0;
+      } else {
+        const fresh = await prisma.user.findUnique({ where: { id }, select: { coins: true } });
+        finalBalance = fresh?.coins ?? 0;
+      }
     }
 
-    const newBalance = Math.max(0, user.coins + amount);
+    // Notify the user so the wallet badge updates live.
+    try {
+      getIo()?.to(`user:${id}`).emit('coinsUpdate', {
+        coins: finalBalance,
+        direction: amount >= 0 ? 'up' : 'down',
+      });
+    } catch { /* non-blocking */ }
 
-    await prisma.user.update({
-      where: { id },
-      data: { coins: newBalance },
-    });
-
-    logger.info(`Admin adjusted coins for user ${id}: ${amount > 0 ? '+' : ''}${amount}. Reason: ${reason}`);
-    res.json({ message: 'Coins adjusted', newBalance });
+    logger.info(`Admin adjusted coins for user ${id}: ${amount > 0 ? '+' : ''}${amount}. Reason: ${reason} (new balance=${finalBalance})`);
+    res.json({ message: 'Coins adjusted', newBalance: finalBalance });
   } catch (error) {
     logger.error('POST /admin/users/:id/adjust-coins error:', error);
     res.status(500).json({ error: 'Failed to adjust coins' });
@@ -1199,16 +1225,24 @@ router.post('/dedup-matches', async (_req: Request, res: Response): Promise<void
     let refunded = 0;
     const removedIds: string[] = [];
 
+    const io = getIo();
     for (const [, group] of groups) {
       if (group.length <= 1) continue;
       // Keep the first (latest scheduledAt), remove the rest
       const toRemove = group.slice(1);
       for (const dup of toRemove) {
-        // Refund any bets on this match
+        // Refund any bets on this match — atomic per bet so a crash
+        // mid-loop can't credit coins while leaving the bet PENDING.
         const bets = await prisma.bet.findMany({ where: { matchId: dup.id, status: 'PENDING' } });
         for (const bet of bets) {
-          await prisma.user.update({ where: { id: bet.userId }, data: { coins: { increment: bet.amount } } });
-          await prisma.bet.update({ where: { id: bet.id }, data: { status: 'REFUNDED' } });
+          await prisma.$transaction([
+            prisma.user.update({ where: { id: bet.userId }, data: { coins: { increment: bet.amount } } }),
+            prisma.bet.update({ where: { id: bet.id }, data: { status: 'REFUNDED' } }),
+          ]);
+          try {
+            const u = await prisma.user.findUnique({ where: { id: bet.userId }, select: { coins: true } });
+            if (u) io?.to(`user:${bet.userId}`).emit('coinsUpdate', { coins: u.coins, direction: 'up' });
+          } catch { /* non-blocking */ }
           refunded++;
         }
         await prisma.match.delete({ where: { id: dup.id } });

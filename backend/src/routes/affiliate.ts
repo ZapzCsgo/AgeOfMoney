@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { requireAuth, requireAdmin } from '../middleware/auth';
 import { prisma } from '../index';
 import { touchUserIp } from '../services/affiliateService';
+import { getIo } from '../socket';
 import crypto from 'crypto';
 import logger from '../logger';
 
@@ -170,20 +171,44 @@ router.patch('/me/code', requireAuth, async (req: Request, res: Response): Promi
 router.post('/claim', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id;
-    // Atomic transaction to prevent double-claim race condition
-    const claimed = await prisma.$transaction(async (tx) => {
-      const freshAff = await tx.affiliateCode.findUnique({ where: { userId } });
-      if (!freshAff || freshAff.available <= 0) return 0;
-      await tx.user.update({ where: { id: userId }, data: { coins: { increment: freshAff.available } } });
-      await tx.affiliateCode.update({ where: { userId }, data: { available: 0 } });
-      return freshAff.available;
-    });
 
-    if (claimed === 0) {
+    // Atomic compare-and-swap to defeat the double-claim race.
+    //   1. Read the current `available` value.
+    //   2. updateMany WHERE available = <that exact value> SET available = 0.
+    //   3. If count === 1 we won the race, credit the user.
+    //      If count === 0 someone else either already zeroed it or raised it
+    //      (a commission was credited between our read and update) — bail
+    //      with 409 so the frontend retries.
+    const freshAff = await prisma.affiliateCode.findUnique({ where: { userId } });
+    if (!freshAff || freshAff.available <= 0) {
       res.status(400).json({ error: 'Aucune commission disponible' });
       return;
     }
+    const claimed = freshAff.available;
+    const cas = await prisma.affiliateCode.updateMany({
+      where: { userId, available: claimed },
+      data:  { available: 0 },
+    });
+    if (cas.count === 0) {
+      res.status(409).json({ error: 'Commission modifiée pendant la requête, réessaie' });
+      return;
+    }
 
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data:  { coins: { increment: claimed } },
+      select: { coins: true },
+    });
+
+    // Notify the user so the wallet badge updates live.
+    try {
+      getIo()?.to(`user:${userId}`).emit('coinsUpdate', {
+        coins: updatedUser.coins,
+        direction: 'up',
+      });
+    } catch { /* non-blocking */ }
+
+    logger.info(`[Affiliate] Claim ${claimed}⚜ by user=${userId}`);
     res.json({ ok: true, claimed });
   } catch (err) {
     logger.error('POST /affiliate/claim error:', err);

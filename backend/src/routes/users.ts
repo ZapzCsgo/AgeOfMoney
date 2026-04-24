@@ -317,12 +317,18 @@ router.post('/:id/tip', requireAuth, async (req: Request, res: Response): Promis
     if (!recipient || recipient.isBanned) { res.status(404).json({ error: 'User not found' }); return; }
     if (sender.coins < amountInt) { res.status(400).json({ error: 'Insufficient coins' }); return; }
 
-    // Atomic transaction with balance re-check to prevent race conditions
+    // Atomic + race-safe: updateMany with `coins: { gte }` guard prevents
+    // the TOCTOU double-spend (two parallel tips both pass a findUnique
+    // balance check then both decrement).
     const [updatedSender, updatedRecipient] = await prisma.$transaction(async (tx) => {
-      const freshSender = await tx.user.findUnique({ where: { id: senderId }, select: { coins: true } });
-      if (!freshSender || freshSender.coins < amountInt) throw new Error('Insufficient coins');
-      const s = await tx.user.update({ where: { id: senderId }, data: { coins: { decrement: amountInt } }, select: { coins: true } });
+      const decResult = await tx.user.updateMany({
+        where: { id: senderId, coins: { gte: amountInt } },
+        data: { coins: { decrement: amountInt } },
+      });
+      if (decResult.count === 0) throw new Error('Insufficient coins');
+      const s = await tx.user.findUnique({ where: { id: senderId }, select: { coins: true } });
       const r = await tx.user.update({ where: { id: recipientId }, data: { coins: { increment: amountInt } }, select: { coins: true } });
+      if (!s) throw new Error('Sender disappeared');
       return [s, r] as const;
     });
 

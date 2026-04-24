@@ -321,14 +321,24 @@ setTimeout(async () => {
       const key = [m.player1Id, m.player2Id].sort().join(':') + ':' + (m.tournamentId ?? '');
       groups.set(key, [...(groups.get(key) ?? []), m]);
     }
+    const { getIo } = await import('./socket');
+    const io = getIo();
     let removed = 0;
     for (const [, group] of groups) {
       if (group.length <= 1) continue;
       for (const dup of group.slice(1)) {
         const bets = await prisma.bet.findMany({ where: { matchId: dup.id, status: 'PENDING' } });
+        // Atomic per-bet refund + status flip so a crash mid-loop can't
+        // leave coins credited with the bet still PENDING.
         for (const bet of bets) {
-          await prisma.user.update({ where: { id: bet.userId }, data: { coins: { increment: bet.amount } } });
-          await prisma.bet.update({ where: { id: bet.id }, data: { status: 'REFUNDED' } });
+          await prisma.$transaction([
+            prisma.user.update({ where: { id: bet.userId }, data: { coins: { increment: bet.amount } } }),
+            prisma.bet.update({ where: { id: bet.id }, data: { status: 'REFUNDED' } }),
+          ]);
+          try {
+            const u = await prisma.user.findUnique({ where: { id: bet.userId }, select: { coins: true } });
+            if (u) io?.to(`user:${bet.userId}`).emit('coinsUpdate', { coins: u.coins, direction: 'up' });
+          } catch { /* non-blocking */ }
         }
         await prisma.match.delete({ where: { id: dup.id } });
         removed++;

@@ -197,19 +197,27 @@ export function Navbar() {
                         <div className="max-h-[360px] overflow-y-auto divide-y divide-[#1a1830]">
                           {notifications.map(n => {
                             if (n.notifType === 'betResult') {
+                              // Refund takes priority over the win/loss label:
+                              // a match cancelled / BO2 1-1 fires betResult
+                              // with status='REFUNDED' (legacy: refunded=true).
+                              const isRefund = n.status === 'REFUNDED' || n.refunded === true;
+                              const icon  = isRefund ? '↩️' : n.won ? '🏆' : '💀';
+                              const title = isRefund ? 'Pari remboursé' : n.won ? 'Pari gagné !' : 'Pari perdu';
+                              const color = isRefund
+                                ? 'text-[#9dcbff]'
+                                : n.won ? 'text-[#4ade80]' : 'text-[#f87171]';
                               return (
                                 <div key={n.id} className={`px-4 py-3 flex items-start gap-3 ${n.read ? 'opacity-60' : ''}`}>
-                                  <span className="text-lg mt-0.5 shrink-0">{n.won ? '🏆' : '💀'}</span>
+                                  <span className="text-lg mt-0.5 shrink-0">{icon}</span>
                                   <div className="flex-1 min-w-0">
-                                    <p className={`text-[13px] font-semibold ${n.won ? 'text-[#4ade80]' : 'text-[#f87171]'}`}>
-                                      {n.won ? 'Pari gagné !' : 'Pari perdu'}
-                                    </p>
+                                    <p className={`text-[13px] font-semibold ${color}`}>{title}</p>
                                     {n.tournamentName && (
                                       <p className="text-[11px] text-[#6b6488] truncate">{n.tournamentName}</p>
                                     )}
                                     <p className="text-[12px] text-[#9988bb] mt-0.5">
                                       {n.playerBetOn} · Mise {n.amount} ⚜
-                                      {n.won && <span className="text-[#ffd97a] font-bold"> → +{n.payout} ⚜</span>}
+                                      {n.won && !isRefund && <span className="text-[#ffd97a] font-bold"> → +{n.payout} ⚜</span>}
+                                      {isRefund && <span className="text-[#9dcbff] font-bold"> → +{n.amount} ⚜</span>}
                                     </p>
                                     <p className="text-[10px] text-[#4a4468] mt-0.5">
                                       {new Date(n.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}

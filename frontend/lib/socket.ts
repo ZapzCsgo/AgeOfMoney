@@ -101,6 +101,8 @@ export function onBettingClosed(callback: (data: { matchId: string; closedAt: st
 export interface BetResultPayload {
   matchId: string;
   betId: string;
+  /** `REFUNDED` takes precedence over `won` — check it first when rendering. */
+  status?: 'WON' | 'LOST' | 'REFUNDED';
   won: boolean;
   refunded?: boolean;
   reason?: string;

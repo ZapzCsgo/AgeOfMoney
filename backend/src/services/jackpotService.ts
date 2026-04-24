@@ -167,14 +167,10 @@ export async function placeBet(
   if (user.isBanned) return { ok: false, error: 'Account banned' };
   if (user.coins < amount) return { ok: false, error: 'Insufficient coins' };
 
-  // Atomic: deduct coins, create bet with ticket range, update pot + participant count
+  // Atomic: deduct coins (race-safe), create bet with ticket range, update
+  // pot + participant count. The `coins: { gte: amount }` guard makes the
+  // balance check + decrement a single SQL UPDATE, killing the TOCTOU race.
   const result = await prisma.$transaction(async (tx) => {
-    const freshUser = await tx.user.findUnique({
-      where: { id: userId },
-      select: { coins: true },
-    });
-    if (!freshUser || freshUser.coins < amount) throw new Error('Insufficient coins');
-
     const freshRound = await tx.jackpotRound.findUnique({
       where: { id: round.id },
     });
@@ -188,13 +184,14 @@ export async function placeBet(
     });
     const isNewParticipant = !priorBet;
 
-    await tx.user.update({
-      where: { id: userId },
+    const decResult = await tx.user.updateMany({
+      where: { id: userId, coins: { gte: amount } },
       data: {
         coins: { decrement: amount },
         totalWagered: { increment: amount },
       },
     });
+    if (decResult.count === 0) throw new Error('Insufficient coins');
 
     const bet = await tx.jackpotBet.create({
       data: {
@@ -578,7 +575,18 @@ export async function initJackpot(): Promise<void> {
             },
           },
         });
-        if (completed) io?.to('jackpot:lobby').emit('jackpot:round:settled', completed);
+        if (completed) {
+          io?.to('jackpot:lobby').emit('jackpot:round:settled', completed);
+          // Affiliate revshare on every bet — was skipped for resumed rounds
+          // because the normal settle path fires this inside its own timeout.
+          for (const bet of completed.bets) {
+            const won = bet.userId === r.winnerId;
+            const netDelta = won ? -(r.netPayout! - bet.amount) : bet.amount;
+            creditAffiliateOnBetResolved(bet.userId, bet.amount, netDelta).catch((err) =>
+              logger.warn('[Affiliate] jackpot resume credit failed:', err),
+            );
+          }
+        }
       } catch (err) {
         logger.error(`[Jackpot] Failed to resume SPINNING ${r.id}:`, err);
       }

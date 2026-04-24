@@ -67,35 +67,44 @@ export async function creditAffiliateOnBetResolved(
     });
     if (!referral) return; // user not referred — nothing to do
 
-    const newBalance = referral.netLossBalance + netDelta;
     const rate = referral.affiliateCode.commissionRate;
 
-    if (newBalance <= 0) {
-      // No commission — carry the negative balance forward
-      await prisma.affiliateReferral.update({
-        where: { id: referral.id },
-        data: {
-          netLossBalance: newBalance,
-          totalWagered: { increment: stakeAmount },
-          isActive: true,
-          lastActiveAt: new Date(),
-        },
-      });
-      return;
-    }
+    // Atomic increment so concurrent bet resolutions don't clobber each
+    // other's netLossBalance. The `increment: netDelta` becomes a single
+    // SQL `UPDATE SET netLossBalance = netLossBalance + ?` which is safe
+    // under Read Committed.
+    const updated = await prisma.affiliateReferral.update({
+      where: { id: referral.id },
+      data: {
+        netLossBalance: { increment: netDelta },
+        totalWagered:   { increment: stakeAmount },
+        isActive:       true,
+        lastActiveAt:   new Date(),
+      },
+      select: { netLossBalance: true },
+    });
 
-    // Positive surplus → pay commission on it, reset balance
+    // If the post-increment balance is still <= 0, no commission yet.
+    // Negative balance is carried forward (protects house from lucky streaks).
+    if (updated.netLossBalance <= 0) return;
+
+    // Positive surplus → pay commission on it, CAS the balance back to 0 so
+    // we don't double-pay. If CAS fails (another bet resolved in the
+    // meantime), the next call will pick up the residue and pay on it.
+    const newBalance = updated.netLossBalance;
     const commission = Math.floor(newBalance * rate);
+
+    const cas = await prisma.affiliateReferral.updateMany({
+      where: { id: referral.id, netLossBalance: newBalance },
+      data:  { netLossBalance: 0 },
+    });
+    if (cas.count === 0) return; // lost the race, next resolution handles it
 
     await prisma.$transaction([
       prisma.affiliateReferral.update({
         where: { id: referral.id },
         data: {
-          netLossBalance: 0,
-          commission:     { increment: commission },
-          totalWagered:   { increment: stakeAmount },
-          isActive:       true,
-          lastActiveAt:   new Date(),
+          commission: { increment: commission },
         },
       }),
       prisma.affiliateCode.update({
