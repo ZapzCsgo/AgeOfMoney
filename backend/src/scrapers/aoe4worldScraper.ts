@@ -495,10 +495,30 @@ export async function updatePlayerFromAoe4World(
   if (bestMode?.last_game_at) updateData.lastMatchAt = new Date(bestMode.last_game_at);
   // Do NOT store ranked elo/peakElo — ranked performance is irrelevant for tournament odds
 
-  await prisma.player.update({
-    where: { id: playerId },
-    data: updateData,
-  });
+  // Retry the update once on Postgres `statement_timeout` (Supabase pooler
+  // kills any single statement that exceeds 8s by default). One retry after
+  // a 250 ms wait clears almost every transient lock; repeated 57014 means
+  // real contention or pool saturation, in which case we give up cleanly.
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      await prisma.player.update({
+        where: { id: playerId },
+        data: updateData,
+      });
+      break;
+    } catch (err: unknown) {
+      const code = (err as { code?: string; meta?: { code?: string } })?.code
+        ?? (err as { meta?: { code?: string } })?.meta?.code
+        ?? '';
+      const msg  = err instanceof Error ? err.message : String(err);
+      const isTimeout = code === '57014' || /statement timeout/i.test(msg);
+      if (!isTimeout || attempt === 2) {
+        logger.warn(`[aoe4world] player.update failed for ${player.name} (${code || 'unknown'}): ${msg.split('\n')[0]}`);
+        return false;
+      }
+      await new Promise((r) => setTimeout(r, 250));
+    }
+  }
 
   return true;
 }
@@ -520,10 +540,19 @@ export async function updateAllPlayerStats(): Promise<void> {
 
     logger.info(`Updating stats for ${players.length} players from aoe4world (${knownProIds.size} known pro IDs)`);
 
+    // Per-player try/catch so one slow update can't abort the whole batch.
+    // Before this, a single statement_timeout (57014) on player N killed
+    // enrichment for players N+1..50 in the same cycle.
     for (const player of players) {
-      const success = await updatePlayerFromAoe4World(player.id, new Set(knownProIds));
-      if (success) updated++;
-      else errors++;
+      try {
+        const success = await updatePlayerFromAoe4World(player.id, new Set(knownProIds));
+        if (success) updated++;
+        else errors++;
+      } catch (err) {
+        errors++;
+        const msg = err instanceof Error ? err.message : String(err);
+        logger.warn(`[aoe4world] Skipping ${player.name} after error: ${msg.split('\n')[0]}`);
+      }
       await new Promise((r) => setTimeout(r, 500));
     }
 
