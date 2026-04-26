@@ -182,10 +182,13 @@ async function fetchMatchesPage(slug: string, game: string): Promise<{ html: str
 
   const pageName = `${slug}/Matches`;
 
+  // Route through the CF Worker proxy when LP_WORKER_URL is set.
+  const { lpRouteUrl, lpProxyHeaders } = await import('../services/liquipediaLiveScorer');
+
   try {
-    const res = await axios.get(`https://liquipedia.net/${wikiPrimary}/api.php`, {
+    const res = await axios.get(lpRouteUrl(`https://liquipedia.net/${wikiPrimary}/api.php`), {
       params: { action: 'parse', page: pageName, prop: 'text', format: 'json' },
-      headers: { 'User-Agent': 'AgeOfMoney/1.0 (contact@ageofmoney.com)' },
+      headers: { 'User-Agent': 'AgeOfMoney/1.0 (contact@ageofmoney.com)', ...lpProxyHeaders() },
       timeout: 20000,
       decompress: true,
     });
@@ -199,9 +202,9 @@ async function fetchMatchesPage(slug: string, game: string): Promise<{ html: str
       const redirectPage = decodeURIComponent(redirectMatch[2]); // e.g. "Dark/Matches/2024-Present"
       logger.info(`[LPHistory] ${slug}: redirect → ${redirectWiki}/${redirectPage}`);
 
-      const res2 = await axios.get(`https://liquipedia.net/${redirectWiki}/api.php`, {
+      const res2 = await axios.get(lpRouteUrl(`https://liquipedia.net/${redirectWiki}/api.php`), {
         params: { action: 'parse', page: redirectPage, prop: 'text', format: 'json' },
-        headers: { 'User-Agent': 'AgeOfMoney/1.0 (contact@ageofmoney.com)' },
+        headers: { 'User-Agent': 'AgeOfMoney/1.0 (contact@ageofmoney.com)', ...lpProxyHeaders() },
         timeout: 20000,
         decompress: true,
       });
@@ -289,7 +292,7 @@ export async function scrapePlayerHistoryFromLiquipedia(
       // This unblocks 67 % of PMR rows which previously stored only the
       // opponent name without an opponentId — top pros like Hera, DeMu,
       // RecoN become ratable as a side-effect.
-      const opponentId = await upsertOpponentPlayer(m.opponentName, game);
+      const opponentId = await upsertOpponentPlayer(prisma, m.opponentName, game);
       const opponent = opponentId ? { id: opponentId } : null;
 
       await prisma.playerMatchRecord.upsert({

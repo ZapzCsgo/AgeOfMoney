@@ -247,8 +247,13 @@ async function fetchViaMediaWikiApi(url: string): Promise<string | null> {
   const pageName = decodeURIComponent(pagePath.split('?')[0]);
   const apiUrl = `https://liquipedia.net/${wiki}/api.php`;
 
+  // Route through the CF Worker proxy when LP_WORKER_URL is set, so this
+  // scrape uses the same egress IP as the live scorer. Lazy-imported to
+  // dodge a circular module load at startup.
+  const { lpRouteUrl, lpProxyHeaders } = await import('../services/liquipediaLiveScorer');
+
   try {
-    const res = await axios.get(apiUrl, {
+    const res = await axios.get(lpRouteUrl(apiUrl), {
       params: {
         action: 'parse',
         page: pageName,
@@ -258,6 +263,7 @@ async function fetchViaMediaWikiApi(url: string): Promise<string | null> {
       headers: {
         'User-Agent': LP_USER_AGENT,
         'Accept-Encoding': 'gzip, deflate, br',
+        ...lpProxyHeaders(),
       },
       decompress: true,
       timeout: 30000,

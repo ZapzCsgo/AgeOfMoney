@@ -1,0 +1,7 @@
+name = "aom-lp-proxy"
+main = "worker.js"
+compatibility_date = "2026-04-01"
+
+# PROXY_SECRET is set via `wrangler secret put PROXY_SECRET` (NOT in this
+# file — secrets must never be committed). The backend's LP_PROXY_AUTH env
+# var on Railway must hold the SAME value.

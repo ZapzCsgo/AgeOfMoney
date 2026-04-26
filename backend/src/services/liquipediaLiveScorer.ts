@@ -27,13 +27,57 @@ const LP_API_FOR = (wikiPath: string) => `https://liquipedia.net/${wikiPath}/api
 const LP_API_KEY = process.env.LIQUIPEDIA_API_KEY;
 const LP_PROXY_URL = process.env.LP_PROXY_URL; // e.g. http://user:pass@1.2.3.4:3128
 
+// ── Cloudflare Worker proxy (URL-rewrite mode) ──────────────────────────────
+// Distinct from LP_PROXY_URL (HTTP CONNECT proxy). When LP_WORKER_URL is set,
+// every Liquipedia URL is rewritten from
+//     https://liquipedia.net/<path>?<query>
+// to
+//     <LP_WORKER_URL>/lp/<path>?<query>
+// and the request carries `X-Proxy-Auth: <LP_WORKER_AUTH>` so the worker can
+// reject requests from anyone else. The worker forwards the request from
+// Cloudflare's edge IP, which isn't on Railway's blocked egress pool.
+const LP_WORKER_URL = process.env.LP_WORKER_URL?.replace(/\/$/, '');
+const LP_WORKER_AUTH = process.env.LP_WORKER_AUTH;
+
+if (LP_WORKER_URL) {
+  logger.info(`[LPScorer] LP proxy mode active — routing requests via ${LP_WORKER_URL}`);
+}
+
+/**
+ * Rewrites a Liquipedia URL to go through the CF Worker proxy if configured.
+ * No-op when LP_WORKER_URL is unset or the URL doesn't target liquipedia.net.
+ *
+ * Exported so the other LP scrapers (liquipediaScraper, liquipediaPlayer-
+ * HistoryScraper) can route their traffic through the same worker.
+ */
+export function lpRouteUrl(targetUrl: string): string {
+  if (!LP_WORKER_URL) return targetUrl;
+  try {
+    const u = new URL(targetUrl);
+    if (u.hostname !== 'liquipedia.net') return targetUrl;
+    return `${LP_WORKER_URL}/lp${u.pathname}${u.search}`;
+  } catch {
+    return targetUrl;
+  }
+}
+
 function buildHeaders(): Record<string, string> {
   const h: Record<string, string> = {
     'User-Agent': 'AgeOfMoney/1.0 (contact@ageofmoney.com)',
     'Accept-Encoding': 'gzip', // Liquipedia REQUIRES gzip (406 otherwise)
   };
   if (LP_API_KEY) h.Authorization = `Apikey ${LP_API_KEY}`;
+  if (LP_WORKER_URL && LP_WORKER_AUTH) h['X-Proxy-Auth'] = LP_WORKER_AUTH;
   return h;
+}
+
+/**
+ * Headers other LP scrapers can use to opt into the CF Worker proxy. Includes
+ * X-Proxy-Auth when LP_WORKER_URL + LP_WORKER_AUTH are set; otherwise empty.
+ * Spread it into existing axios headers, no-op when worker mode is off.
+ */
+export function lpProxyHeaders(): Record<string, string> {
+  return LP_WORKER_URL && LP_WORKER_AUTH ? { 'X-Proxy-Auth': LP_WORKER_AUTH } : {};
 }
 
 /**
@@ -126,8 +170,11 @@ export async function attemptAutoUnblock(): Promise<{ success: boolean; message:
 
   try {
     // ── Step 1: get the unblock URL from /token/generate ──────────────────
-    const tokenRes = await axios.get('https://liquipedia.net/token/generate', {
-      headers: { 'User-Agent': 'AgeOfMoney/1.0 (contact@ageofmoney.com)' },
+    const tokenRes = await axios.get(lpRouteUrl('https://liquipedia.net/token/generate'), {
+      headers: {
+        'User-Agent': 'AgeOfMoney/1.0 (contact@ageofmoney.com)',
+        ...(LP_WORKER_URL && LP_WORKER_AUTH ? { 'X-Proxy-Auth': LP_WORKER_AUTH } : {}),
+      },
       timeout: 15000,
     });
     const tokenText = typeof tokenRes.data === 'string' ? tokenRes.data : '';
@@ -162,8 +209,11 @@ export async function attemptAutoUnblock(): Promise<{ success: boolean; message:
     // Capture cookies — MediaWiki sets a session cookie on the GET that the
     // matching POST must echo back to be accepted (otherwise the form submit
     // is treated as cookie-less and silently rejected).
-    const unblockRes = await axios.get(unblockUrl, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+    const unblockRes = await axios.get(lpRouteUrl(unblockUrl), {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        ...(LP_WORKER_URL && LP_WORKER_AUTH ? { 'X-Proxy-Auth': LP_WORKER_AUTH } : {}),
+      },
       timeout: 15000,
     });
     const unblockHtml = typeof unblockRes.data === 'string' ? unblockRes.data : '';
@@ -293,7 +343,7 @@ export async function attemptAutoUnblock(): Promise<{ success: boolean; message:
     // it back too. Harmless if the server ignores it.
     if (formToken) formBody.token = formToken;
 
-    const postRes = await axios.post(unblockUrl,
+    const postRes = await axios.post(lpRouteUrl(unblockUrl),
       new URLSearchParams(formBody).toString(),
       {
         headers: {
@@ -301,6 +351,7 @@ export async function attemptAutoUnblock(): Promise<{ success: boolean; message:
           'Content-Type': 'application/x-www-form-urlencoded',
           'Referer': unblockUrl,
           ...(cookieHeader ? { 'Cookie': cookieHeader } : {}),
+          ...(LP_WORKER_URL && LP_WORKER_AUTH ? { 'X-Proxy-Auth': LP_WORKER_AUTH } : {}),
         },
         timeout: 15000,
         // Don't follow redirects — a 302 is the success signal here. With
@@ -352,7 +403,7 @@ export async function attemptAutoUnblock(): Promise<{ success: boolean; message:
 /** Make a lightweight LP API request to verify the IP is not rate-limited. */
 async function verifyLpAccess(): Promise<boolean> {
   try {
-    const res = await axios.get(LP_API_FOR('ageofempires'), {
+    const res = await axios.get(lpRouteUrl(LP_API_FOR('ageofempires')), {
       params: { action: 'query', meta: 'siteinfo', format: 'json' },
       headers: buildHeaders(),
       timeout: 10000,
@@ -416,7 +467,7 @@ async function fetchWikitext(wikiPath: string, page: string): Promise<string | n
   }
 
   try {
-    const res = await lpLimiter.schedule(() => axios.get(LP_API_FOR(wikiPath), {
+    const res = await lpLimiter.schedule(() => axios.get(lpRouteUrl(LP_API_FOR(wikiPath)), {
       params: { action: 'parse', page, prop: 'wikitext', format: 'json' },
       headers: buildHeaders(),
       timeout: 15000,
@@ -470,7 +521,7 @@ async function fetchRenderedHtml(wikiPath: string, page: string): Promise<string
     return htmlCache[cacheKey].text;
   }
   try {
-    const res = await lpLimiter.schedule(() => axios.get(LP_API_FOR(wikiPath), {
+    const res = await lpLimiter.schedule(() => axios.get(lpRouteUrl(LP_API_FOR(wikiPath)), {
       params: { action: 'parse', page, prop: 'text', format: 'json' },
       headers: buildHeaders(),
       timeout: 20000,
