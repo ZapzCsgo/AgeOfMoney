@@ -183,6 +183,26 @@ export async function attemptAutoUnblock(): Promise<{ success: boolean; message:
     }
     const sitekey = sitekeyMatch[1];
 
+    // ── DEBUG : enumerate every hidden input the form ships ───────────────
+    // The agent investigation flagged "medium confidence" on missing CSRF
+    // tokens / wpEditToken. Log them all once so we can see exactly what
+    // LP renders without having to reproduce the blocked-IP scenario locally.
+    const hiddenInputs = [...unblockHtml.matchAll(
+      /<input[^>]*type=["']?hidden["']?[^>]*>/gi,
+    )].map((m) => m[0]);
+    if (hiddenInputs.length > 0) {
+      logger.info(`[LPScorer] Auto-unblock: hidden inputs on form: ${hiddenInputs.join(' || ')}`);
+    } else {
+      logger.info(`[LPScorer] Auto-unblock: no <input type=hidden> matches found on the page`);
+    }
+    // Also log the form action attribute and the cookie names we captured.
+    const formActionMatch = unblockHtml.match(/<form[^>]*action=["']([^"']+)["'][^>]*>/i);
+    const cookieNames = (Array.isArray(setCookieHeaders) ? setCookieHeaders : [setCookieHeaders])
+      .map((c) => String(c).split('=')[0])
+      .filter(Boolean)
+      .join(',');
+    logger.info(`[LPScorer] Auto-unblock: form action="${formActionMatch?.[1] ?? '(none)'}", cookies=[${cookieNames}]`);
+
     // Autodetect captcha type from sitekey prefix:
     //   "0x..." → Cloudflare Turnstile (method=turnstile, field=cf-turnstile-response)
     //   "6L..." → Google reCAPTCHA v2  (method=userrecaptcha, field=g-recaptcha-response)
@@ -291,6 +311,21 @@ export async function attemptAutoUnblock(): Promise<{ success: boolean; message:
       }
     );
     logger.info(`[LPScorer] Auto-unblock: POST returned status=${postRes.status}, location=${postRes.headers?.location ?? '(none)'}`);
+
+    // When the POST returns 200 instead of 302, LP rendered the form again
+    // — usually with an error message in the HTML (e.g. "invalid token",
+    // "captcha failed", "session expired"). Log a snippet of the body so
+    // we can diagnose without having to reproduce the blocked-IP state.
+    if (postRes.status === 200 && typeof postRes.data === 'string') {
+      // Extract the most useful chunk : any error class or success message,
+      // falling back to first 400 chars of the visible body.
+      const errMatch = postRes.data.match(
+        /<div[^>]*class=["'][^"']*(?:error|warning|success|notice)[^"']*["'][^>]*>([\s\S]{0,400}?)<\/div>/i,
+      );
+      const snippet = errMatch?.[1]?.replace(/\s+/g, ' ').trim()
+        ?? postRes.data.replace(/\s+/g, ' ').slice(0, 400);
+      logger.info(`[LPScorer] Auto-unblock: POST 200 body snippet: ${snippet}`);
+    }
 
     // ── Step 5: verify the IP is actually unblocked ───────────────────────
     // Give LP a moment to propagate the unblock
