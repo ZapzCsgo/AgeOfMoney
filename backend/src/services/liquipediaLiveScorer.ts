@@ -159,11 +159,21 @@ export async function attemptAutoUnblock(): Promise<{ success: boolean; message:
 
     // ── Step 2: fetch the unblock page and scrape the CAPTCHA widget ──────
     // We fetch from Railway's IP so the page shows the CAPTCHA for that IP.
+    // Capture cookies — MediaWiki sets a session cookie on the GET that the
+    // matching POST must echo back to be accepted (otherwise the form submit
+    // is treated as cookie-less and silently rejected).
     const unblockRes = await axios.get(unblockUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
       timeout: 15000,
     });
     const unblockHtml = typeof unblockRes.data === 'string' ? unblockRes.data : '';
+    const setCookieHeaders = unblockRes.headers['set-cookie'] ?? [];
+    // Reduce each "name=value; Path=/; HttpOnly" line down to "name=value" and
+    // join with "; " for a single Cookie header on the POST.
+    const cookieHeader = (Array.isArray(setCookieHeaders) ? setCookieHeaders : [setCookieHeaders])
+      .map((c) => String(c).split(';')[0])
+      .filter(Boolean)
+      .join('; ');
 
     // Extract sitekey from data-sitekey="..." (no quotes around value in LP's HTML)
     const sitekeyMatch = unblockHtml.match(/data-sitekey=["']?([^"'\s>]+)["']?/);
@@ -245,27 +255,42 @@ export async function attemptAutoUnblock(): Promise<{ success: boolean; message:
 
     logger.info(`[LPScorer] Auto-unblock: ${captchaKind} solved, submitting to Liquipedia...`);
 
-    // ── Step 4: POST to /unblock with the right response field name ───────
+    // ── Step 4: POST to the SAME unblock URL we GET'd ─────────────────────
+    // The route is `/token/unblock?token=<T>` — the token is validated from
+    // the query string, NOT the form body. Earlier code POSTed to a bogus
+    // `/unblock` path that silently resolved to the wiki homepage (200), so
+    // axios never threw and we thought it succeeded while LP discarded the
+    // submission. Body carries only the captcha solution + terms agreement.
+    //
     // Turnstile    → cf-turnstile-response
     // reCAPTCHA v2 → g-recaptcha-response
     const responseField = isTurnstile ? 'cf-turnstile-response' : 'g-recaptcha-response';
-    await axios.post('https://liquipedia.net/unblock',
-      new URLSearchParams({
-        'r': '/',
-        'token': formToken,
-        [responseField]: solution,
-        'agree': '1',
-      }).toString(),
+    const formBody: Record<string, string> = {
+      [responseField]: solution,
+      agree: '1',
+    };
+    // Belt-and-suspenders : if the form had a hidden CSRF/edit token, echo
+    // it back too. Harmless if the server ignores it.
+    if (formToken) formBody.token = formToken;
+
+    const postRes = await axios.post(unblockUrl,
+      new URLSearchParams(formBody).toString(),
       {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
           'Content-Type': 'application/x-www-form-urlencoded',
           'Referer': unblockUrl,
+          ...(cookieHeader ? { 'Cookie': cookieHeader } : {}),
         },
         timeout: 15000,
-        maxRedirects: 5,
+        // Don't follow redirects — a 302 is the success signal here. With
+        // maxRedirects:5 axios silently lands on the homepage and returns
+        // 200, masking the actual response code.
+        maxRedirects: 0,
+        validateStatus: (s) => s < 500,
       }
     );
+    logger.info(`[LPScorer] Auto-unblock: POST returned status=${postRes.status}, location=${postRes.headers?.location ?? '(none)'}`);
 
     // ── Step 5: verify the IP is actually unblocked ───────────────────────
     // Give LP a moment to propagate the unblock

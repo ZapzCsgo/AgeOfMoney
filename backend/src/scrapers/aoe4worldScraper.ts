@@ -507,13 +507,25 @@ export async function updatePlayerFromAoe4World(
       });
       break;
     } catch (err: unknown) {
-      const code = (err as { code?: string; meta?: { code?: string } })?.code
-        ?? (err as { meta?: { code?: string } })?.meta?.code
-        ?? '';
-      const msg  = err instanceof Error ? err.message : String(err);
-      const isTimeout = code === '57014' || /statement timeout/i.test(msg);
+      // Prisma errors come in several shapes — pull whatever we can from each.
+      const errObj = err as {
+        code?: string;
+        message?: string;
+        name?: string;
+        meta?: { code?: string; message?: string };
+      } | null;
+      const code = errObj?.code ?? errObj?.meta?.code ?? '';
+      const rawMsg = errObj?.message ?? errObj?.meta?.message ?? '';
+      const name = errObj?.name ?? '';
+      const ctorName = err instanceof Error ? err.constructor.name : typeof err;
+      const fallback = !rawMsg && !code ? `(empty error, ctor=${ctorName}, name=${name || '?'})` : '';
+      const msgFirstLine = (rawMsg || fallback).split('\n')[0];
+      const isTimeout = code === '57014' || /statement timeout/i.test(rawMsg);
       if (!isTimeout || attempt === 2) {
-        logger.warn(`[aoe4world] player.update failed for ${player.name} (${code || 'unknown'}): ${msg.split('\n')[0]}`);
+        logger.warn(
+          `[aoe4world] player.update failed for ${player.name} ` +
+          `(code=${code || 'none'}, ctor=${ctorName}): ${msgFirstLine}`,
+        );
         return false;
       }
       await new Promise((r) => setTimeout(r, 250));
