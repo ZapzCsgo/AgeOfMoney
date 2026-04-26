@@ -1165,6 +1165,38 @@ function computeInterval(uniquePages: number): number {
   return 120_000;
 }
 
+// State for the periodic "breaker open" log + auto-unblock retry. Both are
+// rate-limited to once every BLOCKER_RETRY_INTERVAL_MS so we don't spam Railway
+// logs (one entry every 5 min while blocked) and don't burn 2captcha credits
+// on a tight loop.
+let lastBlockerLogAt = 0;
+let lastUnblockRetryAt = 0;
+const BLOCKER_LOG_INTERVAL_MS = 5 * 60_000;
+const UNBLOCK_RETRY_INTERVAL_MS = 5 * 60_000;
+
+function maybeLogBlockerStatus(): void {
+  const now = Date.now();
+  if (now - lastBlockerLogAt < BLOCKER_LOG_INTERVAL_MS) return;
+  lastBlockerLogAt = now;
+  const remainingMin = Math.max(0, Math.round((lpBlockedUntil - now) / 60_000));
+  logger.info(`[LPScorer] Circuit breaker still open — ${remainingMin}min remaining (until ${new Date(lpBlockedUntil).toISOString()})`);
+}
+
+function maybeRetryAutoUnblock(): void {
+  if (!process.env.TWOCAPTCHA_API_KEY) return;
+  const now = Date.now();
+  if (now - lastUnblockRetryAt < UNBLOCK_RETRY_INTERVAL_MS) return;
+  lastUnblockRetryAt = now;
+  logger.info('[LPScorer] Retrying auto-unblock (breaker still open, periodic retry)');
+  attemptAutoUnblock().then((result) => {
+    if (result.success) {
+      logger.info(`[LPScorer] Auto-unblock retry succeeded: ${result.message}`);
+    } else {
+      logger.warn(`[LPScorer] Auto-unblock retry failed: ${result.message}`);
+    }
+  }).catch((err) => logger.warn(`[LPScorer] Auto-unblock retry error: ${err.message}`));
+}
+
 export function startLiquipediaLiveScorer(): void {
   if (scorerTimeout) return;
   logger.info('[LPScorer] Starting Liquipedia live scorer (adaptive interval, 30s base)');
@@ -1248,9 +1280,15 @@ async function evaluateWikitextMisses(misses: Set<string>): Promise<void> {
 
 async function runScorer(): Promise<void> {
   try {
-    // Circuit breaker: if we're blocked, skip this cycle entirely but keep
-    // scheduling so we resume automatically when the window expires.
+    // Circuit breaker: if we're blocked, skip this cycle but periodically
+    // (a) log the remaining time so the silence is observable, and (b) retry
+    // the auto-unblock — the original "fire once at trip" strategy meant a
+    // single transient 2captcha hiccup left the scorer mute for the full
+    // 60 min breaker window. We retry every 5 min until either the unblock
+    // succeeds (resetCircuitBreaker) or the breaker expires naturally.
     if (Date.now() < lpBlockedUntil) {
+      maybeLogBlockerStatus();
+      maybeRetryAutoUnblock();
       scorerTimeout = setTimeout(runScorer, 30_000);
       return;
     }
