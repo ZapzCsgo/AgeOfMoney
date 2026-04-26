@@ -739,6 +739,31 @@ export async function scrapeUpcomingMatches(): Promise<void> {
         });
         if (completedMatch) continue;
 
+        // Anti-stale-republish: round-robin League tournaments occasionally
+        // see the federated upcoming-matches widget re-emit a finished pair
+        // (e.g. a BO2 1-1 draw played 21 days ago shows up again as
+        // "upcoming today" because the widget's data is cached/stale). The
+        // ±12h window above misses this — we widen the check to 14 days
+        // and also skip if the recent COMPLETED match had a draw-style
+        // result (winnerId null), which is the strongest stale-widget tell.
+        // Legit rematches in playoff brackets are almost always >2 weeks
+        // apart from group stage, so this is safe for those flows.
+        const recentDraw = await prisma.match.findFirst({
+          where: {
+            OR: [{ player1Id: p1.id, player2Id: p2.id }, { player1Id: p2.id, player2Id: p1.id }],
+            tournamentId: tournament.id,
+            status: 'COMPLETED',
+            winnerId: null,
+            scheduledAt: { gte: new Date(Date.now() - 14 * 24 * 3600 * 1000) },
+          },
+        });
+        if (recentDraw) {
+          logger.info(
+            `[Liquipedia] Skipping ${m.player1} vs ${m.player2} in ${m.tournamentName} — pair already has a draw/refund within 14d (likely widget republish of finished match)`,
+          );
+          continue;
+        }
+
         // ── Postponement detection ──────────────────────────────────────────────
         // If Liquipedia now shows a FUTURE scheduledAt (≥30 min from now) for these
         // players but a LIVE match already exists with a past scheduledAt, it means

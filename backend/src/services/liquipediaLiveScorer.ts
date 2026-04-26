@@ -849,15 +849,25 @@ async function syncMatchScore(matchId: string): Promise<void> {
     const missCount = (matchNotFoundCount.get(matchId) ?? 0) + 1;
     matchNotFoundCount.set(matchId, missCount);
 
-    if (missCount <= 3 || missCount === NOT_FOUND_CANCEL_THRESHOLD) {
-      // Only log the first 3 misses + the cancel — avoid flooding logs
+    // Fast-path : if the match is already > 1 h past scheduledAt AND we
+    // got a parseable wikitext (lpMatches.length > 0 = page format is OK,
+    // our pair is just absent), this is a ghost — the LP page genuinely
+    // doesn't list this matchup. Cancel immediately rather than waiting
+    // NOT_FOUND_CANCEL_THRESHOLD cycles. Survives Railway redeploys
+    // (which reset the in-memory counter) since the decision is made
+    // off match.scheduledAt, a persisted field.
+    const now = Date.now();
+    const ageMs = now - match.scheduledAt.getTime();
+    const fastCancel = ageMs > 60 * 60_000 && lpMatches.length > 0;
+
+    if (missCount <= 3 || missCount === NOT_FOUND_CANCEL_THRESHOLD || fastCancel) {
       const pairs = lpMatches.map(m => `${m.opponent1} vs ${m.opponent2}`).join(' | ');
-      logger.info(`[LPScorer] Match ${matchId}: "${match.player1.name}" vs "${match.player2.name}" NOT FOUND in LP wikitext (miss ${missCount}/${NOT_FOUND_CANCEL_THRESHOLD}). LP has ${lpMatches.length} matches: [${pairs}]`);
+      logger.info(`[LPScorer] Match ${matchId}: "${match.player1.name}" vs "${match.player2.name}" NOT FOUND in LP wikitext (miss ${missCount}/${NOT_FOUND_CANCEL_THRESHOLD}, age=${Math.round(ageMs / 60_000)}min, fast=${fastCancel}). LP has ${lpMatches.length} matches: [${pairs}]`);
     }
 
-    if (missCount >= NOT_FOUND_CANCEL_THRESHOLD) {
+    if (missCount >= NOT_FOUND_CANCEL_THRESHOLD || fastCancel) {
       // Ghost match — cancel and refund
-      logger.warn(`[LPScorer] Match ${matchId}: "${match.player1.name}" vs "${match.player2.name}" NOT FOUND after ${missCount} checks — auto-cancelling + refunding bets`);
+      logger.warn(`[LPScorer] Match ${matchId}: "${match.player1.name}" vs "${match.player2.name}" NOT FOUND${fastCancel ? ' (fast-cancel: page parses but pair absent and >1h past start)' : ` after ${missCount} checks`} — auto-cancelling + refunding bets`);
       const { refundBets } = await import('./betService');
       await prisma.match.update({
         where: { id: matchId },
