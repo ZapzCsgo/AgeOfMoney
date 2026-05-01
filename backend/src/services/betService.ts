@@ -2,6 +2,7 @@ import { prisma } from '../index';
 import { BetStatus, MatchStatus } from '@prisma/client';
 import { adjustOddsAdvanced, BetRecord } from './oddsEngine';
 import { creditAffiliateOnBetResolved } from './affiliateService';
+import { recordLedger } from './ledger';
 import { getIo } from '../socket';
 import logger from '../logger';
 
@@ -157,6 +158,8 @@ export async function placeBet(
       },
     });
 
+    await recordLedger(tx, { userId, type: 'bet_placed', coins: -amount });
+
     return newBet;
   });
 
@@ -277,6 +280,14 @@ export async function distributePayout(matchId: string, winnerId: string): Promi
         data: { coins: { increment: totalIncrement } },
       })
     ),
+    // Ledger row per winning bet — sum equals coin increment per user
+    ...resolved
+      .filter(r => r.won)
+      .map(({ bet, payout }) =>
+        prisma.transaction.create({
+          data: { userId: bet.userId, type: 'bet_won', coins: payout, amount: 0, status: 'completed' },
+        })
+      ),
   ]);
 
   // Fetch updated balances for winner users in ONE query (batched notifications)
@@ -372,6 +383,13 @@ export async function distributeDrawPayout(matchId: string): Promise<void> {
     ...[...winnerCoinIncrements.entries()].map(([userId, totalIncrement]) =>
       prisma.user.update({ where: { id: userId }, data: { coins: { increment: totalIncrement } } })
     ),
+    ...resolved
+      .filter(r => r.won)
+      .map(({ bet, payout }) =>
+        prisma.transaction.create({
+          data: { userId: bet.userId, type: 'bet_won', coins: payout, amount: 0, status: 'completed' },
+        })
+      ),
   ]);
 
   // Fetch winner balances in ONE query
@@ -434,6 +452,11 @@ export async function refundBets(matchId: string, reason?: string): Promise<void
       prisma.user.update({
         where: { id: bet.userId },
         data: { coins: { increment: bet.amount } },
+      })
+    ),
+    ...pendingBets.map(bet =>
+      prisma.transaction.create({
+        data: { userId: bet.userId, type: 'bet_refund', coins: bet.amount, amount: 0, status: 'completed' },
       })
     ),
   ]);

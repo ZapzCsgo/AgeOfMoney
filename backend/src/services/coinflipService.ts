@@ -21,6 +21,7 @@ import crypto from 'crypto';
 import { prisma } from '../index';
 import { getIo } from '../socket';
 import { creditAffiliateOnBetResolved } from './affiliateService';
+import { recordLedger } from './ledger';
 import logger from '../logger';
 
 const RAKE_RATE = 0.05; // 5%
@@ -121,7 +122,7 @@ export async function createCoinFlip(
     });
     if (decResult.count === 0) throw new Error('Insufficient coins');
 
-    return tx.coinFlip.create({
+    const created = await tx.coinFlip.create({
       data: {
         creatorId: userId,
         amount,
@@ -136,6 +137,8 @@ export async function createCoinFlip(
         creator: { select: { id: true, username: true, avatar: true } },
       },
     });
+    await recordLedger(tx, { userId, type: 'coinflip_stake', coins: -amount });
+    return created;
   });
 
   const io = getIo();
@@ -193,6 +196,11 @@ export async function joinCoinFlip(
       where: { id: winnerId },
       data: { coins: { increment: payout } },
     });
+
+    // Ledger : joiner stake debit + winner credit. Loser has no separate row
+    // (their stake was already booked at place-time).
+    await recordLedger(tx, { userId, type: 'coinflip_stake', coins: -game.amount });
+    await recordLedger(tx, { userId: winnerId, type: 'coinflip_win', coins: payout });
 
     // Update game. If we had to backfill clientSeed (legacy row), persist it
     // so the reveal payload remains consistent with what was used to derive.
@@ -298,6 +306,8 @@ export async function cancelCoinFlip(
       where: { id: gameId },
       data: { status: 'CANCELLED' },
     });
+
+    await recordLedger(tx, { userId, type: 'coinflip_refund', coins: game.amount });
   });
 
   const io = getIo();
@@ -330,6 +340,9 @@ export async function cancelStaleCoinFlips(): Promise<number> {
     await prisma.$transaction([
       prisma.coinFlip.update({ where: { id: game.id }, data: { status: 'CANCELLED' } }),
       prisma.user.update({ where: { id: game.creatorId }, data: { coins: { increment: game.amount } } }),
+      prisma.transaction.create({
+        data: { userId: game.creatorId, type: 'coinflip_refund', coins: game.amount, amount: 0, status: 'completed' },
+      }),
     ]);
     const updatedUser = await prisma.user.findUnique({ where: { id: game.creatorId }, select: { coins: true } });
     io?.to(`user:${game.creatorId}`).emit('coinsUpdate', { coins: updatedUser?.coins ?? 0, direction: 'up' });

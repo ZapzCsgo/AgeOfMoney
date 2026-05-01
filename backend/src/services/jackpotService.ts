@@ -35,6 +35,7 @@ import { prisma } from '../index';
 import { getIo } from '../socket';
 import { creditAffiliateOnBetResolved } from './affiliateService';
 import { getSignedRandomInteger, logRngStartupState } from './randomOrgClient';
+import { recordLedger } from './ledger';
 import logger from '../logger';
 
 const MIN_BET = 1;
@@ -210,6 +211,8 @@ export async function placeBet(
         participantCount: isNewParticipant ? { increment: 1 } : undefined,
       },
     });
+
+    await recordLedger(tx, { userId, type: 'jackpot_stake', coins: -amount });
 
     return { bet, updatedRound, isNewParticipant };
   });
@@ -401,6 +404,7 @@ async function settleRound(roundId: string): Promise<void> {
           where: { id: roundId },
           data: { status: 'COMPLETED', settledAt: new Date() },
         });
+        await recordLedger(tx, { userId: winningBet.userId, type: 'jackpot_win', coins: netPayout });
       });
 
       const winnerFresh = await prisma.user.findUnique({
@@ -467,6 +471,7 @@ async function cancelRound(roundId: string): Promise<void> {
           totalWagered: { decrement: bet.amount },
         },
       });
+      await recordLedger(tx, { userId: bet.userId, type: 'jackpot_refund', coins: bet.amount });
     }
     await tx.jackpotRound.update({
       where: { id: roundId },
@@ -556,6 +561,7 @@ export async function initJackpot(): Promise<void> {
             where: { id: r.id },
             data: { status: 'COMPLETED', settledAt: now },
           });
+          await recordLedger(tx, { userId: r.winnerId!, type: 'jackpot_win', coins: r.netPayout! });
         });
         const winnerFresh = await prisma.user.findUnique({
           where: { id: r.winnerId },

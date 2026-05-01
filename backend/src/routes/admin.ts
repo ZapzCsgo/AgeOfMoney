@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { requireAdmin } from '../middleware/auth';
 import { prisma } from '../index';
 import { distributePayout, refundBets } from '../services/betService';
+import { recordLedger } from '../services/ledger';
 import { getIo } from '../socket';
 import { z } from 'zod';
 import logger from '../logger';
@@ -790,6 +791,7 @@ router.post('/users/:id/adjust-coins', async (req: Request, res: Response): Prom
     // Atomic increment/decrement. For a debit we need the `coins: { gte }`
     // guard so we don't go below 0; for a credit we just increment.
     let finalBalance: number;
+    let ledgerDelta: number;
     if (amount >= 0) {
       const updated = await prisma.user.update({
         where: { id },
@@ -798,6 +800,7 @@ router.post('/users/:id/adjust-coins', async (req: Request, res: Response): Prom
       }).catch(() => null);
       if (!updated) { res.status(404).json({ error: 'User not found' }); return; }
       finalBalance = updated.coins;
+      ledgerDelta = amount;
     } else {
       const debit = Math.abs(amount);
       // updateMany with gte guard: will return count=0 if insufficient balance.
@@ -810,13 +813,20 @@ router.post('/users/:id/adjust-coins', async (req: Request, res: Response): Prom
         // the old behaviour (admin debits never fail loudly, they just zero out).
         const exists = await prisma.user.findUnique({ where: { id }, select: { id: true } });
         if (!exists) { res.status(404).json({ error: 'User not found' }); return; }
+        const before = await prisma.user.findUnique({ where: { id }, select: { coins: true } });
         await prisma.user.update({ where: { id }, data: { coins: 0 } });
+        // Ledger row reflects what actually moved (clamp-to-zero), not the
+        // requested debit. Otherwise SUM(ledger) would diverge from balance.
+        ledgerDelta = -(before?.coins ?? 0);
         finalBalance = 0;
       } else {
         const fresh = await prisma.user.findUnique({ where: { id }, select: { coins: true } });
         finalBalance = fresh?.coins ?? 0;
+        ledgerDelta = -debit;
       }
     }
+
+    await recordLedger(prisma, { userId: id, type: 'admin_adjust', coins: ledgerDelta });
 
     // Notify the user so the wallet badge updates live.
     try {

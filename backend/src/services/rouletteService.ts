@@ -14,6 +14,7 @@ import axios from 'axios';
 import { prisma } from '../index';
 import { getIo } from '../socket';
 import { creditAffiliateOnBetResolved } from './affiliateService';
+import { recordLedger } from './ledger';
 import logger from '../logger';
 
 /** Fetch a cryptographically verified random integer 1-15 from random.org.
@@ -188,6 +189,13 @@ async function resolveRound(roundId: string, winZone: string, multiplier: number
       ...[...winnerCoinIncrements.entries()].map(([userId, totalIncrement]) =>
         prisma.user.update({ where: { id: userId }, data: { coins: { increment: totalIncrement } } })
       ),
+      ...resolved
+        .filter(r => r.won && r.payout > 0)
+        .map(({ bet, payout }) =>
+          prisma.transaction.create({
+            data: { userId: bet.userId, type: 'roulette_win', coins: payout, amount: 0, status: 'completed' },
+          })
+        ),
     ]);
   }
 
@@ -269,6 +277,7 @@ export async function placeBet(userId: string, zone: Zone, amount: number): Prom
     } else {
       await tx.rouletteBet.create({ data: { roundId: currentRoundId!, userId, zone, amount } });
     }
+    await recordLedger(tx, { userId, type: 'roulette_stake', coins: -amount });
     return tx.user.findUnique({ where: { id: userId }, select: { coins: true } }) as Promise<{ coins: number }>;
   });
 

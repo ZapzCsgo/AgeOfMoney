@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { authenticator } from 'otplib';
 import logger from '../logger';
 import { getIo } from '../socket';
+import { recordLedger } from '../services/ledger';
 
 const router = Router();
 
@@ -329,6 +330,8 @@ router.post('/:id/tip', requireAuth, async (req: Request, res: Response): Promis
       const s = await tx.user.findUnique({ where: { id: senderId }, select: { coins: true } });
       const r = await tx.user.update({ where: { id: recipientId }, data: { coins: { increment: amountInt } }, select: { coins: true } });
       if (!s) throw new Error('Sender disappeared');
+      await recordLedger(tx, { userId: senderId, type: 'tip_out', coins: -amountInt });
+      await recordLedger(tx, { userId: recipientId, type: 'tip_in', coins: amountInt });
       return [s, r] as const;
     });
 

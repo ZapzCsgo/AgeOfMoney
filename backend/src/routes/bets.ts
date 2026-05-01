@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { requireAuth } from '../middleware/auth';
 import { placeBet, getUserStats } from '../services/betService';
+import { recordLedger } from '../services/ledger';
 import { buildBlendedDistribution, type Bo, type ScoreDistribution } from '../services/exactScoreModel';
 import { solvePerGameProb } from '../services/oddsEngine';
 import { prisma } from '../index';
@@ -442,9 +443,11 @@ router.post('/exact', requireAuth, async (req: Request, res: Response): Promise<
         data: { coins: { decrement: amount }, totalWagered: { increment: amount } },
       });
       if (updateResult.count === 0) throw new Error('Insufficient coins');
-      return tx.bet.create({
+      const created = await tx.bet.create({
         data: { userId, matchId, betType: 'EXACT_SCORE', amount, oddsAtBet, selectedPlayer: player, boNumber: loserGames, status: 'PENDING' },
       });
+      await recordLedger(tx, { userId, type: 'bet_placed', coins: -amount });
+      return created;
     });
 
     logger.info(`Exact score bet: user=${userId}, match=${matchId}, score=${score}, amount=${amount}, odds=${oddsAtBet}`);

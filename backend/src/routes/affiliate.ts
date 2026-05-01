@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { requireAuth, requireAdmin } from '../middleware/auth';
 import { prisma } from '../index';
 import { touchUserIp } from '../services/affiliateService';
+import { recordLedger } from '../services/ledger';
 import { getIo } from '../socket';
 import crypto from 'crypto';
 import logger from '../logger';
@@ -199,6 +200,11 @@ router.post('/claim', requireAuth, async (req: Request, res: Response): Promise<
       data:  { coins: { increment: claimed } },
       select: { coins: true },
     });
+
+    // Ledger row outside the CAS — affiliate.available is its own ledger,
+    // but the user-facing balance change still needs a Transaction so the
+    // historique financier and admin finance KPIs reflect the credit.
+    await recordLedger(prisma, { userId, type: 'affiliate_claim', coins: claimed });
 
     // Notify the user so the wallet badge updates live.
     try {
