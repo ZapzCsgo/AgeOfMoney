@@ -266,9 +266,15 @@ const LP_USER_AGENT = 'AgeOfMoneyBot/1.0 (https://ageof.money; contact@ageof.mon
 async function fetchHtml(url: string, retries = 3): Promise<string | null> {
   // Respect the shared circuit breaker — if Liquipedia is blocking us,
   // don't even try (both the scorer and this scraper trip the same breaker).
-  const { isLpBlocked, tripCircuitBreaker, resetCircuitBreaker } = require('../services/liquipediaLiveScorer');
+  const { isLpBlocked, getCircuitBreakerState, tripCircuitBreaker, resetCircuitBreaker } = require('../services/liquipediaLiveScorer');
   if (isLpBlocked()) {
-    logger.debug(`[Liquipedia] Skipping fetch (circuit breaker active): ${url}`);
+    // Promoted from debug → info so the cause shows up when an upcoming-page
+    // fetch fails (Problem 3 prelaunch fix 2026-05-02). Without this,
+    // callers see "Failed to fetch X" with no idea whether the network was
+    // down, the breaker was open, or LP returned 429.
+    const state = getCircuitBreakerState();
+    const remainingMin = Math.max(0, Math.round((state.blockedUntil - Date.now()) / 60_000));
+    logger.info(`[Liquipedia] Skipping fetch (circuit breaker open, ${remainingMin}min remaining): ${url}`);
     return null;
   }
 
@@ -370,6 +376,12 @@ async function fetchViaMediaWikiApi(url: string): Promise<string | null> {
       logger.info(`[Liquipedia] Fetched via MediaWiki API: ${pageName}`);
       return html;
     }
+    // Surface the API-level reason instead of returning null silently.
+    // Common cases : page doesn't exist (.error.code = 'missing'), API
+    // disabled, or empty content.
+    const errCode = res.data?.error?.code ?? 'no-text';
+    const errInfo = res.data?.error?.info ?? `body length ${typeof html === 'string' ? html.length : 'n/a'}`;
+    logger.warn(`[Liquipedia] MediaWiki API returned no usable HTML for ${pageName} : code=${errCode}, info=${errInfo}`);
     return null;
   } catch (err) {
     if (axios.isAxiosError(err)) {
@@ -648,7 +660,16 @@ export async function scrapeUpcomingMatches(): Promise<void> {
     for (const { game, wikiPath } of GAME_WIKIS) {
       const url = `https://liquipedia.net/${wikiPath}/Liquipedia:Upcoming_and_ongoing_matches`;
       const html = await fetchHtml(url);
-      if (!html) { logger.warn(`[Liquipedia] Failed to fetch ${game} upcoming page`); continue; }
+      if (!html) {
+        // The inner fetchHtml / fetchViaMediaWikiApi already logged the
+        // specific reason (breaker open, 429, MediaWiki API error code,
+        // CAPTCHA wall, timeout). This top-level warn just stitches the
+        // game label onto that context for grep-ability.
+        const { isLpBlocked: blockedNow } = require('../services/liquipediaLiveScorer');
+        const breakerHint = blockedNow() ? ' (circuit breaker open — see prior log)' : '';
+        logger.warn(`[Liquipedia] Failed to fetch ${game} upcoming page (url=${url})${breakerHint}`);
+        continue;
+      }
       const parsed = parseMatchBlocks(html, wikiPath, game);
       logger.info(`[Liquipedia] ${game}: ${parsed.length} tier S/A matches found`);
       allMatches.push(...parsed);
