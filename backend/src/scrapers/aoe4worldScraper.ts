@@ -555,7 +555,14 @@ export async function updateAllPlayerStats(): Promise<void> {
   };
 
   try {
+    // Filter to AoE4 players only — aoe4world.com only has AoE4 profiles, so
+    // looking up an AoE2 / AoE3 / AoM player there always returns null and
+    // pollutes the batch with `profile_unresolvable` failures (root cause of
+    // the 100 % failure rate observed 2026-05-02 prelaunch). Of 535 players
+    // ~250+ are non-AoE4 and were dragging every batch's lastUpdatedAt-asc
+    // ordering to the top.
     const players = await prisma.player.findMany({
+      where: { game: 'AoE4' },
       select: { id: true, name: true },
       orderBy: { lastUpdatedAt: 'asc' },
       take: 50,
