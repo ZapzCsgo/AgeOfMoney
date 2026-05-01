@@ -267,7 +267,8 @@ async function tickMatchStatuses(): Promise<void> {
   const staleThreshold = new Date(Date.now() - 8 * 60 * 60 * 1000);
   const staleMatches = await prisma.match.findMany({
     where: { status: 'LIVE', winnerId: null, scheduledAt: { lte: staleThreshold } },
-    include: {
+    select: {
+      id: true, scheduledAt: true, verificationFlag: true,
       player1: { select: { aoe4worldId: true } },
       player2: { select: { aoe4worldId: true } },
     },
@@ -307,6 +308,7 @@ async function closeBetsPreMatch(): Promise<void> {
 
   const toClose = await prisma.match.findMany({
     where: { status: 'UPCOMING', scheduledAt: { lte: fiveMinutesFromNow }, betsClosedAt: null },
+    select: { id: true },
   });
 
   for (const match of toClose) {
@@ -323,8 +325,8 @@ async function recalcActiveMatchOdds(): Promise<void> {
   const io = getIo();
   const { calculateOddsV2 } = await import('../services/oddsEngine');
   const { getPlayerH2HFromHistory } = await import('../services/h2hHistory');
+  const { getPlayerRecords, getPlayerRecordsBulk } = await import('../services/pmrCache');
 
-  const SENTINEL_OPPONENT = '__AI_ENRICHED__';
   const activeMatches = await prisma.match.findMany({
     where: { status: { in: ['UPCOMING', 'LIVE'] } },
     include: {
@@ -338,16 +340,12 @@ async function recalcActiveMatchOdds(): Promise<void> {
 
   for (const match of activeMatches) {
     try {
-      // Load full match records for both players (filtered by game)
+      // Load full match records for both players (filtered by game).
+      // pmrCache.getPlayerRecords dedupes between matches on the same tick
+      // and across ticks within 5 min — see audit/EGRESS_AUDIT_2026-05-02.
       const [p1Records, p2Records] = await Promise.all([
-        prisma.playerMatchRecord.findMany({
-          where: { playerId: match.player1.id, game: match.game, NOT: { opponentName: SENTINEL_OPPONENT } },
-          select: { won: true, tier: true, matchDate: true, opponentId: true, score: true },
-        }),
-        prisma.playerMatchRecord.findMany({
-          where: { playerId: match.player2.id, game: match.game, NOT: { opponentName: SENTINEL_OPPONENT } },
-          select: { won: true, tier: true, matchDate: true, opponentId: true, score: true },
-        }),
+        getPlayerRecords(match.player1.id, match.game),
+        getPlayerRecords(match.player2.id, match.game),
       ]);
 
       // If BOTH players have 0 tournament records, suspend bets — odds are
@@ -381,19 +379,14 @@ async function recalcActiveMatchOdds(): Promise<void> {
       for (const r of [...p1Records, ...p2Records]) if (r.opponentId) opponentIds.add(r.opponentId);
       const oppWinrateMap = new Map<string, number>();
       if (opponentIds.size > 0) {
-        const oppRecords = await prisma.playerMatchRecord.findMany({
-          where: { playerId: { in: [...opponentIds] }, game: match.game },
-          select: { playerId: true, won: true },
-        });
-        const grouped = new Map<string, { total: number; wins: number }>();
-        for (const r of oppRecords) {
-          const g = grouped.get(r.playerId) ?? { total: 0, wins: 0 };
-          g.total++;
-          if (r.won) g.wins++;
-          grouped.set(r.playerId, g);
-        }
-        for (const [id, s] of grouped.entries()) {
-          if (s.total >= 3) oppWinrateMap.set(id, s.wins / s.total);
+        // Bulk-fetch via pmrCache : opponents that are also tracked players
+        // (the common case) are already cached from their own match runs;
+        // only true uncached opponents trigger a single batched DB hit.
+        const oppRecordsMap = await getPlayerRecordsBulk([...opponentIds], match.game);
+        for (const [id, recs] of oppRecordsMap.entries()) {
+          if (recs.length < 3) continue;
+          const wins = recs.filter(r => r.won).length;
+          oppWinrateMap.set(id, wins / recs.length);
         }
       }
 
@@ -483,6 +476,7 @@ async function distributePayouts(): Promise<void> {
       bets: { some: { status: 'PENDING' } },
     },
     take: 20,
+    select: { id: true, winnerId: true },
   });
 
   // Distribute payouts in parallel — matches are independent.

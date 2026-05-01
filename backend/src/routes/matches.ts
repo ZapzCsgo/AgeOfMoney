@@ -11,6 +11,16 @@ const router = Router();
 let matchListCache: { key: string; data: unknown; ts: number } | null = null;
 const MATCH_CACHE_TTL = 10_000; // 10 seconds
 
+// Per-id caches for /matches/:id and /matches/:id/h2h. The match detail page
+// is the second-most polled endpoint after the list — we already serve
+// COMPLETED with a 1h Cache-Control but UPCOMING/LIVE were uncached; with
+// Supabase egress at the limit we now cache them server-side too. H2H is
+// nearly static between matches so 5 min is generous.
+const matchByIdCache = new Map<string, { data: unknown; ts: number }>();
+const MATCH_BY_ID_TTL = 30_000; // 30 s for UPCOMING/LIVE
+const h2hCache = new Map<string, { data: unknown; ts: number }>();
+const H2H_TTL = 5 * 60_000; // 5 min
+
 const matchQuerySchema = z.object({
   status: z.enum(['UPCOMING', 'LIVE', 'COMPLETED', 'CANCELLED', 'POSTPONED']).optional(),
   tournamentId: z.string().optional(),
@@ -173,6 +183,15 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
 
+    // Server-side cache for UPCOMING/LIVE — egress savings, see
+    // audit/EGRESS_AUDIT_2026-05-02.md. COMPLETED relies on Cache-Control.
+    const cached = matchByIdCache.get(id);
+    if (cached && Date.now() - cached.ts < MATCH_BY_ID_TTL) {
+      res.set('Cache-Control', 'public, max-age=10, stale-while-revalidate=30');
+      res.json(cached);
+      return;
+    }
+
     const match = await prisma.match.findUnique({
       where: { id },
       include: {
@@ -256,7 +275,7 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
       res.set('Cache-Control', 'public, max-age=10, stale-while-revalidate=30');
     }
 
-    res.json({
+    const payload = {
       data: {
         ...match,
         odds1: liveOdds.odds1,
@@ -275,7 +294,13 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
           player2: recentP2,
         },
       },
-    });
+    };
+    // Cache UPCOMING/LIVE only (COMPLETED already gets a 1h Cache-Control
+    // and is immutable so caching forever in memory would just leak).
+    if (match.status === 'UPCOMING' || match.status === 'LIVE') {
+      matchByIdCache.set(id, { data: payload, ts: Date.now() });
+    }
+    res.json(payload);
   } catch (error) {
     logger.error('GET /matches/:id error:', error);
     res.status(500).json({ error: 'Failed to fetch match' });
@@ -284,6 +309,14 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
 
 router.get('/:id/h2h', async (req: Request, res: Response): Promise<void> => {
   try {
+    const cacheKey = req.params.id;
+    const cached = h2hCache.get(cacheKey);
+    if (cached && Date.now() - cached.ts < H2H_TTL) {
+      res.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
+      res.json(cached);
+      return;
+    }
+
     const match = await prisma.match.findUnique({
       where: { id: req.params.id },
       select: { player1Id: true, player2Id: true },
@@ -314,7 +347,7 @@ router.get('/:id/h2h', async (req: Request, res: Response): Promise<void> => {
     const p1Wins = h2hMatches.filter((m) => m.winnerId === match.player1Id).length;
     const p2Wins = h2hMatches.filter((m) => m.winnerId === match.player2Id).length;
 
-    res.json({
+    const payload = {
       data: {
         matches: h2hMatches,
         summary: {
@@ -323,7 +356,10 @@ router.get('/:id/h2h', async (req: Request, res: Response): Promise<void> => {
           player2Wins: p2Wins,
         },
       },
-    });
+    };
+    h2hCache.set(cacheKey, { data: payload, ts: Date.now() });
+    res.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
+    res.json(payload);
   } catch (error) {
     logger.error('GET /matches/:id/h2h error:', error);
     res.status(500).json({ error: 'Failed to fetch H2H data' });
