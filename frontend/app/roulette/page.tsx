@@ -76,7 +76,7 @@ const GLOBAL_CSS = `
 .rl-page-shake  { animation:rl-page-shake 0.4s ease-in-out 2; }
 `;
 
-export default function RoulettePage() {
+function RoulettePageImpl() {
   const { data: session } = useSession();
   const { t } = useT();
   const [round, setRound] = useState<Round | null>(null);
@@ -1155,4 +1155,24 @@ export default function RoulettePage() {
       )}
     </div>
   );
+}
+
+/**
+ * Hydration-safe wrapper. The roulette page mixes Web Audio, react-roulette-pro
+ * (which renders divs with computed transform offsets), and several useState
+ * initializers fed by Date.now() / sessionStorage indirectly via useEffect —
+ * any of those can produce a server/client diff and trip React #425
+ * ("Switched to client rendering because the server rendering errored").
+ *
+ * Rendering the body only after the first client effect skips SSR for this
+ * subtree entirely, which is fine since the roulette is interactive-only and
+ * doesn't carry SEO content.
+ */
+export default function RoulettePage() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  if (!mounted) {
+    return <div className="min-h-screen" style={{ background: '#07060f' }} />;
+  }
+  return <RoulettePageImpl />;
 }

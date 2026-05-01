@@ -14,11 +14,15 @@ const securityHeaders = [
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // unsafe-inline/eval needed by Next.js
+      // unsafe-inline/eval needed by Next.js. static.cloudflareinsights.com
+      // is the beacon Cloudflare auto-injects when Web Analytics is on for
+      // the zone — without this it fails CSP and floods the console.
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: blob: " + (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000') + " https://avatars.steamstatic.com https://avatars.akamai.steamstatic.com https://aoe4world.com https://liquipedia.net https://cdn.discordapp.com https://avatars.githubusercontent.com https://lh3.googleusercontent.com",
-      "connect-src 'self' " + (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000') + ' ' + (process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:4000') + ' https://player.twitch.tv https://www.twitch.tv wss://pubsub-edge.twitch.tv',
+      // cloudflareinsights.com receives the beacon POSTs once the script loads
+      "connect-src 'self' " + (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000') + ' ' + (process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:4000') + ' https://player.twitch.tv https://www.twitch.tv wss://pubsub-edge.twitch.tv https://cloudflareinsights.com',
       "frame-src 'self' https://player.twitch.tv https://www.twitch.tv",
       "media-src 'self' blob: https://*.twitch.tv https://*.jtvnw.net",
       "frame-ancestors 'none'",
