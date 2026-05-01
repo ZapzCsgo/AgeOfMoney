@@ -430,16 +430,20 @@ export async function getPlayerDbStats(
   return { winrate, totalGames: total, streak, daysSinceLastMatch };
 }
 
+export type UpdatePlayerResult =
+  | { success: true }
+  | { success: false; reason: 'player_not_found' | 'profile_unresolvable' | 'stats_api_failed' | 'db_update_failed' | 'no_data'; detail: string };
+
 export async function updatePlayerFromAoe4World(
   playerId: string,
   knownProIds?: Set<string>
-): Promise<boolean> {
+): Promise<UpdatePlayerResult> {
   const player = await prisma.player.findUnique({
     where: { id: playerId },
     select: { id: true, name: true, liquipediaSlug: true, aoe4worldId: true, totalGames: true },
   });
 
-  if (!player) return false;
+  if (!player) return { success: false, reason: 'player_not_found', detail: `playerId=${playerId} not in DB` };
 
   let aoe4worldId = player.aoe4worldId;
 
@@ -448,12 +452,12 @@ export async function updatePlayerFromAoe4World(
     aoe4worldId = await resolveAoe4WorldId({ name: player.name, liquipediaSlug: player.liquipediaSlug });
     if (!aoe4worldId) {
       logger.debug(`[aoe4world] Could not find profile for: ${player.name}`);
-      return false;
+      return { success: false, reason: 'profile_unresolvable', detail: `no aoe4world profile match for slug=${player.liquipediaSlug}` };
     }
   }
 
   const stats = await getPlayerStats(aoe4worldId);
-  if (!stats) return false;
+  if (!stats) return { success: false, reason: 'stats_api_failed', detail: `getPlayerStats(${aoe4worldId}) returned null — check aoe4world API health` };
 
   // Compute pro tournament record by aggregating H2H against all other known pros
   const proIds = new Set(knownProIds ?? []);
@@ -526,19 +530,29 @@ export async function updatePlayerFromAoe4World(
           `[aoe4world] player.update failed for ${player.name} ` +
           `(code=${code || 'none'}, ctor=${ctorName}): ${msgFirstLine}`,
         );
-        return false;
+        return { success: false, reason: 'db_update_failed', detail: `${ctorName}/${code || 'no-code'}: ${msgFirstLine}` };
       }
       await new Promise((r) => setTimeout(r, 250));
     }
   }
 
-  return true;
+  return { success: true };
 }
 
 export async function updateAllPlayerStats(): Promise<void> {
   const startTime = Date.now();
   let updated = 0;
   let errors = 0;
+  // Categorize per-player failures so a 100-% failure batch is actionable
+  // instead of a silent "0 updated, 50 errors" line. Bug #2 prod 2026-05-02 :
+  // every batch was failing with no detail because the per-player paths
+  // returned `false` silently in resolveAoe4WorldId/getPlayerStats null cases.
+  const failureBuckets: Record<string, number> = {};
+  const failureExamples: Record<string, string> = {};
+  const bumpFailure = (kind: string, example: string) => {
+    failureBuckets[kind] = (failureBuckets[kind] ?? 0) + 1;
+    if (!failureExamples[kind]) failureExamples[kind] = example;
+  };
 
   try {
     const players = await prisma.player.findMany({
@@ -557,16 +571,29 @@ export async function updateAllPlayerStats(): Promise<void> {
     // enrichment for players N+1..50 in the same cycle.
     for (const player of players) {
       try {
-        const success = await updatePlayerFromAoe4World(player.id, new Set(knownProIds));
-        if (success) updated++;
-        else errors++;
+        const result = await updatePlayerFromAoe4World(player.id, new Set(knownProIds));
+        // updatePlayerFromAoe4World now returns a discriminated result so
+        // we can attribute failures to the right cause.
+        if (result.success) {
+          updated++;
+        } else {
+          errors++;
+          bumpFailure(result.reason, `${player.name}: ${result.detail}`);
+        }
       } catch (err) {
         errors++;
         const msg = err instanceof Error ? err.message : String(err);
-        logger.warn(`[aoe4world] Skipping ${player.name} after error: ${msg.split('\n')[0]}`);
+        bumpFailure('exception', `${player.name}: ${msg.split('\n')[0]}`);
+        logger.warn(`[aoe4world] Skipping ${player.name} after exception: ${msg.split('\n')[0]}`);
       }
       await new Promise((r) => setTimeout(r, 500));
     }
+
+    // Detailed breakdown — replaces the silent "N errors" line.
+    const breakdownStrs = Object.entries(failureBuckets)
+      .sort((a, b) => b[1] - a[1])
+      .map(([kind, n]) => `${kind}=${n}`);
+    const successRate = players.length > 0 ? updated / players.length : 1;
 
     await prisma.scraperLog.create({
       data: {
@@ -574,11 +601,28 @@ export async function updateAllPlayerStats(): Promise<void> {
         status: errors === 0 ? 'success' : 'partial',
         matchesFound: updated,
         duration: Date.now() - startTime,
-        error: errors > 0 ? `${errors} players failed to update` : undefined,
+        error: errors > 0 ? `${errors} failed (${breakdownStrs.join(', ')})` : undefined,
       },
     });
 
-    logger.info(`Player stats update complete: ${updated} updated, ${errors} errors`);
+    logger.info(`Player stats update complete: ${updated} updated, ${errors} errors${errors > 0 ? ` [${breakdownStrs.join(', ')}]` : ''}`);
+
+    // Per-bucket sample so the operator sees one example reason per category.
+    for (const [kind, example] of Object.entries(failureExamples)) {
+      logger.warn(`[aoe4world] Failure example (${kind}): ${example}`);
+    }
+
+    // Bug #2 alert : if more than half the batch failed, escalate the log
+    // level so it shows up in monitoring dashboards. Two consecutive
+    // sub-50 % batches almost certainly means a systemic issue (API down,
+    // schema drift, rate limit, expired key) — not noise.
+    if (players.length >= 5 && successRate < 0.5) {
+      logger.error(
+        `[aoe4world] ALERT — batch success rate ${(successRate * 100).toFixed(0)}% (${updated}/${players.length}). ` +
+        `Top failure modes: ${breakdownStrs.slice(0, 3).join(', ')}. ` +
+        `Investigate aoe4world API health, env vars, or rate limits.`,
+      );
+    }
   } catch (error) {
     logger.error('updateAllPlayerStats error:', error);
     await prisma.scraperLog.create({
