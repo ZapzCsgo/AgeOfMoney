@@ -47,9 +47,10 @@ const TIER_WEIGHT: Record<string, number> = {
   Misc: 0.3,
 };
 
-// Bayesian prior: equivalent to 5 matches at 50% winrate
+// Bayesian prior: equivalent to 5 matches at 50% winrate.
+// Lowered to 1 when ODDS_ENGINE_BAYES_WEAK_H2H=true (session 3 winner) —
+// see flag block below.
 const PRIOR_WINRATE = 0.50;
-const PRIOR_STRENGTH = 5;
 
 // ── Phase 1 feature flag ──────────────────────────────────────────────────
 // Quand ODDS_ENGINE_V2_ENABLED=true, on active : half-life 90j, wrLogitDiff
@@ -57,23 +58,35 @@ const PRIOR_STRENGTH = 5;
 // Default false pour pouvoir A/B tester en prod sans régression.
 const V2_ENABLED = process.env.ODDS_ENGINE_V2_ENABLED === 'true';
 
-// ── H2H priority feature flag (overnight 2 winner) ─────────────────────
-// Quand ODDS_ENGINE_H2H_PRIORITY=true, on applique les 3 overrides du
-// variant `s2-combo-h2h-priority` qui a battu le baseline simultanément
-// sur Brier (-0.0152), Accuracy (+0.7pp), ECE (-0.0171) lors du backtest
-// 2026-05-02 (N=153 matchs) :
-//   - h2hWeightScale     : 0.30 → 0.50 (poids H2H scale 1.67×)
-//   - h2hConfidenceMaxAt : 12   → 6    (confiance plein avec ~6 H2H)
-//   - formWeight         : 0.30 → 0.20 (réduit le bruit du form factor)
-// Voir audit/ODDS_RESULTS_FULL_2026-05-02.md pour le détail.
-const H2H_PRIORITY_ENABLED = process.env.ODDS_ENGINE_H2H_PRIORITY === 'true';
-if (H2H_PRIORITY_ENABLED) {
+// ── Odds engine session winners feature flags ──────────────────────────
+//
+// Two flags, additive : BAYES_WEAK_H2H implies H2H_PRIORITY.
+//
+// ODDS_ENGINE_H2H_PRIORITY  → variant `s2-combo-h2h-priority`
+//   Backtest 2026-05-02 #1 (N=153) : Brier -0.0152, Acc +0.7pp, ECE -0.0171.
+//   Overrides : h2hWeightScale 0.30→0.50, h2hConfidenceMaxAt 12→6,
+//   formWeight 0.30→0.20.
+//
+// ODDS_ENGINE_BAYES_WEAK_H2H → variant `v45-bayes-weak-h2h` (session 3 winner)
+//   Backtest 2026-05-02 #2 (N=153) : Brier -0.0164, Acc +1.3pp, ECE -0.0190.
+//   Strict improvement on H2H_PRIORITY. Adds priorStrength 5→1 on top of
+//   the same h2h overrides.
+//
+// Recommended : enable BAYES_WEAK_H2H directly (it implies H2H_PRIORITY).
+// H2H_PRIORITY-only kept for granular A/B testing.
+const BAYES_WEAK_H2H_ENABLED = process.env.ODDS_ENGINE_BAYES_WEAK_H2H === 'true';
+const H2H_PRIORITY_ENABLED   = BAYES_WEAK_H2H_ENABLED || process.env.ODDS_ENGINE_H2H_PRIORITY === 'true';
+if (BAYES_WEAK_H2H_ENABLED) {
   // eslint-disable-next-line no-console
-  console.log('[OddsEngine] ODDS_ENGINE_H2H_PRIORITY active — using h2hWeightScale=0.50, h2hConfidenceMaxAt=6, formWeight=0.20');
+  console.log('[OddsEngine] ODDS_ENGINE_BAYES_WEAK_H2H active — priorStrength=1 + h2h priority overrides');
+} else if (H2H_PRIORITY_ENABLED) {
+  // eslint-disable-next-line no-console
+  console.log('[OddsEngine] ODDS_ENGINE_H2H_PRIORITY active — h2hWeightScale=0.50, h2hConfidenceMaxAt=6, formWeight=0.20');
 }
 const H2H_WEIGHT_SCALE   = H2H_PRIORITY_ENABLED ? 0.50 : 0.30;
 const H2H_CONFIDENCE_MAX = H2H_PRIORITY_ENABLED ? 6    : 12;
 const FORM_WEIGHT        = H2H_PRIORITY_ENABLED ? 0.20 : 0.30;
+const PRIOR_STRENGTH     = BAYES_WEAK_H2H_ENABLED ? 1 : 5;
 
 // Temporal decay: half-life in days. V1 = 180j (records 6 mois = 0.5×),
 // V2 = 90j (records 3 mois = 0.5×) — le baseline a montré que les matches

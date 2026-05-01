@@ -38,6 +38,7 @@ interface PmrSnapshot {
   matchDate: string | null;
   score: string | null;
   confidence: number | null;
+  format?: string | null;
 }
 
 interface MatchSnapshot {
@@ -157,6 +158,7 @@ async function main() {
         matchDate: r.matchDate,
         opponentId: r.opponentId,
         score: r.score,
+        format: r.format ?? null,
       }));
   };
 

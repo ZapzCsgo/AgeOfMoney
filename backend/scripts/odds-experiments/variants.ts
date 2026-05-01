@@ -269,4 +269,101 @@ export const VARIANTS: Variant[] = [
     description: 'WR scale 0.85 (compresse vers 0.5). Approxime un Platt scaling sur le facteur skill.',
     overrides: { wrLogitScale: 0.85 },
   },
+
+  // ─── Session 3 (2026-05-02) — v37-v46 ────────────────────────────────────
+  // 10 nouvelles hypothèses post-merge du winner s2-combo-h2h-priority.
+  // Cible : Brier ≤ 0.1850, Acc ≥ 73%, ECE ≤ 0.18.
+
+  // v37 : booster massivement le poids du tier-context. Hypothèse : un
+  // joueur qui a déjà performé en S-tier garde un edge en S-tier.
+  {
+    id: 'v37-tier-context-boost',
+    description: 'tierCtxWeight 0.10 → 0.40 + step-up penalty x1.4. Tier-context devient un facteur primaire.',
+    overrides: { tierCtxWeight: 0.40, stepUpPenaltyPerStep: 0.35 },
+  },
+
+  // v38 : streak detector très agressif (form ON + streak bonus 0.10).
+  // Hypothèse : 3+ wins consécutifs en S/A indiquent un hot streak réel,
+  // pas juste du bruit comme la form factor générique.
+  {
+    id: 'v38-streak-decay-aggressive',
+    description: 'Streak ON + bonus 0.10 par win consécutive (cap 0.50) + streakWindow 5. Capture les hot streaks.',
+    overrides: { formEnabled: true, formStreakBonus: 0.10, formStreakCap: 0.50, streakWindow: 5 },
+  },
+
+  // v39 : opponent strength stretch extrême — corrige plus fort le farm.
+  // Hypothèse : 80% WR contre des sub-50% players doit valoir ~50%, pas 70%.
+  {
+    id: 'v39-opp-strength-extreme',
+    description: 'Opp strength a=0.2 b=1.6 + SOS 1.5 cap 0.25. Pénalise très fort le farm.',
+    overrides: { opponentStrengthA: 0.2, opponentStrengthB: 1.6, sosScale: 1.5, sosCap: 0.25 },
+  },
+
+  // v40 : équivalent v39 + h2h priority — combine deux signaux corrigeurs.
+  {
+    id: 'v40-anti-farm-h2h',
+    description: 'v39 (anti-farm) + h2h priority weights from winner. Combine corrections.',
+    overrides: {
+      opponentStrengthA: 0.2, opponentStrengthB: 1.6, sosScale: 1.5, sosCap: 0.25,
+      h2hWeightScale: 0.50, h2hConfidenceMaxAt: 6, formWeight: 0.20,
+    },
+  },
+
+  // v41 : reset patch — hardcode la date du major patch AoE4 du 2026-04-01
+  // (date approximative, à raffiner). Records avant = 50% du poids.
+  {
+    id: 'v41-patch-reset-2026-04',
+    description: 'Patch reset 2026-04-01 → poids ×0.50 sur les records pré-patch. Test si la meta a tourné.',
+    overrides: { patchResetDate: new Date('2026-04-01T00:00:00Z'), patchResetMultiplier: 0.50 },
+  },
+
+  // v42 : consistency shrinkage. Joueurs très consistants (variance < 0.20)
+  // → on shrinke la prédiction vers 0.5 de 10% logit max. Anti-overconfidence.
+  {
+    id: 'v42-consistency-shrink',
+    description: 'Si les 2 joueurs ont variance < 0.20 sur 20 derniers, shrink prob vers 0.5 (×0.10 logit). Anti-overconfidence.',
+    overrides: { consistencyBonus: 0.10 },
+  },
+
+  // v43 : format-specific winrate boost. Records du même format que le
+  // match courant (BO3 vs BO5) pèsent ×2.0.
+  {
+    id: 'v43-format-match-boost',
+    description: 'Records du même format BO que le match courant comptent ×2.0. Test la spécialisation BO3/BO5.',
+    overrides: { formatMatchBoost: 2.0 },
+  },
+
+  // v44 : combo des 3 axes les plus prometteurs identifiés à la session 2
+  // (h2h priority, tier-context boost, streak detector).
+  {
+    id: 'v44-combo-h2h-tier-streak',
+    description: 'h2h priority + tier-context 0.30 + streak ON. Combine les 3 signaux du leaderboard session 2.',
+    overrides: {
+      h2hWeightScale: 0.50, h2hConfidenceMaxAt: 6, formWeight: 0.20,
+      tierCtxWeight: 0.30,
+      formEnabled: true, formStreakBonus: 0.07, formStreakCap: 0.30,
+    },
+  },
+
+  // v45 : prior bayésien faible + h2h priority. s2-prior-weak avait Acc 75.2%
+  // mais Brier équivalent baseline ; combiner avec h2h-priority pourrait
+  // garder l'Acc et pousser Brier en dessous.
+  {
+    id: 'v45-bayes-weak-h2h',
+    description: 'Prior weak (1 pseudo-match) + h2h priority overrides. Test si on garde Acc 75% + Brier amélioré.',
+    overrides: {
+      priorStrength: 1,
+      h2hWeightScale: 0.50, h2hConfidenceMaxAt: 6, formWeight: 0.20,
+    },
+  },
+
+  // v46 : ensemble des 5 meilleurs variants — non implémentable comme un
+  // simple Hyperparams override (besoin d'un orchestrateur). Voir
+  // scripts/odds-experiments/variants/v46_ensemble.ts pour l'implémentation.
+  // Placeholder ici juste pour documenter l'existence.
+  {
+    id: 'v46-ensemble-placeholder',
+    description: 'Placeholder — voir variants/v46_ensemble.ts pour l\'orchestrateur réel.',
+    overrides: {},
+  },
 ];

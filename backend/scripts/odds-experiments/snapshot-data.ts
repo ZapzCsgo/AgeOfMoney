@@ -23,6 +23,7 @@ interface PmrSnapshot {
   matchDate: string | null;     // ISO string for JSON
   score: string | null;
   confidence: number | null;
+  format: string | null;        // BO3/BO5/BO7 — used by v43 format-specific variants
 }
 
 interface MatchSnapshot {
@@ -50,7 +51,7 @@ async function main() {
       where: { NOT: { opponentName: SENTINEL } },
       select: {
         playerId: true, opponentId: true, won: true, tier: true,
-        matchDate: true, score: true, confidence: true,
+        matchDate: true, score: true, confidence: true, format: true,
       },
       orderBy: { id: 'asc' },
       take: BATCH,
@@ -66,6 +67,7 @@ async function main() {
         matchDate: r.matchDate ? r.matchDate.toISOString() : null,
         score: r.score,
         confidence: r.confidence,
+        format: r.format,
       });
     }
     console.log(`  loaded ${allPmr.length} PMR rows…`);

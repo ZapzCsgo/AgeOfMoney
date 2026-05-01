@@ -59,6 +59,19 @@ export interface Hyperparams {
   stepUpMaxSteps: number;          // 3
   // Glicko enable
   useGlicko: boolean;              // false
+  // ── Session 3 (2026-05-02) extensions ────────────────────────────────
+  // Patch reset : records with matchDate < this Date get their weight
+  // multiplied by `patchResetMultiplier`. Off when Date is null.
+  patchResetDate?: Date | null;
+  patchResetMultiplier?: number;   // 0.50 = halve pre-patch importance
+  // Consistency bonus : if variance of last 20 results < threshold,
+  // pull odds toward the mean prediction (less extreme). Off when 0.
+  consistencyBonus?: number;       // 0..0.20 logit scale on the variance gap
+  // Format-specific winrate weight : if a player's records are split by
+  // BO format, weight current-format records this many ×. 1.0 = neutral.
+  formatMatchBoost?: number;       // default 1.0
+  // Streak detector window (last N) for explicit streak bonus
+  streakWindow?: number;           // default 5
 }
 
 export const DEFAULT_HYPERPARAMS: Hyperparams = {
@@ -95,6 +108,11 @@ export const DEFAULT_HYPERPARAMS: Hyperparams = {
   stepUpPenaltyPerStep: 0.25,
   stepUpMaxSteps: 3,
   useGlicko: false,
+  patchResetDate: null,
+  patchResetMultiplier: 1.0,
+  consistencyBonus: 0,
+  formatMatchBoost: 1.0,
+  streakWindow: 5,
 };
 
 export interface MatchRecord {
@@ -103,6 +121,8 @@ export interface MatchRecord {
   matchDate: Date | null;
   opponentId?: string | null;
   score?: string | null;
+  /** Optional, used by v43 format-specific variants */
+  format?: string | null;
 }
 
 export interface H2HRecord {
@@ -163,7 +183,7 @@ function compSOS(records: MatchRecord[], oppWr: Map<string, number>, hp: Hyperpa
   return Math.max(-hp.sosCap, Math.min(hp.sosCap, (avg - 0.5) * hp.sosScale));
 }
 
-function compWinrate(records: MatchRecord[], oppWr: Map<string, number> | undefined, hp: Hyperparams, now: number): { winrate: number; confidence: number; effN: number } {
+function compWinrate(records: MatchRecord[], oppWr: Map<string, number> | undefined, hp: Hyperparams, now: number, currentMatchFormat?: string): { winrate: number; confidence: number; effN: number } {
   const decayConst = Math.LN2 / hp.halfLifeDays;
   let weightedWins = hp.priorWinrate * hp.priorStrength;
   let totalWeight = hp.priorStrength;
@@ -176,7 +196,17 @@ function compWinrate(records: MatchRecord[], oppWr: Map<string, number> | undefi
       const w = oppWr.get(r.opponentId);
       if (w !== undefined) oppStrength = hp.opponentStrengthA + w * hp.opponentStrengthB;
     }
-    const matchWeight = recency * tierW * oppStrength;
+    // v41 patch reset : down-weight pre-patch records.
+    let patchMul = 1.0;
+    if (hp.patchResetDate && r.matchDate && r.matchDate < hp.patchResetDate) {
+      patchMul = hp.patchResetMultiplier ?? 1.0;
+    }
+    // v43 format match boost : up-weight records of the same BO format.
+    let formatMul = 1.0;
+    if ((hp.formatMatchBoost ?? 1.0) !== 1.0 && currentMatchFormat && r.format === currentMatchFormat) {
+      formatMul = hp.formatMatchBoost!;
+    }
+    const matchWeight = recency * tierW * oppStrength * patchMul * formatMul;
     totalWeight += matchWeight;
     if (r.won) weightedWins += matchWeight;
   }
@@ -321,8 +351,8 @@ export function calculateOddsTuned(input: TunedInput, hp: Hyperparams = DEFAULT_
     }
   }
 
-  const wr1 = compWinrate(input.p1Records, oppWr, hp, now);
-  const wr2 = compWinrate(input.p2Records, oppWr, hp, now);
+  const wr1 = compWinrate(input.p1Records, oppWr, hp, now, input.format);
+  const wr2 = compWinrate(input.p2Records, oppWr, hp, now, input.format);
 
   const wrLogitDiff = logit(wr1.winrate) - logit(wr2.winrate);
   const sos1 = compSOS(input.p1Records, oppWr, hp);
@@ -396,6 +426,30 @@ export function calculateOddsTuned(input: TunedInput, hp: Hyperparams = DEFAULT_
 
   let prob1 = sigmoid(blendedLogit);
   prob1 = sigmoid(logit(prob1) - (rust1 - rust2));
+
+  // v42 consistency : if both players are highly consistent (low variance
+  // on their last 20 results), pull the prediction toward 0.5 because the
+  // engine's confidence is already extracting most of the signal — the
+  // residual high-confidence prediction is more likely overfit. Conversely,
+  // if at least one player is highly inconsistent, leave the prob alone
+  // (we shouldn't penalize confidence on the only signal we have).
+  if ((hp.consistencyBonus ?? 0) > 0) {
+    const variance = (recs: MatchRecord[]) => {
+      const last = recs.filter(r => r.matchDate)
+        .sort((a, b) => (b.matchDate?.getTime() ?? 0) - (a.matchDate?.getTime() ?? 0))
+        .slice(0, 20);
+      if (last.length < 5) return 0.25; // not enough data → neutral
+      const wins = last.filter(r => r.won).length / last.length;
+      return wins * (1 - wins); // Bernoulli variance, max 0.25
+    };
+    const v1 = variance(input.p1Records);
+    const v2 = variance(input.p2Records);
+    const minV = Math.min(v1, v2);
+    // minV close to 0 = both highly consistent, close to 0.25 = noisy
+    const shrinkFactor = Math.max(0, 1 - minV / 0.20);
+    const shrinkage = hp.consistencyBonus! * shrinkFactor;
+    prob1 = sigmoid(logit(prob1) * (1 - shrinkage));
+  }
 
   const totalConfidence = Math.max(wrConfidence, h2hResult.confidence);
   const maxProb = totalConfidence < 0.20 ? hp.maxProbLowConf
