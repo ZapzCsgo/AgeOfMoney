@@ -4,7 +4,7 @@
 
 **Supabase database password is in git history and currently on master.**
 
-- Leaked value : `Forzag123*&JeSuisAuJapon` (URL-encoded `Forzag123*%26JeSuisAuJapon`)
+- Leaked value : `***REDACTED-AND-ROTATED***` (the value is now inert — kept off this file deliberately)
 - 41 occurrences in `git log --all -p`
 - Currently visible in 2 tracked files on master :
   - `.claude/settings.local.json` — multiple Bash permission entries embed the full pooler URL with password

@@ -1,5 +1,12 @@
 # Supabase status — 2026-05-02 (session 2 resume)
 
+> ⚠️ **Password rotated 2026-05-02.** The connection-string password
+> previously visible in this file's git history is now **INERT** — any
+> credential snippet you see in `git log -p` for this path is dead and
+> rejected by Supabase. The new password lives only in Railway env vars
+> and `backend/.env` (both gitignored). All examples in this file have
+> been redacted to `***REDACTED-AND-ROTATED***`.
+
 ## Connection issue & resolution
 
 **Initial test** (DATABASE_URL = direct):
@@ -19,7 +26,7 @@ higher session/transaction limits).
 
 **Fix** (no .env edit needed, just export for this session):
 ```bash
-export DATABASE_URL="postgresql://postgres.xhusoizxbjkybcafvuss:Forzag123*%26JeSuisAuJapon@aws-1-eu-central-1.pooler.supabase.com:6543/postgres"
+export DATABASE_URL="postgresql://postgres.xhusoizxbjkybcafvuss:***REDACTED-AND-ROTATED***@aws-1-eu-central-1.pooler.supabase.com:6543/postgres"
 ```
 → OK : `players=541, matches=251, pmr=24726`
 
