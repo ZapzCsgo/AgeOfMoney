@@ -55,3 +55,7 @@ coverage/
 
 # Playwright MCP cache (browser snapshots / console logs / traces)
 .playwright-mcp/
+
+# Python bytecode (e.g. shipped with .claude/skills/*/scripts/)
+__pycache__/
+*.pyc
