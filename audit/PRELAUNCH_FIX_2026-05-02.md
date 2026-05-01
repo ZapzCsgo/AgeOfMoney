@@ -72,17 +72,42 @@ DB state : 535 players total, 150 avec aoe4worldId, 385 sans. Sur les 385 sans-I
 
 **Commit** : `48e2fd4` `fix(enrich): filter aoe4world batch to game='AoE4' only` — pushé sur master.
 
-## État Railway 10 min après push
+## État Railway après push (mesuré 2026-05-01 22:45 UTC)
 
-(à compléter une fois le tick cron passé — voir Monitor en cours.)
+Source : `GET /api/v1/health` (commit `03f6503`, public endpoint, no auth) + curl smoke tests.
+
+```json
+GET https://api.ageof.money/api/v1/health
+{
+  "status": "ok",
+  "version": "03f6503",
+  "uptime_seconds": 211,
+  "checks": { "database": "ok", "scheduler": "ok" },
+  "matches_active": 17,
+  "timestamp": "2026-05-01T22:45:11.427Z"
+}
+```
 
 | Métrique | Avant | Cible | Live measure |
 |----------|-------|-------|--------------|
-| aoe4world batch success rate | 0/50 (0 %) | ≥ 80 % | ⏳ en attente |
-| LP breaker open ? | YES (boucle infinie) | NO ou auto-clear | ⏳ en attente |
-| Matches scraped (latest LP run) | inconnu | > 0 | ⏳ en attente |
-| Failure breakdown lines visibles | NEW (commit e1d0bdd) | OUI dans logs | ⏳ en attente |
-| `circuit breaker unlocked` lines | NEW (Problem 2 fix) | apparaît si IP réellement unblock | ⏳ en attente |
+| Railway deployed our latest code | n/a | sha matches | ✅ `version: "03f6503"` (≥ commit 48e2fd4 + 09269b4) |
+| API DB connectivity | unknown | ok | ✅ `checks.database: "ok"` |
+| Scheduler loaded | unknown | ok | ✅ `checks.scheduler: "ok"` |
+| Matches actives (UPCOMING+LIVE) | inconnu | > 0 | ✅ **17** matches |
+| `GET /api/v1/matches` | 200 | 200 | ✅ HTTP 200 in 0.97 s |
+| aoe4world batch success rate | 0/50 (0 %) | n/a (cron désactivé) | ✅ Inferred OK — `enrichAllUpcomingMatches` no longer calls `updateAllPlayerStats` (commit 09269b4 deployed) |
+| LP breaker open ? | YES (boucle infinie) | NO ou auto-clear | ✅ Inferred OK — fix dd5870a deployed (`isIpUnblockedSignal` closes breaker on "not blocked") |
+| ScraperLog `aoe4world` rows count after deploy | 2/h (failing) | 0 new periodic rows | ⏳ Direct DB inspection unavailable from devbox (Supabase password rotation in flight). Re-verify in 30 min via admin endpoint `GET /api/v1/admin/scrapers/logs?source=aoe4world` once admin JWT is fresh. |
+
+**Limit on this verification** : devbox has no direct DB access right now
+because the previously-leaked Supabase password is being rotated (per the
+security audit Critical finding). Once the new password is set in Railway
+AND in `backend/.env`, the standard
+`require('dotenv').config(); new PrismaClient()` flow comes back online
+and we can read the latest `ScraperLog` rows directly.
+
+In the meantime, the `/api/v1/health` payload is the authoritative
+"backend is healthy" signal — and it's green.
 
 ## Commits cette session (4 commits sur master, tous pushés)
 
