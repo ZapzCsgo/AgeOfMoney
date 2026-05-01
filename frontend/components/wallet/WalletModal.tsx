@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { useSession, signIn } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
+import { signInWithSteam } from '@/lib/authHelpers';
 import { X, Copy, Check, ChevronRight, ArrowDownToLine, ArrowUpFromLine, RefreshCw, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/i18n';
@@ -144,7 +145,7 @@ export function WalletModal({ onClose }: Props) {
 
   // ── Deposit submit ────────────────────────────────────────────────────────────
   const handleDeposit = useCallback(async () => {
-    if (!session) { signIn('steam'); return; }
+    if (!session) { signInWithSteam(); return; }
     if (!selectedCrypto || !usdAmount || parseFloat(usdAmount) < 1) {
       setError(t('wallet_err_min_deposit')); return;
     }
@@ -178,7 +179,7 @@ export function WalletModal({ onClose }: Props) {
 
   // ── Withdraw submit ───────────────────────────────────────────────────────────
   const handleWithdraw = useCallback(async () => {
-    if (!session) { signIn('steam'); return; }
+    if (!session) { signInWithSteam(); return; }
     if (!selectedCrypto || !coinsAmount || parseFloat(coinsAmount) < 169) {
       setError(t('wallet_err_min_withdraw')); return;
     }

@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import { signInWithSteam } from '@/lib/authHelpers';
 import { useT } from '@/lib/i18n';
 import { Match, BoResult, Bet } from '@/types';
 import { getMatch, getMatchH2H, getMyBets, setAuthToken } from '@/lib/api';
@@ -274,46 +275,66 @@ function ExactScoreBets({ match, onBetPlaced }: { match: Match; onBetPlaced: () 
         <Receipt size={14} className="text-aoe-gold" />
         <h3 className="font-cinzel font-bold text-sm text-aoe-gold tracking-wider uppercase">Score Exact</h3>
       </div>
-      <div className={`grid gap-2 ${hasDraw ? 'grid-cols-3' : 'grid-cols-2'}`}>
-        {/* P1 scores */}
-        <div className="space-y-1.5">
-          <p className="text-[10px] font-cinzel text-aoe-parchment-muted text-center mb-2 truncate">{match.player1.name}</p>
-          {p1Scores.map(s => (
-            <button key={s.score} onClick={() => setSelected(sel => sel?.score === s.score ? null : s)}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-[12px] font-cinzel font-bold transition-all ${selected?.score === s.score ? 'border-[#ffc542]' : 'border-aoe-border hover:border-aoe-border-gold'}`}
-              style={{ background: selected?.score === s.score ? 'rgba(255,197,66,0.15)' : 'rgba(255,255,255,0.03)', border: `1px solid ${selected?.score === s.score ? '#ffc542' : '#1e1a30'}` }}>
-              <span className={selected?.score === s.score ? 'text-[#ffd97a]' : 'text-aoe-parchment'}>{s.score}</span>
-              <span className="text-aoe-gold">×{s.odds}</span>
-            </button>
-          ))}
-        </div>
-        {/* Draw scores (BO2) */}
-        {hasDraw && (
-          <div className="space-y-1.5">
-            <p className="text-[10px] font-cinzel text-aoe-parchment-muted text-center mb-2">Draw</p>
-            {drawScores.map(s => (
-              <button key={s.score} onClick={() => setSelected(sel => sel?.score === s.score ? null : s)}
-                className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-[12px] font-cinzel font-bold transition-all"
-                style={{ background: selected?.score === s.score ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.03)', border: `1px solid ${selected?.score === s.score ? '#10b981' : '#1e1a30'}` }}>
-                <span className={selected?.score === s.score ? 'text-emerald-400' : 'text-aoe-parchment'}>{s.score}</span>
-                <span className="text-aoe-gold">×{s.odds}</span>
-              </button>
-            ))}
+      {/* Each tile redirects to Steam sign-in when the user isn't logged in.
+          Without this, the tile visually highlighted as selected but the
+          PARIER button below stayed hidden (rendered only when `selected &&
+          session`), so non-auth users got no feedback at all on click. */}
+      {(() => {
+        const onTileClick = (s: ExactScoreEntry) => {
+          if (!session) { signInWithSteam(); return; }
+          setSelected(sel => sel?.score === s.score ? null : s);
+        };
+        return (
+          <div className={`grid gap-2 ${hasDraw ? 'grid-cols-3' : 'grid-cols-2'}`}>
+            {/* P1 scores */}
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-cinzel text-aoe-parchment-muted text-center mb-2 truncate">{match.player1.name}</p>
+              {p1Scores.map(s => (
+                <button key={s.score} onClick={() => onTileClick(s)}
+                  title={!session ? 'Sign in with Steam to bet on the exact score' : undefined}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-[12px] font-cinzel font-bold transition-all ${selected?.score === s.score ? 'border-[#ffc542]' : 'border-aoe-border hover:border-aoe-border-gold'}`}
+                  style={{ background: selected?.score === s.score ? 'rgba(255,197,66,0.15)' : 'rgba(255,255,255,0.03)', border: `1px solid ${selected?.score === s.score ? '#ffc542' : '#1e1a30'}` }}>
+                  <span className={selected?.score === s.score ? 'text-[#ffd97a]' : 'text-aoe-parchment'}>{s.score}</span>
+                  <span className="text-aoe-gold">×{s.odds}</span>
+                </button>
+              ))}
+            </div>
+            {/* Draw scores (BO2) */}
+            {hasDraw && (
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-cinzel text-aoe-parchment-muted text-center mb-2">Draw</p>
+                {drawScores.map(s => (
+                  <button key={s.score} onClick={() => onTileClick(s)}
+                    title={!session ? 'Sign in with Steam to bet on the exact score' : undefined}
+                    className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-[12px] font-cinzel font-bold transition-all"
+                    style={{ background: selected?.score === s.score ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.03)', border: `1px solid ${selected?.score === s.score ? '#10b981' : '#1e1a30'}` }}>
+                    <span className={selected?.score === s.score ? 'text-emerald-400' : 'text-aoe-parchment'}>{s.score}</span>
+                    <span className="text-aoe-gold">×{s.odds}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {/* P2 scores */}
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-cinzel text-aoe-parchment-muted text-center mb-2 truncate">{match.player2.name}</p>
+              {p2Scores.map(s => (
+                <button key={s.score} onClick={() => onTileClick(s)}
+                  title={!session ? 'Sign in with Steam to bet on the exact score' : undefined}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-[12px] font-cinzel font-bold transition-all"
+                  style={{ background: selected?.score === s.score ? 'rgba(41,128,185,0.15)' : 'rgba(255,255,255,0.03)', border: `1px solid ${selected?.score === s.score ? '#2980b9' : '#1e1a30'}` }}>
+                  <span className={selected?.score === s.score ? 'text-blue-300' : 'text-aoe-parchment'}>{s.score}</span>
+                  <span className="text-aoe-gold">×{s.odds}</span>
+                </button>
+              ))}
+            </div>
           </div>
-        )}
-        {/* P2 scores */}
-        <div className="space-y-1.5">
-          <p className="text-[10px] font-cinzel text-aoe-parchment-muted text-center mb-2 truncate">{match.player2.name}</p>
-          {p2Scores.map(s => (
-            <button key={s.score} onClick={() => setSelected(sel => sel?.score === s.score ? null : s)}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-[12px] font-cinzel font-bold transition-all"
-              style={{ background: selected?.score === s.score ? 'rgba(41,128,185,0.15)' : 'rgba(255,255,255,0.03)', border: `1px solid ${selected?.score === s.score ? '#2980b9' : '#1e1a30'}` }}>
-              <span className={selected?.score === s.score ? 'text-blue-300' : 'text-aoe-parchment'}>{s.score}</span>
-              <span className="text-aoe-gold">×{s.odds}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+        );
+      })()}
+      {!session && (
+        <p className="text-center text-[10px] font-cinzel text-aoe-parchment-muted/70">
+          Sign in with Steam to place an exact-score bet.
+        </p>
+      )}
 
       {selected && session && (
         <div className="pt-2 border-t border-aoe-border space-y-2">

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useSession, signIn } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
+import { signInWithSteam } from '@/lib/authHelpers';
 import { Coins, TrendingUp, AlertCircle, CheckCircle } from 'lucide-react';
 import { Match } from '@/types';
 import { placeBet } from '@/lib/api';
@@ -53,7 +54,7 @@ export function BetForm({ match, onBetPlaced, initialPlayer = null }: BetFormPro
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!session) { signIn(); return; }
+    if (!session) { signInWithSteam(); return; }
     if (!selectedPlayer) { setError(t('bet_err_select')); return; }
     if (amount < 2) { setError(t('bet_err_min')); return; }
     if (amount > 500) { setError(t('bet_err_max')); return; }
@@ -132,8 +133,8 @@ export function BetForm({ match, onBetPlaced, initialPlayer = null }: BetFormPro
           <p className="text-aoe-parchment-dim text-sm mb-4">
             {t('bet_signin_desc')}
           </p>
-          <button onClick={() => signIn()} className="aoe-btn-gold w-full">
-            {t('auth_signin')}
+          <button onClick={() => signInWithSteam()} className="aoe-btn-gold w-full">
+            {t('auth_signin_steam')}
           </button>
         </div>
       ) : (

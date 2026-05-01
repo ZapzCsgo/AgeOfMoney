@@ -3,7 +3,8 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { useSession, signIn } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
+import { signInWithSteam } from '@/lib/authHelpers';
 import { apiClient, setAuthToken } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import {
@@ -245,7 +246,7 @@ export default function AffiliatePage() {
 
             {!session ? (
               <button
-                onClick={() => signIn('steam')}
+                onClick={() => signInWithSteam()}
                 className="group inline-flex items-center gap-3 px-6 py-3.5 rounded-xl font-bold text-[14px] transition-all hover:scale-[1.02] hover:shadow-lg"
                 style={{
                   background: 'linear-gradient(135deg, #ffc542 0%, #ffd97a 100%)',

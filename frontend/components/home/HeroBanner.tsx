@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useSession, signIn } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
+import { signInWithSteam } from '@/lib/authHelpers';
 import { useT } from '@/lib/i18n';
 
 interface HeroBannerProps {
@@ -158,7 +159,7 @@ export function HeroBanner({ activeMatches, weeklyBets, activePlayers }: HeroBan
           </Link>
           {!session && (
             <button
-              onClick={() => signIn()}
+              onClick={() => signInWithSteam()}
               className="aoe-btn-outline text-base py-3 px-8"
             >
               {t('hero_create_account')}

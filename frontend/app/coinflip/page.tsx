@@ -3,7 +3,8 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useSession, signIn } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
+import { signInWithSteam } from '@/lib/authHelpers';
 import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { apiClient, setAuthToken } from '@/lib/api';
@@ -247,7 +248,7 @@ export default function CoinFlipPage() {
     if (!session) {
       // Redirige directement vers Steam OpenID plutôt que d'afficher
       // "Connexion requise" — l'utilisateur peut lancer son flip sans friction.
-      signIn('steam');
+      signInWithSteam();
       return;
     }
     const amount = parseInt(betAmount);
@@ -285,7 +286,7 @@ export default function CoinFlipPage() {
     if (!session) {
       // Même logique que handleCreate — pas de message d'erreur, on saute
       // direct sur l'OpenID Steam pour réduire la friction.
-      signIn('steam');
+      signInWithSteam();
       return;
     }
     if (game.creator.id === userId) {

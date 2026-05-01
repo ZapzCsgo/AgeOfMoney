@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
+import { signInWithSteam } from '@/lib/authHelpers';
 import { ChevronDown, User, LogOut, Shield, Wallet, PlusCircle, Crown, Bell, Gift, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePathname } from 'next/navigation';
@@ -13,23 +14,19 @@ import { useT } from '@/lib/i18n';
 import { useNotifications } from '@/contexts/NotificationsContext';
 import { getSocket } from '@/lib/socket';
 
+// CSRF + form-POST kept as a fallback for edge cases where next-auth's
+// signIn() misroutes in App Router. The primary path is the centralised
+// signInWithSteam() helper which fixes a long-standing bug : the previous
+// callbackUrl was hard-coded to window.location.origin (= just the
+// homepage), so signing in from /matches/<id> dropped the user back on /
+// instead of where they clicked.
 async function handleSteamLogin() {
   try {
-    // Fetch CSRF token then POST — same as signIn() but more reliable in App Router
-    const csrfRes = await fetch('/api/auth/csrf');
-    const { csrfToken } = await csrfRes.json() as { csrfToken: string };
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = '/api/auth/signin/steam';
-    const csrf = document.createElement('input');
-    csrf.type = 'hidden'; csrf.name = 'csrfToken'; csrf.value = csrfToken;
-    const callback = document.createElement('input');
-    callback.type = 'hidden'; callback.name = 'callbackUrl'; callback.value = window.location.origin;
-    form.appendChild(csrf);
-    form.appendChild(callback);
-    document.body.appendChild(form);
-    form.submit();
+    signInWithSteam();
   } catch {
+    // Hard fallback : direct GET on the next-auth signin endpoint.
+    // NextAuth then renders its provider list (no CSRF needed for GET) and
+    // a one-click confirm sends the user to Steam.
     window.location.href = '/api/auth/signin/steam';
   }
 }

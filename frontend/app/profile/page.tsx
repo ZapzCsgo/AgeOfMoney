@@ -3,7 +3,8 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useSession, signIn } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
+import { signInWithSteam } from '@/lib/authHelpers';
 import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -608,7 +609,7 @@ export default function ProfilePage() {
           {/* Bouton Steam bleu (même style que /deposit) — plus cohérent
               avec l'identité Steam qu'un bouton or générique. */}
           <button
-            onClick={() => signIn('steam')}
+            onClick={() => signInWithSteam()}
             className="w-full flex items-center justify-center gap-3 py-3 rounded-xl font-bold text-sm transition-all hover:brightness-110 active:scale-[0.99]"
             style={{ background: 'linear-gradient(135deg, #2a475e, #1b2838)', border: '1px solid #4c6b8a', color: 'white' }}
           >

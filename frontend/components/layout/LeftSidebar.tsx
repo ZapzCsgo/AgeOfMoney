@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import { signInWithSteam } from '@/lib/authHelpers';
 import {
   Home, Swords, Trophy, User, Settings, Wallet, ChevronLeft, ChevronRight,
   TrendingUp, Star, Bell, Users, Dices, Gift, Coins, Crown, LineChart, Radar
@@ -47,19 +48,24 @@ export function LeftSidebar() {
 
   const width = expanded ? 220 : 60;
 
+  /** Routes that require an authenticated user to be useful. When the user
+   * isn't logged in, clicking those should trigger Steam OAuth (with the
+   * destination as callbackUrl) instead of navigating to a page that just
+   * shows a sign-in prompt. The sidebar is the most discoverable nav, so
+   * the UX has to be sharp. */
+  const AUTH_REQUIRED_PATHS = new Set(['/profile', '/deposit', '/affiliate']);
+
   function NavLink({ href, icon: Icon, label, badge }: NavItem) {
     const isActive = pathname === href || (href !== '/' && pathname.startsWith(href));
-    return (
-      <Link
-        href={href}
-        className={cn(
-          'relative flex items-center gap-3 rounded-lg transition-all duration-150 group select-none',
-          expanded ? 'px-3 py-2.5' : 'w-10 h-10 justify-center',
-          isActive
-            ? 'bg-[#1a1630] text-[#ffc542]'
-            : 'text-[#6b6488] hover:text-[#c8c0e0] hover:bg-[#13111f]'
-        )}
-      >
+    const sharedClass = cn(
+      'relative flex items-center gap-3 rounded-lg transition-all duration-150 group select-none',
+      expanded ? 'px-3 py-2.5' : 'w-10 h-10 justify-center',
+      isActive
+        ? 'bg-[#1a1630] text-[#ffc542]'
+        : 'text-[#6b6488] hover:text-[#c8c0e0] hover:bg-[#13111f]'
+    );
+    const innerContent = (
+      <>
         {/* Active indicator */}
         {isActive && (
           <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-[#ffc542] rounded-r" />
@@ -73,6 +79,27 @@ export function LeftSidebar() {
             {badge}
           </span>
         )}
+      </>
+    );
+
+    // Auth-required route + user not logged in → swap the Link for a button
+    // that triggers Steam OAuth, with the target route as callbackUrl so the
+    // user lands on the page they actually wanted after login.
+    if (AUTH_REQUIRED_PATHS.has(href) && !session) {
+      return (
+        <button
+          onClick={() => signInWithSteam(href)}
+          className={cn(sharedClass, 'w-full text-left')}
+          title={`Sign in with Steam to access ${label.toLowerCase()}`}
+        >
+          {innerContent}
+        </button>
+      );
+    }
+
+    return (
+      <Link href={href} className={sharedClass}>
+        {innerContent}
       </Link>
     );
   }

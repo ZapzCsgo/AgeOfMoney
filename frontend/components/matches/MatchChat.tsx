@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
+import { signInWithSteam } from '@/lib/authHelpers';
 import { Send, MessageSquare } from 'lucide-react';
 import { joinMatchRoom, leaveMatchRoom, sendChatMessage, onChatMessage, connectSocket, getSocket } from '@/lib/socket';
 import { cn } from '@/lib/utils';
@@ -250,9 +251,13 @@ export function MatchChat({ matchId }: MatchChatProps) {
             </button>
           </div>
         ) : (
-          <p className="text-center text-aoe-parchment-muted/60 text-[10px] font-cinzel py-1">
-            {t('chat_signin_prompt')} {t('chat_signin_desc')}
-          </p>
+          <button
+            onClick={() => signInWithSteam()}
+            className="w-full text-center text-aoe-gold hover:text-[#ffd97a] text-[11px] font-cinzel py-2 underline-offset-2 hover:underline transition-colors"
+            title="Sign in with Steam to join the chat"
+          >
+            {t('chat_signin_prompt')} — {t('chat_signin_desc')}
+          </button>
         )}
       </div>
     </div>

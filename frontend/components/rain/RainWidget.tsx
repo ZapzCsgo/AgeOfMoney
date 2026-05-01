@@ -13,7 +13,8 @@
  */
 
 import { useEffect, useState, useCallback } from 'react';
-import { useSession, signIn } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
+import { signInWithSteam } from '@/lib/authHelpers';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Droplets, X, Check } from 'lucide-react';
 import { apiClient, setAuthToken } from '@/lib/api';
@@ -115,7 +116,7 @@ export function RainWidget() {
   async function handleOpenCaptcha() {
     if (!session) {
       // Anonymous clicker → redirect to Steam auth. Same UX pattern as coinflip/jackpot.
-      signIn('steam');
+      signInWithSteam();
       return;
     }
     setError(null);

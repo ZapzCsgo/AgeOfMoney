@@ -3,7 +3,8 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { useSession, signIn } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
+import { signInWithSteam } from '@/lib/authHelpers';
 import { apiClient, setAuthToken } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -628,7 +629,7 @@ export default function JackpotPage() {
   }
 
   async function handleBet() {
-    if (!session) { signIn('steam'); return; }
+    if (!session) { signInWithSteam(); return; }
     const amount = parseInt(betAmount);
     if (!amount || amount < MIN_BET) { showMsg('error', `Minimum ${MIN_BET} ⚜`); return; }
     if (amount > MAX_BET) { showMsg('error', `Maximum ${MAX_BET} ⚜`); return; }
