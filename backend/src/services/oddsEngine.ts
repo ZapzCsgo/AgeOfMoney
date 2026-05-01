@@ -57,6 +57,24 @@ const PRIOR_STRENGTH = 5;
 // Default false pour pouvoir A/B tester en prod sans régression.
 const V2_ENABLED = process.env.ODDS_ENGINE_V2_ENABLED === 'true';
 
+// ── H2H priority feature flag (overnight 2 winner) ─────────────────────
+// Quand ODDS_ENGINE_H2H_PRIORITY=true, on applique les 3 overrides du
+// variant `s2-combo-h2h-priority` qui a battu le baseline simultanément
+// sur Brier (-0.0152), Accuracy (+0.7pp), ECE (-0.0171) lors du backtest
+// 2026-05-02 (N=153 matchs) :
+//   - h2hWeightScale     : 0.30 → 0.50 (poids H2H scale 1.67×)
+//   - h2hConfidenceMaxAt : 12   → 6    (confiance plein avec ~6 H2H)
+//   - formWeight         : 0.30 → 0.20 (réduit le bruit du form factor)
+// Voir audit/ODDS_RESULTS_FULL_2026-05-02.md pour le détail.
+const H2H_PRIORITY_ENABLED = process.env.ODDS_ENGINE_H2H_PRIORITY === 'true';
+if (H2H_PRIORITY_ENABLED) {
+  // eslint-disable-next-line no-console
+  console.log('[OddsEngine] ODDS_ENGINE_H2H_PRIORITY active — using h2hWeightScale=0.50, h2hConfidenceMaxAt=6, formWeight=0.20');
+}
+const H2H_WEIGHT_SCALE   = H2H_PRIORITY_ENABLED ? 0.50 : 0.30;
+const H2H_CONFIDENCE_MAX = H2H_PRIORITY_ENABLED ? 6    : 12;
+const FORM_WEIGHT        = H2H_PRIORITY_ENABLED ? 0.20 : 0.30;
+
 // Temporal decay: half-life in days. V1 = 180j (records 6 mois = 0.5×),
 // V2 = 90j (records 3 mois = 0.5×) — le baseline a montré que les matches
 // anciens pesaient trop et tiraient les probas vers un prior 50/50 obsolète.
@@ -323,8 +341,9 @@ function computeH2HProb(h2h: H2HRecord[], now = Date.now()): { prob: number; con
   const rawProb = totalWeight > 0 ? p1Score / totalWeight : 0.5;
   // Apply logit smoothing to avoid extremes from small samples
   const smoothed = sigmoid(logit(rawProb) * 0.85);
-  // Confidence: cap at 1.0, reaches ~0.5 at 6 H2H matches
-  const confidence = Math.min(1.0, h2h.length / 12);
+  // Confidence: cap at 1.0. Default reaches ~0.5 at 6 H2H matches and 1.0
+  // at 12; H2H_PRIORITY pulls full confidence in by 6 matches.
+  const confidence = Math.min(1.0, h2h.length / H2H_CONFIDENCE_MAX);
 
   return { prob: smoothed, confidence };
 }
@@ -601,13 +620,12 @@ export function calculateOddsV2(input: OddsInputV2): OddsResult {
   // 50/50 prior for the missing slot — that would wash out real signal
   // from the other factors. Instead we renormalize so the present weights
   // sum to 1, and the skill gap is preserved.
-  const h2hWeight    = h2hResult.confidence * 0.30;
+  const h2hWeight    = h2hResult.confidence * H2H_WEIGHT_SCALE;
   const wrWeight     = Math.max(0.35, wrConfidence * 0.50);
-  // Form weight bumped to 0.30. Combined with the new tier-weighted +
-  // dominance-aware form factor (range ±0.9 instead of ±0.06), a winstreak
-  // of S-tier sweeps like MarineLord's recent run actually shifts the odds
-  // by a meaningful amount.
-  const formWeight   = 0.30;
+  // Form weight 0.30 by default ; bumped down to 0.20 under H2H_PRIORITY
+  // (the form factor was identified as adding noise on the 2026-05-02
+  // backtest — `form-weight-0` actually beat baseline by Brier -0.0101).
+  const formWeight   = FORM_WEIGHT;
   // Only count tier-context weight when we actually have comparable data on
   // BOTH players. If one of them has never played at this tier we skip it —
   // the renormalization below redistributes the weight to the other factors.
