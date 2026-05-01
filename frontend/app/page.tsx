@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback, memo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { useT } from '@/lib/i18n';
+import { useT, type TKey } from '@/lib/i18n';
 import { Match, Tournament } from '@/types';
 import { getMatches, placeBet, getTournaments, setAuthToken } from '@/lib/api';
 import nextDynamic from 'next/dynamic';
@@ -29,7 +29,7 @@ function getCountryFlag(code?: string | null): string {
     .replace(/./g, (c) => String.fromCodePoint(0x1f1e0 - 65 + c.charCodeAt(0)));
 }
 
-function formatCountdown(dateStr: string, t: (k: string) => string): string {
+function formatCountdown(dateStr: string, t: (k: TKey) => string): string {
   const diff = new Date(dateStr).getTime() - Date.now();
   if (diff <= 0) return t('matches_imminent');
   const h = Math.floor(diff / 3600000);

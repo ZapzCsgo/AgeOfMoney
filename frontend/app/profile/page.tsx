@@ -11,7 +11,7 @@ import { Bet, UserStats, LeaderboardEntry } from '@/types';
 import { getMyBets, getLeaderboard, apiClient } from '@/lib/api';
 import { setAuthToken } from '@/lib/api';
 import { cn } from '@/lib/utils';
-import { useT } from '@/lib/i18n';
+import { useT, type TKey } from '@/lib/i18n';
 import {
   Settings, Clock, Shield, UserX, BadgeCheck, Users,
   BarChart2, Trophy, TrendingUp, TrendingDown, Coins,
@@ -488,7 +488,7 @@ function SecurityTab({ session }: { session: { user: { accessToken: string; id?:
   );
 }
 
-const TAB_IDS: { id: TabType; icon: typeof BarChart2 | typeof Settings | typeof Shield | typeof Clock; key: string }[] = [
+const TAB_IDS: { id: TabType; icon: typeof BarChart2 | typeof Settings | typeof Shield | typeof Clock; key: TKey }[] = [
   { id: 'profile',  icon: BarChart2, key: 'profile_tab_profile' },
   { id: 'settings', icon: Settings,  key: 'profile_tab_settings' },
   { id: 'security', icon: Shield,    key: 'profile_tab_security' },

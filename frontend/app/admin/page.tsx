@@ -378,7 +378,7 @@ export default function AdminPage() {
     }
   };
 
-  const handleSeedPlayer = async (playerId: string, playerName: string, source: 'all' | 'ai' | 'aoe4world' = 'all', game?: string) => {
+  const handleSeedPlayer = async (playerId: string, playerName: string, source: 'all' | 'ai' | 'aoe4world' | 'liquipedia' = 'all', game?: string) => {
     setSeeding(playerId);
     try {
       await apiClient.post(`/admin/players/${playerId}/seed-history`, { force: true, source, ...(game ? { game } : {}) });
@@ -751,7 +751,7 @@ export default function AdminPage() {
                     const data = r.data as { tournamentsUpdated: number; matchesUpdated: number };
                     showMsg('success', `${data.tournamentsUpdated} tournoi(s) → ${gameSelect.value} (${data.matchesUpdated} matchs cascadés)`);
                     nameInput.value = '';
-                    fetchAll();
+                    loadAll();
                   } catch (err) {
                     showMsg('error', err instanceof Error ? err.message : 'Erreur');
                   }
@@ -1689,7 +1689,7 @@ export default function AdminPage() {
               )}
 
               {/* Matched block detail */}
-              {lpDebug.matchedBlock && (
+              {Boolean(lpDebug.matchedBlock) && (
                 <div>
                   <div className="text-[11px] text-[#6b6488] uppercase tracking-wider mb-2">Bloc matché</div>
                   <pre className="text-[11px] text-[#a78bfa] rounded p-3 overflow-x-auto" style={{ background: '#13111f', border: '1px solid #7c3aed30' }}>

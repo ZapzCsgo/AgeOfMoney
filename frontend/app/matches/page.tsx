@@ -10,10 +10,10 @@ import { getMatches } from '@/lib/api';
 import { cn, getAvatarSrc } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Clock, RefreshCw, AlertTriangle, Swords, Search } from 'lucide-react';
-import { useT } from '@/lib/i18n';
+import { useT, type TKey } from '@/lib/i18n';
 import { EmptyState } from '@/components/ui/empty-state';
 
-function formatCountdown(dateStr: string, t: (k: string) => string): string {
+function formatCountdown(dateStr: string, t: (k: TKey) => string): string {
   const diff = new Date(dateStr).getTime() - Date.now();
   if (diff <= 0) return t('matches_imminent');
   const h = Math.floor(diff / 3600000);
