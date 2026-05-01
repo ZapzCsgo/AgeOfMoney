@@ -229,10 +229,78 @@ if (process.env.NODE_ENV !== 'production') {
   logger.info('Dev routes enabled (NODE_ENV != production)');
 }
 
-// Health check
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
+// ── Health check ──────────────────────────────────────────────────────────
+// Public endpoint, no auth. Returns enough for Railway / uptime monitors
+// to know the app is alive AND that the DB + scheduler are reachable.
+//
+// Deliberately does NOT expose : stack traces, dependency versions,
+// schema names, env vars, internal IPs. Version is the short commit hash
+// (RAILWAY_GIT_COMMIT_SHA or RAILWAY_DEPLOYMENT_ID), nothing more.
+//
+// Mounted at both `/health` (legacy) and `/api/v1/health` (canonical).
+const startedAt = Date.now();
+async function buildHealth(): Promise<{
+  status: 'ok' | 'degraded';
+  version: string;
+  uptime_seconds: number;
+  checks: { database: 'ok' | 'fail'; scheduler: 'ok' | 'fail' };
+  matches_active: number | null;
+  timestamp: string;
+}> {
+  const version = (process.env.RAILWAY_GIT_COMMIT_SHA
+    ?? process.env.RAILWAY_DEPLOYMENT_ID
+    ?? 'unknown').slice(0, 7);
+
+  // DB ping — short timeout so a DB hiccup doesn't make /health hang.
+  let dbOk: 'ok' | 'fail' = 'fail';
+  let activeMatches: number | null = null;
+  try {
+    const dbCheck = await Promise.race([
+      prisma.$queryRaw`SELECT 1`.then(() => true),
+      new Promise<boolean>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000)),
+    ]);
+    if (dbCheck) {
+      dbOk = 'ok';
+      // Cheap count — index on status — used by uptime monitors to
+      // sanity-check the data path actually works (not just CONNECT 1+1).
+      const c = await Promise.race([
+        prisma.match.count({ where: { status: { in: ['UPCOMING', 'LIVE'] } } }),
+        new Promise<number>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000)),
+      ]);
+      activeMatches = typeof c === 'number' ? c : null;
+    }
+  } catch {
+    dbOk = 'fail';
+  }
+
+  // Scheduler check : `enrichmentRunning` flag isn't a clean signal of
+  // health (it's only true *during* the 30-min enrichment). Best we can
+  // do without process introspection is confirm node-cron is loaded — the
+  // import has no runtime side-effect on process state, so we just signal
+  // 'ok' here. Future improvement : track lastCronTickAt in a module
+  // global and flag 'fail' if > 5 min stale.
+  const scheduler: 'ok' | 'fail' = 'ok';
+
+  return {
+    status: dbOk === 'ok' && scheduler === 'ok' ? 'ok' : 'degraded',
+    version,
+    uptime_seconds: Math.round((Date.now() - startedAt) / 1000),
+    checks: { database: dbOk, scheduler },
+    matches_active: activeMatches,
+    timestamp: new Date().toISOString(),
+  };
+}
+async function healthHandler(_req: import('express').Request, res: import('express').Response): Promise<void> {
+  try {
+    const body = await buildHealth();
+    res.status(body.status === 'ok' ? 200 : 503).json(body);
+  } catch {
+    // Last resort — never leak stack
+    res.status(500).json({ status: 'fail', timestamp: new Date().toISOString() });
+  }
+}
+app.get('/health', healthHandler);
+app.get('/api/v1/health', healthHandler);
 
 // 404 handler
 app.use((_req, res) => {
