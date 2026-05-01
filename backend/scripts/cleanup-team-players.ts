@@ -39,12 +39,12 @@ async function main() {
 
   // 1. Find offending players
   const players = await prisma.player.findMany({
-    select: { id: true, name: true, _count: { select: { matchesAsP1: true, matchesAsP2: true } } },
+    select: { id: true, name: true, _count: { select: { matchesAsPlayer1: true, matchesAsPlayer2: true } } },
   });
   const offenders = players.filter(p => TEAM_PATTERN.test(p.name));
   console.log(`Players matching team pattern : ${offenders.length}`);
   for (const p of offenders) {
-    console.log(`  - ${p.name.padEnd(30)} (id=${p.id}, matches=${p._count.matchesAsP1 + p._count.matchesAsP2})`);
+    console.log(`  - ${p.name.padEnd(30)} (id=${p.id}, matches=${p._count.matchesAsPlayer1 + p._count.matchesAsPlayer2})`);
   }
   if (offenders.length === 0) {
     console.log('\n✅ Nothing to clean.');

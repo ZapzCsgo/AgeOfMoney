@@ -180,3 +180,92 @@ trafic user). Faut **soit** :
 - `backend/src/services/odds/exactScore.ts` — MC simulator + 10 tests.
 - `backend/scripts/odds-experiments/variants.ts` — 35 variants au total.
 - `backend/scripts/cleanup-team-players.ts` — remediation Bug #1 (Bug WTL).
+
+---
+
+## Phase 2/3/6/6.5 Resumed — DB Restored 2026-05-02 morning
+
+User upgraded Supabase to Pro and asked to resume the blocked phases.
+Pro quota debloqué (250 GB/mois) mais le **vrai blocker était le réseau**,
+pas le quota : `db.xhusoizxbjkybcafvuss.supabase.co` n'a qu'un AAAA record
+(IPv6) et le devbox est IPv4-only. Solution : pooler Supavisor IPv4
+`aws-1-eu-central-1.pooler.supabase.com:6543` avec
+`?pgbouncer=true&connection_limit=1`. Cf `audit/SUPABASE_STATUS.md` pour
+le détail + recommandation pour la `.env` perso.
+
+### ✅ Phases complétées (timeline)
+
+| Phase | Status | Output | Commit |
+|-------|--------|--------|--------|
+| 2 — snapshot data | ✅ 13.4 s, ~6 MB egress | `.snapshot.json` (3.9 MB, 24726 PMR + 172 matches) | gitignored |
+| 3 — baseline 21 originals | ✅ | `audit/ODDS_BASELINE_2026-05-02.md` | included in next commit |
+| 6 — full 36 variants + ROI | ✅ | `audit/ODDS_RESULTS_FULL_2026-05-02.md` + `audit/ODDS_VARIANTS_2026-05-02.json` | next commit |
+| 6 — exact-score v36 | ✅ | `audit/ODDS_EXACT_SCORE_2026-05-01.md` | next commit |
+| 6.5 — exact-score calibration | ✅ ECE 0.019 | `audit/EXACT_SCORE_VALIDATION.md` | next commit |
+| 7 — cleanup dry-run | ✅ | `audit/CLEANUP_TEAM_PLAYERS_DRY_RUN.md` (6 offenders, 0 live) | next commit |
+
+### 📊 Top 3 variants recommandés (dataset N=153 valides, baseline Brier 0.2061)
+
+1. **`s2-combo-h2h-priority`** — Brier **0.1909** (Δ -0.0152), Acc 72.5% (Δ +0.7), ECE 0.1951.
+   - Override : `h2hWeightScale: 0.50, h2hConfidenceMaxAt: 6, formWeight: 0.20`.
+   - Pourquoi : H2H direct entre les deux joueurs prend plus de poids quand on a au moins ~6 confrontations passées (vs 12 par défaut). Réduit l'influence du form-factor à 20 %.
+   - **C'est le winner unique qui bat le baseline simultanément sur Brier (-0.0152), Accuracy (+0.7 pp) et ECE (-0.0171).**
+
+2. **`form-weight-0`** — Brier 0.1960 (Δ -0.0101), Acc 71.2%, ECE 0.1997.
+   - Override : `formWeight: 0` — désactive complètement le facteur form.
+   - Signal : le form-factor actuel ajoute du **bruit** sur ce dataset, pas du signal. À investiguer (overfit ? trop sensible aux 1-1 BO2 ?).
+
+3. **`s2-no-form-no-streak`** — Brier 0.2004 (Δ -0.0057), Acc 69.9%, ECE 0.2041.
+   - Override : `formWeight: 0, tierCtxWeight: 0.20`.
+   - Confirme #2 + ajoute du poids au tier-context. Légèrement moins bon que pure-no-form.
+
+**Bonus — par accuracy seule** : `s2-prior-weak` (75.2 %) — prior bayésien faible (1 pseudo-match au lieu de 5). Trade-off : Brier équivalent au baseline mais accuracy supérieure. Bon candidat si on optimise pour le top-pick rather que pour la calibration.
+
+### 🎯 Score exact — verdict
+
+- 143 prédictions BO3+BO5+BO7, ECE total **0.0193** (analytical).
+- Monte Carlo (10k sims) ECE 0.0192 — strictement équivalent au closed-form analytical.
+- **Recommandation prod** : utiliser `analyticalExactScore` (zéro variance, ~100× plus rapide). MC reste utile uniquement quand on aura le pipeline data per-game (civ × map → option `perMapProb`).
+- Calibration excellente (< 0.05 = très bonne) sur tous les buckets sauf [80-100%] où il y a peu d'observations.
+
+### 💰 Egress consommé cette session
+
+**Total ≈ 6 MB** sur le quota Pro 250 GB/mois (= 0.0024 %). Décomposition dans `audit/EGRESS_TRACKING.md`.
+
+Snapshot pris une fois, réutilisé par 5 scripts différents (run-all baseline, run-all 36 variants, v36 exact-score MC, calibration, cleanup dry-run). Pattern visé par les contraintes egress du prompt = ✅.
+
+### 🚨 Anomalies détectées pendant les runs
+
+1. **3 variants Glicko sont catastrophiques sur ce dataset** : `glicko-on` (Brier 0.2385), `glicko-plus-v2` (0.2358), `s2-combo-skill-driven` (0.2415). Ils dégradent le baseline de +3 à +4 pp Brier, et leur ROI est négatif (-8 à -13 % par bet). **Confirme la conclusion Phase 3/4 antérieure** : Glicko vanilla ne marche pas sur dataset sparse AoE — le rating est faux pour les joueurs avec RD > 150. Garder le flag `ODDS_ENGINE_V2_ENABLED=false` en prod.
+
+2. **`form-weight-0` bat le baseline** — surprenant. Le form factor actuel (computeFormFactor avec dominance × tier × decay) ajoute du bruit, pas du signal. Hypothèse : la draw-handling (1-1 BO2) compte pour 0.5 dans le score moyen, ce qui peut sous- ou sur-estimer un joueur selon le pattern de ses derniers matchs. À investiguer dans une session future.
+
+3. **6 player rows orphelins** matchent le team-pattern (Team Vitality, Onimaru Esports, Uxmal Esports, Rulers of Rome B, Team Venon Esports, Old School B). Aucun match LIVE/UPCOMING affecté. Le fix `5b1843c` (commit master) bloque les futurs ingest. Le cleanup actif n'est pas urgent — voir `CLEANUP_TEAM_PLAYERS_DRY_RUN.md`.
+
+4. **Schema field rename** dans `cleanup-team-players.ts` : j'avais référencé `matchesAsP1`/`P2` au lieu de `matchesAsPlayer1`/`Player2`. Corrigé pendant la run, à committer.
+
+### 📋 Top 3 actions recommandées pour merge en prod (avec ordre + risques)
+
+#### Action 1 (faible risque, gros gain immédiat) — Merger les optims egress
+- Commit `05516e5` (cache PMR + select-only fixes).
+- **Risque** : minime. Tous les call sites sont des reads en cron. Le cache TTL est volontairement sous-conservatif (5 min) — les odds tournent toutes les 10 min de toute façon.
+- **Gain estimé** : -50 à -60 % egress backend, ce qui rend le coût Pro acceptable si tu décides plus tard de descendre vers Free / Team plan.
+- **Test plan** : déployer + monitorer le egress Supabase pendant 24 h. Si la DB tient sans erreur de connexion, c'est OK.
+
+#### Action 2 (risque modéré, gain odds) — Pousser `s2-combo-h2h-priority` derrière flag
+- Modif `oddsEngine.ts` : changer `h2hWeightScale` de 0.30 → 0.50 et `h2hConfidenceMaxAt` de 12 → 6, `formWeight` de 0.30 → 0.20, derrière un nouveau flag `ODDS_ENGINE_H2H_PRIORITY=true`.
+- **Risque** : Brier amélioré sur backtest mais N=153 reste petit. Possibilité d'overfit.
+- **Test plan** : activer le flag sur prod, comparer le Brier live des 50 prochains matchs vs prod actuelle (côte à côte via le cron weekly backtest).
+- **Rollback** : 1 ligne d'env var sur Railway.
+
+#### Action 3 (risque très faible, fin du backlog) — Merger Bug #4 ledger sur prod
+- Commit `4f83837` (déjà sur master local, attend ton review final).
+- **Risque** : minime, juste des INSERT supplémentaires dans Transaction. Les `$transaction` blocks sont déjà en place donc pas de race condition introduite.
+- **Test plan** : déployer + vérifier que la requête Q2 du Phase B SQL audit (drift balance vs ledger) commence à se rapprocher de zéro pour les nouveaux users post-deploy.
+
+#### Hors top-3 (à mettre en backlog pour une session future) :
+- Pipeline data civ × map per game → débloque les variants Phase 4 originaux + l'option `perMapProb` du score exact MC.
+- Investiguer pourquoi `form-weight-0` bat le baseline — soit améliorer la formule, soit la retirer pour de bon.
+- Switch `DATABASE_URL` vers le pooler dans `.env` pour les devs, ou ajouter une note README.
+
+
