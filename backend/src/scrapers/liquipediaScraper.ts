@@ -480,7 +480,11 @@ function parseMatchBlocks(html: string, wikiPath: string, game: string): Array<{
       if (/^(winner|loser)\s+(of|from)/i.test(player1) || /^(winner|loser)\s+(of|from)/i.test(player2)) return;
       if (leftEl.find('.block-player').length > 1 || rightEl.find('.block-player').length > 1) return;
       // Skip team org names: "Team X", "X Esports", "X Esports A/B", "Old School B", "Rulers of Rome A"
-      const teamPattern = /^team\s+|esports?\s*[ab]?$|\s+esports?$|esports?\s+[ab]$|\s+[AB]$/;
+      // The /i flag is critical — previous commit dropped it while extending the
+      // pattern, which let "Team Vitality" / "Onimaru Esports" through (capital
+      // T / capital E broke ^team / \s+esports$ matching). Cf prod match
+      // cmolrdd2u000o133rql0qgb9h surfaced in OVERNIGHT_REPORT_2026-05-02.
+      const teamPattern = /^team\s+|esports?\s*[ab]?$|\s+esports?$|esports?\s+[ab]$|\s+[AB]$/i;
       if (teamPattern.test(player1) || teamPattern.test(player2)) return;
 
       const player1Country = leftEl.find('.flag img').first().attr('alt') || '';
