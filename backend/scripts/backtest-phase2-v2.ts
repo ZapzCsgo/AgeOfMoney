@@ -58,22 +58,42 @@ async function main() {
 
   console.log(`\n🎯 Phase 2 backtest (chronological, last ${n} matches)\n`);
 
-  console.log('[Backtest] Loading all data into memory…');
-  const [allPmr, matches] = await Promise.all([
-    prisma.playerMatchRecord.findMany({
+  console.log('[Backtest] Loading data in batches (pooler-friendly)…');
+  // Batching pour éviter timeout sur les 23k+ PMR rows via le pooler
+  const allPmr: PmrRow[] = [];
+  const BATCH = 5000;
+  for (let offset = 0; ; offset += BATCH) {
+    const chunk = await prisma.playerMatchRecord.findMany({
       where: { NOT: { opponentName: SENTINEL } },
       select: { playerId: true, opponentId: true, won: true, tier: true, matchDate: true, score: true, confidence: true },
-    }),
-    prisma.match.findMany({
-      where: { status: 'COMPLETED', scheduledAt: { not: undefined } },
-      include: {
-        player1: { select: { id: true, name: true, lastMatchAt: true } },
-        player2: { select: { id: true, name: true, lastMatchAt: true } },
-        tournament: { select: { tier: true } },
-      },
-      orderBy: { scheduledAt: 'asc' },
-    }),
-  ]);
+      orderBy: { id: 'asc' },
+      take: BATCH,
+      skip: offset,
+    }).catch(async () => {
+      // retry once on pooler drop
+      await new Promise(r => setTimeout(r, 3000));
+      return prisma.playerMatchRecord.findMany({
+        where: { NOT: { opponentName: SENTINEL } },
+        select: { playerId: true, opponentId: true, won: true, tier: true, matchDate: true, score: true, confidence: true },
+        orderBy: { id: 'asc' },
+        take: BATCH,
+        skip: offset,
+      });
+    });
+    if (chunk.length === 0) break;
+    allPmr.push(...(chunk as PmrRow[]));
+    console.log(`  loaded ${allPmr.length} PMR rows…`);
+    if (chunk.length < BATCH) break;
+  }
+  const matches = await prisma.match.findMany({
+    where: { status: 'COMPLETED', scheduledAt: { not: undefined } },
+    include: {
+      player1: { select: { id: true, name: true, lastMatchAt: true } },
+      player2: { select: { id: true, name: true, lastMatchAt: true } },
+      tournament: { select: { tier: true } },
+    },
+    orderBy: { scheduledAt: 'asc' },
+  });
 
   console.log(`[Backtest] Loaded ${allPmr.length} PMR rows + ${matches.length} match events`);
 

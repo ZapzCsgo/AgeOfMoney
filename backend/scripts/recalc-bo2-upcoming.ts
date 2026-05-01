@@ -105,6 +105,23 @@ async function main() {
       const days1 = m.player1.lastMatchAt ? (now - m.player1.lastMatchAt.getTime()) / 86400000 : 30;
       const days2 = m.player2.lastMatchAt ? (now - m.player2.lastMatchAt.getTime()) / 86400000 : 30;
 
+      // Phase 2 : fetch Glicko ratings si V2 flag ON
+      let glicko1: { rating: number; rd: number } | undefined;
+      let glicko2: { rating: number; rd: number } | undefined;
+      if (process.env.ODDS_ENGINE_V2_ENABLED === 'true') {
+        const glickoRows = await prisma.$queryRawUnsafe<Array<{
+          playerid: string; rating: number; rd: number;
+        }>>(
+          `SELECT "playerId" AS playerid, rating, rd FROM "PlayerRating" WHERE "playerId" IN ($1, $2)`,
+          m.player1.id, m.player2.id,
+        ).catch(() => [] as Array<{ playerid: string; rating: number; rd: number }>);
+        for (const r of glickoRows) {
+          const entry = { rating: Number(r.rating), rd: Number(r.rd) };
+          if (r.playerid === m.player1.id) glicko1 = entry;
+          else if (r.playerid === m.player2.id) glicko2 = entry;
+        }
+      }
+
       const newOdds = calculateOddsV2({
         p1Records: p1Records.map(r => ({ won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId, score: r.score })),
         p2Records: p2Records.map(r => ({ won: r.won, tier: r.tier ?? 'B', matchDate: r.matchDate, opponentId: r.opponentId, score: r.score })),
@@ -114,6 +131,10 @@ async function main() {
         matchTier: m.tournament?.tier ?? undefined,
         format: m.format,
         opponentWinrates: oppWinrateMap,
+        glickoRating1: glicko1?.rating,
+        glickoRd1: glicko1?.rd,
+        glickoRating2: glicko2?.rating,
+        glickoRd2: glicko2?.rd,
       });
 
       const oldOver = 1 / m.odds1 + 1 / m.odds2 + (m.oddsDraw ? 1 / m.oddsDraw : 0);

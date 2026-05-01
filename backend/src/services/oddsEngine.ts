@@ -89,32 +89,22 @@ export interface H2HRecord {
 }
 
 export interface OddsInputV2 {
-  // All tournament match records for player 1
   p1Records: MatchRecord[];
-  // All tournament match records for player 2
   p2Records: MatchRecord[];
-  // Direct H2H between the two players (most recent first)
   h2h: H2HRecord[];
-  // Days since last tournament match (0 = played today)
   daysSinceLastMatch1: number;
   daysSinceLastMatch2: number;
-  // Current match tier (for tier-context adjustment)
   matchTier?: string;
-  // Match format — needed to calculate draw odds for even BOs
   format?: string;
-  // Opponent winrates (Map<opponentId, winrate 0-1>) — used to weight each
-  // win/loss by opponent strength. A win against a 30% player counts less
-  // than a win against a 70% player. When omitted, all opponents default
-  // to 0.5 and the factor is effectively inactive.
   opponentWinrates?: Map<string, number>;
-  // Phase 2 : Glicko-2 ratings (optional). When both provided AND
-  // ODDS_ENGINE_V2_ENABLED=true, the "competitive winrate" factor is
-  // replaced by the Glicko single-game win probability. Other factors
-  // (form, H2H, tier-context) remain intact as modifiers.
+  // Phase 2 : Glicko-2 ratings. Triggers V2 path when all 4 are provided.
   glickoRating1?: number;
   glickoRd1?: number;
   glickoRating2?: number;
   glickoRd2?: number;
+  // Phase 3 : override mode. Par défaut on laisse les env vars décider.
+  // Tests/backtest peuvent forcer explicitement un mode particulier.
+  forceMode?: 'v1-only' | 'v2-only' | 'ensemble' | 'ensemble-platt';
 }
 
 export interface OddsResult {
