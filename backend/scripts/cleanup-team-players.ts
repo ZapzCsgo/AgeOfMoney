@@ -34,7 +34,14 @@ const TEAM_PATTERN = /^team\s+|esports?\s*[ab]?$|\s+esports?$|esports?\s+[ab]$|\
 async function main() {
   const apply = process.argv.includes('--apply');
   const deletePlayers = process.argv.includes('--delete-players');
-  const mode = apply ? (deletePlayers ? 'APPLY + DELETE' : 'APPLY') : 'DRY-RUN';
+  // 2026-05-02 prelaunch fix : safe full cascade — wipes the historical
+  // CANCELLED matches that hold FK references to the orphan team players,
+  // then drops the players. Aborts loudly if any of those matches still
+  // carry bets / boResults so we don't silently destroy real data.
+  const cascadeDelete = process.argv.includes('--cascade-delete-orphans');
+  const mode = apply
+    ? (cascadeDelete ? 'APPLY + CASCADE-DELETE' : (deletePlayers ? 'APPLY + DELETE' : 'APPLY'))
+    : 'DRY-RUN';
   console.log(`\n[cleanup-team-players] mode = ${mode}\n`);
 
   // 1. Find offending players
@@ -89,8 +96,65 @@ async function main() {
     console.log(`  ✓ cancelled + refunded ${m._count.bets} bet(s)`);
   }
 
-  // 4. Optionally delete orphan players
-  if (deletePlayers) {
+  // 4a. Cascade delete : drop the historical CANCELLED matches first so
+  // the player FK refs evaporate, then delete the players themselves.
+  // Refuses to touch any match that still has bets or boResults — those
+  // are real data even if the player rows look like teams.
+  if (cascadeDelete) {
+    console.log(`\n[apply --cascade-delete-orphans] dropping historical matches + players…`);
+    const offenderIds2 = offenders.map(o => o.id);
+    const histMatches = await prisma.match.findMany({
+      where: { OR: [{ player1Id: { in: offenderIds2 } }, { player2Id: { in: offenderIds2 } }] },
+      select: { id: true, status: true, _count: { select: { bets: true, boResults: true } } },
+    });
+    const dirty = histMatches.filter(m => m._count.bets > 0 || m._count.boResults > 0);
+    if (dirty.length > 0) {
+      console.error(`\n🔴 Aborting cascade : ${dirty.length} match(es) still carry data :`);
+      for (const m of dirty) console.error(`  - ${m.id} status=${m.status} bets=${m._count.bets} boResults=${m._count.boResults}`);
+      console.error(`Manual review required. Re-run with --apply (no cascade) to leave the data alone.`);
+      await prisma.$disconnect();
+      process.exit(2);
+    }
+    let matchesDeleted = 0;
+    let pmrDeleted = 0;
+    let playersDeleted = 0;
+    for (const m of histMatches) {
+      await prisma.match.delete({ where: { id: m.id } });
+      matchesDeleted++;
+      console.log(`  ✓ deleted match ${m.id} (${m.status})`);
+    }
+    // Wipe PlayerMatchRecord rows referencing the orphans (both as player AND
+    // as opponent). FK chain Player → PMR.playerId / PMR.opponentId requires
+    // these to go before the player delete.
+    for (const p of offenders) {
+      const pmrCount = await prisma.playerMatchRecord.count({
+        where: { OR: [{ playerId: p.id }, { opponentId: p.id }] },
+      });
+      if (pmrCount > 0) {
+        const r = await prisma.playerMatchRecord.deleteMany({
+          where: { OR: [{ playerId: p.id }, { opponentId: p.id }] },
+        });
+        pmrDeleted += r.count;
+        console.log(`  ✓ deleted ${r.count} PMR row(s) referencing ${p.name}`);
+      }
+    }
+    for (const p of offenders) {
+      const remaining = await prisma.match.count({
+        where: { OR: [{ player1Id: p.id }, { player2Id: p.id }] },
+      });
+      if (remaining === 0) {
+        await prisma.player.delete({ where: { id: p.id } });
+        playersDeleted++;
+        console.log(`  ✓ deleted player ${p.name} (id=${p.id})`);
+      } else {
+        console.log(`  ⊘ kept player ${p.name} (id=${p.id}, ${remaining} matches still ref it — should not happen)`);
+      }
+    }
+    console.log(`\n[apply --cascade-delete-orphans] result : ${matchesDeleted} matches + ${pmrDeleted} PMR rows + ${playersDeleted} players deleted.`);
+  }
+
+  // 4b. Optionally delete orphan players (non-cascade : skips when matches still reference them)
+  if (deletePlayers && !cascadeDelete) {
     console.log(`\n[apply --delete-players] deleting offender players that have no remaining matches…`);
     let deleted = 0;
     for (const p of offenders) {
