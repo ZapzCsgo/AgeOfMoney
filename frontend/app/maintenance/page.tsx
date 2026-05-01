@@ -1,65 +1,15 @@
-'use client';
+// Replaces the previous SVG-crown maintenance card with the branded
+// "Forging Upgrades" image (HTTP 503 = Service Unavailable, semantically
+// correct for planned downtime). The standalone layout.tsx in this same
+// directory still bypasses the root Navbar/Sidebar/Footer (kept).
+import { ErrorPage } from '@/components/ErrorPage';
 
-export const dynamic = 'force-dynamic';
-
-import { useEffect } from 'react';
-
-export default function MaintenancePage() {
-  // Lock body scroll so the underlying layout can't be reached
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
-  }, []);
-
+export default function Maintenance() {
   return (
-    <div
-      style={{
-        position: 'fixed', inset: 0, zIndex: 9999,
-        background: '#07060f', color: '#e8e2f5', fontFamily: 'sans-serif',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      }}
-    >
-      <div style={{ textAlign: 'center', padding: '0 1.5rem', maxWidth: 400 }}>
-        {/* Crown */}
-        <div style={{ marginBottom: '2rem' }}>
-          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" className="mx-auto">
-            <path
-              d="M3 17L5 9L9 13L12 7L15 13L19 9L21 17H3Z"
-              fill="#ffc542"
-              stroke="#ffc542"
-              strokeWidth="1"
-              strokeLinejoin="round"
-            />
-            <rect x="3" y="17" width="18" height="2" rx="1" fill="#ffc542" />
-          </svg>
-        </div>
-
-        <h1
-          style={{
-            fontFamily: 'Cinzel, serif',
-            fontSize: '2rem',
-            fontWeight: 700,
-            letterSpacing: '0.15em',
-            color: '#ffc542',
-            marginBottom: '1rem',
-          }}
-        >
-          AGEOFMONEY
-        </h1>
-
-        <p style={{ color: '#6b6488', fontSize: '0.95rem', lineHeight: 1.6 }}>
-          The site is currently under maintenance.<br />
-          We'll be back soon.
-        </p>
-
-        <div
-          style={{
-            width: 40, height: 2,
-            background: 'linear-gradient(90deg, transparent, #ffc542, transparent)',
-            margin: '2rem auto 0',
-          }}
-        />
-      </div>
-    </div>
+    <ErrorPage
+      imageSrc="/errors/503-errors.png"
+      imageAlt="Forging upgrades"
+      showCta={false}
+    />
   );
 }
