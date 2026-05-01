@@ -23,6 +23,7 @@ import {
   resetCircuitBreaker,
   tripCircuitBreaker,
   getCircuitBreakerState,
+  isIpUnblockedSignal,
 } from '../liquipediaLiveScorer';
 
 test('initial state : breaker not blocked, all counters zero', () => {
@@ -89,6 +90,28 @@ test('exponential backoff : second trip blocks longer than first', () => {
   } finally {
     if (prev !== undefined) process.env.TWOCAPTCHA_API_KEY = prev;
   }
+});
+
+// ── isIpUnblockedSignal — Problem 2 (2026-05-02 prelaunch fix) ──────────
+// Regression : the CF Worker proxy bumps LP's "This IP address is not
+// blocked." plain-text reply to HTTP 400. The previous code treated all
+// 400s as failure, which left the breaker stuck open even though LP was
+// actually reporting the IP healthy. The helper now feeds the body into
+// `isIpUnblockedSignal` BEFORE the generic 4xx-failure branch, so the
+// breaker resets on this signal.
+
+test('isIpUnblockedSignal : detects the LP "not blocked" plain-text reply', () => {
+  assert.equal(isIpUnblockedSignal('This IP address is not blocked.'), true);
+  assert.equal(isIpUnblockedSignal('THIS IP ADDRESS IS NOT BLOCKED'), true);
+  assert.equal(isIpUnblockedSignal('<html><body>foo not blocked baz</body></html>'), true);
+});
+
+test('isIpUnblockedSignal : returns false for non-unblock responses', () => {
+  assert.equal(isIpUnblockedSignal(''), false);
+  assert.equal(isIpUnblockedSignal('Please visit https://liquipedia.net/token/unblock?token=xyz to unblock 1.2.3.4'), false);
+  assert.equal(isIpUnblockedSignal('You are blocked.'), false);
+  // No false positive on substring "blocked" alone — must be "not blocked"
+  assert.equal(isIpUnblockedSignal('your account is blocked'), false);
 });
 
 // Force the process to exit after the synchronous tests above. The Prisma

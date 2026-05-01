@@ -131,6 +131,22 @@ const MAX_UNBLOCK_FAILURES_BEFORE_QUIET = 3;
 /** Check if Liquipedia is currently blocked by the circuit breaker. */
 export function isLpBlocked(): boolean { return Date.now() < lpBlockedUntil; }
 
+/**
+ * Pure helper : detects the LP "this IP is not blocked" signal in a
+ * token/generate response body. Exposed for unit testing — see
+ * `__tests__/liquipediaLiveScorer.test.ts`.
+ *
+ * The signal can arrive with various status codes (200 if the LP page
+ * loaded normally, 400 if the CF Worker proxy bumped the code) and with
+ * minor wording variations across LP versions, so we match on the
+ * substring rather than the full literal.
+ */
+export function isIpUnblockedSignal(body: string): boolean {
+  if (!body) return false;
+  // Lowercased to handle "Not blocked" / "not blocked" inconsistencies.
+  return body.toLowerCase().includes('not blocked');
+}
+
 export function tripCircuitBreaker(reason: '429' | 'network' = '429'): void {
   consecutive429s++;
   consecutiveNetErrors = 0; // reset net counter when breaker trips
@@ -197,13 +213,32 @@ export async function attemptAutoUnblock(): Promise<{ success: boolean; message:
       timeout: 15000,
       validateStatus: (s) => s < 500,
     });
+    const tokenText = typeof tokenRes.data === 'string'
+      ? tokenRes.data
+      : JSON.stringify(tokenRes.data);
+
+    // ── "IP not blocked" signal — close the breaker immediately ──────────
+    // Empirical observation 2026-05-02 : the Cloudflare Worker proxy
+    // surfaces LP's "This IP address is not blocked." plain-text body with
+    // a 400 status code (not 200). Treating any 400 as failure left the
+    // breaker stuck open for the full backoff window even though the IP
+    // was actually fine. Detect the unblock-confirmed phrase BEFORE the
+    // generic 4xx-failure branch so we close the breaker on this signal.
+    //
+    // We don't bother with verifyLpAccess() — if LP itself just told us
+    // we're not blocked, treat that as the source of truth. Worst case is
+    // we close, the next real request 429s, the breaker trips again ; far
+    // better than indefinitely-stuck open.
+    if (isIpUnblockedSignal(tokenText)) {
+      logger.info(`[LPScorer] Worker reports IP unblocked — closing circuit breaker (status=${tokenRes.status})`);
+      resetCircuitBreaker();
+      return { success: true, message: `IP unblocked per LP token/generate (status ${tokenRes.status})` };
+    }
+
+    // Other 4xx : log + bail. Most likely cause when LP_WORKER_URL is set
+    // is the CF Worker not forwarding the /lp/token/* path family.
     if (tokenRes.status >= 400) {
-      const bodySnip = typeof tokenRes.data === 'string'
-        ? tokenRes.data.slice(0, 300).replace(/\s+/g, ' ')
-        : JSON.stringify(tokenRes.data).slice(0, 300);
-      // Most-likely cause when LP_WORKER_URL is set : the CF Worker only
-      // forwards /lp/<wikipath>/api.php and rejects /lp/token/generate. Fix
-      // the worker route to also forward /lp/token/* paths.
+      const bodySnip = tokenText.slice(0, 300).replace(/\s+/g, ' ');
       const hint = LP_WORKER_URL && tokenUrl.startsWith(LP_WORKER_URL)
         ? ` — likely CF Worker rejecting /lp/token/generate. Check worker routes.`
         : '';
@@ -211,18 +246,6 @@ export async function attemptAutoUnblock(): Promise<{ success: boolean; message:
         success: false,
         message: `token/generate returned ${tokenRes.status} (url=${tokenUrl})${hint} — body: ${bodySnip}`,
       };
-    }
-    const tokenText = typeof tokenRes.data === 'string' ? tokenRes.data : '';
-
-    // If IP is already unblocked, verify and reset
-    if (tokenText.includes('not blocked')) {
-      logger.info('[LPScorer] Auto-unblock: LP says IP is not blocked — verifying...');
-      const verified = await verifyLpAccess();
-      if (verified) {
-        resetCircuitBreaker();
-        return { success: true, message: 'IP is not blocked (verified)' };
-      }
-      return { success: false, message: 'LP says not blocked but API still returns 429' };
     }
 
     // Extract the unblock URL
