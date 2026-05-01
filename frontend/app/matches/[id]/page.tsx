@@ -8,9 +8,8 @@ import { useSession } from 'next-auth/react';
 import { signInWithSteam } from '@/lib/authHelpers';
 import { useT } from '@/lib/i18n';
 import { Match, BoResult, Bet } from '@/types';
-import { getMatch, getMatchH2H, getMyBets, setAuthToken } from '@/lib/api';
+import { getMatch, getMyBets, setAuthToken } from '@/lib/api';
 import { BetForm } from '@/components/matches/BetForm';
-import { PlayerStats } from '@/components/matches/PlayerStats';
 import { MatchChat } from '@/components/matches/MatchChat';
 import { connectSocket, getSocket } from '@/lib/socket';
 import { formatDateTime, formatCountdown, getTierBadgeClass, getCountryFlag } from '@/lib/utils';
@@ -380,7 +379,6 @@ export default function MatchPage() {
 
   useEffect(() => { window.scrollTo(0, 0); }, []);
   const [match, setMatch] = useState<Match | null>(null);
-  const [h2h, setH2h] = useState<{ total: number; player1Wins: number; player2Wins: number } | null>(null);
   const [countdown, setCountdown] = useState('');
   const [loading, setLoading] = useState(true);
   const [betRefreshKey, setBetRefreshKey] = useState(0);
@@ -397,12 +395,8 @@ export default function MatchPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [matchRes, h2hRes] = await Promise.all([
-          getMatch(id),
-          getMatchH2H(id).catch(() => null),
-        ]);
+        const matchRes = await getMatch(id);
         setMatch(matchRes.data);
-        if (h2hRes) setH2h(h2hRes.data.summary);
       } catch {
         // no mock data — show error
       } finally {
@@ -638,17 +632,10 @@ export default function MatchPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left column */}
           <div className="lg:col-span-2 space-y-5">
-            <PlayerStats
-              player1={match.player1}
-              player2={match.player2}
-              recentForm1={match.recentForm?.player1}
-              recentForm2={match.recentForm?.player2}
-              h2h={h2h ?? undefined}
-              p1Score={match.p1Score}
-              p2Score={match.p2Score}
-              matchStatus={match.status}
-              winnerId={match.winnerId}
-            />
+            {/* H2H card removed 2026-05-02 per UX feedback — the data was
+                often misleading when one player had 0 confirmed h2h wins
+                against an active rival. The signal is folded into the
+                odds calculation directly via the engine's h2h factor. */}
 
             {/* BO history */}
             {hasBoHistory && (
