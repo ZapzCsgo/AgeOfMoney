@@ -903,13 +903,20 @@ export async function enrichMatchWithH2H(matchId: string): Promise<void> {
 }
 
 /**
- * Run after a Liquipedia scrape: update all player stats then re-calculate odds
- * for every UPCOMING match.
+ * Run after a Liquipedia scrape: re-calculate odds for every UPCOMING/LIVE
+ * match. The previous version also called updateAllPlayerStats() at the
+ * top — disabled below 2026-05-02, see comment on the call site.
  */
 export async function enrichAllUpcomingMatches(): Promise<void> {
   logger.info('[Enrich] Starting post-scrape enrichment');
 
-  await updateAllPlayerStats();
+  // DISABLED 2026-05-02 — aoe4world covers only ranked AoE4 players,
+  // not relevant for our betting platform (we use Liquipedia + tournament
+  // data instead). ~70% of our player base has no aoe4world profile,
+  // which caused 100% batch failures (50/50 profile_unresolvable).
+  // See audit/AOE4WORLD_DEPRECATED_2026-05-02.md
+  // To re-enable, uncomment the next line.
+  // await updateAllPlayerStats();
 
   // Enrich both UPCOMING and LIVE matches so active matches stay up-to-date
   const activeMatches = await prisma.match.findMany({
