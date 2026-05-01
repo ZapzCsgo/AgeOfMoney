@@ -52,3 +52,6 @@ coverage/
 
 # Claude MCP config (contains API tokens)
 .mcp.json
+
+# Playwright MCP cache (browser snapshots / console logs / traces)
+.playwright-mcp/
