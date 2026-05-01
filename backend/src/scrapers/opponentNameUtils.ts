@@ -11,10 +11,13 @@
  * opponent name as text but never created a Player row for it. Hera alone
  * had 186 orphaned mentions. This module centralizes the fix (P0 + P4
  * blocklist).
+ *
+ * Pure module : no imports from `../index`, no logger side-effects — so
+ * standalone scripts (backfill-opponent-ids) can use it without booting
+ * the full backend (cron, roulette, scorer, …).
  */
 
-import { prisma } from '../index';
-import logger from '../logger';
+import type { PrismaClient } from '@prisma/client';
 
 /**
  * Blocklist of opponent-name strings that must never become Player rows.
@@ -87,17 +90,19 @@ export function checkOpponentName(name: string): { valid: boolean; reason?: stri
 /**
  * Upsert a Player row for an opponent name.
  *
+ * Takes `prisma` explicitly so this module stays free of the `../index`
+ * dependency — scripts can call it with their own PrismaClient without
+ * triggering the backend's cron/roulette/scorer boot side-effects.
+ *
  * Returns the Player id, or null if the name is invalid / skipped.
  *
  * Collision strategy : if a Player already exists with the derived slug but
  * a DIFFERENT game, we don't overwrite — instead we prefix the slug with
  * the game code (e.g. "aoe4/hera") to disambiguate. This avoids merging two
  * distinct pros who happen to share a name across AoE2 and AoE4.
- *
- * Notable : we use findUnique + create (instead of direct upsert) so we can
- * detect the cross-game collision case before blindly creating.
  */
 export async function upsertOpponentPlayer(
+  prisma: PrismaClient,
   rawName: string,
   game: string,
 ): Promise<string | null> {
@@ -127,10 +132,8 @@ export async function upsertOpponentPlayer(
         data: { name, liquipediaSlug: prefixedSlug, elo: 1500, game },
         select: { id: true },
       });
-      logger.info(`[OpponentUpsert] Created cross-game ${game} player "${name}" (slug "${prefixedSlug}") — existing ${bySlug.game} variant kept under "${baseSlug}"`);
       return created.id;
-    } catch (err) {
-      logger.warn(`[OpponentUpsert] Failed to create cross-game player "${name}": ${(err as Error).message}`);
+    } catch {
       return null;
     }
   }
@@ -159,7 +162,6 @@ export async function upsertOpponentPlayer(
       });
       return retry?.id ?? null;
     }
-    logger.warn(`[OpponentUpsert] Failed to create player "${name}" (slug "${baseSlug}"): ${msg}`);
     return null;
   }
 }
