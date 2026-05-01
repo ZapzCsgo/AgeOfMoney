@@ -63,21 +63,19 @@
 - Valeurs : `"AoE4"` | `"AoE2"` | `"AoE3"` | `"AoM"` | `"AoE1"`
 - Default : `"AoE4"`
 - Permet de ne pas mélanger les données H2H/stats entre jeux
-- Le prompt Claude AI s'adapte au jeu via `GAME_FULL_NAMES` et `GAME_LIQUIPEDIA_WIKI` dans `aiPlayerHistoryScraper.ts`
 
 ### Système de cotes (odds)
 - **NE PAS utiliser l'ELO ranked** — uniquement les données tournoi/esport
-- Priorité H2H : AI tournament records → platform matches → aoe4world custom
+- Priorité H2H : Liquipedia tournament records → platform matches → aoe4world custom
 - aoe4world API : `?leaderboard=rm_custom` pour filtrer aux matchs tournoi seulement
 - Modèle de cotes : `backend/src/services/oddsEngine.ts`
 - Recalcul rapide (DB only) toutes les 10 min, enrichissement complet (API) toutes les 30 min
+- A/B testing variantes : `backend/scripts/odds-experiments/` (snapshot + run-all → leaderboard Brier)
 
 ### Historique joueurs (PlayerMatchRecord)
 - Table `PlayerMatchRecord` : un record par joueur par match
-- Source AI : Claude Opus 4.6 (`claude-opus-4-6`) — Sonnet refuse les données niche AoE4
-- `enrichPlayerWithAI(playerId, playerName, force, game)` dans `aiPlayerHistoryScraper.ts`
+- Source : `liquipediaPlayerHistoryScraper.ts` (LP /Matches page) + `aoe4worldPlayerHistorySeeder.ts`. Le scraper AI Claude (`aiPlayerHistoryScraper.ts`) a été supprimé le 2026-04-19 — pas de fallback IA.
 - Skip si déjà ≥ 50 records (sauf `force=true`)
-- `enrichAllSparseH2H()` : tourne toutes les 6h pour les paires avec peu de données
 
 ### Filtres équipes WTL
 - Les matchs WTL apparaissent comme 1v1 sur Liquipedia mais sont des matchs d'équipe
@@ -99,9 +97,9 @@
 - Toutes les 15 min : scrape aoe4world tournaments
 - Toutes les 30 min : sync calendrier AoE + scrape Liquipedia matchs + enrichissement complet
 - Toutes les 10 min : recalcul rapide cotes (DB only)
-- Toutes les 6h : AI H2H enrichment pour paires sparse
 - Toutes les minutes : tick statuts matchs (UPCOMING→LIVE, stale LIVE→CANCELLED)
 - Toutes les 10 min : distribution payouts
+- Lundi 3h UTC : weekly odds engine backtest (V1 vs V2 Glicko, snapshot dans `OddsBacktestSnapshot`)
 
 ### Statuts matchs
 - UPCOMING → LIVE : automatique quand `scheduledAt` est dépassé
@@ -145,15 +143,16 @@ cd backend && npx prisma generate
 # Déclencher scraper Liquipedia (toutes les wikis AoE)
 curl -X POST http://localhost:4000/api/v1/dev/scrape-liquipedia
 
-# Déclencher enrichissement AI historique joueurs
-curl -X POST http://localhost:4000/api/v1/dev/seed-ai-history
-
 # Voir les logs scrapers en DB
 curl http://localhost:4000/api/v1/admin/scrapers/logs
+
+# Backtest variants odds engine (snapshot une fois, replay autant de variants que voulu)
+cd backend
+npx tsx scripts/odds-experiments/snapshot-data.ts
+npx tsx scripts/odds-experiments/run-all.ts
 ```
 
 ## Variables d'environnement importantes (backend/.env)
 - `DATABASE_URL` : PostgreSQL Supabase
-- `ANTHROPIC_API_KEY` : pour l'AI history scraper (Claude Opus 4.6)
 - `NODE_ENV` : `development` ou `production`
 - Les routes `/api/v1/dev/*` ne sont actives qu'en développement
