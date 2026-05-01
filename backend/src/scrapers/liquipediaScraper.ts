@@ -21,6 +21,89 @@ function sleep(ms: number) {
   return new Promise(r => setTimeout(r, ms));
 }
 
+/**
+ * Player upsert with graceful fallback on the `Player.name` unique constraint
+ * (Prisma error P2002). Bug #3 prod 2026-05-02 surfaced this when
+ * "Overtaken" the player was already in DB under a different liquipediaSlug,
+ * and a new LP page tried to create a different "Overtaken" → P2002 abort
+ * killed the entire match save.
+ *
+ * Strategy :
+ *   1. Try `upsert where: liquipediaSlug` (current contract — slug is the
+ *      canonical key). Most calls succeed here.
+ *   2. On P2002 (collision on `name`), look up the existing row by `name`
+ *      and reuse it. We do NOT update its slug — the caller's slug may be
+ *      a duplicate ambiguous LP page (`Foo_(player)` vs `Foo_(esports)`)
+ *      that we shouldn't promote over the canonical one.
+ *   3. Log a single warn line so the data team can disambiguate later.
+ */
+/**
+ * Tiny Prisma-like interface for `upsertPlayerWithNameCollisionFallback`.
+ * Pulled out of the full PrismaClient type so the helper can be unit-tested
+ * with a stub object — see `__tests__/liquipediaScraper.test.ts`.
+ */
+export interface PlayerUpsertClient {
+  player: {
+    upsert(args: {
+      where: { liquipediaSlug: string };
+      update: Record<string, never>;
+      create: { name: string; liquipediaSlug: string; country: string | null; elo: number; game: string };
+      select: { id: true; name: true; elo: true };
+    }): Promise<{ id: string; name: string; elo: number }>;
+    findUnique(args: {
+      where: { name: string };
+      select: { id: true; name: true; elo: true; liquipediaSlug: true };
+    }): Promise<{ id: string; name: string; elo: number; liquipediaSlug: string } | null>;
+  };
+}
+
+export async function upsertPlayerWithNameCollisionFallback(
+  input: {
+    name: string;
+    liquipediaSlug: string;
+    country: string | null;
+    game: string;
+  },
+  client: PlayerUpsertClient = prisma,
+): Promise<{ id: string; name: string; elo: number }> {
+  try {
+    return await client.player.upsert({
+      where: { liquipediaSlug: input.liquipediaSlug },
+      update: {},
+      create: {
+        name: input.name,
+        liquipediaSlug: input.liquipediaSlug,
+        country: input.country,
+        elo: 1500,
+        game: input.game,
+      },
+      select: { id: true, name: true, elo: true },
+    });
+  } catch (err) {
+    const e = err as { code?: string; meta?: { target?: string[] | string } } | null;
+    if (e?.code === 'P2002') {
+      const targets = Array.isArray(e?.meta?.target)
+        ? (e.meta.target as string[])
+        : (typeof e?.meta?.target === 'string' ? [e.meta.target] : []);
+      if (targets.includes('name')) {
+        const existing = await client.player.findUnique({
+          where: { name: input.name },
+          select: { id: true, name: true, elo: true, liquipediaSlug: true },
+        });
+        if (existing) {
+          logger.warn(
+            `[Liquipedia] Player.name collision : "${input.name}" already exists ` +
+            `(existing slug="${existing.liquipediaSlug}", new slug="${input.liquipediaSlug}") — ` +
+            `reusing existing row. Disambiguate via admin if these are different humans.`,
+          );
+          return { id: existing.id, name: existing.name, elo: existing.elo };
+        }
+      }
+    }
+    throw err;
+  }
+}
+
 /** Map our internal game code to the Liquipedia wiki path for player pages. */
 function wikiForGame(game: string): string {
   switch (game) {
@@ -38,6 +121,19 @@ function wikiForGame(game: string): string {
  * re-fetching them on every run (null = unchecked, '' = checked/no avatar).
  */
 export async function fetchPlayersAvatars(): Promise<void> {
+  // Bail early when the breaker is already open : kicking off a 20-player
+  // batch only to log "0 saved, 0 checked" 8 minutes later because every
+  // single fetch sees the breaker open is wasted CPU + misleading metrics.
+  // The cron will retry on its next tick (10 min) at which point the breaker
+  // may have cleared (Bug #4 prod-bugs-fix 2026-05-02).
+  const { isLpBlocked, getCircuitBreakerState } = await import('../services/liquipediaLiveScorer');
+  if (isLpBlocked()) {
+    const state = getCircuitBreakerState();
+    const remainingMin = Math.max(0, Math.round((state.blockedUntil - Date.now()) / 60_000));
+    logger.info(`[Liquipedia] Avatar batch deferred — circuit breaker open (${remainingMin}min remaining), retry on next cron tick`);
+    return;
+  }
+
   // Only pick players that haven't been checked yet (avatarUrl is null)
   const players = await prisma.player.findMany({
     where: { avatarUrl: null },
@@ -723,15 +819,17 @@ export async function scrapeUpcomingMatches(): Promise<void> {
         // overwriting players who have been manually classified or who play
         // multiple games (the AI enrichment path may update this later).
         const tournGameForPlayer = (tournament as { game?: string }).game ?? correctGame;
-        const p1 = await prisma.player.upsert({
-          where: { liquipediaSlug: m.player1Slug },
-          update: {},
-          create: { name: m.player1, liquipediaSlug: m.player1Slug, country: m.player1Country || null, elo: 1500, game: tournGameForPlayer },
+        const p1 = await upsertPlayerWithNameCollisionFallback({
+          name: m.player1,
+          liquipediaSlug: m.player1Slug,
+          country: m.player1Country || null,
+          game: tournGameForPlayer,
         });
-        const p2 = await prisma.player.upsert({
-          where: { liquipediaSlug: m.player2Slug },
-          update: {},
-          create: { name: m.player2, liquipediaSlug: m.player2Slug, country: m.player2Country || null, elo: 1500, game: tournGameForPlayer },
+        const p2 = await upsertPlayerWithNameCollisionFallback({
+          name: m.player2,
+          liquipediaSlug: m.player2Slug,
+          country: m.player2Country || null,
+          game: tournGameForPlayer,
         });
 
         const windowStart = new Date(m.scheduledAt.getTime() - 2 * 3600 * 1000);

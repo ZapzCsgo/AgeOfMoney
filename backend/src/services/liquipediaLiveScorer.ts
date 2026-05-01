@@ -112,8 +112,21 @@ const CACHE_TTL = 25_000; // 25s — reuse within a poll cycle (min interval is 
 let lpBlockedUntil = 0;
 let consecutive429s = 0;
 let consecutiveNetErrors = 0;
-const BACKOFF_MIN = [2, 5, 10, 20, 30, 60]; // minutes per consecutive failure (start at 2min)
+// Stretched min from 2 → 5 in prod-bugs-fix 2026-05-02 : the previous "2 min
+// then retry" cycle observed in Railway logs created a ~30s window between
+// breaker-expire and next 429 where any request would re-trip the breaker
+// immediately. 5 min gives LP's per-IP rate-limiter time to actually
+// reset, AND throttles the periodic auto-unblock retries so we don't burn
+// 2captcha credits on a tight loop.
+const BACKOFF_MIN = [5, 15, 30, 45, 60]; // minutes per consecutive failure
 const NET_ERROR_THRESHOLD = 5; // trip circuit breaker after this many consecutive network errors
+
+// Track auto-unblock failures separately. If 3+ consecutive auto-unblock
+// attempts fail, double the next breaker window and stop retrying every
+// 5 min — there's likely a config issue (worker proxy down, 2captcha key
+// expired, etc.) that human attention won't fix automatically.
+let consecutiveUnblockFailures = 0;
+const MAX_UNBLOCK_FAILURES_BEFORE_QUIET = 3;
 
 /** Check if Liquipedia is currently blocked by the circuit breaker. */
 export function isLpBlocked(): boolean { return Date.now() < lpBlockedUntil; }
@@ -170,13 +183,35 @@ export async function attemptAutoUnblock(): Promise<{ success: boolean; message:
 
   try {
     // ── Step 1: get the unblock URL from /token/generate ──────────────────
-    const tokenRes = await axios.get(lpRouteUrl('https://liquipedia.net/token/generate'), {
+    // validateStatus widened to s < 500 so a 4xx from the worker proxy
+    // (e.g. CF Worker returning 400 for unknown paths) doesn't throw and we
+    // can log the URL + body for diagnosis. Bug #1 in prod (logs 2026-05-02)
+    // showed the breaker getting stuck because this call was raising before
+    // we could log what failed.
+    const tokenUrl = lpRouteUrl('https://liquipedia.net/token/generate');
+    const tokenRes = await axios.get(tokenUrl, {
       headers: {
         'User-Agent': 'AgeOfMoney/1.0 (contact@ageofmoney.com)',
         ...(LP_WORKER_URL && LP_WORKER_AUTH ? { 'X-Proxy-Auth': LP_WORKER_AUTH } : {}),
       },
       timeout: 15000,
+      validateStatus: (s) => s < 500,
     });
+    if (tokenRes.status >= 400) {
+      const bodySnip = typeof tokenRes.data === 'string'
+        ? tokenRes.data.slice(0, 300).replace(/\s+/g, ' ')
+        : JSON.stringify(tokenRes.data).slice(0, 300);
+      // Most-likely cause when LP_WORKER_URL is set : the CF Worker only
+      // forwards /lp/<wikipath>/api.php and rejects /lp/token/generate. Fix
+      // the worker route to also forward /lp/token/* paths.
+      const hint = LP_WORKER_URL && tokenUrl.startsWith(LP_WORKER_URL)
+        ? ` — likely CF Worker rejecting /lp/token/generate. Check worker routes.`
+        : '';
+      return {
+        success: false,
+        message: `token/generate returned ${tokenRes.status} (url=${tokenUrl})${hint} — body: ${bodySnip}`,
+      };
+    }
     const tokenText = typeof tokenRes.data === 'string' ? tokenRes.data : '';
 
     // If IP is already unblocked, verify and reset
@@ -209,13 +244,24 @@ export async function attemptAutoUnblock(): Promise<{ success: boolean; message:
     // Capture cookies — MediaWiki sets a session cookie on the GET that the
     // matching POST must echo back to be accepted (otherwise the form submit
     // is treated as cookie-less and silently rejected).
-    const unblockRes = await axios.get(lpRouteUrl(unblockUrl), {
+    const unblockRouted = lpRouteUrl(unblockUrl);
+    const unblockRes = await axios.get(unblockRouted, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         ...(LP_WORKER_URL && LP_WORKER_AUTH ? { 'X-Proxy-Auth': LP_WORKER_AUTH } : {}),
       },
       timeout: 15000,
+      validateStatus: (s) => s < 500,
     });
+    if (unblockRes.status >= 400) {
+      const bodySnip = typeof unblockRes.data === 'string'
+        ? unblockRes.data.slice(0, 300).replace(/\s+/g, ' ')
+        : '';
+      return {
+        success: false,
+        message: `unblock page returned ${unblockRes.status} (url=${unblockRouted}) — body: ${bodySnip}`,
+      };
+    }
     const unblockHtml = typeof unblockRes.data === 'string' ? unblockRes.data : '';
     const setCookieHeaders = unblockRes.headers['set-cookie'] ?? [];
     // Reduce each "name=value; Path=/; HttpOnly" line down to "name=value" and
@@ -384,7 +430,7 @@ export async function attemptAutoUnblock(): Promise<{ success: boolean; message:
 
     const verified = await verifyLpAccess();
     if (verified) {
-      logger.info('[LPScorer] Auto-unblock: SUCCESS — IP unblocked and verified!');
+      logger.info(`[LPScorer] Auto-unblock: SUCCESS — circuit breaker unlocked (probe successful at ${new Date().toISOString()})`);
       resetCircuitBreaker();
       return { success: true, message: 'IP unblocked via 2captcha and verified' };
     } else {
@@ -393,8 +439,16 @@ export async function attemptAutoUnblock(): Promise<{ success: boolean; message:
     }
 
   } catch (err: any) {
-    logger.warn(`[LPScorer] Auto-unblock error: ${err.message}`);
-    return { success: false, message: err.message };
+    // Surface the URL + status when available so the operator can tell whether
+    // it's the worker proxy, the 2captcha endpoint, or the LP page itself
+    // that's failing — this used to swallow into "Request failed with status
+    // code 400" with no other context (Bug #1).
+    const ax = err?.isAxiosError ? err : null;
+    const detail = ax
+      ? `${ax.response?.status ?? '?'} ${ax.config?.method?.toUpperCase() ?? 'GET'} ${ax.config?.url ?? '?'}`
+      : '';
+    logger.warn(`[LPScorer] Auto-unblock error: ${err.message}${detail ? ` [${detail}]` : ''}`);
+    return { success: false, message: `${err.message}${detail ? ` [${detail}]` : ''}` };
   } finally {
     unblockRunning = false;
   }
@@ -422,7 +476,27 @@ export function resetCircuitBreaker(): void {
   }
   consecutive429s = 0;
   consecutiveNetErrors = 0;
+  consecutiveUnblockFailures = 0;
   lpBlockedUntil = 0;
+}
+
+/** Test/diagnostic helper — exposes breaker counters for monitoring routes. */
+export function getCircuitBreakerState(): {
+  blockedUntil: number;
+  blockedNow: boolean;
+  consecutive429s: number;
+  consecutiveNetErrors: number;
+  consecutiveUnblockFailures: number;
+  retriesQuieted: boolean;
+} {
+  return {
+    blockedUntil: lpBlockedUntil,
+    blockedNow: Date.now() < lpBlockedUntil,
+    consecutive429s,
+    consecutiveNetErrors,
+    consecutiveUnblockFailures,
+    retriesQuieted: consecutiveUnblockFailures >= MAX_UNBLOCK_FAILURES_BEFORE_QUIET,
+  };
 }
 
 // Bottleneck limiter: 1 request at a time, 2s between each, max 25/min
@@ -1270,6 +1344,13 @@ function maybeLogBlockerStatus(): void {
 
 function maybeRetryAutoUnblock(): void {
   if (!process.env.TWOCAPTCHA_API_KEY) return;
+  // After N consecutive auto-unblock failures, stop retrying every 5 min —
+  // the issue is config-related (worker route, 2captcha key, etc.) and
+  // human attention is required. Resume retrying when the breaker
+  // naturally expires and trips again.
+  if (consecutiveUnblockFailures >= MAX_UNBLOCK_FAILURES_BEFORE_QUIET) {
+    return;
+  }
   const now = Date.now();
   if (now - lastUnblockRetryAt < UNBLOCK_RETRY_INTERVAL_MS) return;
   lastUnblockRetryAt = now;
@@ -1277,10 +1358,18 @@ function maybeRetryAutoUnblock(): void {
   attemptAutoUnblock().then((result) => {
     if (result.success) {
       logger.info(`[LPScorer] Auto-unblock retry succeeded: ${result.message}`);
+      consecutiveUnblockFailures = 0;
     } else {
-      logger.warn(`[LPScorer] Auto-unblock retry failed: ${result.message}`);
+      consecutiveUnblockFailures++;
+      logger.warn(`[LPScorer] Auto-unblock retry failed (${consecutiveUnblockFailures}× in a row): ${result.message}`);
+      if (consecutiveUnblockFailures >= MAX_UNBLOCK_FAILURES_BEFORE_QUIET) {
+        logger.warn('[LPScorer] Suspending auto-unblock retries — likely config issue (CF Worker route, 2captcha key, etc.). Will resume after the breaker naturally expires.');
+      }
     }
-  }).catch((err) => logger.warn(`[LPScorer] Auto-unblock retry error: ${err.message}`));
+  }).catch((err) => {
+    consecutiveUnblockFailures++;
+    logger.warn(`[LPScorer] Auto-unblock retry error: ${err.message}`);
+  });
 }
 
 export function startLiquipediaLiveScorer(): void {
