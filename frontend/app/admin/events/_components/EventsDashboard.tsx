@@ -28,6 +28,7 @@ import { EventCard } from './EventCard';
 import { ActedModal } from './ActedModal';
 import { RainLaunchModal } from './RainLaunchModal';
 import { RainHistorySection } from './RainHistorySection';
+import { RedeemCodesSection } from './RedeemCodesSection';
 import { EventSuggestion, RuleType } from './types';
 
 export function EventsDashboard() {
@@ -264,6 +265,10 @@ export function EventsDashboard() {
 
       {/* Past rains audit trail */}
       <RainHistorySection ready={ready} />
+
+      {/* Owner-only redeem-code management — mint promo codes (LAUNCH50,
+          DISCORD10, mass single-use giveaways…) and disable existing ones. */}
+      <RedeemCodesSection ready={ready} />
     </div>
   );
 }
