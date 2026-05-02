@@ -97,45 +97,71 @@ export function ErrorPage({
           {errorCode}
         </h1>
 
-        {/* Coin medallion — official AOM logo from /public.
-            aomlogo.png is a square 272×272 asset with a dark gradient
-            background (gold coin centered, rays around, "AOM" text at
-            the bottom). On the error page's near-black backdrop the
-            square edges drew an obvious rectangle.
-            Fix : `clip-path: circle()` masks the visible area to the
-            coin disc only — square corners + rays + bottom "AOM" text
-            are clipped out. Crop is centered on the coin (45% radius
-            at 50% / 38% to push the focal point above the AOM text).
-            mix-blend-mode wasn't enough because the source background
-            isn't pure black — has dark-blue gradient + bright rays
-            that survived the screen blend and produced halos. */}
+        {/* Coin medallion — official AOM logo with 2-layer golden glow
+            and triple drop-shadow to drown the residual dark halo from
+            the clip-path edge.
+
+            Why the halo : aomlogo.png is a square 272×272 asset with a
+            dark-blue gradient background. clip-path circles it so only
+            the coin disc shows — but the clip edge lands on slightly
+            darker pixels right against the page background, leaving a
+            ~5-10px shadow rim. mix-blend-mode and a sharp threshold
+            transparency PNG (which would need npm install --save-dev
+            sharp — currently broken on Windows because of the npm 11 /
+            Node 25 Arborist bug) weren't viable, so we mask visually :
+            stack two radial-gradient halos (outer 380×380 soft, inner
+            200×200 tighter golden) + a triple drop-shadow on the image
+            itself. The dark rim is still there in the pixels but is
+            entirely submerged by the gold light, so reads invisible. */}
         <div className="my-8 relative flex items-center justify-center">
-          {/* Soft golden glow behind the coin */}
+
+          {/* Outer glow — large soft halo */}
           <div
             className="absolute pointer-events-none"
             style={{
-              width: '220px',
-              height: '220px',
+              width: '380px',
+              height: '380px',
               background:
-                'radial-gradient(circle, rgba(255, 200, 87, 0.5) 0%, rgba(212, 184, 150, 0.2) 40%, transparent 70%)',
-              filter: 'blur(35px)',
+                'radial-gradient(circle, rgba(255, 200, 87, 0.35) 0%, rgba(212, 184, 150, 0.15) 30%, rgba(212, 184, 150, 0.05) 55%, transparent 75%)',
+              filter: 'blur(50px)',
+              borderRadius: '50%',
             }}
             aria-hidden="true"
           />
+
+          {/* Inner glow — tighter golden halo right around the coin */}
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              width: '200px',
+              height: '200px',
+              background:
+                'radial-gradient(circle, rgba(255, 220, 130, 0.5) 0%, rgba(255, 200, 87, 0.25) 50%, transparent 80%)',
+              filter: 'blur(20px)',
+              borderRadius: '50%',
+            }}
+            aria-hidden="true"
+          />
+
           <Image
             src="/aomlogo.png"
             alt="AgeOfMoney"
             width={180}
             height={180}
             priority
-            className="relative drop-shadow-[0_4px_30px_rgba(212,184,150,0.6)]"
+            className="relative"
             style={{
               clipPath: 'circle(42% at 50% 41%)',
               objectFit: 'contain',
-              // The clipPath drops the bottom "AOM" text band ; nudge the
-              // image up so the coin sits at the geometric center of the
-              // visible disc (otherwise it'd look slightly low).
               transform: 'translateY(-6%)',
+              // Triple drop-shadow : large soft gold + tight bright gold
+              // + minimal depth black. drop-shadow follows the clip-path
+              // so the gold halo wraps the visible disc cleanly.
+              filter: `
+                drop-shadow(0 0 30px rgba(255, 200, 87, 0.6))
+                drop-shadow(0 0 12px rgba(255, 220, 130, 0.5))
+                drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3))
+              `,
             }}
           />
         </div>
