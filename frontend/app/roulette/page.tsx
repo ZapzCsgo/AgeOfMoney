@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useT } from '@/lib/i18n';
-import { cn } from '@/lib/utils';
+import { cn, parseCoinAmount, round2 } from '@/lib/utils';
 import { apiClient, setAuthToken } from '@/lib/api';
 import { Shield, Crown, Target, ShieldCheck, X, Copy, Check } from 'lucide-react';
 import { playWololo, playTick, playWin, playLose, playEmperorWin } from '@/lib/rouletteSounds';
@@ -467,7 +467,8 @@ function RoulettePageImpl() {
   async function placeBet() {
     if (!session) { showMsg('error', t('auth_required')); return; }
     if (!selectedZone) { showMsg('error', t('bet_err_select')); return; }
-    const amount = parseInt(betAmount);
+    // Decimal-aware parsing : accept "1.2" and "1,2" alike.
+    const amount = parseCoinAmount(betAmount);
     if (!amount || amount < 1) { showMsg('error', t('roulette_err_min')); return; }
     // Defensive : the zone is also disabled in the UI when locked, but
     // if the user spam-clicked between renders this catches it before
@@ -892,18 +893,18 @@ function RoulettePageImpl() {
           )}
           <div className="flex gap-2 mb-3">
             <div className="relative flex-1">
-              <input type="number" value={betAmount} onChange={e=>setBetAmount(e.target.value)}
+              <input type="number" step="0.01" inputMode="decimal" value={betAmount} onChange={e=>setBetAmount(e.target.value)}
                 placeholder={t('deposit_amount_coins')}
                 className="w-full px-3 py-2.5 rounded-lg text-[13px] outline-none text-[#e8e2f5] placeholder:text-[#3d3860] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 style={{ background:'#13111f', border:'1px solid #1e1a30' }} />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#ffd97a] text-[11px]">⚜</span>
             </div>
             {([1,10,100] as number[]).map(v=>(
-              <button key={v} onClick={()=>setBetAmount(a=>String((parseInt(a)||0)+v))}
+              <button key={v} onClick={()=>setBetAmount(a=>String(round2(parseCoinAmount(a)+v)))}
                 className="px-3 py-2 rounded-lg text-[11px] font-bold hover:opacity-80"
                 style={{ background:'#1e1a30',color:'#9990b8',border:'1px solid #2a2640' }}>+{v}</button>
             ))}
-            <button onClick={()=>setBetAmount(a=>String(Math.max(1,Math.floor((parseInt(a)||0)/2))))}
+            <button onClick={()=>setBetAmount(a=>String(Math.max(1,round2(parseCoinAmount(a)/2))))}
               className="px-3 py-2 rounded-lg text-[11px] font-bold hover:opacity-80"
               style={{ background:'#1e1a30',color:'#9990b8',border:'1px solid #2a2640' }}>½</button>
             <button onClick={()=>setBetAmount(String(userCoins))}
@@ -918,7 +919,7 @@ function RoulettePageImpl() {
             style={{ background:selectedZone ? ZONES[selectedZone].color : '#ffd97a', color:'#07060f' }}>
             {!isBetting ? t('bet_closed') :
               !selectedZone ? t('roulette_select_zone') :
-              `${t('roulette_bet')} ${betAmount ? parseInt(betAmount).toLocaleString('fr-FR') : '...'} ⚜`}
+              `${t('roulette_bet')} ${betAmount ? parseCoinAmount(betAmount).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : '...'} ⚜`}
           </button>
           {myZoneBet && isBetting && (
             <p className="text-center text-[11px] mt-2" style={{ color:'#6b6488' }}>

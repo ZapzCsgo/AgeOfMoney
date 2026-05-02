@@ -67,7 +67,8 @@ router.post('/create', requireAuth, async (req: Request, res: Response): Promise
       return;
     }
 
-    const result = await createCoinFlip(userId, Math.floor(amount), side);
+    // Decimal-aware : round to 2 dp instead of flooring to integer.
+    const result = await createCoinFlip(userId, Math.round(amount * 100) / 100, side);
     if (!result.ok) {
       res.status(400).json({ error: result.error });
       return;

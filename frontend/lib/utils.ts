@@ -11,6 +11,30 @@ export function formatCoins(amount: number): string {
   return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount) + ' ⚜';
 }
 
+/**
+ * Parse a coin-amount user input. Handles both decimal separators :
+ *   "1.2"  → 1.2
+ *   "1,2"  → 1.2  (FR locale typing)
+ *   ""     → 0
+ *   "abc"  → 0
+ *
+ * Used everywhere a bet form converts the input string to a number for
+ * the API call. Bet placement on roulette / coinflip / jackpot / match
+ * bets all funnel through this helper instead of `parseInt` (which
+ * silently floored fractional inputs to integer).
+ */
+export function parseCoinAmount(s: string | null | undefined): number {
+  if (!s) return 0;
+  const v = parseFloat(s.replace(',', '.'));
+  return Number.isFinite(v) ? v : 0;
+}
+
+/** Round to 2 decimals — keeps coin display in lockstep with the
+ *  Decimal(20, 8) backend storage. */
+export function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
 export function formatOdds(odds: number): string {
   return odds.toFixed(2);
 }

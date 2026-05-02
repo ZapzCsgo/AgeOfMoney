@@ -72,7 +72,9 @@ router.post('/bet', requireAuth, async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    const result = await placeBet(userId, zone, Math.floor(amount));
+    // Decimal-aware : the service accepts fractional amounts (round to 2 dp
+    // to match the frontend display + Decimal(20, 8) backend storage).
+    const result = await placeBet(userId, zone, Math.round(amount * 100) / 100);
     if (!result.ok) {
       res.status(400).json({ error: result.error });
       return;

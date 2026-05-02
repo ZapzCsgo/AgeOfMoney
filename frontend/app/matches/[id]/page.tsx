@@ -12,7 +12,7 @@ import { getMatch, getMyBets, setAuthToken } from '@/lib/api';
 import { BetForm } from '@/components/matches/BetForm';
 import { MatchChat } from '@/components/matches/MatchChat';
 import { connectSocket, getSocket } from '@/lib/socket';
-import { formatDateTime, formatCountdown, getTierBadgeClass, getCountryFlag } from '@/lib/utils';
+import { formatDateTime, formatCountdown, getTierBadgeClass, getCountryFlag, parseCoinAmount, round2 } from '@/lib/utils';
 import {
   ArrowLeft, Calendar, Zap, Lock, Tv, Shield, Swords, Receipt, TrendingUp, Clock,
 } from 'lucide-react';
@@ -239,7 +239,7 @@ function ExactScoreBets({ match, onBetPlaced }: { match: Match; onBetPlaced: () 
         // is the cote the user saw; server returns 409 if it has moved >5%.
         body: JSON.stringify({
           matchId: match.id,
-          amount: parseInt(amount),
+          amount: parseCoinAmount(amount),
           score: selected.score,
           player: selected.player,
           loserGames: selected.loserGames,
@@ -339,20 +339,21 @@ function ExactScoreBets({ match, onBetPlaced }: { match: Match; onBetPlaced: () 
         <div className="pt-2 border-t border-aoe-border space-y-2">
           <p className="text-[11px] text-aoe-parchment-muted font-cinzel">Score sélectionné : <span className="text-[#ffd97a] font-bold">{selected.score} ×{selected.odds}</span></p>
           <div className="flex gap-2">
-            <input type="text" inputMode="numeric" value={amount} onChange={e => setAmount(e.target.value.replace(/\D/g,''))}
+            <input type="text" inputMode="decimal" value={amount}
+              onChange={e => setAmount(e.target.value.replace(/[^\d.,]/g,'').replace(',', '.'))}
               className="flex-1 rounded px-3 py-2 text-sm font-cinzel text-aoe-parchment outline-none"
               style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid #1e1a30' }} />
             <span className="flex items-center text-aoe-gold text-sm">⚜</span>
-            <button onClick={handleBet} disabled={placing || !amount || parseInt(amount) < 10}
+            <button onClick={handleBet} disabled={placing || !amount || parseCoinAmount(amount) < 10}
               className="px-4 py-2 rounded font-cinzel text-[12px] font-bold disabled:opacity-40 transition-opacity"
               style={{ background: 'linear-gradient(135deg, #b8881a, #ffc542)', color: '#07060f' }}>
               {placing ? '…' : 'PARIER'}
             </button>
           </div>
-          {amount && parseInt(amount) >= 10 && (() => {
-            const a = parseInt(amount);
-            const total = Math.floor(a * selected.odds);
-            const profit = total - a;
+          {amount && parseCoinAmount(amount) >= 10 && (() => {
+            const a = parseCoinAmount(amount);
+            const total = round2(a * selected.odds);
+            const profit = round2(total - a);
             return (
               <div className="flex justify-between text-[10px] text-aoe-parchment-muted">
                 <span>Gain potentiel : <span className="text-emerald-400 font-bold">+{profit} ⚜</span></span>

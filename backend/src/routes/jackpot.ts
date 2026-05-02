@@ -60,7 +60,8 @@ router.post('/bet', requireAuth, async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    const result = await placeBet(userId, Math.floor(amount));
+    // Decimal-aware : round to 2 dp instead of flooring to integer.
+    const result = await placeBet(userId, Math.round(amount * 100) / 100);
     if (!result.ok) {
       res.status(400).json({ error: result.error });
       return;

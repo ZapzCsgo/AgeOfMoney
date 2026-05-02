@@ -6,7 +6,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { signInWithSteam } from '@/lib/authHelpers';
 import { useT } from '@/lib/i18n';
-import { cn } from '@/lib/utils';
+import { cn, parseCoinAmount, round2 } from '@/lib/utils';
 import { apiClient, setAuthToken } from '@/lib/api';
 import { Coins, Plus, Users, Trophy, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -251,7 +251,7 @@ export default function CoinFlipPage() {
       signInWithSteam();
       return;
     }
-    const amount = parseInt(betAmount);
+    const amount = parseCoinAmount(betAmount);
     if (!amount || amount < 2) {
       showMsg('error', 'Minimum 2 ⚜');
       return;
@@ -584,6 +584,8 @@ export default function CoinFlipPage() {
                 <div className="relative flex-1">
                   <Input
                     type="number"
+                    step="0.01"
+                    inputMode="decimal"
                     value={betAmount}
                     onChange={(e) => setBetAmount(e.target.value)}
                     placeholder={t('deposit_amount_coins')}
@@ -602,7 +604,7 @@ export default function CoinFlipPage() {
                   <button
                     key={v}
                     onClick={() =>
-                      setBetAmount((a) => String((parseInt(a) || 0) + v))
+                      setBetAmount((a) => String(round2(parseCoinAmount(a) + v)))
                     }
                     className="px-3 py-2 rounded-lg text-[11px] font-bold hover:opacity-80"
                     style={{
@@ -628,7 +630,7 @@ export default function CoinFlipPage() {
               </div>
               <Button
                 onClick={handleCreate}
-                disabled={creating || !betAmount || parseInt(betAmount) < 1}
+                disabled={creating || !betAmount || parseCoinAmount(betAmount) < 1}
                 className="w-full py-3 rounded-lg text-[14px] font-bold tracking-wider transition-all disabled:opacity-40"
                 style={{ background: '#ffc542', color: '#07060f', border: 'none' }}
               >
@@ -636,7 +638,7 @@ export default function CoinFlipPage() {
                   ? t('common_processing')
                   : `${t('coinflip_create_btn')} ${
                       betAmount
-                        ? parseInt(betAmount).toLocaleString('fr-FR')
+                        ? parseCoinAmount(betAmount).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
                         : '...'
                     } ⚜`}
               </Button>

@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Users, Clock, Trophy, ShieldCheck, ExternalLink, Copy, Check, X } from 'lucide-react';
+import { parseCoinAmount } from '@/lib/utils';
 
 interface JackpotUser {
   id: string;
@@ -630,7 +631,7 @@ export default function JackpotPage() {
 
   async function handleBet() {
     if (!session) { signInWithSteam(); return; }
-    const amount = parseInt(betAmount);
+    const amount = parseCoinAmount(betAmount);
     if (!amount || amount < MIN_BET) { showMsg('error', `Minimum ${MIN_BET} ⚜`); return; }
     if (amount > MAX_BET) { showMsg('error', `Maximum ${MAX_BET} ⚜`); return; }
     setPlacing(true);
@@ -894,6 +895,8 @@ export default function JackpotPage() {
           <div className="flex items-start gap-3 flex-wrap">
             <Input
               type="number"
+              step="0.01"
+              inputMode="decimal"
               min={MIN_BET}
               max={MAX_BET}
               value={betAmount}

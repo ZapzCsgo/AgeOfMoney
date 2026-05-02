@@ -151,8 +151,10 @@ export async function placeBet(
   userId: string,
   amount: number,
 ): Promise<{ ok: boolean; error?: string; data?: Record<string, unknown> }> {
-  if (!Number.isInteger(amount) || amount < MIN_BET || amount > MAX_BET) {
-    return { ok: false, error: `Bet must be integer in [${MIN_BET}, ${MAX_BET}]` };
+  // Fractional amounts are now allowed (Decimal storage). Reject non-finite
+  // and out-of-range values only.
+  if (!Number.isFinite(amount) || amount < MIN_BET || amount > MAX_BET) {
+    return { ok: false, error: `Bet must be in [${MIN_BET}, ${MAX_BET}] ⚜` };
   }
   if (!currentRoundId) return { ok: false, error: 'No active round' };
 
