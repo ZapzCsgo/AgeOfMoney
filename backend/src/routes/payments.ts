@@ -598,12 +598,15 @@ router.post('/crypto/withdraw', requireAuth, require2FAForSensitive, async (req:
     if (cryptoId !== 'usdt') {
       res.status(400).json({ error: 'Seul USDT (TRC-20) est supporté pour les retraits actuellement' }); return;
     }
-    const coinsInt = Math.floor(Number(coins));
-    if (!Number.isFinite(coinsInt) || coinsInt < MIN_WITHDRAW) {
+    // Decimal-aware : preserve fractional balances (a 169.30 ⚜ user can
+    // now withdraw the full 169.30, not just 169). Round to 2 dp at the
+    // edge — matches wallet display + Decimal(20, 8) backend storage.
+    const coinsAmount = Math.round(Number(coins) * 100) / 100;
+    if (!Number.isFinite(coinsAmount) || coinsAmount < MIN_WITHDRAW) {
       res.status(400).json({ error: `Minimum de retrait: ${MIN_WITHDRAW} ⚜ ($0.99)` }); return;
     }
     const MAX_WITHDRAW = 100_000;
-    if (coinsInt > MAX_WITHDRAW) {
+    if (coinsAmount > MAX_WITHDRAW) {
       res.status(400).json({ error: `Maximum de retrait: ${MAX_WITHDRAW} ⚜ par transaction` }); return;
     }
     // TRC-20 addresses start with T and are 34 characters
@@ -611,15 +614,15 @@ router.post('/crypto/withdraw', requireAuth, require2FAForSensitive, async (req:
       res.status(400).json({ error: 'Adresse USDT TRC-20 invalide (doit commencer par T)' }); return;
     }
 
-    const usdAmount = parseFloat((coinsInt * WITHDRAW_RATE).toFixed(2));
+    const usdAmount = parseFloat((coinsAmount * WITHDRAW_RATE).toFixed(2));
 
     // Atomic + race-safe: updateMany with `coins: { gte }` guard kills the
     // TOCTOU where two concurrent withdraws both pass the balance check and
     // end up with negative coins.
     const transaction = await prisma.$transaction(async (tx) => {
       const decResult = await tx.user.updateMany({
-        where: { id: userId, coins: { gte: coinsInt } },
-        data:  { coins: { decrement: coinsInt } },
+        where: { id: userId, coins: { gte: coinsAmount } },
+        data:  { coins: { decrement: coinsAmount } },
       });
       if (decResult.count === 0) throw new Error('Solde insuffisant');
       return tx.transaction.create({
@@ -628,7 +631,7 @@ router.post('/crypto/withdraw', requireAuth, require2FAForSensitive, async (req:
           type:       'withdrawal',
           amount:     Math.round(usdAmount * 100),
           realAmount: Math.round(usdAmount * 100),
-          coins:      -coinsInt,
+          coins:      -coinsAmount,
           status:     'pending',
         },
       });
@@ -638,7 +641,7 @@ router.post('/crypto/withdraw', requireAuth, require2FAForSensitive, async (req:
     try {
       const freshUser = await prisma.user.findUnique({ where: { id: userId }, select: { coins: true } });
       if (freshUser) {
-        getIo()?.to(`user:${userId}`).emit('coinsUpdate', { coins: freshUser.coins, direction: 'down' });
+        getIo()?.to(`user:${userId}`).emit('coinsUpdate', { coins: Number(freshUser.coins.toString()), direction: 'down' });
       }
     } catch { /* non-blocking */ }
 
@@ -666,19 +669,19 @@ router.post('/crypto/withdraw', requireAuth, require2FAForSensitive, async (req:
         data:  { stripeSessionId: String(payoutRes.data.track_id) },
       });
 
-      logger.info(`[Withdraw] ${coinsInt} coins ($${usdAmount}) → ${address} | OxaPay track=${payoutRes.data.track_id}`);
+      logger.info(`[Withdraw] ${coinsAmount} coins ($${usdAmount}) → ${address} | OxaPay track=${payoutRes.data.track_id}`);
 
       res.json({
         success:  true,
         usdAmount,
         currency: 'USDT',
         trackId:  payoutRes.data.track_id,
-        message:  `Retrait de ${coinsInt} ⚜ initié. Vous recevrez ${usdAmount} USDT sous quelques minutes.`,
+        message:  `Retrait de ${coinsAmount} ⚜ initié. Vous recevrez ${usdAmount} USDT sous quelques minutes.`,
       });
     } catch (oxaErr: unknown) {
       // Refund user — payout request failed
       await prisma.$transaction([
-        prisma.user.update({ where: { id: userId }, data: { coins: { increment: coinsInt } } }),
+        prisma.user.update({ where: { id: userId }, data: { coins: { increment: coinsAmount } } }),
         prisma.transaction.update({ where: { id: transaction.id }, data: { status: 'failed' } }),
       ]);
 

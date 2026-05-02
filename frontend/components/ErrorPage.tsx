@@ -98,11 +98,12 @@ export function ErrorPage({
         </h1>
 
         {/* Coin medallion — official AOM logo from /public.
-            Replaces the previous inline-SVG attempt (looked like a brown
-            blob — fleur-de-lys path math was off and didn't match the
-            real brand asset). aomlogo.png is the same logo used as the
-            site favicon + app icon + structured-data logo, so the error
-            page now matches the brand identity exactly. */}
+            aomlogo.png ships with a dark gradient background (square
+            asset) which used to draw a visible rectangle on the error
+            page's black backdrop. We use `mix-blend-mode: screen` to
+            wipe the dark areas (black + dark gradient → transparent)
+            while keeping the gold coin + rays fully visible. Same logo
+            as the site favicon + structured-data logo. */}
         <div className="my-8 relative flex items-center justify-center">
           {/* Soft golden glow behind the coin */}
           <div
@@ -111,18 +112,25 @@ export function ErrorPage({
               width: '220px',
               height: '220px',
               background:
-                'radial-gradient(circle, rgba(255, 200, 87, 0.4) 0%, rgba(212, 184, 150, 0.1) 50%, transparent 75%)',
-              filter: 'blur(30px)',
+                'radial-gradient(circle, rgba(255, 200, 87, 0.5) 0%, rgba(212, 184, 150, 0.2) 40%, transparent 70%)',
+              filter: 'blur(35px)',
             }}
             aria-hidden="true"
           />
           <Image
             src="/aomlogo.png"
             alt="AgeOfMoney"
-            width={140}
-            height={140}
+            width={160}
+            height={160}
             priority
-            className="relative drop-shadow-[0_4px_20px_rgba(212,184,150,0.5)]"
+            className="relative drop-shadow-[0_4px_30px_rgba(212,184,150,0.6)]"
+            style={{
+              // Wipe the square dark background — only the gold coin +
+              // rays survive screen-blend against the page's near-black
+              // backdrop.
+              mixBlendMode: 'screen',
+              objectFit: 'contain',
+            }}
           />
         </div>
 
