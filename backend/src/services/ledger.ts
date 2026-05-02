@@ -45,7 +45,9 @@ export type LedgerType =
   // affiliate
   | 'affiliate_claim'
   // admin
-  | 'admin_adjust';
+  | 'admin_adjust'
+  // redeem codes (wagering-locked bonus → unlocked spendable)
+  | 'redeem_locked' | 'redeem_unlock';
 
 export interface LedgerArgs {
   userId: string;

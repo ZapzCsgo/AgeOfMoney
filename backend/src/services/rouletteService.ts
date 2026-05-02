@@ -15,6 +15,7 @@ import { prisma } from '../index';
 import { getIo } from '../socket';
 import { creditAffiliateOnBetResolved } from './affiliateService';
 import { recordLedger } from './ledger';
+import { processWageringForBet } from './redeemCodeService';
 import logger from '../logger';
 
 /** Fetch a cryptographically verified random integer 1-15 from random.org.
@@ -278,6 +279,7 @@ export async function placeBet(userId: string, zone: Zone, amount: number): Prom
       await tx.rouletteBet.create({ data: { roundId: currentRoundId!, userId, zone, amount } });
     }
     await recordLedger(tx, { userId, type: 'roulette_stake', coins: -amount });
+    await processWageringForBet(tx, { userId, betAmount: amount });
     return tx.user.findUnique({ where: { id: userId }, select: { coins: true } }) as Promise<{ coins: number }>;
   });
 

@@ -22,6 +22,7 @@ import { prisma } from '../index';
 import { getIo } from '../socket';
 import { creditAffiliateOnBetResolved } from './affiliateService';
 import { recordLedger } from './ledger';
+import { processWageringForBet } from './redeemCodeService';
 import logger from '../logger';
 
 const RAKE_RATE = 0.05; // 5%
@@ -138,6 +139,7 @@ export async function createCoinFlip(
       },
     });
     await recordLedger(tx, { userId, type: 'coinflip_stake', coins: -amount });
+    await processWageringForBet(tx, { userId, betAmount: amount });
     return created;
   });
 
@@ -201,6 +203,9 @@ export async function joinCoinFlip(
     // (their stake was already booked at place-time).
     await recordLedger(tx, { userId, type: 'coinflip_stake', coins: -game.amount });
     await recordLedger(tx, { userId: winnerId, type: 'coinflip_win', coins: payout });
+    // Joiner just wagered. Creator already had their wagering counted at
+    // game creation time, so we only progress the joiner here.
+    await processWageringForBet(tx, { userId, betAmount: game.amount });
 
     // Update game. If we had to backfill clientSeed (legacy row), persist it
     // so the reveal payload remains consistent with what was used to derive.
