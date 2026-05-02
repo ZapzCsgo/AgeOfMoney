@@ -80,7 +80,7 @@ function toPublic(row: {
     maxParticipants: row.maxParticipants,
     actualParticipants: row.actualParticipants,
     duration: row.duration,
-    perUser: Math.floor(amountNum / Math.max(1, row.maxParticipants)),
+    perUser: Math.round((amountNum / Math.max(1, row.maxParticipants)) * 100) / 100,
     status: row.status as RainPublic['status'],
     startedAt: row.startedAt.toISOString(),
     endsAt: row.endsAt.toISOString(),
@@ -187,7 +187,8 @@ export async function joinRain(rainId: string, userId: string, captchaMs: number
     return { ok: false, reason: 'FRESH_ACCOUNT', message: 'Le compte doit avoir > 24 h pour claim un rain.' };
   }
 
-  const perUser = Math.floor(Number(rain.amount.toString()) / rain.maxParticipants);
+  // 2-decimal precision : the rain pool splits exactly across maxParticipants.
+  const perUser = Math.round((Number(rain.amount.toString()) / rain.maxParticipants) * 100) / 100;
   const suspicious = captchaMs < SUSPICIOUS_CAPTCHA_MS;
 
   // Atomic : participant row + pot counter + user balance + ledger. Unique
@@ -276,7 +277,8 @@ export async function completeRain(rainId: string): Promise<void> {
   });
   if (!rain) return;
 
-  const perUser = Math.floor(Number(rain.amount.toString()) / Math.max(1, rain.actualParticipants));
+  // Final settle : redistribute the pool exactly across the actual claimers.
+  const perUser = Math.round((Number(rain.amount.toString()) / Math.max(1, rain.actualParticipants)) * 100) / 100;
   await prisma.rain.update({
     where: { id: rainId },
     data: { completedAt: now, actualPerUser: perUser },

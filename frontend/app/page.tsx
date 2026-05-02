@@ -114,7 +114,8 @@ function QuickBetBar({
   const [errMsg, setErrMsg] = useState('');
 
   const odds = selectedPlayer === 0 ? (match.oddsDraw ?? 0) : selectedPlayer === 1 ? match.odds1 : match.odds2;
-  const potential = Math.floor(amount * odds);
+  // 2-decimal precision : matches the backend Decimal payout exactly.
+  const potential = Math.round(amount * odds * 100) / 100;
   const player = selectedPlayer === 0 ? { name: 'Draw' } : selectedPlayer === 1 ? match.player1 : match.player2;
 
   const handleBet = async () => {

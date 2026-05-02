@@ -60,13 +60,13 @@ export function CoinFlipModal({
   const currentUserWon = winner && currentUserId ? winner.id === currentUserId : null;
 
   // Affichage honnête : le payout net = ce qui arrive vraiment en balance.
-  // Doit matcher la formule backend (coinflipService.ts:179-180) :
-  //   rake = floor(pot × RAKE_RATE), payout = pot − rake.
-  // Si on change RAKE_RATE côté backend, synchronizer ici.
+  // Doit matcher la formule backend (coinflipService.ts) :
+  //   rake = pot × RAKE_RATE  (Decimal multiplication, 2-decimal precision)
+  //   payout = pot − rake
   const COINFLIP_RAKE_RATE = 0.05;
   const totalPot = betAmount * 2;
-  const rake = Math.floor(totalPot * COINFLIP_RAKE_RATE);
-  const winAmount = totalPot - rake;
+  const rake = Math.round(totalPot * COINFLIP_RAKE_RATE * 100) / 100;
+  const winAmount = Math.round((totalPot - rake) * 100) / 100;
 
   // Countdown then flip
   useEffect(() => {

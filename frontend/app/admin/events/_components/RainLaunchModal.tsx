@@ -61,7 +61,9 @@ export function RainLaunchModal({
 
   if (!open) return null;
 
-  const perUser = Math.floor(amount / Math.max(1, maxP));
+  // Pool split now keeps 2-decimal precision (matches the Decimal-stored
+  // backend RainParticipant.coinsReceived).
+  const perUser = Math.round((amount / Math.max(1, maxP)) * 100) / 100;
 
   function clampedChange(value: number, key: keyof typeof BOUNDS): number {
     const b = BOUNDS[key];

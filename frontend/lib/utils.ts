@@ -15,12 +15,15 @@ export function formatOdds(odds: number): string {
   return odds.toFixed(2);
 }
 
+// Decimal coin precision : payouts now keep 2 decimals (the wallet
+// balance is stored as Decimal(20, 8), so a 4 ⚜ bet at 1.85 odds returns
+// 7.40 ⚜ — the previous Math.floor truncated the .40 silently).
 export function getPotentialGain(amount: number, odds: number): number {
-  return Math.floor(amount * odds);
+  return Math.round(amount * odds * 100) / 100;
 }
 
 export function getNetGain(amount: number, odds: number): number {
-  return Math.floor(amount * odds) - amount;
+  return Math.round((amount * odds - amount) * 100) / 100;
 }
 
 export function formatCountdown(targetDate: Date | string): string {

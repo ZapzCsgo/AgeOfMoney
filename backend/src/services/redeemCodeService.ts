@@ -204,10 +204,12 @@ export async function redeemCode(opts: {
         codeAmount.toString(),
         opts.userId,
       );
+      // Transaction.coins is now Decimal(20, 8) ; pass codeAmount directly,
+      // no more Math.floor truncation of fractional bonuses.
       await recordLedger(tx, {
         userId: opts.userId,
         type: 'redeem_locked',
-        coins: Math.floor(codeAmount.toNumber()), // ledger Transaction.coins is still Int
+        coins: codeAmount,
       });
     });
 
@@ -299,18 +301,16 @@ export async function processWageringForBet(
         data: { unlocked: true, unlockedAt: new Date() },
       });
       // Move coins : decrement redeemLockedBalance + increment User.coins.
-      // User.coins is still Int — convert via Math.floor to avoid silent
-      // truncation surprises. Once the global Decimal migration ships we
-      // can drop the floor.
-      const amountInt = Math.floor(amount.toNumber());
+      // Both columns are now Decimal(20, 8) so the unlock preserves the
+      // exact bonus amount — fractional unlocks no longer lose precision.
       await tx.$executeRawUnsafe(
         `UPDATE "User"
            SET "redeemLockedBalance" = "redeemLockedBalance" - $1,
-               "coins"               = "coins" + $2
-         WHERE "id" = $3`,
-        amount.toString(), amountInt, opts.userId,
+               "coins"               = "coins" + $1
+         WHERE "id" = $2`,
+        amount.toString(), opts.userId,
       );
-      await recordLedger(tx, { userId: opts.userId, type: 'redeem_unlock', coins: amountInt });
+      await recordLedger(tx, { userId: opts.userId, type: 'redeem_unlock', coins: amount });
       logger.info(`[Redeem] Unlocked ${amount.toFixed(2)}⚜ for ${opts.userId} (redemption ${r.id})`);
     }
   } catch (err) {

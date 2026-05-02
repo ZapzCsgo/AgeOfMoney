@@ -260,7 +260,8 @@ function RoulettePageImpl() {
       const didBet = prev.bets.some(b => b.user.id === userId);
       if (myBetOnWin) {
         setUserWon(true);
-        const p = Math.floor(myBetOnWin.amount * d.multiplier);
+        // 2-decimal precision matches the Decimal-stored backend payout.
+        const p = Math.round(myBetOnWin.amount * d.multiplier * 100) / 100;
         setPayout(p); animatePayout(p);
         if (d.winZone === 'EMPEROR') playEmperorWin();
         else playWin();
@@ -377,7 +378,7 @@ function RoulettePageImpl() {
           const didBet     = prev.bets.some(b => b.user.id === userId);
           if (myBetOnWin) {
             setUserWon(true);
-            const p = Math.floor(myBetOnWin.amount * d.multiplier);
+            const p = Math.round(myBetOnWin.amount * d.multiplier * 100) / 100;
             setPayout(p); animatePayout(p);
             if (d.winZone === 'EMPEROR') playEmperorWin();
             else playWin();
