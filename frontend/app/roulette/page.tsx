@@ -470,17 +470,24 @@ function RoulettePageImpl() {
     if (!amount || amount < 1) { showMsg('error', t('roulette_err_min')); return; }
     // Keep amount so user can chain bets without retyping
 
-    // Optimistic update — show bet instantly before server confirms
+    // Optimistic update — show bet instantly before server confirms.
+    // Capture the optimistic ID upfront ; previous code regenerated
+    // `optimistic-${Date.now()}` at rollback time, which never matched
+    // the original ID and left phantom bets in the participants list
+    // when the API failed. Bug surfaced in prod 2026-05-02.
     const userId = (session.user as { id?: string })?.id ?? '';
     const username = session.user?.name ?? '';
     const avatar = session.user?.image ?? null;
+    const optimisticId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    let didIncrementExisting = false;
     setRound(prev => {
       if (!prev) return prev;
       const existing = prev.bets.find(b => b.user.id === userId && b.zone === selectedZone);
       if (existing) {
+        didIncrementExisting = true;
         return { ...prev, bets: prev.bets.map(b => b.user.id === userId && b.zone === selectedZone ? { ...b, amount: b.amount + amount } : b) };
       }
-      const optimisticBet: RoundBet = { id: `optimistic-${Date.now()}`, zone: selectedZone, amount, user: { id: userId, username, avatar } };
+      const optimisticBet: RoundBet = { id: optimisticId, zone: selectedZone, amount, user: { id: userId, username, avatar } };
       return { ...prev, bets: [optimisticBet, ...prev.bets] };
     });
 
@@ -488,14 +495,19 @@ function RoulettePageImpl() {
       .catch((e: unknown) => {
         const err = e as { response?: { data?: { error?: string } } };
         showMsg('error', err?.response?.data?.error ?? t('common_error'));
-        // Rollback optimistic update
+        // Rollback the same change we just made : either decrement the
+        // existing row or remove the optimistic row by its captured id.
         setRound(prev => {
           if (!prev) return prev;
-          const existing = prev.bets.find(b => b.user.id === userId && b.zone === selectedZone && !b.id.startsWith('optimistic'));
-          if (existing) {
-            return { ...prev, bets: prev.bets.map(b => b.user.id === userId && b.zone === selectedZone ? { ...b, amount: b.amount - amount } : b) };
+          if (didIncrementExisting) {
+            return {
+              ...prev,
+              bets: prev.bets
+                .map(b => b.user.id === userId && b.zone === selectedZone ? { ...b, amount: b.amount - amount } : b)
+                .filter(b => b.amount > 0),
+            };
           }
-          return { ...prev, bets: prev.bets.filter(b => b.id !== `optimistic-${Date.now()}`) };
+          return { ...prev, bets: prev.bets.filter(b => b.id !== optimisticId) };
         });
       });
   }
