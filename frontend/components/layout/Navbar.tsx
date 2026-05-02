@@ -60,6 +60,39 @@ export function Navbar() {
     setDropdownOpen(false);
   }, [pathname]);
 
+  // Close-on-outside-click + Escape for the bell + user dropdown. Same
+  // pattern as RedeemPopover : the previous fullscreen `position:fixed
+  // z-10` backdrops were getting trapped under sibling stacking contexts
+  // (modals, chat panel) and silently stopped intercepting clicks. The
+  // document-level listener + ref check is reliable across stacking.
+  // mousedown fires before click → in-popover handlers can't race us.
+  const notifRootRef = useRef<HTMLDivElement>(null);
+  const dropdownRootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!notifOpen && !dropdownOpen) return;
+    const handlePointer = (ev: MouseEvent | TouchEvent) => {
+      const target = ev.target as Node | null;
+      if (!target) return;
+      if (notifOpen && notifRootRef.current && !notifRootRef.current.contains(target)) {
+        setNotifOpen(false);
+      }
+      if (dropdownOpen && dropdownRootRef.current && !dropdownRootRef.current.contains(target)) {
+        setDropdownOpen(false);
+      }
+    };
+    const handleKey = (ev: KeyboardEvent) => {
+      if (ev.key === 'Escape') { setNotifOpen(false); setDropdownOpen(false); }
+    };
+    document.addEventListener('mousedown', handlePointer);
+    document.addEventListener('touchstart', handlePointer);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handlePointer);
+      document.removeEventListener('touchstart', handlePointer);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [notifOpen, dropdownOpen]);
+
   // Count-up animation for coin increases — 2.5s ease-out from old to new value
   const rampTo = (from: number, to: number) => {
     if (rampRaf.current) cancelAnimationFrame(rampRaf.current);
@@ -164,7 +197,7 @@ export function Navbar() {
               <RedeemPopover />
 
               {/* Notification bell */}
-              <div className="relative">
+              <div className="relative" ref={notifRootRef}>
                 <button
                   onClick={() => { setNotifOpen(o => !o); if (!notifOpen) markAllRead(); }}
                   className="relative w-9 h-9 flex items-center justify-center rounded border border-aoe-border bg-aoe-stone/30 hover:border-aoe-border-gold transition-colors"
@@ -177,8 +210,6 @@ export function Navbar() {
                 </button>
 
                 {notifOpen && (
-                  <>
-                    <div className="fixed inset-0 z-10" onClick={() => setNotifOpen(false)} />
                     <div
                       className="absolute right-0 top-full mt-2 w-80 rounded-xl overflow-hidden shadow-2xl z-20"
                       style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}
@@ -249,12 +280,11 @@ export function Navbar() {
                         </div>
                       )}
                     </div>
-                  </>
                 )}
               </div>
 
               {/* User dropdown — avatar + coins + name */}
-              <div className="relative">
+              <div className="relative" ref={dropdownRootRef}>
                 <button
                   onClick={() => setDropdownOpen(!dropdownOpen)}
                   className="flex items-center gap-0 rounded border border-aoe-border bg-aoe-stone/30 hover:border-aoe-border-gold transition-colors h-9 overflow-hidden"
@@ -290,11 +320,6 @@ export function Navbar() {
                 </button>
 
                 {dropdownOpen && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-10"
-                      onClick={() => setDropdownOpen(false)}
-                    />
                     <div className="absolute right-0 top-full mt-2 w-48 border border-aoe-border bg-aoe-bg-card shadow-xl z-20 py-1 rounded-md">
                       <div className="px-4 py-2 border-b border-aoe-border mb-1">
                         <p className="text-xs text-aoe-parchment-dim font-cinzel tracking-wide truncate">
@@ -350,7 +375,6 @@ export function Navbar() {
                         {t('auth_signout')}
                       </button>
                     </div>
-                  </>
                 )}
               </div>
             </>
