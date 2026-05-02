@@ -257,9 +257,9 @@ export function Navbar() {
                                       <p className="text-[11px] text-[#6b6488] truncate">{n.tournamentName}</p>
                                     )}
                                     <p className="text-[12px] text-[#9988bb] mt-0.5">
-                                      {n.playerBetOn} · Mise {n.amount} ⚜
-                                      {n.won && !isRefund && <span className="text-[#ffd97a] font-bold"> → +{n.payout} ⚜</span>}
-                                      {isRefund && <span className="text-[#9dcbff] font-bold"> → +{n.amount} ⚜</span>}
+                                      {n.playerBetOn} · Mise {Number(n.amount).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜
+                                      {n.won && !isRefund && <span className="text-[#ffd97a] font-bold"> → +{Number(n.payout).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜</span>}
+                                      {isRefund && <span className="text-[#9dcbff] font-bold"> → +{Number(n.amount).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜</span>}
                                     </p>
                                     <p className="text-[10px] text-[#4a4468] mt-0.5">
                                       {new Date(n.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
@@ -279,7 +279,7 @@ export function Navbar() {
                                 <span className="text-lg mt-0.5 shrink-0">{icon}</span>
                                 <div className="flex-1 min-w-0">
                                   <p className={`text-[13px] font-semibold ${color}`}>{title}</p>
-                                  <p className="text-[12px] text-[#ffd97a] font-bold mt-0.5">+{n.amount} ⚜</p>
+                                  <p className="text-[12px] text-[#ffd97a] font-bold mt-0.5">+{Number(n.amount).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜</p>
                                   <p className="text-[10px] text-[#4a4468] mt-0.5">
                                     {new Date(n.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                                   </p>

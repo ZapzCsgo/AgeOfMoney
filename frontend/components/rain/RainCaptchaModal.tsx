@@ -105,7 +105,7 @@ export function RainCaptchaModal({
 
         <div className="px-5 py-5 text-center">
           <p className="text-[12px] mb-1" style={{ color: '#9990b8' }}>
-            Rain pool · <strong style={{ color: '#ffd97a' }}>{rainAmount.toLocaleString('fr-FR')} ⚜</strong>
+            Rain pool · <strong style={{ color: '#ffd97a' }}>{rainAmount.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜</strong>
           </p>
           <p className="text-[12px] mb-5" style={{ color: '#9990b8' }}>
             Ta part si tu claim : <strong style={{ color: '#ffd97a' }}>{perUser} ⚜</strong>

@@ -276,7 +276,7 @@ export default function DepositPage() {
             {/* Coins amount */}
             <div className="rounded-xl p-5 text-center" style={{ background: 'rgba(255,197,66,0.07)', border: '1px solid rgba(255,197,66,0.2)' }}>
               <p className="text-aoe-parchment-dim text-[10px] mb-1 font-cinzel tracking-wider uppercase">À créditer après paiement</p>
-              <p className="font-cinzel font-black text-4xl text-aoe-gold">{invoice.coins.toLocaleString('fr-FR')} ⚜</p>
+              <p className="font-cinzel font-black text-4xl text-aoe-gold">{invoice.coins.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜</p>
               <p className="text-aoe-parchment-muted text-xs mt-1">pour ${invoice.usdAmount.toFixed(2)}</p>
               {bonusPct > 0 && <p className="text-emerald-400 text-[11px] mt-1">dont +{bonusPct}% bonus affilié</p>}
             </div>

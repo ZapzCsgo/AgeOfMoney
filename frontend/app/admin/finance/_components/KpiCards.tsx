@@ -39,7 +39,7 @@ export interface OverviewResponse extends OverviewKpis {
 // ─── Formatters ─────────────────────────────────────────────────────────────
 
 function formatCoins(v: number): string {
-  return v.toLocaleString('fr-FR');
+  return v.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
 function formatCents(c: number): string {

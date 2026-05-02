@@ -195,7 +195,7 @@ export function RainWidget() {
                   {ended ? 'Rain ended' : 'Rain in progress'}
                 </div>
                 <div style={{ color: '#9990b8' }}>
-                  <strong style={{ color: '#e5e5e5' }}>{rain.amount.toLocaleString('fr-FR')} ⚜</strong> up for grabs
+                  <strong style={{ color: '#e5e5e5' }}>{rain.amount.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜</strong> up for grabs
                 </div>
               </div>
               {canDismiss && (

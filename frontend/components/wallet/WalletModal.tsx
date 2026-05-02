@@ -314,7 +314,7 @@ export function WalletModal({ onClose }: Props) {
                style={{ background: 'rgba(255,197,66,0.07)', border: '1px solid rgba(255,197,66,0.15)' }}>
             <span className="text-aoe-parchment-dim text-xs font-cinzel tracking-wide">Balance</span>
             <span className="text-aoe-gold font-cinzel font-bold text-sm ml-auto">
-              ⚜ {coins.toLocaleString('fr-FR')}
+              ⚜ {coins.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
             </span>
           </div>
         )}

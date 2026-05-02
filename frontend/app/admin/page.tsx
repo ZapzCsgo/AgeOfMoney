@@ -1206,9 +1206,9 @@ export default function AdminPage() {
                         ) : '—'}
                       </td>
                       <td className="px-3 py-3 font-mono text-[#ffc542]">{r.code}</td>
-                      <td className="px-3 py-3 text-[#e8e2f5]">{r.totalDeposited.toLocaleString('fr-FR')}⚜</td>
-                      <td className="px-3 py-3 text-[#8a82a8]">{r.totalWagered.toLocaleString('fr-FR')}⚜</td>
-                      <td className="px-3 py-3 text-[#ffc542] font-bold">{r.commission.toLocaleString('fr-FR')}⚜</td>
+                      <td className="px-3 py-3 text-[#e8e2f5]">{r.totalDeposited.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}⚜</td>
+                      <td className="px-3 py-3 text-[#8a82a8]">{r.totalWagered.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}⚜</td>
+                      <td className="px-3 py-3 text-[#ffc542] font-bold">{r.commission.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}⚜</td>
                       <td className="px-3 py-3 text-[11px]">
                         {r.suspicious && !r.reviewed && (
                           <span className="px-2 py-0.5 rounded bg-red-950 border border-red-800/40 text-red-400 text-[10px] font-bold">
@@ -1513,7 +1513,7 @@ export default function AdminPage() {
                         {bet.status}
                       </span>
                     </td>
-                    <td className="px-3 py-2.5 text-[11px] text-[#6b6488]">{bet.user.coins.toLocaleString('fr-FR')} ⚜</td>
+                    <td className="px-3 py-2.5 text-[11px] text-[#6b6488]">{bet.user.coins.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜</td>
                   </tr>
                 );
               };
@@ -1557,15 +1557,15 @@ export default function AdminPage() {
                     {/* Volume bar */}
                     <div className="rounded-lg p-4" style={{ background: '#07060f', border: '1px solid #1e1a30' }}>
                       <div className="flex justify-between text-[11px] mb-2">
-                        <span className="text-amber-400 font-bold">{m.player1.name} — {stats.volume1.toLocaleString('fr-FR')} ⚜ ({stats.pct1}%)</span>
-                        <span className="text-blue-400 font-bold">{stats.pct2}% ({stats.volume2.toLocaleString('fr-FR')} ⚜) — {m.player2.name}</span>
+                        <span className="text-amber-400 font-bold">{m.player1.name} — {stats.volume1.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜ ({stats.pct1}%)</span>
+                        <span className="text-blue-400 font-bold">{stats.pct2}% ({stats.volume2.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜) — {m.player2.name}</span>
                       </div>
                       <div className="h-2 rounded-full overflow-hidden" style={{ background: '#1e1a30' }}>
                         <div className="h-full rounded-full" style={{ width: `${stats.pct1}%`, background: 'linear-gradient(90deg, #ffc542, #ffd97a)' }} />
                       </div>
                       <div className="flex justify-between text-[10px] mt-1.5 text-[#6b6488]">
                         <span>{stats.count1} pari(s)</span>
-                        <span>Total : {stats.total.toLocaleString('fr-FR')} ⚜</span>
+                        <span>Total : {stats.total.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜</span>
                         <span>{stats.count2} pari(s)</span>
                       </div>
                     </div>

@@ -74,7 +74,7 @@ export function LineChart({
 
   const fmt = (v: number) =>
     yIntFormat
-      ? Math.round(v).toLocaleString('fr-FR')
+      ? Math.round(v).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
       : v.toLocaleString('fr-FR', { maximumFractionDigits: 1 });
 
   return (

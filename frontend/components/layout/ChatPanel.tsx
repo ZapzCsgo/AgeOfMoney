@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { useSession } from 'next-auth/react';
 import { Send, Users, Smile, VolumeX, User, Coins } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, parseCoinAmount } from '@/lib/utils';
 import { connectSocket, getSocket } from '@/lib/socket';
 import { useT } from '@/lib/i18n';
 import { apiClient } from '@/lib/api';
@@ -232,8 +232,10 @@ export function ChatPanel() {
     if (!userMenu || !tipAmount) return;
     setTipping(true); setTipMsg(null);
     try {
-      await apiClient.post(`/users/${userMenu.userId}/tip`, { amount: Number(tipAmount) });
-      setTipMsg(`✓ ${tipAmount} ⚜ envoyés à ${userMenu.username}`);
+      // Decimal-aware : accept "1.2" / "1,2" via parseCoinAmount.
+      const amt = parseCoinAmount(tipAmount);
+      await apiClient.post(`/users/${userMenu.userId}/tip`, { amount: amt });
+      setTipMsg(`✓ ${amt.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜ envoyés à ${userMenu.username}`);
       setTipAmount('');
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: string } } };
@@ -499,7 +501,7 @@ export function ChatPanel() {
               </div>
               <div className="flex gap-1.5">
                 <input
-                  type="number" min={10} max={10000}
+                  type="number" step="0.01" inputMode="decimal" min={10} max={10000}
                   value={tipAmount}
                   onChange={e => setTipAmount(e.target.value)}
                   placeholder="10"

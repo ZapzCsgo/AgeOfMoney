@@ -390,7 +390,7 @@ function JackpotWheel({
             style={{ fontFamily: 'Cinzel, serif' }}
             filter="url(#wheel-gold-glow)"
           >
-            {potTotal.toLocaleString()} ⚜
+            {potTotal.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜
           </text>
           <text
             textAnchor="middle"
@@ -817,7 +817,7 @@ export default function JackpotPage() {
                   {myChance.toFixed(1)}%
                 </div>
                 <div className="text-[11px]" style={{ color: '#9b94b8' }}>
-                  {myAggregate.total.toLocaleString()} ⚜ misés
+                  {myAggregate.total.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜ misés
                 </div>
               </div>
             )}
@@ -872,7 +872,7 @@ export default function JackpotPage() {
                 </div>
               </div>
               <div className="text-2xl font-bold mb-1" style={{ color: '#e8e2f5' }}>
-                +{reveal.netPayout.toLocaleString()} ⚜
+                +{reveal.netPayout.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜
               </div>
               <div className="text-[11px]" style={{ color: '#9b94b8' }}>
                 chance {reveal.chance.toFixed(2)}% · tiré à {(reveal.winningTicket / 100).toFixed(2)}%
@@ -1016,7 +1016,7 @@ export default function JackpotPage() {
                         {p.chance.toFixed(1)}%
                       </div>
                       <div className="text-[11px]" style={{ color: '#9b94b8' }}>
-                        {p.total.toLocaleString()} ⚜
+                        {p.total.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜
                       </div>
                     </div>
                   </div>
@@ -1224,10 +1224,10 @@ export default function JackpotPage() {
                       </div>
                       <div className="text-right shrink-0 flex flex-col items-end gap-1">
                         <div className="text-sm font-bold" style={{ color: '#ffd97a' }}>
-                          +{(r.netPayout ?? 0).toLocaleString()} ⚜
+                          +{(r.netPayout ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜
                         </div>
                         <div className="text-[10px] font-mono" style={{ color: '#6b6488' }}>
-                          pot {r.potTotal.toLocaleString()}
+                          pot {r.potTotal.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                         </div>
                         <button
                           onClick={() => openFairness(r)}

@@ -26,7 +26,7 @@ export interface ProductsResponse {
 type SortKey = 'betsPlaced' | 'volumeStaked' | 'houseRevenue' | 'marginPct';
 
 function coinsFmt(v: number): string {
-  return v.toLocaleString('fr-FR');
+  return v.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
 // ─── Section ────────────────────────────────────────────────────────────────
@@ -198,7 +198,7 @@ export function ProductsSection({
                         </span>
                       </td>
                       <td className="py-2.5 px-2 text-right font-mono" style={{ color: '#9990b8' }}>
-                        {r.betsPlaced.toLocaleString('fr-FR')}
+                        {r.betsPlaced.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                       </td>
                       <td className="py-2.5 px-2 text-right font-mono" style={{ color: '#c8c0e0' }}>
                         {coinsFmt(r.volumeStaked)} ⚜

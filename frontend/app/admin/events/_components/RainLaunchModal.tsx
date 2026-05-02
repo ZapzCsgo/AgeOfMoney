@@ -136,7 +136,7 @@ export function RainLaunchModal({
               style={{ background: '#13111f', border: '1px solid #2a2640', color: '#ffd97a' }}
             />
             <p className="text-[10px] mt-1" style={{ color: '#6b6488' }}>
-              [{BOUNDS.amount.min.toLocaleString('fr-FR')} – {BOUNDS.amount.max.toLocaleString('fr-FR')}] coins
+              [{BOUNDS.amount.min.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} – {BOUNDS.amount.max.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}] coins
             </p>
           </div>
 
@@ -183,7 +183,7 @@ export function RainLaunchModal({
             className="rounded-lg px-3 py-2.5 text-[12px]"
             style={{ background: 'rgba(255,197,66,0.08)', border: '1px solid rgba(255,197,66,0.25)', color: '#c8c0e0' }}
           >
-            <span className="font-bold" style={{ color: '#ffd97a' }}>{amount.toLocaleString('fr-FR')} ⚜</span>
+            <span className="font-bold" style={{ color: '#ffd97a' }}>{amount.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜</span>
             {' répartis sur max '}
             <span className="font-bold" style={{ color: '#ffd97a' }}>{maxP}</span>
             {' users = '}

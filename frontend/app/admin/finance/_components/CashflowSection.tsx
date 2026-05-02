@@ -303,7 +303,7 @@ export function CashflowSection({
                       </span>
                     </td>
                     <td className="py-2 px-2 text-right font-mono font-bold" style={{ color: typeColor }}>
-                      {coinsSign}{r.coins.toLocaleString('fr-FR')}
+                      {coinsSign}{r.coins.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                     </td>
                     <td className="py-2 px-2 text-right font-mono hidden md:table-cell" style={{ color: '#c8c0e0' }}>
                       {r.realAmountCents != null ? `${formatCents(r.realAmountCents)} €` : '—'}
@@ -331,7 +331,7 @@ export function CashflowSection({
       {data && data.rows.length > 0 && (
         <div className="flex items-center justify-between mt-3 text-[11px]" style={{ color: '#9990b8' }}>
           <div>
-            {rangeFrom}–{rangeTo} sur {total.toLocaleString('fr-FR')}
+            {rangeFrom}–{rangeTo} sur {total.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
           </div>
           <div className="flex items-center gap-1">
             <button

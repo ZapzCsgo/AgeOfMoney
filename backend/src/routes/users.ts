@@ -305,8 +305,10 @@ router.post('/:id/tip', requireAuth, async (req: Request, res: Response): Promis
     if (recipientId === senderId) { res.status(400).json({ error: 'Cannot tip yourself' }); return; }
 
     const { amount } = req.body as { amount?: number };
-    const amountInt = Math.floor(Number(amount));
-    if (!amountInt || amountInt < 10 || amountInt > 10000) {
+    // Decimal-aware : preserve fractional tips (e.g. 12.50 ⚜). Round to
+    // 2 dp to match wallet display + Decimal(20, 8) backend storage.
+    const amountNum = Math.round(Number(amount) * 100) / 100;
+    if (!Number.isFinite(amountNum) || amountNum < 10 || amountNum > 10000) {
       res.status(400).json({ error: 'Tip amount must be between 10 and 10 000 ⚜' }); return;
     }
 
@@ -316,38 +318,38 @@ router.post('/:id/tip', requireAuth, async (req: Request, res: Response): Promis
     ]);
     if (!sender) { res.status(404).json({ error: 'Sender not found' }); return; }
     if (!recipient || recipient.isBanned) { res.status(404).json({ error: 'User not found' }); return; }
-    if (Number(sender.coins.toString()) < amountInt) { res.status(400).json({ error: 'Insufficient coins' }); return; }
+    if (Number(sender.coins.toString()) < amountNum) { res.status(400).json({ error: 'Insufficient coins' }); return; }
 
     // Atomic + race-safe: updateMany with `coins: { gte }` guard prevents
     // the TOCTOU double-spend (two parallel tips both pass a findUnique
     // balance check then both decrement).
     const [updatedSender, updatedRecipient] = await prisma.$transaction(async (tx) => {
       const decResult = await tx.user.updateMany({
-        where: { id: senderId, coins: { gte: amountInt } },
-        data: { coins: { decrement: amountInt } },
+        where: { id: senderId, coins: { gte: amountNum } },
+        data: { coins: { decrement: amountNum } },
       });
       if (decResult.count === 0) throw new Error('Insufficient coins');
       const s = await tx.user.findUnique({ where: { id: senderId }, select: { coins: true } });
-      const r = await tx.user.update({ where: { id: recipientId }, data: { coins: { increment: amountInt } }, select: { coins: true } });
+      const r = await tx.user.update({ where: { id: recipientId }, data: { coins: { increment: amountNum } }, select: { coins: true } });
       if (!s) throw new Error('Sender disappeared');
-      await recordLedger(tx, { userId: senderId, type: 'tip_out', coins: -amountInt });
-      await recordLedger(tx, { userId: recipientId, type: 'tip_in', coins: amountInt });
+      await recordLedger(tx, { userId: senderId, type: 'tip_out', coins: -amountNum });
+      await recordLedger(tx, { userId: recipientId, type: 'tip_in', coins: amountNum });
       return [s, r] as const;
     });
 
     const io = getIo();
     // Notify sender (coin deduction)
-    io?.to(`user:${senderId}`).emit('coinsUpdate', { coins: updatedSender.coins, direction: 'down' });
+    io?.to(`user:${senderId}`).emit('coinsUpdate', { coins: Number(updatedSender.coins.toString()), direction: 'down' });
     // Notify recipient (tip received)
-    io?.to(`user:${recipientId}`).emit('coinsUpdate', { coins: updatedRecipient.coins, direction: 'up' });
+    io?.to(`user:${recipientId}`).emit('coinsUpdate', { coins: Number(updatedRecipient.coins.toString()), direction: 'up' });
     io?.to(`user:${recipientId}`).emit('notification', {
       type: 'tip',
       from: sender.username,
-      amount: amountInt,
+      amount: amountNum,
     });
 
-    logger.info(`[Tip] ${senderId} → ${recipientId} : ${amountInt} coins`);
-    res.json({ ok: true, amount: amountInt });
+    logger.info(`[Tip] ${senderId} → ${recipientId} : ${amountNum} coins`);
+    res.json({ ok: true, amount: amountNum });
   } catch (err) {
     logger.error('POST /users/:id/tip error:', err);
     res.status(500).json({ error: 'Tip failed' });

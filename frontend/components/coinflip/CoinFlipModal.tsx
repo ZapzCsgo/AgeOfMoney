@@ -268,7 +268,7 @@ export function CoinFlipModal({
                   className="mt-4 text-center text-[13px] font-bold"
                   style={{ color: '#6b6488' }}
                 >
-                  {betAmount.toLocaleString('fr-FR')} ⚜ {t('coinflip_each')}
+                  {betAmount.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜ {t('coinflip_each')}
                 </div>
               </div>
 
@@ -361,7 +361,7 @@ export function CoinFlipModal({
                         className="text-3xl font-black mt-2"
                         style={{ color: '#ffd97a' }}
                       >
-                        +{displayedAmount.toLocaleString('fr-FR')} ⚜
+                        +{displayedAmount.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜
                       </p>
                     </>
                   )}

@@ -106,7 +106,7 @@ function Pill({ period, loading }: { period?: PnlPeriod; loading: boolean }) {
             </>
           ) : (
             <>
-              <span>NGR • {period.ngrCoins.toLocaleString('fr-FR')} ⚜</span>
+              <span>NGR • {period.ngrCoins.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜</span>
               <span>Cash • {formatCents(period.netCashEurCents)} €</span>
             </>
           )}

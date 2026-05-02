@@ -463,13 +463,13 @@ export default function CoinFlipPage() {
                             {winnerName}
                           </span>
                           <span className="font-bold shrink-0" style={{ color: '#4ade80' }}>
-                            +{winAmount.toLocaleString('fr-FR')} ⚜
+                            +{winAmount.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜
                           </span>
                         </div>
                         <div className="text-[11px] truncate mt-0.5" style={{ color: '#6b6488' }}>
                           vs <span style={{ color: '#8a8299' }}>{loserName}</span>
                           <span className="mx-1.5" style={{ color: '#3a3560' }}>·</span>
-                          mise {game.amount.toLocaleString('fr-FR')} ⚜
+                          mise {game.amount.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜
                           <span className="mx-1.5" style={{ color: '#3a3560' }}>·</span>
                           {new Date(game.createdAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                         </div>
@@ -750,7 +750,7 @@ export default function CoinFlipPage() {
                           fontFamily: 'Cinzel, serif',
                         }}
                       >
-                        {game.amount.toLocaleString('fr-FR')}
+                        {game.amount.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                       </p>
                       <span
                         className="text-[18px] leading-none"
@@ -847,7 +847,7 @@ export default function CoinFlipPage() {
                             game.result === 'crown' ? '#ffd97a' : '#c0c0c0',
                         }}
                       >
-                        {game.amount.toLocaleString('fr-FR')} ⚜
+                        {game.amount.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜
                       </p>
                       <p
                         className="text-[10px] truncate max-w-[100px]"

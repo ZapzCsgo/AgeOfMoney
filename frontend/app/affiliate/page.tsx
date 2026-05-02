@@ -164,7 +164,7 @@ export default function AffiliatePage() {
     setClaiming(true);
     try {
       const res = await apiClient.post('/affiliate/claim', {});
-      setClaimMsg({ type: 'ok', text: `+${res.data.claimed.toLocaleString('fr-FR')}⚜ crédités` });
+      setClaimMsg({ type: 'ok', text: `+${res.data.claimed.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}⚜ crédités` });
       fetchAff();
     } catch (e) {
       setClaimMsg({ type: 'err', text: e instanceof Error ? e.message : 'Erreur' });
@@ -379,7 +379,7 @@ export default function AffiliatePage() {
                       <span className="text-[10px] px-2 py-0.5 rounded" style={{ background: '#1a1630', color: '#6b6488' }}>7 jours</span>
                     </div>
                     <p className="text-2xl font-bold mb-5" style={{ color: '#ffc542', fontFamily: 'Cinzel,serif' }}>
-                      ⚜ {aff.totalEarnings.toLocaleString('fr-FR')}
+                      ⚜ {aff.totalEarnings.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                     </p>
                     <div style={{ height: 100 }}>
                       <EarningsChart data={chartData} />
@@ -392,7 +392,7 @@ export default function AffiliatePage() {
                         <div className="flex items-center gap-2">
                           <Coins size={14} style={{ color: '#ffc542' }} />
                           <span className="text-[18px] font-bold" style={{ color: '#ffc542' }}>
-                            {aff.available.toLocaleString('fr-FR')}
+                            {aff.available.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                           </span>
                         </div>
                         <button onClick={claim} disabled={claiming || aff.available === 0}
@@ -413,7 +413,7 @@ export default function AffiliatePage() {
                       <div className="flex items-center gap-2 mb-1">
                         <TrendingUp size={14} style={{ color: '#6b6488' }} />
                         <span className="text-[18px] font-bold" style={{ color: '#e8e2f5' }}>
-                          {aff.totalEarnings.toLocaleString('fr-FR')}
+                          {aff.totalEarnings.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                         </span>
                       </div>
                       <p className="text-[11px]" style={{ color: '#6b6488' }}>Total gagné</p>
@@ -492,10 +492,10 @@ export default function AffiliatePage() {
                             {r.isActive ? 'Actif' : 'Inactif'}
                           </span>
                           <span className="text-[12px]" style={{ color: '#e8e2f5' }}>
-                            {r.totalDeposited.toLocaleString('fr-FR')}⚜
+                            {r.totalDeposited.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}⚜
                           </span>
                           <span className="text-[12px] font-bold" style={{ color: '#ffc542' }}>
-                            {r.commission.toLocaleString('fr-FR')}⚜
+                            {r.commission.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}⚜
                           </span>
                         </div>
                       ))}

@@ -81,7 +81,7 @@ export function RainHistorySection({ ready }: { ready: boolean }) {
             <>
               <div className="text-[11px] mb-3" style={{ color: '#9990b8' }}>
                 {rows.length} rain{rows.length !== 1 ? 's' : ''} · total distribué{' '}
-                <strong style={{ color: '#ffd97a' }}>{totalDistributed.toLocaleString('fr-FR')} ⚜</strong>
+                <strong style={{ color: '#ffd97a' }}>{totalDistributed.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜</strong>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-[12px] min-w-[620px]" cellPadding={0} cellSpacing={0}>
@@ -118,7 +118,7 @@ export function RainHistorySection({ ready }: { ready: boolean }) {
                             )}
                           </td>
                           <td className="py-2 px-2 text-right font-mono font-bold" style={{ color: '#ffd97a' }}>
-                            {r.amount.toLocaleString('fr-FR')} ⚜
+                            {r.amount.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜
                           </td>
                           <td className="py-2 px-2 text-right font-mono" style={{ color: '#c8c0e0' }}>
                             {r.actualParticipants} / {r.maxParticipants}
@@ -127,7 +127,7 @@ export function RainHistorySection({ ready }: { ready: boolean }) {
                             {actualPerUser} ⚜
                           </td>
                           <td className="py-2 px-2 text-right font-mono hidden sm:table-cell" style={{ color: '#ffd97a' }}>
-                            {distributed.toLocaleString('fr-FR')} ⚜
+                            {distributed.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜
                           </td>
                           <td className="py-2 px-2">
                             <span

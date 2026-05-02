@@ -923,7 +923,7 @@ function RoulettePageImpl() {
           </button>
           {myZoneBet && isBetting && (
             <p className="text-center text-[11px] mt-2" style={{ color:'#6b6488' }}>
-              {t('bet_stake')} : <span style={{ color:selectedZone?ZONES[selectedZone].color:'#ffd97a' }}>{myZoneBet.amount.toLocaleString('fr-FR')} ⚜</span>
+              {t('bet_stake')} : <span style={{ color:selectedZone?ZONES[selectedZone].color:'#ffd97a' }}>{myZoneBet.amount.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜</span>
             </p>
           )}
         </div>
@@ -985,7 +985,7 @@ function RoulettePageImpl() {
                 </div>
                 <div className="px-4 py-2 flex justify-between text-[11px]" style={{ borderBottom:'1px solid #1e1a3030' }}>
                   <span style={{ color:'#6b6488' }}>{count} {t('lb_bets').toLowerCase()}</span>
-                  <span className="font-bold" style={{ color:z.color }}>{total.toLocaleString('fr-FR')} ⚜</span>
+                  <span className="font-bold" style={{ color:z.color }}>{total.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜</span>
                 </div>
                 <div className="p-2 max-h-52 overflow-y-auto space-y-0.5">
                   {bets.length===0&&<p className="text-center text-[11px] py-4" style={{ color:'#3d3860' }}>{t('lb_empty')}</p>}
@@ -996,7 +996,7 @@ function RoulettePageImpl() {
                         :<div className="w-5 h-5 rounded-full shrink-0 flex items-center justify-center text-[9px] font-bold"
                            style={{ background:z.bg,color:z.color }}>{bet.user.username[0]?.toUpperCase()}</div>}
                       <span className="text-[11px] text-[#c8c0e0] truncate flex-1">{bet.user.username}</span>
-                      <span className="text-[11px] font-bold shrink-0" style={{ color:z.color }}>{bet.amount.toLocaleString('fr-FR')} ⚜</span>
+                      <span className="text-[11px] font-bold shrink-0" style={{ color:z.color }}>{bet.amount.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜</span>
                     </div>
                   ))}
                 </div>

@@ -15,7 +15,7 @@ function relativeTime(iso: string): string {
 
 function renderContextValue(v: unknown): string {
   if (v == null) return '—';
-  if (typeof v === 'number') return v.toLocaleString('fr-FR');
+  if (typeof v === 'number') return v.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
   if (typeof v === 'string') return v;
   if (Array.isArray(v)) return v.map((x) => renderContextValue(x)).join(', ');
   return JSON.stringify(v);

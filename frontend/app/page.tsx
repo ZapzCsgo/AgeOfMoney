@@ -161,7 +161,7 @@ function QuickBetBar({
     return (
       <div className="animate-slide-down border-t border-emerald-500/30 bg-emerald-950/20 px-4 py-3 flex items-center justify-between">
         <p className="text-emerald-400 text-xs font-cinzel tracking-wider">
-          {t('bet_success').replace('{amount}', String(amount))} {t('bet_potential')}: {potential.toLocaleString('fr-FR')} ⚜
+          {t('bet_success').replace('{amount}', String(amount))} {t('bet_potential')}: {potential.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜
         </p>
         <button onClick={onClose} className="text-aoe-parchment-muted hover:text-aoe-parchment text-xs">✕</button>
       </div>
@@ -222,7 +222,7 @@ function QuickBetBar({
         <div className="text-right shrink-0">
           <p className="text-[9px] text-aoe-parchment-muted font-cinzel tracking-wider uppercase">{t('bet_potential')}</p>
           <p className="text-aoe-gold font-bold font-cinzel text-sm text-glow-gold">
-            {potential.toLocaleString('fr-FR')} ⚜
+            {potential.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜
           </p>
         </div>
 

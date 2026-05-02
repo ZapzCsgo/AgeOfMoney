@@ -47,7 +47,7 @@ export interface AffiliatesResponse {
 type SortKey = 'referredUsersCount' | 'volumeStakedByReferred' | 'commissionPaid' | 'roiRate';
 
 function coinsFmt(v: number): string {
-  return v.toLocaleString('fr-FR');
+  return v.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
 // ─── Mini KPI card ──────────────────────────────────────────────────────────
@@ -285,7 +285,7 @@ export function AffiliatesSection({
                       {r.promoCode}
                     </td>
                     <td className="py-2.5 px-2 text-right font-mono" style={{ color: '#c8c0e0' }}>
-                      {r.referredUsersCount.toLocaleString('fr-FR')}
+                      {r.referredUsersCount.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                     </td>
                     <td className="py-2.5 px-2 text-right font-mono hidden md:table-cell" style={{ color: '#c8c0e0' }}>
                       {coinsFmt(r.volumeStakedByReferred)} ⚜
