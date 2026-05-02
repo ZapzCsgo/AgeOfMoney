@@ -345,6 +345,17 @@ initSocket(httpServer);
 // Supabase pooler's connection budget → P2024 timeouts.
 if (!process.env.SKIP_SERVER) {
 
+// One-shot, idempotent boot-time migration for the redeem-codes feature.
+// Local CLI access to Supabase is blocked (port 5432 IPv6-only); the
+// running backend already has a working DATABASE_URL via the pooler, so
+// we let it apply the schema diff itself the first time it boots after
+// the deploy. See backend/src/services/applyRedeemSchema.ts. Function
+// is internally idempotent — subsequent boots short-circuit on an
+// information_schema check.
+import('./services/applyRedeemSchema').then(({ applyRedeemSchemaIfNeeded }) => {
+  applyRedeemSchemaIfNeeded().catch(err => logger.error('[Migration:redeem] unhandled:', err));
+});
+
 // Stagger service startups to avoid exhausting Supabase connection pool.
 // Each service gets 2s to initialize before the next one starts.
 initCronJobs();
