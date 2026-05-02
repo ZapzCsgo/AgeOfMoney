@@ -19,8 +19,9 @@ export default function ErrorBoundary({
 
   return (
     <ErrorPage
-      imageSrc="/errors/500-errors.png"
-      imageAlt="500 — Fortress under siege"
+      errorCode="500"
+      title="FORTRESS UNDER SIEGE"
+      subtitle="Our castle is being repaired. Try again in a few moments."
       ctaText="⚔️ Try again"
       ctaOnClick={reset}
     />

@@ -9,8 +9,9 @@ import { signInWithSteam } from '@/lib/authHelpers';
 export default function Forbidden() {
   return (
     <ErrorPage
-      imageSrc="/errors/403-errors.png"
-      imageAlt="403 — Forbidden realm"
+      errorCode="403"
+      title="FORBIDDEN"
+      subtitle="You don't have permission to enter this realm."
       ctaText="🔐 Sign in with Steam"
       ctaOnClick={() => signInWithSteam('/')}
     />
