@@ -307,7 +307,11 @@ router.post('/crypto/create', requireAuth, async (req: Request, res: Response): 
       affiliateCodeId = aff.id;
     }
 
-    const finalCoins = Math.floor(usdAmount * DEPOSIT_RATE * bonusMultiplier);
+    // No more Math.floor on the conversion : Transaction.coins is now
+    // Decimal(20, 8) so $5.20 credits exactly 5.20 × 1.69 = 8.788 ⚜
+    // (with the +5 % affiliate bonus → 9.2274 ⚜) instead of being
+    // truncated to 8. Round to 2 decimals so we match the wallet display.
+    const finalCoins = Math.round(usdAmount * DEPOSIT_RATE * bonusMultiplier * 100) / 100;
 
     // Create pending transaction in DB
     const transaction = await prisma.transaction.create({
@@ -400,7 +404,11 @@ router.post('/card/create', requireAuth, async (req: Request, res: Response): Pr
       affiliateCodeId = aff.id;
     }
 
-    const finalCoins = Math.floor(usdAmount * DEPOSIT_RATE * bonusMultiplier);
+    // No more Math.floor on the conversion : Transaction.coins is now
+    // Decimal(20, 8) so $5.20 credits exactly 5.20 × 1.69 = 8.788 ⚜
+    // (with the +5 % affiliate bonus → 9.2274 ⚜) instead of being
+    // truncated to 8. Round to 2 decimals so we match the wallet display.
+    const finalCoins = Math.round(usdAmount * DEPOSIT_RATE * bonusMultiplier * 100) / 100;
 
     const transaction = await prisma.transaction.create({
       data: {

@@ -136,11 +136,17 @@ export default function DepositPage() {
   const [loading, setLoading]                  = useState(false);
   const [error, setError]                      = useState<string | null>(null);
 
+  // Backend stores coins as Decimal(20, 8) so we no longer floor : $5.20
+  // converts to exactly 5.20 × 1.69 = 8.788 ⚜ instead of 8 (the previous
+  // Math.floor was silently swallowing fractional cents on every deposit).
+  // Round to 2 decimals at display time — same precision the user sees in
+  // the wallet balance.
+  const round2 = (n: number) => Math.round(n * 100) / 100;
   const usdCost    = parseFloat(customUsd) || 0;
-  const baseCoins  = Math.floor(usdCost * COINS_PER_USD);
+  const baseCoins  = round2(usdCost * COINS_PER_USD);
   const bonusPct   = promoApplied ? promoBonusPct : 0;
-  const bonusCoins = Math.floor(baseCoins * bonusPct / 100);
-  const totalCoins = baseCoins + bonusCoins;
+  const bonusCoins = round2(baseCoins * bonusPct / 100);
+  const totalCoins = round2(baseCoins + bonusCoins);
   const eurCost    = useMemo(() => usdCost * USD_TO_EUR, [usdCost]);
 
   const applyPromo = async () => {
