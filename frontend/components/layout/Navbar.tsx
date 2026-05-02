@@ -10,6 +10,7 @@ import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { WalletModal } from '@/components/wallet/WalletModal';
+import { RedeemPopover } from '@/components/layout/RedeemPopover';
 import { useT } from '@/lib/i18n';
 import { useNotifications } from '@/contexts/NotificationsContext';
 import { getSocket } from '@/lib/socket';
@@ -159,6 +160,9 @@ export function Navbar() {
         <div className="flex items-center gap-1.5 md:gap-2 shrink-0 ml-auto">
           {session ? (
             <>
+              {/* Redeem-code popover — sits at the immediate left of the bell */}
+              <RedeemPopover />
+
               {/* Notification bell */}
               <div className="relative">
                 <button
