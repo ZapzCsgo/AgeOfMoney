@@ -36,6 +36,7 @@ import { getIo } from '../socket';
 import { creditAffiliateOnBetResolved } from './affiliateService';
 import { getSignedRandomInteger, logRngStartupState } from './randomOrgClient';
 import { recordLedger } from './ledger';
+import { processWageringForBet } from './redeemCodeService';
 import logger from '../logger';
 
 const MIN_BET = 1;
@@ -213,6 +214,7 @@ export async function placeBet(
     });
 
     await recordLedger(tx, { userId, type: 'jackpot_stake', coins: -amount });
+    await processWageringForBet(tx, { userId, betAmount: amount });
 
     return { bet, updatedRound, isNewParticipant };
   });

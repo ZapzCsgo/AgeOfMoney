@@ -7,6 +7,9 @@ export default function NotFound() {
       imageAlt="404 — Territory uncharted"
       ctaText="← Return to your base"
       ctaHref="/"
+      errorCode="404"
+      title="DEFEAT"
+      subtitle="This territory is uncharted. Return to your base."
     />
   );
 }

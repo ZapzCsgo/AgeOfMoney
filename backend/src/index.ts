@@ -48,6 +48,8 @@ import jackpotRouter from './routes/jackpot';
 import affiliateRouter from './routes/affiliate';
 import supportRouter from './routes/support';
 import devRouter from './routes/dev';
+import redeemRouter from './routes/redeem';
+import adminRedeemRouter from './routes/adminRedeem';
 import logger from './logger';
 
 // Fail-fast: crash at startup if required secrets are missing in production
@@ -203,6 +205,21 @@ const userLookupLimiter = rateLimit({
   message: { error: 'Too many profile requests.' },
 });
 
+// Redeem codes — two layers stacked on /api/v1/redeem :
+//   1) IP : 20 attempts / hour. Stops a single IP cycling through fresh
+//      Steam accounts to brute-force valid codes (multi-account abuse).
+//   2) Per-user (inside the router, after requireAuth) : 5 attempts / min.
+//      Stops a logged-in user from hammering the codespace via script.
+// Code-list endpoints (admin) are not rate-limited here — they're already
+// behind requireAdmin.
+const redeemIpLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many redeem attempts from this IP. Try again later.' },
+});
+
 app.use(globalLimiter);
 
 // Routes
@@ -222,6 +239,8 @@ app.use('/api/v1/coinflip', coinflipLimiter, coinflipRouter);
 app.use('/api/v1/jackpot', jackpotLimiter, jackpotRouter);
 app.use('/api/v1/affiliate', affiliateLimiter, affiliateRouter);
 app.use('/api/v1/support', supportRouter);
+app.use('/api/v1/redeem', redeemIpLimiter, redeemRouter);
+app.use('/api/v1/admin/redeem-codes', adminRedeemRouter);
 
 // Dev-only routes
 if (process.env.NODE_ENV !== 'production') {

@@ -3,6 +3,7 @@ import { BetStatus, MatchStatus } from '@prisma/client';
 import { adjustOddsAdvanced, BetRecord } from './oddsEngine';
 import { creditAffiliateOnBetResolved } from './affiliateService';
 import { recordLedger } from './ledger';
+import { processWageringForBet } from './redeemCodeService';
 import { getIo } from '../socket';
 import logger from '../logger';
 
@@ -159,6 +160,11 @@ export async function placeBet(
     });
 
     await recordLedger(tx, { userId, type: 'bet_placed', coins: -amount });
+
+    // Wagering progression for any redeem-bonus the user is unlocking.
+    // Inside the same tx → row-level lock on User keeps the increment
+    // atomic with the coin debit above.
+    await processWageringForBet(tx, { userId, betAmount: amount });
 
     return newBet;
   });

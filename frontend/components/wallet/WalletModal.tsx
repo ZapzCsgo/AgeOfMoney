@@ -3,7 +3,8 @@
 import { useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { signInWithSteam } from '@/lib/authHelpers';
-import { X, Copy, Check, ChevronRight, ArrowDownToLine, ArrowUpFromLine, RefreshCw, AlertTriangle } from 'lucide-react';
+import { apiClient } from '@/lib/api';
+import { X, Copy, Check, ChevronRight, ArrowDownToLine, ArrowUpFromLine, RefreshCw, AlertTriangle, Gift, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/i18n';
 
@@ -138,6 +139,19 @@ export function WalletModal({ onClose }: Props) {
   const [error, setError]         = useState<string | null>(null);
   const [affiliateCode, setAffiliateCode] = useState('');
 
+  // ── Redeem-code state ───────────────────────────────────────────────────
+  // Locally tracked because we read /api/v1/me/redeem-history on demand
+  // (no need to refetch on every wallet open). The current locked balance
+  // is shown alongside spendable so the user understands wagering.
+  const [redeemCodeInput, setRedeemCodeInput] = useState('');
+  const [redeemBusy, setRedeemBusy] = useState(false);
+  const [redeemMsg, setRedeemMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [redeemHistory, setRedeemHistory] = useState<Array<{
+    id: string; code: string; amount: string; wageringRequired: string;
+    wageringDone: string; unlocked: boolean; redeemedAt: string;
+  }> | null>(null);
+  const [redeemHistoryOpen, setRedeemHistoryOpen] = useState(false);
+
   // ── Computed ─────────────────────────────────────────────────────────────────
   const depositCoins   = usdAmount   ? parseFloat((parseFloat(usdAmount) * DEPOSIT_RATE).toFixed(2))  : 0;
   const withdrawUsd    = coinsAmount ? (parseFloat(coinsAmount) * WITHDRAW_RATE).toFixed(2) : '0.00';
@@ -211,6 +225,45 @@ export function WalletModal({ onClose }: Props) {
       setLoading(false);
     }
   }, [session, selectedCrypto, coinsAmount, coins, withdrawAddr, onClose]);
+
+  // ── Redeem submit ────────────────────────────────────────────────────────────
+  const loadRedeemHistory = useCallback(async () => {
+    try {
+      const res = await apiClient.get('/redeem/me/history');
+      setRedeemHistory(Array.isArray(res.data?.data) ? res.data.data : []);
+    } catch { /* swallow — UI degrades to "no history" */ }
+  }, []);
+
+  const handleRedeem = useCallback(async () => {
+    if (!session) { signInWithSteam(); return; }
+    const code = redeemCodeInput.trim().toUpperCase();
+    if (!code) { setRedeemMsg({ ok: false, text: 'Enter a code' }); return; }
+    setRedeemBusy(true); setRedeemMsg(null);
+    try {
+      const res = await apiClient.post('/redeem', { code });
+      const data = res.data;
+      if (data.ok === false) {
+        setRedeemMsg({ ok: false, text: data.message ?? 'Code rejected' });
+      } else {
+        setRedeemMsg({
+          ok: true,
+          text: `+${data.amount} ⚜ locked. Wager ${data.wageringRequired} ⚜ to unlock.`,
+        });
+        setRedeemCodeInput('');
+        if (redeemHistoryOpen) loadRedeemHistory();
+      }
+    } catch (e) {
+      setRedeemMsg({ ok: false, text: e instanceof Error ? e.message : 'Network error' });
+    } finally {
+      setRedeemBusy(false);
+    }
+  }, [session, redeemCodeInput, redeemHistoryOpen, loadRedeemHistory]);
+
+  const toggleHistory = useCallback(() => {
+    const next = !redeemHistoryOpen;
+    setRedeemHistoryOpen(next);
+    if (next && redeemHistory === null) loadRedeemHistory();
+  }, [redeemHistoryOpen, redeemHistory, loadRedeemHistory]);
 
   // ── Reset on tab change ───────────────────────────────────────────────────────
   const switchTab = (t: Tab) => {
@@ -552,6 +605,106 @@ export function WalletModal({ onClose }: Props) {
             <p className="text-[10px] text-aoe-parchment-muted mt-1.5">
               {t('wallet_promo_no_code')}
             </p>
+          )}
+        </div>
+
+        {/* ── Redeem code section ────────────────────────────────────── */}
+        <div className="pt-1 border-t" style={{ borderColor: '#1e1a30' }}>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[10px] font-cinzel tracking-widest text-aoe-parchment-dim uppercase flex items-center gap-1.5">
+              <Gift size={11} className="text-aoe-gold" /> Redeem code
+            </p>
+            <button
+              onClick={toggleHistory}
+              className="text-[10px] text-aoe-parchment-dim hover:text-aoe-gold transition-colors font-cinzel"
+            >
+              {redeemHistoryOpen ? 'hide history' : 'history'}
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={redeemCodeInput}
+              onChange={(e) => setRedeemCodeInput(e.target.value.toUpperCase())}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleRedeem(); }}
+              placeholder="LAUNCH50"
+              maxLength={20}
+              className="aom-input h-8 text-xs flex-1 uppercase tracking-widest font-cinzel"
+            />
+            <button
+              onClick={handleRedeem}
+              disabled={redeemBusy || !redeemCodeInput.trim()}
+              className={cn(
+                'px-4 h-8 rounded-md text-xs font-cinzel font-bold tracking-wide transition-all shrink-0',
+                (redeemBusy || !redeemCodeInput.trim()) && 'opacity-60 cursor-not-allowed',
+              )}
+              style={{ background: 'linear-gradient(135deg, #b8881a, #ffc542)', color: '#07060f' }}
+            >
+              {redeemBusy ? <RefreshCw size={11} className="animate-spin" /> : 'Redeem'}
+            </button>
+          </div>
+          {redeemMsg && (
+            <p
+              className={cn(
+                'text-[10px] mt-1.5 leading-snug',
+                redeemMsg.ok ? 'text-aoe-emerald-bright' : 'text-aoe-crimson-bright',
+              )}
+            >
+              {redeemMsg.text}
+            </p>
+          )}
+          {!redeemMsg && (
+            <p className="text-[10px] text-aoe-parchment-muted mt-1.5 leading-snug">
+              Bonus coins are locked until you wager them through. Withdraw is blocked on locked coins.
+            </p>
+          )}
+
+          {redeemHistoryOpen && (
+            <div className="mt-3 space-y-1.5">
+              {redeemHistory === null ? (
+                <p className="text-[10px] text-aoe-parchment-muted">Loading…</p>
+              ) : redeemHistory.length === 0 ? (
+                <p className="text-[10px] text-aoe-parchment-muted">No codes redeemed yet.</p>
+              ) : (
+                redeemHistory.map((r) => {
+                  const done = parseFloat(r.wageringDone);
+                  const required = parseFloat(r.wageringRequired);
+                  const pct = required > 0 ? Math.min(100, Math.round((done / required) * 100)) : 0;
+                  return (
+                    <div
+                      key={r.id}
+                      className="rounded-md p-2 border"
+                      style={{ background: '#07060f', borderColor: '#1e1a30' }}
+                    >
+                      <div className="flex items-center justify-between text-[11px] mb-1">
+                        <span className="font-cinzel font-bold text-aoe-parchment">{r.code}</span>
+                        <span className="font-cinzel text-aoe-gold">+{r.amount} ⚜</span>
+                      </div>
+                      {r.unlocked ? (
+                        <div className="text-[10px] text-aoe-emerald-bright flex items-center gap-1">
+                          <Check size={10} /> Unlocked — added to your spendable balance
+                        </div>
+                      ) : (
+                        <>
+                          <div className="text-[10px] text-aoe-parchment-dim flex items-center gap-1 mb-1">
+                            <Lock size={9} /> {done.toFixed(0)} / {required.toFixed(0)} ⚜ wagered ({pct}%)
+                          </div>
+                          <div className="h-1 rounded-full overflow-hidden" style={{ background: '#1e1a30' }}>
+                            <div
+                              className="h-full transition-all"
+                              style={{
+                                width: `${pct}%`,
+                                background: 'linear-gradient(90deg, #b8881a, #ffc542)',
+                              }}
+                            />
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
           )}
         </div>
       </div>
