@@ -214,10 +214,13 @@ export async function placeBet(
     });
 
     await recordLedger(tx, { userId, type: 'jackpot_stake', coins: -amount });
-    await processWageringForBet(tx, { userId, betAmount: amount });
 
     return { bet, updatedRound, isNewParticipant };
   });
+
+  // Wagering progress (post-commit) — own implicit transaction, can't
+  // ever roll back the bet. See processWageringForBet() docstring.
+  await processWageringForBet(prisma, { userId, betAmount: amount });
 
   const io = getIo();
   const updatedUser = await prisma.user.findUnique({

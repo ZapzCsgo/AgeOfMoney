@@ -236,9 +236,22 @@ export async function redeemCode(opts: {
 }
 
 /** Increments wagering progress + auto-unlocks any redemption that just
- *  crossed its threshold. MUST be called inside the same `$transaction`
- *  that placed the bet — race-safe by virtue of Postgres row-level locks
- *  on the User row.
+ *  crossed its threshold.
+ *
+ *  Originally called inside the bet's `$transaction` for atomicity. Moved
+ *  to its own implicit transaction (called AFTER the bet commits) because :
+ *    1. Wagering is non-essential for bet placement — losing one wagering
+ *       update is acceptable, losing a bet is not.
+ *    2. If the redeem schema columns aren't yet on the DB (e.g. the
+ *       boot-time migration hook hasn't run yet on a fresh deploy), the
+ *       raw SQL would throw and roll back the entire bet transaction.
+ *    3. Race-safety is preserved by the `UPDATE … += amount` SQL — Postgres
+ *       row-level locks are held for the duration of the UPDATE, so even
+ *       two concurrent bets can't lose increments.
+ *
+ *  Schema-not-ready errors (column / relation does not exist) are caught
+ *  and logged at warn level instead of throwing. Other errors are
+ *  rethrown — they're real bugs we want to see.
  *
  *  `betAmount` accepts Decimal | string | number for forward-compat with
  *  the planned global Decimal migration. Internally always Decimal math.
@@ -250,54 +263,74 @@ export async function processWageringForBet(
   const wager = new Prisma.Decimal(opts.betAmount);
   if (wager.lte(0)) return;
 
-  // Increment progress via raw SQL — see comment in redeemCode() above
-  // re: Decimal columns not being in the generated client locally.
-  await tx.$executeRawUnsafe(
-    `UPDATE "User" SET "totalWageringProgress" = "totalWageringProgress" + $1 WHERE "id" = $2`,
-    wager.toString(),
-    opts.userId,
-  );
-
-  // Cheap early-exit when the user has no locked balance — avoids
-  // hitting the redemption table for the 99 % of users who never
-  // redeemed a code. Read the fresh values via raw SQL too.
-  const userRow = await tx.$queryRawUnsafe<Array<{ totalWageringProgress: string; redeemLockedBalance: string }>>(
-    `SELECT "totalWageringProgress"::text, "redeemLockedBalance"::text FROM "User" WHERE "id" = $1`,
-    opts.userId,
-  );
-  if (userRow.length === 0) return;
-  const lockedBalance = new Prisma.Decimal(userRow[0].redeemLockedBalance);
-  if (lockedBalance.lte(0)) return;
-  const totalWagering = new Prisma.Decimal(userRow[0].totalWageringProgress);
-
-  const pending = await redeemPrisma(tx).redeemCodeRedemption.findMany({
-    where: { userId: opts.userId, unlocked: false },
-  });
-  if (pending.length === 0) return;
-
-  for (const r of pending) {
-    const required = new Prisma.Decimal(r.wageringStartAt).add(r.wageringRequired);
-    if (totalWagering.lt(required)) continue;
-    const amount = new Prisma.Decimal(r.amount);
-
-    await redeemPrisma(tx).redeemCodeRedemption.update({
-      where: { id: r.id },
-      data: { unlocked: true, unlockedAt: new Date() },
-    });
-    // Move coins : decrement redeemLockedBalance + increment User.coins.
-    // User.coins is still Int — convert via Math.floor to avoid silent
-    // truncation surprises. Once the global Decimal migration ships we
-    // can drop the floor.
-    const amountInt = Math.floor(amount.toNumber());
+  try {
+    // Increment progress via raw SQL — see comment in redeemCode() above
+    // re: Decimal columns not being in the generated client locally.
     await tx.$executeRawUnsafe(
-      `UPDATE "User"
-         SET "redeemLockedBalance" = "redeemLockedBalance" - $1,
-             "coins"               = "coins" + $2
-       WHERE "id" = $3`,
-      amount.toString(), amountInt, opts.userId,
+      `UPDATE "User" SET "totalWageringProgress" = "totalWageringProgress" + $1 WHERE "id" = $2`,
+      wager.toString(),
+      opts.userId,
     );
-    await recordLedger(tx, { userId: opts.userId, type: 'redeem_unlock', coins: amountInt });
-    logger.info(`[Redeem] Unlocked ${amount.toFixed(2)}⚜ for ${opts.userId} (redemption ${r.id})`);
+
+    // Cheap early-exit when the user has no locked balance — avoids
+    // hitting the redemption table for the 99 % of users who never
+    // redeemed a code. Read the fresh values via raw SQL too.
+    const userRow = await tx.$queryRawUnsafe<Array<{ totalWageringProgress: string; redeemLockedBalance: string }>>(
+      `SELECT "totalWageringProgress"::text, "redeemLockedBalance"::text FROM "User" WHERE "id" = $1`,
+      opts.userId,
+    );
+    if (userRow.length === 0) return;
+    const lockedBalance = new Prisma.Decimal(userRow[0].redeemLockedBalance);
+    if (lockedBalance.lte(0)) return;
+    const totalWagering = new Prisma.Decimal(userRow[0].totalWageringProgress);
+
+    const pending = await redeemPrisma(tx).redeemCodeRedemption.findMany({
+      where: { userId: opts.userId, unlocked: false },
+    });
+    if (pending.length === 0) return;
+
+    for (const r of pending) {
+      const required = new Prisma.Decimal(r.wageringStartAt).add(r.wageringRequired);
+      if (totalWagering.lt(required)) continue;
+      const amount = new Prisma.Decimal(r.amount);
+
+      await redeemPrisma(tx).redeemCodeRedemption.update({
+        where: { id: r.id },
+        data: { unlocked: true, unlockedAt: new Date() },
+      });
+      // Move coins : decrement redeemLockedBalance + increment User.coins.
+      // User.coins is still Int — convert via Math.floor to avoid silent
+      // truncation surprises. Once the global Decimal migration ships we
+      // can drop the floor.
+      const amountInt = Math.floor(amount.toNumber());
+      await tx.$executeRawUnsafe(
+        `UPDATE "User"
+           SET "redeemLockedBalance" = "redeemLockedBalance" - $1,
+               "coins"               = "coins" + $2
+         WHERE "id" = $3`,
+        amount.toString(), amountInt, opts.userId,
+      );
+      await recordLedger(tx, { userId: opts.userId, type: 'redeem_unlock', coins: amountInt });
+      logger.info(`[Redeem] Unlocked ${amount.toFixed(2)}⚜ for ${opts.userId} (redemption ${r.id})`);
+    }
+  } catch (err) {
+    const code = (err as { code?: string })?.code;
+    const msg  = (err as { message?: string })?.message ?? '';
+    // Postgres error codes :
+    //   42703 = undefined_column      (e.g. totalWageringProgress missing)
+    //   42P01 = undefined_table       (e.g. RedeemCodeRedemption missing)
+    // Both happen when the redeem-schema migration hasn't run yet. Swallow
+    // and log — the bet itself must still succeed.
+    if (code === '42703' || code === '42P01' || /does not exist/i.test(msg)) {
+      logger.warn(
+        `[Redeem] processWageringForBet skipped (schema not ready) for user ${opts.userId} : ${msg}`,
+      );
+      return;
+    }
+    // Real error — log and continue. We do NOT rethrow because we no
+    // longer share a transaction with the bet ; rethrowing would crash
+    // the caller's success path for no benefit.
+    logger.error(`[Redeem] processWageringForBet failed for user ${opts.userId}:`, err);
   }
 }
 

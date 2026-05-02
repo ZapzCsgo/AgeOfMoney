@@ -139,9 +139,12 @@ export async function createCoinFlip(
       },
     });
     await recordLedger(tx, { userId, type: 'coinflip_stake', coins: -amount });
-    await processWageringForBet(tx, { userId, betAmount: amount });
     return created;
   });
+
+  // Wagering progress (post-commit) — own implicit transaction, can't
+  // ever roll back the bet. See processWageringForBet() docstring.
+  await processWageringForBet(prisma, { userId, betAmount: amount });
 
   const io = getIo();
   // Notify creator of coin deduction
@@ -203,9 +206,6 @@ export async function joinCoinFlip(
     // (their stake was already booked at place-time).
     await recordLedger(tx, { userId, type: 'coinflip_stake', coins: -game.amount });
     await recordLedger(tx, { userId: winnerId, type: 'coinflip_win', coins: payout });
-    // Joiner just wagered. Creator already had their wagering counted at
-    // game creation time, so we only progress the joiner here.
-    await processWageringForBet(tx, { userId, betAmount: game.amount });
 
     // Update game. If we had to backfill clientSeed (legacy row), persist it
     // so the reveal payload remains consistent with what was used to derive.
@@ -227,6 +227,10 @@ export async function joinCoinFlip(
       },
     });
   });
+
+  // Wagering progress (post-commit) — joiner only ; creator already had
+  // their wagering counted at game creation time.
+  await processWageringForBet(prisma, { userId, betAmount: game.amount });
 
   const io = getIo();
 

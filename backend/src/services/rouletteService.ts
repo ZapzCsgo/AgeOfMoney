@@ -279,9 +279,12 @@ export async function placeBet(userId: string, zone: Zone, amount: number): Prom
       await tx.rouletteBet.create({ data: { roundId: currentRoundId!, userId, zone, amount } });
     }
     await recordLedger(tx, { userId, type: 'roulette_stake', coins: -amount });
-    await processWageringForBet(tx, { userId, betAmount: amount });
     return tx.user.findUnique({ where: { id: userId }, select: { coins: true } }) as Promise<{ coins: number }>;
   });
+
+  // Wagering progress (post-commit) — own implicit transaction, can't
+  // ever roll back the bet. See processWageringForBet() docstring.
+  await processWageringForBet(prisma, { userId, betAmount: amount });
 
   // Broadcast updated bets
   const io = getIo();
