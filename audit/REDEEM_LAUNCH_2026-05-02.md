@@ -82,28 +82,56 @@ git push origin master --force-with-lease
 
 ## 5. Health check post-deploy
 
-⚠️ At time of writing this report, Railway hasn't picked up the new
-commits yet (still showing `version: "03f6503"`). A monitor is polling
-the health endpoint and will notify when the new version is live.
-
-Expected snapshot once new deploy lands :
-- `status: "ok"`
-- `checks.database: "ok"`
-- `checks.scheduler: "ok"`
-- `version` matches `c686cdd` (or newer)
-- `matches_active`: > 0
-
-## 6. Endpoint security smoke test
-
-Once live, run :
-```bash
-# Unauth → must return 401 (NOT 200, NOT 500)
-curl -o /dev/null -w "%{http_code}\n" \
-  https://api.ageof.money/api/v1/admin/redeem-codes
-# Expected : 401
+✅ **First deploy live** at 02:34 UTC — Railway picked up commit
+`3ce4791` (merge + redeem routes + audit doc). Snapshot :
+```
+status:        ok
+version:       3ce4791
+checks.database:  ok
+checks.scheduler: ok
+matches_active:   17
+GET /api/v1/matches?limit=3 → 200 in 816ms
 ```
 
-If it returns 200 or 500 : ALERT — route is exposed publicly. Revert.
+✅ **Migration deploy live** at 02:35 UTC (~1 min after first deploy).
+Commit `ed21228` is running. Stability check : uptime grew from 33s → 64s
+with all checks green — **no crashloop from the boot-time migration**, so
+either the SQL applied cleanly OR the tables already existed (idempotent
+short-circuit). Final state :
+```
+status:        ok
+version:       ed21228
+uptime:        steady-state growth, no restarts
+checks.database:  ok
+checks.scheduler: ok
+matches_active:   17
+```
+
+Schema-apply log line to look for in Railway when Matteo wakes up :
+```
+[Migration:redeem] Applying schema (RedeemCode + RedeemCodeRedemption + User cols)…
+[Migration:redeem] ✅ Schema applied successfully
+```
+If you see that line in the boot logs of `ed21228`, the migration ran.
+If you don't see it, either the tables already existed (silent
+short-circuit) or the migration errored — verify with the SQL probe in §2.
+
+✅ **Endpoint security smoke test (live, on commit `ed21228`)** :
+```
+GET  /api/v1/admin/redeem-codes  (no auth) → 401  ✓
+GET  /api/v1/redeem/me/history   (no auth) → 401  ✓
+POST /api/v1/redeem               (no auth) → 401  ✓
+```
+All 3 routes deployed AND properly gated. No public exposure.
+
+✅ **Frontend health** :
+```
+GET https://ageof.money/                  → 200 (942ms)
+GET https://ageof.money/maintenance       → 200 (787ms)
+GET https://ageof.money/<bogus-path>      → 404 (Next.js not-found firing)
+```
+
+## 6. Endpoint security smoke test (already passed — see §5)
 
 ## 7. Variables d'env Railway à vérifier
 
