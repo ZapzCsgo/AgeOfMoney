@@ -16,7 +16,7 @@
  * in lib/api.ts), so no manual header wiring here.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { Gift, RefreshCw, Check, Lock, X } from 'lucide-react';
 import { signInWithSteam } from '@/lib/authHelpers';
@@ -41,6 +41,35 @@ export function RedeemPopover() {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [history, setHistory] = useState<RedemptionRow[] | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+
+  // Close on outside click + Escape. Listening on `document` + ref check
+  // is more reliable than a fullscreen invisible backdrop, because the
+  // backdrop can get trapped under sibling stacking contexts (other
+  // popovers, modals, page widgets) and silently stop intercepting.
+  // `mousedown` fires before `click`, so we close before any in-popover
+  // click handler races us.
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const handlePointer = (ev: MouseEvent | TouchEvent) => {
+      const target = ev.target as Node | null;
+      if (target && rootRef.current && !rootRef.current.contains(target)) {
+        setOpen(false);
+        setMsg(null);
+      }
+    };
+    const handleKey = (ev: KeyboardEvent) => {
+      if (ev.key === 'Escape') { setOpen(false); setMsg(null); }
+    };
+    document.addEventListener('mousedown', handlePointer);
+    document.addEventListener('touchstart', handlePointer);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handlePointer);
+      document.removeEventListener('touchstart', handlePointer);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [open]);
 
   const loadHistory = useCallback(async () => {
     try {
@@ -88,7 +117,7 @@ export function RedeemPopover() {
   };
 
   return (
-    <div className="relative">
+    <div className="relative" ref={rootRef}>
       <button
         onClick={() => setOpen((o) => !o)}
         className="relative w-9 h-9 flex items-center justify-center rounded border border-aoe-border bg-aoe-stone/30 hover:border-aoe-border-gold transition-colors"
@@ -99,8 +128,6 @@ export function RedeemPopover() {
       </button>
 
       {open && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={closePanel} />
           <div
             className="absolute right-0 top-full mt-2 w-80 rounded-xl overflow-hidden shadow-2xl z-20"
             style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}
@@ -216,7 +243,6 @@ export function RedeemPopover() {
               )}
             </div>
           </div>
-        </>
       )}
     </div>
   );
