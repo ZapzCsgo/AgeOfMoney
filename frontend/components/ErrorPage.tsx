@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 
 /**
  * Pure-CSS / pure-SVG error page. NO PNG image dependency.
@@ -96,45 +97,33 @@ export function ErrorPage({
           {errorCode}
         </h1>
 
-        {/* Coin medallion — fleur-de-lys SVG */}
-        <div className="my-8 relative">
+        {/* Coin medallion — official AOM logo from /public.
+            Replaces the previous inline-SVG attempt (looked like a brown
+            blob — fleur-de-lys path math was off and didn't match the
+            real brand asset). aomlogo.png is the same logo used as the
+            site favicon + app icon + structured-data logo, so the error
+            page now matches the brand identity exactly. */}
+        <div className="my-8 relative flex items-center justify-center">
+          {/* Soft golden glow behind the coin */}
           <div
-            className="absolute inset-0 rounded-full"
+            className="absolute pointer-events-none"
             style={{
+              width: '220px',
+              height: '220px',
               background:
-                'radial-gradient(circle, rgba(255, 200, 87, 0.3) 0%, transparent 70%)',
-              filter: 'blur(20px)',
-              transform: 'scale(1.5)',
+                'radial-gradient(circle, rgba(255, 200, 87, 0.4) 0%, rgba(212, 184, 150, 0.1) 50%, transparent 75%)',
+              filter: 'blur(30px)',
             }}
             aria-hidden="true"
           />
-          <svg
-            width="120"
-            height="120"
-            viewBox="0 0 120 120"
-            className="relative"
-            aria-hidden="true"
-          >
-            <defs>
-              <radialGradient id="coinGradient" cx="0.3" cy="0.3">
-                <stop offset="0%" stopColor="#F5D085" />
-                <stop offset="50%" stopColor="#D4B896" />
-                <stop offset="100%" stopColor="#8B6F47" />
-              </radialGradient>
-            </defs>
-            {/* Outer coin disc */}
-            <circle cx="60" cy="60" r="55" fill="url(#coinGradient)" stroke="#8B6F47" strokeWidth="2" />
-            {/* Inner detail circle */}
-            <circle cx="60" cy="60" r="48" fill="none" stroke="#8B6F47" strokeWidth="0.5" opacity="0.5" />
-            {/* Fleur de lys */}
-            <g transform="translate(60, 60)">
-              <path d="M 0,-25 L -3,-10 L -3,5 L 0,8 L 3,5 L 3,-10 Z" fill="#8B6F47" />
-              <path d="M 0,-5 Q -15,-10 -18,5 Q -20,15 -10,18 Q -5,15 -2,8 L 0,5" fill="#8B6F47" />
-              <path d="M 0,-5 Q 15,-10 18,5 Q 20,15 10,18 Q 5,15 2,8 L 0,5" fill="#8B6F47" />
-              <rect x="-12" y="6" width="24" height="3" fill="#8B6F47" />
-              <rect x="-15" y="11" width="30" height="2" fill="#8B6F47" />
-            </g>
-          </svg>
+          <Image
+            src="/aomlogo.png"
+            alt="AgeOfMoney"
+            width={140}
+            height={140}
+            priority
+            className="relative drop-shadow-[0_4px_20px_rgba(212,184,150,0.5)]"
+          />
         </div>
 
         {/* Title (DEFEAT, FORTRESS UNDER SIEGE, …) */}
