@@ -98,12 +98,17 @@ export function ErrorPage({
         </h1>
 
         {/* Coin medallion — official AOM logo from /public.
-            aomlogo.png ships with a dark gradient background (square
-            asset) which used to draw a visible rectangle on the error
-            page's black backdrop. We use `mix-blend-mode: screen` to
-            wipe the dark areas (black + dark gradient → transparent)
-            while keeping the gold coin + rays fully visible. Same logo
-            as the site favicon + structured-data logo. */}
+            aomlogo.png is a square 272×272 asset with a dark gradient
+            background (gold coin centered, rays around, "AOM" text at
+            the bottom). On the error page's near-black backdrop the
+            square edges drew an obvious rectangle.
+            Fix : `clip-path: circle()` masks the visible area to the
+            coin disc only — square corners + rays + bottom "AOM" text
+            are clipped out. Crop is centered on the coin (45% radius
+            at 50% / 38% to push the focal point above the AOM text).
+            mix-blend-mode wasn't enough because the source background
+            isn't pure black — has dark-blue gradient + bright rays
+            that survived the screen blend and produced halos. */}
         <div className="my-8 relative flex items-center justify-center">
           {/* Soft golden glow behind the coin */}
           <div
@@ -120,16 +125,17 @@ export function ErrorPage({
           <Image
             src="/aomlogo.png"
             alt="AgeOfMoney"
-            width={160}
-            height={160}
+            width={180}
+            height={180}
             priority
             className="relative drop-shadow-[0_4px_30px_rgba(212,184,150,0.6)]"
             style={{
-              // Wipe the square dark background — only the gold coin +
-              // rays survive screen-blend against the page's near-black
-              // backdrop.
-              mixBlendMode: 'screen',
+              clipPath: 'circle(42% at 50% 41%)',
               objectFit: 'contain',
+              // The clipPath drops the bottom "AOM" text band ; nudge the
+              // image up so the coin sits at the geometric center of the
+              // visible disc (otherwise it'd look slightly low).
+              transform: 'translateY(-6%)',
             }}
           />
         </div>
