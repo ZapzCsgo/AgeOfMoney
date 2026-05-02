@@ -316,7 +316,7 @@ router.post('/:id/tip', requireAuth, async (req: Request, res: Response): Promis
     ]);
     if (!sender) { res.status(404).json({ error: 'Sender not found' }); return; }
     if (!recipient || recipient.isBanned) { res.status(404).json({ error: 'User not found' }); return; }
-    if (sender.coins < amountInt) { res.status(400).json({ error: 'Insufficient coins' }); return; }
+    if (Number(sender.coins.toString()) < amountInt) { res.status(400).json({ error: 'Insufficient coins' }); return; }
 
     // Atomic + race-safe: updateMany with `coins: { gte }` guard prevents
     // the TOCTOU double-spend (two parallel tips both pass a findUnique
@@ -493,9 +493,10 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
     function periodStats(bArr: typeof bets, rArr: typeof rouletteBets, since: number) {
       const fb = bArr.filter(b => new Date(b.createdAt).getTime() >= since);
       const fr = rArr.filter(b => new Date(b.createdAt).getTime() >= since);
-      const wagered = fb.reduce((s, b) => s + b.amount, 0) + fr.reduce((s, b) => s + b.amount, 0);
-      const won     = fb.filter(b => b.status === 'WON').reduce((s, b) => s + (b.payout ?? 0), 0)
-                    + fr.filter(b => b.won === true).reduce((s, b) => s + (b.payout ?? 0), 0);
+      const num = (v: unknown): number => v == null ? 0 : Number((v as { toString(): string }).toString());
+      const wagered = fb.reduce((s, b) => s + num(b.amount), 0) + fr.reduce((s, b) => s + num(b.amount), 0);
+      const won     = fb.filter(b => b.status === 'WON').reduce((s, b) => s + num(b.payout), 0)
+                    + fr.filter(b => b.won === true).reduce((s, b) => s + num(b.payout), 0);
       const count   = fb.length + fr.length;
       return { wagered, won, count };
     }

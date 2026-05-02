@@ -27,9 +27,16 @@
  * guarantee. Every existing call site already wraps coin moves in a
  * `$transaction`; ride along.
  */
-import type { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma, type PrismaClient } from '@prisma/client';
 
 export type LedgerClient = PrismaClient | Prisma.TransactionClient;
+
+/** Coin delta — accepts JS number for legacy callers, Decimal for the
+ *  new precision-preserving paths (payouts, rake), and string for safe
+ *  serialization. Prisma's Decimal column accepts all three at write
+ *  time. The Decimal-zero / number-zero / string-"0" cases all
+ *  short-circuit via `eq` below. */
+type CoinDelta = number | Prisma.Decimal | string;
 
 export type LedgerType =
   // bets
@@ -52,19 +59,24 @@ export type LedgerType =
 export interface LedgerArgs {
   userId: string;
   type: LedgerType;
-  /** Signed delta. Negative = debit (stake/tip out/withdrawal). Positive = credit (win/refund/tip in/claim). */
-  coins: number;
+  /** Signed delta. Negative = debit (stake/tip out/withdrawal). Positive = credit (win/refund/tip in/claim).
+   *  Accepts number | Prisma.Decimal | string — Prisma Decimal columns
+   *  accept all three at write time. */
+  coins: CoinDelta;
 }
 
 export async function recordLedger(client: LedgerClient, { userId, type, coins }: LedgerArgs): Promise<void> {
-  if (coins === 0) return;
+  // Coerce-to-Decimal-once so we can short-circuit zero-deltas regardless
+  // of input type (Decimal('0').eq(0) == true, same for number/string).
+  const delta = coins instanceof Prisma.Decimal ? coins : new Prisma.Decimal(coins);
+  if (delta.eq(0)) return;
   await client.transaction.create({
     data: {
       userId,
       type,
       amount: 0,           // virtual coin transactions don't carry a fiat side
       realAmount: null,
-      coins,
+      coins: delta,
       status: 'completed',
     },
   });

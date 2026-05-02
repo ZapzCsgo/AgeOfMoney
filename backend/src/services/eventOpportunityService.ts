@@ -450,7 +450,8 @@ export async function detectVolumeRecord(): Promise<DetectedSuggestion | null> {
       prisma.rouletteBet.aggregate({ _sum: { amount: true }, where: { createdAt: { gte: from, lt: to } } }),
       prisma.jackpotBet.aggregate({ _sum: { amount: true }, where: { createdAt: { gte: from, lt: to } } }),
     ]);
-    return (b._sum.amount ?? 0) + (c._sum.amount ?? 0) + (r._sum.amount ?? 0) + (j._sum.amount ?? 0);
+    const num = (v: unknown): number => v == null ? 0 : Number((v as { toString(): string }).toString());
+    return num(b._sum.amount) + num(c._sum.amount) + num(r._sum.amount) + num(j._sum.amount);
   }
 
   const [today, past30] = await Promise.all([
@@ -565,7 +566,8 @@ export async function detectRainOpportunity(): Promise<DetectedSuggestion | null
       prisma.rouletteBet.aggregate({ _sum: { amount: true }, where: { createdAt: { gte: from, lt: to } } }),
       prisma.jackpotBet.aggregate({ _sum: { amount: true }, where: { createdAt: { gte: from, lt: to } } }),
     ]);
-    return (b._sum.amount ?? 0) + (c._sum.amount ?? 0) + (r._sum.amount ?? 0) + (j._sum.amount ?? 0);
+    const num = (v: unknown): number => v == null ? 0 : Number((v as { toString(): string }).toString());
+    return num(b._sum.amount) + num(c._sum.amount) + num(r._sum.amount) + num(j._sum.amount);
   }
   const recentVolume = await volumeBetween(thirtyMinAgo, now);
   const monthVolume = await volumeBetween(thirtyDaysAgo, now);

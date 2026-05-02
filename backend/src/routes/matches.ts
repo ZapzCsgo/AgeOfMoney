@@ -122,11 +122,12 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
       select: { matchId: true, amount: true, oddsAtBet: true, selectedPlayer: true },
     });
 
-    // Group bets by matchId
+    // Group bets by matchId — coerce Decimal amount to number for the
+    // odds engine which is typed in plain numbers.
     const betsByMatch = new Map<string, BetRecord[]>();
     for (const bet of allBets) {
       const list = betsByMatch.get(bet.matchId) ?? [];
-      list.push({ amount: bet.amount, oddsAtBet: bet.oddsAtBet, selectedPlayer: bet.selectedPlayer as 1 | 2 });
+      list.push({ amount: Number(bet.amount.toString()), oddsAtBet: bet.oddsAtBet, selectedPlayer: bet.selectedPlayer as 1 | 2 });
       betsByMatch.set(bet.matchId, list);
     }
 
@@ -214,7 +215,7 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
     });
 
     const betRecords = matchBets.map((b) => ({
-      amount: b.amount,
+      amount: Number(b.amount.toString()),
       oddsAtBet: b.oddsAtBet,
       selectedPlayer: b.selectedPlayer as 1 | 2,
     })) satisfies BetRecord[];

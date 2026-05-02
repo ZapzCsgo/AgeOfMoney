@@ -11,11 +11,13 @@
 
 import crypto from 'crypto';
 import axios from 'axios';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../index';
 import { getIo } from '../socket';
 import { creditAffiliateOnBetResolved } from './affiliateService';
 import { recordLedger } from './ledger';
 import { processWageringForBet } from './redeemCodeService';
+import { D, N } from '../utils/decimal';
 import logger from '../logger';
 
 /** Fetch a cryptographically verified random integer 1-15 from random.org.
@@ -168,16 +170,17 @@ async function resolveRound(roundId: string, winZone: string, multiplier: number
 
   const bets = await prisma.rouletteBet.findMany({ where: { roundId } });
 
-  // Compute outcomes + aggregate winner increments per user
+  // Compute outcomes + aggregate winner increments per user — Decimal math
   const resolved = bets.map(bet => {
     const won = bet.zone === winZone;
-    const payout = won ? Math.floor(bet.amount * multiplier) : 0;
+    const payout = won ? D(bet.amount).mul(multiplier) : new Prisma.Decimal(0);
     return { bet, won, payout };
   });
-  const winnerCoinIncrements = new Map<string, number>();
+  const winnerCoinIncrements = new Map<string, Prisma.Decimal>();
   for (const { bet, won, payout } of resolved) {
-    if (won && payout > 0) {
-      winnerCoinIncrements.set(bet.userId, (winnerCoinIncrements.get(bet.userId) ?? 0) + payout);
+    if (won && payout.gt(0)) {
+      const prev = winnerCoinIncrements.get(bet.userId) ?? new Prisma.Decimal(0);
+      winnerCoinIncrements.set(bet.userId, prev.add(payout));
     }
   }
 
@@ -191,7 +194,7 @@ async function resolveRound(roundId: string, winZone: string, multiplier: number
         prisma.user.update({ where: { id: userId }, data: { coins: { increment: totalIncrement } } })
       ),
       ...resolved
-        .filter(r => r.won && r.payout > 0)
+        .filter(r => r.won && r.payout.gt(0))
         .map(({ bet, payout }) =>
           prisma.transaction.create({
             data: { userId: bet.userId, type: 'roulette_win', coins: payout, amount: 0, status: 'completed' },
@@ -208,13 +211,15 @@ async function resolveRound(roundId: string, winZone: string, multiplier: number
   const winnerUserMap = new Map(winnerUsers.map(u => [u.id, u]));
   for (const userId of winnerUserIds) {
     const u = winnerUserMap.get(userId);
-    if (u) io?.to(`user:${userId}`).emit('coinsUpdate', { coins: u.coins, direction: 'up' });
+    if (u) io?.to(`user:${userId}`).emit('coinsUpdate', { coins: N(u.coins), direction: 'up' });
   }
 
   // Credit affiliate revshare on each bet (fire and forget)
   for (const { bet, won, payout } of resolved) {
-    const netDelta = won ? -(payout - bet.amount) : bet.amount;
-    creditAffiliateOnBetResolved(bet.userId, bet.amount, netDelta)
+    const stakeNum = N(bet.amount);
+    const payoutNum = N(payout);
+    const netDelta = won ? -(payoutNum - stakeNum) : stakeNum;
+    creditAffiliateOnBetResolved(bet.userId, stakeNum, netDelta)
       .catch(err => logger.warn('[Affiliate] credit failed:', err));
   }
 
@@ -265,7 +270,7 @@ export async function placeBet(userId: string, zone: Zone, amount: number): Prom
   if (round.endsAt && new Date() > round.endsAt) return { ok: false, error: 'Betting phase has ended' };
   if (!user) return { ok: false, error: 'User not found' };
   if (user.isBanned) return { ok: false, error: 'Account banned' };
-  if (user.coins < amount) return { ok: false, error: 'Insufficient coins' };
+  if (N(user.coins) < amount) return { ok: false, error: 'Insufficient coins' };
 
   // KNIGHTS and ARCHERS are both 2× zones with non-overlapping coverage
   // (slots 1-7 vs 9-15). Allowing both in the same round = ~93 % combined
@@ -296,7 +301,7 @@ export async function placeBet(userId: string, zone: Zone, amount: number): Prom
       await tx.rouletteBet.create({ data: { roundId: currentRoundId!, userId, zone, amount } });
     }
     await recordLedger(tx, { userId, type: 'roulette_stake', coins: -amount });
-    return tx.user.findUnique({ where: { id: userId }, select: { coins: true } }) as Promise<{ coins: number }>;
+    return tx.user.findUnique({ where: { id: userId }, select: { coins: true } });
   });
 
   // Wagering progress (post-commit) — own implicit transaction, can't
@@ -306,7 +311,7 @@ export async function placeBet(userId: string, zone: Zone, amount: number): Prom
   // Broadcast updated bets
   const io = getIo();
   // Notify user of coin deduction (red flash on frontend)
-  io?.to(`user:${userId}`).emit('coinsUpdate', { coins: updatedUser.coins, direction: 'down' });
+  io?.to(`user:${userId}`).emit('coinsUpdate', { coins: N(updatedUser?.coins), direction: 'down' });
   const updatedRound = await getCurrentRound();
   io?.emit('roulette:betsUpdate', { roundId: currentRoundId, bets: updatedRound?.bets ?? [] });
 

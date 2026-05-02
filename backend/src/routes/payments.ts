@@ -171,7 +171,7 @@ export async function creditPaidDeposit(transactionId: string): Promise<{ credit
         if (fresh) {
           const { computeTierRate } = await import('../services/affiliateService');
           const totalRefs = fresh.referrals.length;
-          const totalDep  = fresh.referrals.reduce((s, r) => s + r.totalDeposited, 0);
+          const totalDep  = fresh.referrals.reduce((s, r) => s + Number(r.totalDeposited.toString()), 0);
           const newRate   = computeTierRate(totalRefs, totalDep);
           if (newRate !== fresh.commissionRate) {
             await prisma.affiliateCode.update({ where: { id: fresh.id }, data: { commissionRate: newRate } });
@@ -182,7 +182,7 @@ export async function creditPaidDeposit(transactionId: string): Promise<{ credit
     } catch (err) { logger.error('[Affiliate] Referral tracking error:', err); }
   }
 
-  return { credited: true, coins: transaction.coins };
+  return { credited: true, coins: Number(transaction.coins.toString()) };
 }
 
 /**
@@ -543,7 +543,7 @@ router.post('/crypto/webhook', async (req: Request, res: Response): Promise<void
       } else if (normalizedStatus === 'failed') {
         // Refund user's coins — payout failed on OxaPay side
         if (transaction.status === 'pending') {
-          const refundCoins = Math.abs(transaction.coins);
+          const refundCoins = Math.abs(Number(transaction.coins.toString()));
           await prisma.$transaction([
             prisma.user.update({ where: { id: transaction.userId }, data: { coins: { increment: refundCoins } } }),
             prisma.transaction.update({ where: { id: transaction.id }, data: { status: 'failed' } }),
@@ -551,7 +551,7 @@ router.post('/crypto/webhook', async (req: Request, res: Response): Promise<void
           const io = getIo();
           const updatedUser = await prisma.user.findUnique({ where: { id: transaction.userId }, select: { coins: true } });
           if (io && updatedUser) {
-            io.to(`user:${transaction.userId}`).emit('coinsUpdate', { coins: updatedUser.coins, direction: 'up' });
+            io.to(`user:${transaction.userId}`).emit('coinsUpdate', { coins: Number(updatedUser.coins.toString()), direction: 'up' });
             io.to(`user:${transaction.userId}`).emit('notification', { type: 'withdrawal_failed', amount: refundCoins });
           }
           logger.warn(`[Payout] FAILED withdrawal ${txId} — refunded ${refundCoins} coins to user ${transaction.userId}`);

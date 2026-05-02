@@ -449,7 +449,7 @@ async function recalcActiveMatchOdds(): Promise<void> {
         where: { matchId: match.id, status: { notIn: ['CANCELLED', 'REFUNDED'] } },
         select: { amount: true, oddsAtBet: true, selectedPlayer: true },
       });
-      const betRecords = bets.map((b) => ({ amount: b.amount, oddsAtBet: b.oddsAtBet, selectedPlayer: b.selectedPlayer as 1 | 2 }));
+      const betRecords = bets.map((b) => ({ amount: Number(b.amount.toString()), oddsAtBet: b.oddsAtBet, selectedPlayer: b.selectedPlayer as 1 | 2 }));
       const liveOdds = adjustOddsAdvanced(modelOdds.odds1, modelOdds.odds2, betRecords);
 
       const broadcastChanged = modelChanged

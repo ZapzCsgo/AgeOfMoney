@@ -18,11 +18,13 @@
  */
 
 import crypto from 'crypto';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../index';
 import { getIo } from '../socket';
 import { creditAffiliateOnBetResolved } from './affiliateService';
 import { recordLedger } from './ledger';
 import { processWageringForBet } from './redeemCodeService';
+import { D, N } from '../utils/decimal';
 import logger from '../logger';
 
 const RAKE_RATE = 0.05; // 5%
@@ -98,7 +100,7 @@ export async function createCoinFlip(
   });
   if (!user) return { ok: false, error: 'User not found' };
   if (user.isBanned) return { ok: false, error: 'Account banned' };
-  if (user.coins < amount) return { ok: false, error: 'Insufficient coins' };
+  if (N(user.coins) < amount) return { ok: false, error: 'Insufficient coins' };
 
   // Generate provably-fair material (commit-reveal, same shape as roulette):
   //   - serverSeed : 32 random bytes, kept secret until completion
@@ -149,7 +151,7 @@ export async function createCoinFlip(
   const io = getIo();
   // Notify creator of coin deduction
   const updatedUser = await prisma.user.findUnique({ where: { id: userId }, select: { coins: true } });
-  io?.to(`user:${userId}`).emit('coinsUpdate', { coins: updatedUser?.coins ?? 0, direction: 'down' });
+  io?.to(`user:${userId}`).emit('coinsUpdate', { coins: N(updatedUser?.coins), direction: 'down' });
 
   // Broadcast to lobby (without serverSeed)
   io?.to('coinflip:lobby').emit('coinflip:created', sanitizeGame(game as unknown as Record<string, unknown>));
@@ -173,7 +175,7 @@ export async function joinCoinFlip(
   });
   if (!user) return { ok: false, error: 'User not found' };
   if (user.isBanned) return { ok: false, error: 'Account banned' };
-  if (user.coins < game.amount) return { ok: false, error: 'Insufficient coins' };
+  if (N(user.coins) < N(game.amount)) return { ok: false, error: 'Insufficient coins' };
 
   // Provably-fair derivation. If clientSeed is missing (legacy pre-migration
   // row created before the commit-reveal upgrade), generate one on the fly so
@@ -184,9 +186,11 @@ export async function joinCoinFlip(
   const creatorWon = game.creatorSide === result;
   const winnerId   = creatorWon ? game.creatorId : userId;
 
-  const totalPot = game.amount * 2;
-  const rake = Math.floor(totalPot * RAKE_RATE);
-  const payout = totalPot - rake;
+  // Decimal math : preserves fractional rake / payout. 50 ⚜ pot at 5 % rake
+  // gives 47.50 to the winner, not 47 (silent loss of 0.5 ⚜ before).
+  const totalPot = D(game.amount).mul(2);
+  const rake = totalPot.mul(RAKE_RATE);
+  const payout = totalPot.sub(rake);
 
   // Atomic: deduct joiner coins (race-safe), credit winner, update game.
   const updatedGame = await prisma.$transaction(async (tx) => {
@@ -236,7 +240,7 @@ export async function joinCoinFlip(
 
   // Notify joiner of coin deduction
   const joinerUpdated = await prisma.user.findUnique({ where: { id: userId }, select: { coins: true } });
-  io?.to(`user:${userId}`).emit('coinsUpdate', { coins: joinerUpdated?.coins ?? 0, direction: 'down' });
+  io?.to(`user:${userId}`).emit('coinsUpdate', { coins: N(joinerUpdated?.coins), direction: 'down' });
 
   // Broadcast join (without serverSeed — still flipping)
   io?.to('coinflip:lobby').emit('coinflip:joined', sanitizeGame(updatedGame as unknown as Record<string, unknown>));
@@ -251,7 +255,7 @@ export async function joinCoinFlip(
 
       // Fetch fresh winner balance for coin notification
       const winnerUser = await prisma.user.findUnique({ where: { id: winnerId }, select: { coins: true } });
-      io?.to(`user:${winnerId}`).emit('coinsUpdate', { coins: winnerUser?.coins ?? 0, direction: 'up' });
+      io?.to(`user:${winnerId}`).emit('coinsUpdate', { coins: N(winnerUser?.coins), direction: 'up' });
 
       // Reveal full result including serverSeed + clientSeed + nonce so any
       // client can independently recompute the HMAC and verify the outcome.
@@ -268,21 +272,22 @@ export async function joinCoinFlip(
         : completedGame;
       io?.to('coinflip:lobby').emit('coinflip:result', revealed);
 
-      logger.info(`[Coinflip] Game ${gameId} completed — winner=${winnerId}, result=${result}, payout=${payout}, rake=${rake}`);
+      logger.info(`[Coinflip] Game ${gameId} completed — winner=${winnerId}, result=${result}, payout=${payout.toFixed(2)}, rake=${rake.toFixed(2)}`);
     } catch (err) {
       logger.error(`[Coinflip] Error resolving game ${gameId}:`, err);
     }
   }, RESULT_DELAY_MS);
 
-  // Credit affiliate revshare (fire and forget)
-  // Creator: net delta is negative payout if they won, positive amount if they lost
-  const creatorNetDelta = creatorWon ? -(payout - game.amount) : game.amount;
-  creditAffiliateOnBetResolved(game.creatorId, game.amount, creatorNetDelta)
+  // Credit affiliate revshare (fire and forget) — affiliate service still
+  // takes plain numbers. Coerce stake + payout once here.
+  const stakeNum = N(game.amount);
+  const payoutNum = N(payout);
+  const creatorNetDelta = creatorWon ? -(payoutNum - stakeNum) : stakeNum;
+  creditAffiliateOnBetResolved(game.creatorId, stakeNum, creatorNetDelta)
     .catch(err => logger.warn('[Affiliate] coinflip credit failed (creator):', err));
 
-  // Joiner: net delta is negative payout if they won, positive amount if they lost
-  const joinerNetDelta = !creatorWon ? -(payout - game.amount) : game.amount;
-  creditAffiliateOnBetResolved(userId, game.amount, joinerNetDelta)
+  const joinerNetDelta = !creatorWon ? -(payoutNum - stakeNum) : stakeNum;
+  creditAffiliateOnBetResolved(userId, stakeNum, joinerNetDelta)
     .catch(err => logger.warn('[Affiliate] coinflip credit failed (joiner):', err));
 
   return { ok: true, data: sanitizeGame(updatedGame as unknown as Record<string, unknown>) };

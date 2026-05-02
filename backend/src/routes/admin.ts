@@ -551,8 +551,8 @@ router.get('/users/:id', async (req: Request, res: Response): Promise<void> => {
 
     const wonBets = allBets.filter(b => b.status === 'WON');
     const lostBets = allBets.filter(b => b.status === 'LOST');
-    const totalWagered = allBets.reduce((s, b) => s + b.amount, 0);
-    const totalWon = wonBets.reduce((s, b) => s + (b.payout ?? 0), 0);
+    const totalWagered = allBets.reduce((s, b) => s + Number(b.amount.toString()), 0);
+    const totalWon = wonBets.reduce((s, b) => s + Number(b.payout?.toString() ?? '0'), 0);
     const netProfit = totalWon - totalWagered;
     const winrate = allBets.length > 0 ? wonBets.length / allBets.length : 0;
 
@@ -644,8 +644,8 @@ router.get('/suspicious', async (_req: Request, res: Response): Promise<void> =>
       const entry = byUser.get(s.userId) ?? { won: 0, lost: 0, wagered: 0, payout: 0 };
       if (s.status === 'WON') entry.won += s._count;
       else entry.lost += s._count;
-      entry.wagered += s._sum.amount ?? 0;
-      entry.payout += s._sum.payout ?? 0;
+      entry.wagered += Number(s._sum.amount?.toString() ?? '0');
+      entry.payout += Number(s._sum.payout?.toString() ?? '0');
       byUser.set(s.userId, entry);
     }
 
@@ -799,7 +799,7 @@ router.post('/users/:id/adjust-coins', async (req: Request, res: Response): Prom
         select: { coins: true },
       }).catch(() => null);
       if (!updated) { res.status(404).json({ error: 'User not found' }); return; }
-      finalBalance = updated.coins;
+      finalBalance = Number(updated.coins.toString());
       ledgerDelta = amount;
     } else {
       const debit = Math.abs(amount);
@@ -817,11 +817,11 @@ router.post('/users/:id/adjust-coins', async (req: Request, res: Response): Prom
         await prisma.user.update({ where: { id }, data: { coins: 0 } });
         // Ledger row reflects what actually moved (clamp-to-zero), not the
         // requested debit. Otherwise SUM(ledger) would diverge from balance.
-        ledgerDelta = -(before?.coins ?? 0);
+        ledgerDelta = -Number(before?.coins?.toString() ?? '0');
         finalBalance = 0;
       } else {
         const fresh = await prisma.user.findUnique({ where: { id }, select: { coins: true } });
-        finalBalance = fresh?.coins ?? 0;
+        finalBalance = Number(fresh?.coins?.toString() ?? '0');
         ledgerDelta = -debit;
       }
     }
@@ -1188,8 +1188,8 @@ router.get('/matches/:id/inspect', async (req: Request, res: Response): Promise<
     const betsPlayer1 = match.bets.filter(b => b.selectedPlayer === 1);
     const betsPlayer2 = match.bets.filter(b => b.selectedPlayer === 2);
 
-    const volume1 = betsPlayer1.reduce((s, b) => s + b.amount, 0);
-    const volume2 = betsPlayer2.reduce((s, b) => s + b.amount, 0);
+    const volume1 = betsPlayer1.reduce((s, b) => s + Number(b.amount.toString()), 0);
+    const volume2 = betsPlayer2.reduce((s, b) => s + Number(b.amount.toString()), 0);
     const total   = volume1 + volume2;
 
     res.json({
@@ -1408,12 +1408,15 @@ router.post('/affiliate/referrals/:id/revoke', async (req: Request, res: Respons
     });
     if (!ref) { res.status(404).json({ error: 'Referral introuvable' }); return; }
 
-    const toRevoke = ref.commission;
+    // commission + available are now Decimal — coerce for the Math.min
+    // (caps the decrement at the available balance to avoid negatives).
+    const toRevoke = Number(ref.commission.toString());
+    const availNum = Number(ref.affiliateCode.available.toString());
     await prisma.$transaction([
       prisma.affiliateCode.update({
         where: { id: ref.affiliateCodeId },
         data: {
-          available:     { decrement: Math.min(toRevoke, ref.affiliateCode.available) },
+          available:     { decrement: Math.min(toRevoke, availNum) },
           totalEarnings: { decrement: toRevoke },
         },
       }),

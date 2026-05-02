@@ -408,7 +408,7 @@ router.post('/exact', requireAuth, async (req: Request, res: Response): Promise<
     if (match.status !== 'UPCOMING') { res.status(400).json({ error: 'Betting is closed' }); return; }
     if (!match.betsOpen) { res.status(400).json({ error: 'Bets temporarily closed' }); return; }
     if (new Date() >= match.scheduledAt) { res.status(400).json({ error: 'Match has started' }); return; }
-    if (user.coins < amount) { res.status(400).json({ error: 'Insufficient coins' }); return; }
+    if (Number(user.coins.toString()) < amount) { res.status(400).json({ error: 'Insufficient coins' }); return; }
 
     // Verify odds are still valid (recompute server-side with blended model)
     const freshScores = await exactScoreOddsBlended(
@@ -480,8 +480,11 @@ router.get('/match/:matchId', async (req: Request, res: Response): Promise<void>
       _count: true,
     });
 
-    const vol1 = betAgg.find((b) => b.selectedPlayer === 1)?._sum?.amount ?? 0;
-    const vol2 = betAgg.find((b) => b.selectedPlayer === 2)?._sum?.amount ?? 0;
+    // _sum.amount is now Decimal | null — coerce to number for the public
+    // volume payload. Frontend doesn't need sub-coin precision on display
+    // totals.
+    const vol1 = Number(betAgg.find((b) => b.selectedPlayer === 1)?._sum?.amount?.toString() ?? '0');
+    const vol2 = Number(betAgg.find((b) => b.selectedPlayer === 2)?._sum?.amount?.toString() ?? '0');
     const count1 = betAgg.find((b) => b.selectedPlayer === 1)?._count ?? 0;
     const count2 = betAgg.find((b) => b.selectedPlayer === 2)?._count ?? 0;
     const totalVol = vol1 + vol2;

@@ -152,10 +152,14 @@ async function computeGgrForWindow(from: Date, to: Date): Promise<number> {
     }),
   ]);
 
-  const betGgr       = (betAgg._sum.amount ?? 0) - (betAgg._sum.payout ?? 0);
-  const coinflipGgr  = coinflipAgg._sum.rake ?? 0;
-  const rouletteGgr  = (rouletteAgg._sum.amount ?? 0) - (rouletteAgg._sum.payout ?? 0);
-  const jackpotGgr   = jackpotAgg._sum.rake ?? 0;
+  // Every _sum on a Decimal column returns Prisma.Decimal | null — coerce
+  // to number for the GGR arithmetic. KPI summaries don't need sub-coin
+  // precision (they're displayed rounded anyway).
+  const num = (v: unknown): number => v == null ? 0 : Number((v as { toString(): string }).toString());
+  const betGgr       = num(betAgg._sum.amount) - num(betAgg._sum.payout);
+  const coinflipGgr  = num(coinflipAgg._sum.rake);
+  const rouletteGgr  = num(rouletteAgg._sum.amount) - num(rouletteAgg._sum.payout);
+  const jackpotGgr   = num(jackpotAgg._sum.rake);
 
   return betGgr + coinflipGgr + rouletteGgr + jackpotGgr;
 }
@@ -187,15 +191,16 @@ async function computeKpisForWindow(from: Date, to: Date): Promise<OverviewKpis>
     }),
   ]);
 
+  const num = (v: unknown): number => v == null ? 0 : Number((v as { toString(): string }).toString());
   const totalDepositsCents    = depositAgg._sum.realAmount ?? 0;
   const totalWithdrawalsCents = withdrawalAgg._sum.realAmount ?? 0;
-  const affiliateCommissionsPaid = affiliateAgg._sum.commission ?? 0;
+  const affiliateCommissionsPaid = num(affiliateAgg._sum.commission);
 
   return {
     ggr,
     ngr: ggr - affiliateCommissionsPaid,
     netCashflowCents: totalDepositsCents - totalWithdrawalsCents,
-    activeUserLiability: liabilityAgg._sum.coins ?? 0,
+    activeUserLiability: num(liabilityAgg._sum.coins),
     totalDepositsCents,
     totalWithdrawalsCents,
     affiliateCommissionsPaid,
@@ -601,7 +606,7 @@ export async function queryCashflow(
       type: r.type,
       amount: r.amount,
       realAmountCents: r.realAmount,
-      coins: r.coins,
+      coins: Number(r.coins.toString()),
       status: r.status,
       stripeSessionId: r.stripeSessionId,
       affiliateCodeId: r.affiliateCodeId,
@@ -650,7 +655,7 @@ export async function exportCashflowCsv(filters: CashflowFilters): Promise<strin
     r.status,
     r.amount,
     r.realAmount != null ? (r.realAmount / 100).toFixed(2) : '',
-    r.coins,
+    Number(r.coins.toString()),
     r.stripeSessionId ?? '',
     r.affiliateCodeId ?? '',
   ].map(csvEscape).join(','));
@@ -995,7 +1000,8 @@ async function volumeStakedByUsers(userIds: string[], from: Date, to: Date): Pro
       where: { userId: { in: userIds }, createdAt: { gte: from, lt: to } },
     }),
   ]);
-  return (b._sum.amount ?? 0) + (c._sum.amount ?? 0) + (r._sum.amount ?? 0) + (j._sum.amount ?? 0);
+  const num = (v: unknown): number => v == null ? 0 : Number((v as { toString(): string }).toString());
+  return num(b._sum.amount) + num(c._sum.amount) + num(r._sum.amount) + num(j._sum.amount);
 }
 
 /** Same as above but across ALL users — for the denominator of revenue-share. */
@@ -1006,7 +1012,8 @@ async function totalVolumeStaked(from: Date, to: Date): Promise<number> {
     prisma.rouletteBet.aggregate({ _sum: { amount: true }, where: { createdAt: { gte: from, lt: to } } }),
     prisma.jackpotBet.aggregate({ _sum: { amount: true }, where: { createdAt: { gte: from, lt: to } } }),
   ]);
-  return (b._sum.amount ?? 0) + (c._sum.amount ?? 0) + (r._sum.amount ?? 0) + (j._sum.amount ?? 0);
+  const num = (v: unknown): number => v == null ? 0 : Number((v as { toString(): string }).toString());
+  return num(b._sum.amount) + num(c._sum.amount) + num(r._sum.amount) + num(j._sum.amount);
 }
 
 export async function computeAffiliateStats(preset: RangePreset, limit = 10): Promise<AffiliatesResponse> {
@@ -1045,7 +1052,7 @@ export async function computeAffiliateStats(preset: RangePreset, limit = 10): Pr
       const referredIds = refs.map((r) => r.referredUserId);
       referredIds.forEach((id) => allActiveReferredIds.add(id));
 
-      const commissionPaid = refs.reduce((s, r) => s + r.commission, 0);
+      const commissionPaid = refs.reduce((s, r) => s + Number(r.commission.toString()), 0);
       const volume = await volumeStakedByUsers(referredIds, from, to);
       const owner = ownerById.get(code.userId);
 
@@ -1140,7 +1147,7 @@ export async function computePnlSummary(): Promise<{
           where: { lastActiveAt: { gte: from, lt: to } },
         }),
       ]);
-      return ggr - (affiliateAgg._sum.commission ?? 0);
+      return ggr - Number(affiliateAgg._sum.commission?.toString() ?? '0');
     }
 
     // Helper — net cash in cents for a window
@@ -1175,7 +1182,7 @@ export async function computePnlSummary(): Promise<{
       }),
     ]);
 
-    const currentLiabilityCoins = liabilityAgg._sum.coins ?? 0;
+    const currentLiabilityCoins = Number(liabilityAgg._sum.coins?.toString() ?? '0');
     const currentLiabilityEurCents = Math.round(currentLiabilityCoins * COIN_TO_EUR * 100);
     const realizedProfitLifetimeCents = lifetimeCash - currentLiabilityEurCents;
 
@@ -1250,9 +1257,10 @@ export async function computeProductBreakdown(preset: RangePreset): Promise<{
             },
           }).catch(() => 0), // equals-column-expression isn't supported in all Prisma versions; ignore if fails
         ]);
+        const num = (v: unknown): number => v == null ? 0 : Number((v as { toString(): string }).toString());
         const bets = countAgg;
-        const volume = (stakeAgg._sum.amount ?? 0) * 2;
-        const revenue = rakeAgg._sum.rake ?? 0;
+        const volume = num(stakeAgg._sum.amount) * 2;
+        const revenue = num(rakeAgg._sum.rake);
         return {
           betsPlaced: bets,
           volumeStaked: volume,
@@ -1279,8 +1287,9 @@ export async function computeProductBreakdown(preset: RangePreset): Promise<{
             where: { won: true, round: { status: 'COMPLETED', completedAt: { gte: from, lt: to } } },
           }),
         ]);
-        const volume = stake._sum.amount ?? 0;
-        const paidOut = payout._sum.payout ?? 0;
+        const num = (v: unknown): number => v == null ? 0 : Number((v as { toString(): string }).toString());
+        const volume = num(stake._sum.amount);
+        const paidOut = num(payout._sum.payout);
         return {
           betsPlaced: count,
           volumeStaked: volume,
@@ -1309,11 +1318,12 @@ export async function computeProductBreakdown(preset: RangePreset): Promise<{
             where: { status: 'COMPLETED', settledAt: { gte: from, lt: to } },
           }),
         ]);
-        const volume = stake._sum.amount ?? 0;
+        const num = (v: unknown): number => v == null ? 0 : Number((v as { toString(): string }).toString());
+        const volume = num(stake._sum.amount);
         return {
           betsPlaced: count,
           volumeStaked: volume,
-          houseRevenue: rake._sum.rake ?? 0,
+          houseRevenue: num(rake._sum.rake),
           userWinRate: count > 0 ? (winnerRounds / count) * 100 : 0,
         };
       })(),
@@ -1332,8 +1342,9 @@ export async function computeProductBreakdown(preset: RangePreset): Promise<{
           betsPlaced: 0, volumeStaked: 0, houseRevenue: 0, marginPct: 0, userWinRate: 0,
         };
       }
-      const volume = row._sum.amount ?? 0;
-      const payout = row._sum.payout ?? 0;
+      const num = (v: unknown): number => v == null ? 0 : Number((v as { toString(): string }).toString());
+      const volume = num(row._sum.amount);
+      const payout = num(row._sum.payout);
       const revenue = volume - payout;
       const marginPct = volume > 0 ? (revenue / volume) * 100 : 0;
       // user win rate requires a second count — we use revenue sign instead for

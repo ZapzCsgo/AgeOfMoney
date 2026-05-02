@@ -82,7 +82,10 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
       return;
     }
 
-    req.user = { ...user, email: user.email ?? '' };
+    // User.coins is Decimal in the DB ; the legacy req.user contract
+    // is `coins: number` for callers that do `req.user.coins < amount`.
+    // Coerce once here so every consumer keeps working.
+    req.user = { ...user, email: user.email ?? '', coins: Number(user.coins.toString()) };
 
     // Update last active
     await prisma.user.update({

@@ -173,9 +173,11 @@ export function initSocket(httpServer: HttpServer): void {
       socket.isAdmin = user.isAdmin;
       socket.isMod = (user as Record<string, unknown>).isMod as boolean ?? false;
       socket.isPartner = (user as Record<string, unknown>).isPartner as boolean ?? false;
-      socket.coins = user.coins;
-      socket.totalWagered = user.totalWagered;
-      socket.userLevel = computeLevel(user.totalWagered);
+      // user.coins / user.totalWagered are Decimal in the DB ; legacy
+      // socket fields are typed number. Coerce once here.
+      socket.coins = Number(user.coins.toString());
+      socket.totalWagered = Number(user.totalWagered.toString());
+      socket.userLevel = computeLevel(Number(user.totalWagered.toString()));
       socket.avatar = user.avatar ?? null;
 
       next();

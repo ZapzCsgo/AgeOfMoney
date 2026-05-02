@@ -40,7 +40,7 @@ router.get('/me', requireAuth, async (req: Request, res: Response): Promise<void
     // Aggregate stats
     const totalReferrals  = aff.referrals.length;
     const activeReferrals = aff.referrals.filter(r => r.isActive).length;
-    const totalDeposited  = aff.referrals.reduce((s, r) => s + r.totalDeposited, 0);
+    const totalDeposited  = aff.referrals.reduce((s, r) => s + Number(r.totalDeposited.toString()), 0);
 
     // Enrich referrals with username
     const referralUserIds = aff.referrals.map(r => r.referredUserId);
@@ -181,7 +181,7 @@ router.post('/claim', requireAuth, async (req: Request, res: Response): Promise<
     //      (a commission was credited between our read and update) — bail
     //      with 409 so the frontend retries.
     const freshAff = await prisma.affiliateCode.findUnique({ where: { userId } });
-    if (!freshAff || freshAff.available <= 0) {
+    if (!freshAff || freshAff.available.lte(0)) {
       res.status(400).json({ error: 'Aucune commission disponible' });
       return;
     }
@@ -209,7 +209,7 @@ router.post('/claim', requireAuth, async (req: Request, res: Response): Promise<
     // Notify the user so the wallet badge updates live.
     try {
       getIo()?.to(`user:${userId}`).emit('coinsUpdate', {
-        coins: updatedUser.coins,
+        coins: Number(updatedUser.coins.toString()),
         direction: 'up',
       });
     } catch { /* non-blocking */ }
@@ -336,7 +336,7 @@ router.get('/admin/list', requireAuth, requireAdmin, async (req: Request, res: R
       user:           userMap[c.userId] ?? null,
       totalReferrals: c.referrals.length,
       activeReferrals: c.referrals.filter(r => r.isActive).length,
-      totalDeposited: c.referrals.reduce((s, r) => s + r.totalDeposited, 0),
+      totalDeposited: c.referrals.reduce((s, r) => s + Number(r.totalDeposited.toString()), 0),
     }));
 
     res.json({ data });

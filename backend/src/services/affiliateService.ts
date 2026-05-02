@@ -86,13 +86,17 @@ export async function creditAffiliateOnBetResolved(
 
     // If the post-increment balance is still <= 0, no commission yet.
     // Negative balance is carried forward (protects house from lucky streaks).
-    if (updated.netLossBalance <= 0) return;
+    if (updated.netLossBalance.lte(0)) return;
 
     // Positive surplus → pay commission on it, CAS the balance back to 0 so
     // we don't double-pay. If CAS fails (another bet resolved in the
     // meantime), the next call will pick up the residue and pay on it.
+    // commission is computed as a Decimal multiplication so the affiliate
+    // gets fractional cents (no Math.floor truncation that used to silently
+    // round down to whole coins).
     const newBalance = updated.netLossBalance;
-    const commission = Math.floor(newBalance * rate);
+    const newBalanceNum = Number(newBalance.toString());
+    const commission = newBalanceNum * rate;
 
     const cas = await prisma.affiliateReferral.updateMany({
       where: { id: referral.id, netLossBalance: newBalance },
@@ -123,7 +127,7 @@ export async function creditAffiliateOnBetResolved(
     });
     if (fresh) {
       const totalRefs = fresh.referrals.length;
-      const totalDep  = fresh.referrals.reduce((s, r) => s + r.totalDeposited, 0);
+      const totalDep  = fresh.referrals.reduce((s, r) => s + Number(r.totalDeposited.toString()), 0);
       const newRate   = computeTierRate(totalRefs, totalDep);
       if (newRate !== fresh.commissionRate) {
         await prisma.affiliateCode.update({

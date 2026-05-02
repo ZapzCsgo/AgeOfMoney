@@ -57,7 +57,7 @@ export interface RainPublic {
 
 function toPublic(row: {
   id: string;
-  amount: number;
+  amount: number | { toString(): string };
   maxParticipants: number;
   actualParticipants: number;
   duration: number;
@@ -65,21 +65,27 @@ function toPublic(row: {
   startedAt: Date;
   endsAt: Date;
   completedAt: Date | null;
-  actualPerUser: number | null;
+  actualPerUser: number | { toString(): string } | null;
   triggeredByEvent: string | null;
 }): RainPublic {
+  // amount + actualPerUser may arrive as Prisma.Decimal — coerce both
+  // to plain JS number for the public payload.
+  const amountNum = typeof row.amount === 'number' ? row.amount : Number(row.amount.toString());
+  const perUserNum = row.actualPerUser == null
+    ? null
+    : typeof row.actualPerUser === 'number' ? row.actualPerUser : Number(row.actualPerUser.toString());
   return {
     id: row.id,
-    amount: row.amount,
+    amount: amountNum,
     maxParticipants: row.maxParticipants,
     actualParticipants: row.actualParticipants,
     duration: row.duration,
-    perUser: Math.floor(row.amount / Math.max(1, row.maxParticipants)),
+    perUser: Math.floor(amountNum / Math.max(1, row.maxParticipants)),
     status: row.status as RainPublic['status'],
     startedAt: row.startedAt.toISOString(),
     endsAt: row.endsAt.toISOString(),
     completedAt: row.completedAt?.toISOString() ?? null,
-    actualPerUser: row.actualPerUser,
+    actualPerUser: perUserNum,
     triggeredByEvent: row.triggeredByEvent,
   };
 }
@@ -181,7 +187,7 @@ export async function joinRain(rainId: string, userId: string, captchaMs: number
     return { ok: false, reason: 'FRESH_ACCOUNT', message: 'Le compte doit avoir > 24 h pour claim un rain.' };
   }
 
-  const perUser = Math.floor(rain.amount / rain.maxParticipants);
+  const perUser = Math.floor(Number(rain.amount.toString()) / rain.maxParticipants);
   const suspicious = captchaMs < SUSPICIOUS_CAPTCHA_MS;
 
   // Atomic : participant row + pot counter + user balance + ledger. Unique
@@ -270,7 +276,7 @@ export async function completeRain(rainId: string): Promise<void> {
   });
   if (!rain) return;
 
-  const perUser = Math.floor(rain.amount / Math.max(1, rain.actualParticipants));
+  const perUser = Math.floor(Number(rain.amount.toString()) / Math.max(1, rain.actualParticipants));
   await prisma.rain.update({
     where: { id: rainId },
     data: { completedAt: now, actualPerUser: perUser },

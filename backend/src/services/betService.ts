@@ -1,11 +1,13 @@
 import { prisma } from '../index';
-import { BetStatus, MatchStatus } from '@prisma/client';
+import { BetStatus, MatchStatus, Prisma } from '@prisma/client';
 import { adjustOddsAdvanced, BetRecord } from './oddsEngine';
 import { creditAffiliateOnBetResolved } from './affiliateService';
 import { recordLedger } from './ledger';
 import { processWageringForBet } from './redeemCodeService';
 import { getIo } from '../socket';
 import logger from '../logger';
+
+import { D, N } from '../utils/decimal';
 
 const MAX_BETS_PER_MATCH = 3;
 
@@ -70,9 +72,11 @@ export async function placeBet(
     throw new Error('Betting window has closed for this match');
   }
 
-  // Check user balance
-  if (user.coins < amount) {
-    throw new Error(`Insufficient coins. You have ${user.coins} coins, need ${amount}`);
+  // Check user balance — coerce Decimal user.coins to number for the
+  // friendly comparison + error string. Race-safe enforcement happens
+  // below inside the $transaction via `coins: { gte: amount }`.
+  if (N(user.coins) < amount) {
+    throw new Error(`Insufficient coins. You have ${N(user.coins)} coins, need ${amount}`);
   }
 
   // Check bet amount bounds
@@ -100,14 +104,15 @@ export async function placeBet(
   }
 
   // Compute the same volume-adjusted odds the user sees in the live broadcast
-  // so what they see is what they pay.
+  // so what they see is what they pay. The odds engine takes plain numbers,
+  // so coerce the Decimal-stored amounts.
   const existingOtherBets = await prisma.bet.findMany({
     where: { matchId, status: { notIn: [BetStatus.CANCELLED, BetStatus.REFUNDED] } },
     select: { amount: true, oddsAtBet: true, selectedPlayer: true },
   });
   const betRecords = existingOtherBets
     .filter(b => b.selectedPlayer === 1 || b.selectedPlayer === 2)
-    .map(b => ({ amount: b.amount, oddsAtBet: b.oddsAtBet, selectedPlayer: b.selectedPlayer as 1 | 2 })) satisfies BetRecord[];
+    .map(b => ({ amount: N(b.amount), oddsAtBet: b.oddsAtBet, selectedPlayer: b.selectedPlayer as 1 | 2 })) satisfies BetRecord[];
   const adjusted = adjustOddsAdvanced(match.odds1, match.odds2, betRecords);
   const oddsAtBet: number = selectedPlayer === 1 ? adjusted.odds1 : adjusted.odds2;
 
@@ -177,7 +182,7 @@ export async function placeBet(
       select: { amount: true, oddsAtBet: true, selectedPlayer: true },
     });
     const betRecords = allMatchBets.map((b) => ({
-      amount: b.amount,
+      amount: N(b.amount),
       oddsAtBet: b.oddsAtBet,
       selectedPlayer: b.selectedPlayer as 1 | 2,
     })) satisfies BetRecord[];
@@ -192,7 +197,16 @@ export async function placeBet(
     logger.warn(`Failed to broadcast live odds after bet: ${err}`);
   }
 
-  return bet;
+  // Coerce Decimal columns to number for the wire-format return shape —
+  // existing API consumers (frontend, tests) expect amount as a JS number.
+  return {
+    id: bet.id,
+    amount: N(bet.amount),
+    oddsAtBet: bet.oddsAtBet,
+    selectedPlayer: bet.selectedPlayer,
+    status: bet.status,
+    createdAt: bet.createdAt,
+  };
 }
 
 export async function distributePayout(matchId: string, winnerId: string): Promise<void> {
@@ -246,7 +260,9 @@ export async function distributePayout(matchId: string, winnerId: string): Promi
   const loserName  = winnerPosition === 1 ? match.player2?.name : match.player1?.name;
   const tournamentName = match.tournament?.name ?? 'Tournament';
 
-  // First pass — compute won/lost + payout for each bet (pure, no I/O)
+  // First pass — compute won/lost + payout for each bet (pure, no I/O).
+  // Decimal mul preserves the fractional part : bet 4 ⚜ at 1.85 odds →
+  // payout 7.40 (no longer Math.floor'd to 7).
   const resolved = pendingBets.map(bet => {
     let won: boolean;
     if (bet.betType === 'EXACT_SCORE') {
@@ -254,17 +270,18 @@ export async function distributePayout(matchId: string, winnerId: string): Promi
     } else {
       won = bet.selectedPlayer === winnerPosition;
     }
-    const payout = won ? Math.floor(bet.amount * bet.oddsAtBet) : 0;
+    const payout = won ? D(bet.amount).mul(bet.oddsAtBet) : new Prisma.Decimal(0);
     return { bet, won, payout };
   });
 
   // Aggregate winner payouts per user (one update per user instead of N)
-  const winnerCoinIncrements = new Map<string, number>();
+  const winnerCoinIncrements = new Map<string, Prisma.Decimal>();
   for (const { bet, won, payout } of resolved) {
     if (won) {
-      winnerCoinIncrements.set(bet.userId, (winnerCoinIncrements.get(bet.userId) ?? 0) + payout);
+      const prev = winnerCoinIncrements.get(bet.userId) ?? new Prisma.Decimal(0);
+      winnerCoinIncrements.set(bet.userId, prev.add(payout));
       payoutsDistributed++;
-      totalPaid += payout;
+      totalPaid += N(payout);
     }
   }
 
@@ -275,7 +292,7 @@ export async function distributePayout(matchId: string, winnerId: string): Promi
         where: { id: bet.id },
         data: {
           status: won ? BetStatus.WON : BetStatus.LOST,
-          payout: won ? payout : 0,
+          payout: won ? payout : new Prisma.Decimal(0),
         },
       })
     ),
@@ -285,7 +302,9 @@ export async function distributePayout(matchId: string, winnerId: string): Promi
         data: { coins: { increment: totalIncrement } },
       })
     ),
-    // Ledger row per winning bet — sum equals coin increment per user
+    // Ledger row per winning bet — sum equals coin increment per user.
+    // recordLedger expects number ; coerce since Transaction.coins now
+    // accepts Decimal but the ledger helper still types it.
     ...resolved
       .filter(r => r.won)
       .map(({ bet, payout }) =>
@@ -306,13 +325,15 @@ export async function distributePayout(matchId: string, winnerId: string): Promi
   for (const { bet, won, payout } of resolved) {
     if (won && io) {
       const updatedUser = winnerUserMap.get(bet.userId);
-      if (updatedUser) io.to(`user:${bet.userId}`).emit('coinsUpdate', { coins: updatedUser.coins, direction: 'up' });
+      if (updatedUser) io.to(`user:${bet.userId}`).emit('coinsUpdate', { coins: N(updatedUser.coins), direction: 'up' });
     }
 
     // Credit affiliate revshare on net outcome
     // loss → +stake (positive = loss); win → -(profit) (negative = user gained)
-    const netDelta = won ? -(payout - bet.amount) : bet.amount;
-    creditAffiliateOnBetResolved(bet.userId, bet.amount, netDelta)
+    const stakeNum = N(bet.amount);
+    const payoutNum = N(payout);
+    const netDelta = won ? -(payoutNum - stakeNum) : stakeNum;
+    creditAffiliateOnBetResolved(bet.userId, stakeNum, netDelta)
       .catch(err => logger.warn('[Affiliate] credit failed:', err));
 
     if (io) {
@@ -320,8 +341,8 @@ export async function distributePayout(matchId: string, winnerId: string): Promi
         matchId,
         betId: bet.id,
         won,
-        amount: bet.amount,
-        payout: won ? payout : 0,
+        amount: stakeNum,
+        payout: won ? payoutNum : 0,
         playerBetOn: bet.selectedPlayer === 1 ? match.player1?.name : match.player2?.name,
         winnerName,
         loserName,
@@ -362,18 +383,19 @@ export async function distributeDrawPayout(matchId: string): Promise<void> {
   let payoutsDistributed = 0;
   let totalPaid = 0;
 
-  // Compute outcomes + aggregate per-user winner increments
+  // Compute outcomes + aggregate per-user winner increments — Decimal math
   const resolved = pendingBets.map(bet => {
     const won = bet.selectedPlayer === 0;
-    const payout = won ? Math.floor(bet.amount * bet.oddsAtBet) : 0;
+    const payout = won ? D(bet.amount).mul(bet.oddsAtBet) : new Prisma.Decimal(0);
     return { bet, won, payout };
   });
-  const winnerCoinIncrements = new Map<string, number>();
+  const winnerCoinIncrements = new Map<string, Prisma.Decimal>();
   for (const { bet, won, payout } of resolved) {
     if (won) {
-      winnerCoinIncrements.set(bet.userId, (winnerCoinIncrements.get(bet.userId) ?? 0) + payout);
+      const prev = winnerCoinIncrements.get(bet.userId) ?? new Prisma.Decimal(0);
+      winnerCoinIncrements.set(bet.userId, prev.add(payout));
       payoutsDistributed++;
-      totalPaid += payout;
+      totalPaid += N(payout);
     }
   }
 
@@ -382,7 +404,7 @@ export async function distributeDrawPayout(matchId: string): Promise<void> {
     ...resolved.map(({ bet, won, payout }) =>
       prisma.bet.update({
         where: { id: bet.id },
-        data: { status: won ? BetStatus.WON : BetStatus.LOST, payout: won ? payout : 0 },
+        data: { status: won ? BetStatus.WON : BetStatus.LOST, payout: won ? payout : new Prisma.Decimal(0) },
       })
     ),
     ...[...winnerCoinIncrements.entries()].map(([userId, totalIncrement]) =>
@@ -405,19 +427,21 @@ export async function distributeDrawPayout(matchId: string): Promise<void> {
   const winnerUserMap = new Map(winnerUsers.map(u => [u.id, u]));
 
   for (const { bet, won, payout } of resolved) {
+    const stakeNum = N(bet.amount);
+    const payoutNum = N(payout);
     // Credit affiliate revshare on net outcome
-    const netDelta = won ? -(payout - bet.amount) : bet.amount;
-    creditAffiliateOnBetResolved(bet.userId, bet.amount, netDelta)
+    const netDelta = won ? -(payoutNum - stakeNum) : stakeNum;
+    creditAffiliateOnBetResolved(bet.userId, stakeNum, netDelta)
       .catch(err => logger.warn('[Affiliate] credit failed:', err));
 
     if (io) {
       if (won) {
         const updatedUser = winnerUserMap.get(bet.userId);
-        if (updatedUser) io.to(`user:${bet.userId}`).emit('coinsUpdate', { coins: updatedUser.coins, direction: 'up' });
+        if (updatedUser) io.to(`user:${bet.userId}`).emit('coinsUpdate', { coins: N(updatedUser.coins), direction: 'up' });
       }
       const playerBetOn = bet.selectedPlayer === 0 ? 'Égalité' : bet.selectedPlayer === 1 ? match.player1?.name : match.player2?.name;
       io.to(`user:${bet.userId}`).emit('betResult', {
-        matchId, betId: bet.id, won, amount: bet.amount, payout: won ? payout : 0,
+        matchId, betId: bet.id, won, amount: stakeNum, payout: won ? payoutNum : 0,
         playerBetOn, winnerName: 'Égalité', loserName: undefined, tournamentName,
       });
     }
@@ -483,7 +507,8 @@ export async function refundBets(matchId: string, reason?: string): Promise<void
     for (const bet of pendingBets) {
       const playerBetOn = bet.selectedPlayer === 1 ? match.player1?.name : match.player2?.name;
       const updatedUser = userMap.get(bet.userId);
-      if (updatedUser) io.to(`user:${bet.userId}`).emit('coinsUpdate', { coins: updatedUser.coins, direction: 'up' });
+      const stakeNum = N(bet.amount);
+      if (updatedUser) io.to(`user:${bet.userId}`).emit('coinsUpdate', { coins: N(updatedUser.coins), direction: 'up' });
       io.to(`user:${bet.userId}`).emit('betResult', {
         matchId,
         betId: bet.id,
@@ -494,8 +519,8 @@ export async function refundBets(matchId: string, reason?: string): Promise<void
         won: false,
         refunded: true,
         reason: refundReason,
-        amount: bet.amount,
-        payout: bet.amount, // refund = full amount back
+        amount: stakeNum,
+        payout: stakeNum, // refund = full amount back
         playerBetOn,
         tournamentName,
       });
@@ -540,15 +565,18 @@ export async function getUserStats(userId: string): Promise<UserStats> {
   const lostBets = bets.filter((b) => b.status === 'LOST').length + rouletteBets.filter(b => b.won === false).length;
   const pendingBets = bets.filter((b) => b.status === 'PENDING').length + rouletteBets.filter(b => b.won === null).length;
 
+  // All sums coerce Decimal to number — small FP drift on big totals is
+  // acceptable for stats display. Authoritative balances live in
+  // User.coins / Bet.payout (still Decimal in DB).
   const totalWagered = bets
     .filter((b) => b.status !== 'REFUNDED' && b.status !== 'CANCELLED')
-    .reduce((sum, b) => sum + b.amount, 0)
-    + rouletteBets.reduce((sum, b) => sum + b.amount, 0);
+    .reduce((sum, b) => sum + N(b.amount), 0)
+    + rouletteBets.reduce((sum, b) => sum + N(b.amount), 0);
 
   const totalPayout = bets
     .filter((b) => b.status === 'WON')
-    .reduce((sum, b) => sum + (b.payout ?? 0), 0)
-    + rouletteBets.filter(b => b.won === true).reduce((sum, b) => sum + (b.payout ?? 0), 0);
+    .reduce((sum, b) => sum + N(b.payout), 0)
+    + rouletteBets.filter(b => b.won === true).reduce((sum, b) => sum + N(b.payout), 0);
 
   const netProfit = totalPayout - totalWagered;
   const roi = totalWagered > 0 ? (netProfit / totalWagered) * 100 : 0;
@@ -556,14 +584,14 @@ export async function getUserStats(userId: string): Promise<UserStats> {
 
   const bestBetData = bets
     .filter((b) => b.status === 'WON' && b.payout)
-    .sort((a, b) => (b.payout ?? 0) - (a.payout ?? 0))[0];
+    .sort((a, b) => N(b.payout) - N(a.payout))[0];
 
   const bestBet = bestBetData
     ? {
-        amount: bestBetData.amount,
+        amount: N(bestBetData.amount),
         odds: bestBetData.oddsAtBet,
-        payout: bestBetData.payout ?? 0,
-        profit: (bestBetData.payout ?? 0) - bestBetData.amount,
+        payout: N(bestBetData.payout),
+        profit: N(bestBetData.payout) - N(bestBetData.amount),
       }
     : null;
 

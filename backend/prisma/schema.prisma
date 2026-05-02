@@ -15,8 +15,8 @@ model User {
   steamId               String?                @unique
   avatar                String?
   bio                   String?                @db.VarChar(200)
-  coins                 Int                    @default(0)
-  totalWagered          Int                    @default(0)
+  coins                 Decimal                @default(0) @db.Decimal(20, 8)
+  totalWagered          Decimal                @default(0) @db.Decimal(20, 8)
   provider              String
   providerId            String
   isAdmin               Boolean                @default(false)
@@ -278,11 +278,11 @@ model Bet {
   matchId        String
   betType        String    @default("MATCH") // "MATCH" | "BO"
   boNumber       Int? // which BO this bet targets (null for MATCH bets)
-  amount         Int
+  amount         Decimal   @db.Decimal(20, 8)
   oddsAtBet      Float
   selectedPlayer Int
   status         BetStatus @default(PENDING)
-  payout         Int?
+  payout         Decimal?  @db.Decimal(20, 8)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -296,9 +296,9 @@ model Transaction {
   user            User     @relation(fields: [userId], references: [id])
   userId          String
   type            String // "deposit" | "withdrawal" | "bet_win" | "bet_loss" | "refund" | "bonus"
-  amount          Int // in cents for real money, in coins for virtual
+  amount          Int // USD cents — kept Int (real money side, ground truth from payment processor)
   realAmount      Int? // in cents (€)
-  coins           Int // coins credited/debited
+  coins           Decimal  @db.Decimal(20, 8) // coins credited/debited (signed)
   stripeSessionId String?  @unique
   status          String // "pending" | "completed" | "failed"
   affiliateCodeId String? // affiliate code used at deposit time
@@ -342,8 +342,8 @@ model AffiliateCode {
   userId         String              @unique
   code           String              @unique
   commissionRate Float               @default(0.05) // 5% of referral deposits
-  totalEarnings  Int                 @default(0) // lifetime coins earned
-  available      Int                 @default(0) // claimable coins
+  totalEarnings  Decimal             @default(0) @db.Decimal(20, 8) // lifetime coins earned
+  available      Decimal             @default(0) @db.Decimal(20, 8) // claimable coins
   referrals      AffiliateReferral[]
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
@@ -354,12 +354,12 @@ model AffiliateReferral {
   affiliateCode    AffiliateCode @relation(fields: [affiliateCodeId], references: [id])
   affiliateCodeId  String
   referredUserId   String        @unique // one referral per user
-  totalDeposited   Int           @default(0)
-  totalWagered     Int           @default(0)
-  commission       Int           @default(0)
+  totalDeposited   Decimal       @default(0) @db.Decimal(20, 8)
+  totalWagered     Decimal       @default(0) @db.Decimal(20, 8)
+  commission       Decimal       @default(0) @db.Decimal(20, 8)
   // Running net loss balance for true revshare. Positive = user has net losses
   // pending commission. Negative = user is net-positive (carryover protects house).
-  netLossBalance   Int           @default(0)
+  netLossBalance   Decimal       @default(0) @db.Decimal(20, 8)
   isActive         Boolean       @default(false) // active = has wagered ≥ once
   // Anti-fraud: flagged if referrer and referred user share an IP (self-referral suspicion)
   suspicious       Boolean       @default(false)
@@ -394,8 +394,8 @@ model RouletteBet {
   user      User          @relation(fields: [userId], references: [id])
   userId    String
   zone      String // "KNIGHTS" | "EMPEROR" | "ARCHERS"
-  amount    Int // in coins
-  payout    Int? // coins won (null until completed)
+  amount    Decimal       @db.Decimal(20, 8) // in coins
+  payout    Decimal?      @db.Decimal(20, 8) // coins won (null until completed)
   won       Boolean?
   createdAt DateTime      @default(now())
 
@@ -411,7 +411,7 @@ model CoinFlip {
   creator     User      @relation("coinflipCreator", fields: [creatorId], references: [id])
   joinerId    String?
   joiner      User?     @relation("coinflipJoiner", fields: [joinerId], references: [id])
-  amount      Int // bet amount per player
+  amount      Decimal   @db.Decimal(20, 8) // bet amount per player
   creatorSide String // "crown" or "shield"
   winnerId    String?
   status      String    @default("WAITING") // WAITING | FLIPPING | COMPLETED | CANCELLED
@@ -424,7 +424,7 @@ model CoinFlip {
   clientSeed  String? // public salt derived at creation, mixed into HMAC
   nonce       Int       @default(0) // per-game counter (always 0 today, reserved for future multi-roll games)
   result      String? // "crown" or "shield"
-  rake        Int       @default(0) // coins taken as house rake
+  rake        Decimal   @default(0) @db.Decimal(20, 8) // coins taken as house rake
   createdAt   DateTime  @default(now())
   completedAt DateTime?
 
@@ -456,7 +456,7 @@ model CoinFlip {
 model JackpotRound {
   id               String       @id @default(cuid())
   status           String       @default("OPEN") // OPEN | CLOSING | SPINNING | COMPLETED | CANCELLED
-  potTotal         Int          @default(0) // sum of all bets in coins
+  potTotal         Decimal      @default(0) @db.Decimal(20, 8) // sum of all bets in coins
   participantCount Int          @default(0) // distinct users in round (for timer trigger)
   nonce            Int          @unique // round serial, monotonic — feeds RNG userData
   // Provably-fair commit-reveal
@@ -471,8 +471,8 @@ model JackpotRound {
   winningTicket    Int? // roll result in [0, potTotal)
   winnerId         String?
   winner           User?        @relation("jackpotWinner", fields: [winnerId], references: [id])
-  rake             Int          @default(0) // 5 % of pot, credited to house
-  netPayout        Int? // potTotal - rake — credited to winner
+  rake             Decimal      @default(0) @db.Decimal(20, 8) // 5 % of pot, credited to house
+  netPayout        Decimal?     @db.Decimal(20, 8) // potTotal - rake — credited to winner
   startedAt        DateTime     @default(now())
   closingAt        DateTime? // timer end — set when round transitions to CLOSING
   settledAt        DateTime?
@@ -493,9 +493,9 @@ model JackpotBet {
   roundId    String
   user       User         @relation(fields: [userId], references: [id])
   userId     String
-  amount     Int // coins wagered (min 1, max 5000 enforced in service)
-  ticketFrom Int // inclusive — equals prior potTotal at time of bet
-  ticketTo   Int // exclusive — equals ticketFrom + amount
+  amount     Decimal      @db.Decimal(20, 8) // coins wagered (min 1, max 5000 enforced in service)
+  ticketFrom Int // inclusive — equals prior potTotal at time of bet (coin units, audit only)
+  ticketTo   Int // exclusive — equals ticketFrom + amount (coin units, audit only)
   createdAt  DateTime     @default(now())
 
   @@index([roundId, createdAt])
@@ -523,7 +523,7 @@ model Rain {
   // Stored as a plain String (no FK) because suggestions can be deleted or
   // archived and we want the Rain record to outlive them.
   triggeredByEvent   String?
-  amount             Int // total coins pledged to the pool
+  amount             Decimal           @db.Decimal(20, 8) // total coins pledged to the pool
   maxParticipants    Int
   duration           Int // total duration in seconds
   status             String            @default("ACTIVE") // "ACTIVE" | "COMPLETED" | "EXPIRED"
@@ -531,7 +531,7 @@ model Rain {
   endsAt             DateTime
   completedAt        DateTime?
   actualParticipants Int               @default(0)
-  actualPerUser      Int? // coins credited per claimant once the pool is split
+  actualPerUser      Decimal?          @db.Decimal(20, 8) // coins credited per claimant once the pool is split
   participants       RainParticipant[]
 
   @@index([status, startedAt])
@@ -545,7 +545,7 @@ model RainParticipant {
   userId        String
   user          User     @relation(fields: [userId], references: [id])
   claimedAt     DateTime @default(now())
-  coinsReceived Int // credited at claim time — may be adjusted at settle if pool redivides
+  coinsReceived Decimal  @db.Decimal(20, 8) // credited at claim time — may be adjusted at settle if pool redivides
   captchaMs     Int // ms between captcha show and submit. < 500 → suspicious=true.
   ipHash        String? // SHA-256 of claim IP for abuse review
   suspicious    Boolean  @default(false)

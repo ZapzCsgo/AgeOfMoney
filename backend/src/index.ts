@@ -21,6 +21,18 @@ EventEmitter.defaultMaxListeners = 30;
   return this.toString();
 };
 
+// Prisma.Decimal serializes to STRING via its built-in toJSON. The
+// frontend's coin code paths all expect number (Intl.NumberFormat,
+// optimistic-bet math, comparisons). Override the prototype once at
+// boot so every API response that ships a coin amount serializes as a
+// JS number. Safe because coin Decimal(20, 8) values cap at ~10^12,
+// well within JS Number's safe range (2^53 ≈ 9×10^15) and well above
+// the 8-decimal Decimal granularity (10^-8 vs JS ~10^-15 precision).
+import { Prisma } from '@prisma/client';
+(Prisma.Decimal.prototype as unknown as { toJSON: () => number }).toJSON = function () {
+  return Number(this.toString());
+};
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -345,13 +357,21 @@ initSocket(httpServer);
 // Supabase pooler's connection budget → P2024 timeouts.
 if (!process.env.SKIP_SERVER) {
 
-// One-shot, idempotent boot-time migration for the redeem-codes feature.
-// Local CLI access to Supabase is blocked (port 5432 IPv6-only); the
-// running backend already has a working DATABASE_URL via the pooler, so
-// we let it apply the schema diff itself the first time it boots after
-// the deploy. See backend/src/services/applyRedeemSchema.ts. Function
-// is internally idempotent — subsequent boots short-circuit on an
-// information_schema check.
+// One-shot, idempotent boot-time migrations. Local CLI access to
+// Supabase is blocked (port 5432 IPv6-only) ; the running backend
+// already has a working DATABASE_URL via the pooler, so we let it
+// apply schema changes itself on first boot after the deploy. Each
+// migration short-circuits via an information_schema check so
+// subsequent boots are a no-op.
+//
+// Order matters : the Decimal migration runs FIRST so the redeem
+// schema (which already declares Decimal columns) lands on a DB
+// where the rest of the coin columns are already Decimal too. Mixed
+// Int/Decimal arithmetic during a transition window would break
+// `coins: { gte: amount }` predicates if amount is Decimal.
+import('./services/applyDecimalMigration').then(({ applyDecimalMigrationIfNeeded }) => {
+  applyDecimalMigrationIfNeeded().catch(err => logger.error('[Migration:decimal] unhandled:', err));
+});
 import('./services/applyRedeemSchema').then(({ applyRedeemSchemaIfNeeded }) => {
   applyRedeemSchemaIfNeeded().catch(err => logger.error('[Migration:redeem] unhandled:', err));
 });

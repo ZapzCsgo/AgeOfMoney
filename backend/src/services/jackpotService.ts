@@ -37,6 +37,7 @@ import { creditAffiliateOnBetResolved } from './affiliateService';
 import { getSignedRandomInteger, logRngStartupState } from './randomOrgClient';
 import { recordLedger } from './ledger';
 import { processWageringForBet } from './redeemCodeService';
+import { D, N } from '../utils/decimal';
 import logger from '../logger';
 
 const MIN_BET = 1;
@@ -167,7 +168,7 @@ export async function placeBet(
   });
   if (!user) return { ok: false, error: 'User not found' };
   if (user.isBanned) return { ok: false, error: 'Account banned' };
-  if (user.coins < amount) return { ok: false, error: 'Insufficient coins' };
+  if (N(user.coins) < amount) return { ok: false, error: 'Insufficient coins' };
 
   // Atomic: deduct coins (race-safe), create bet with ticket range, update
   // pot + participant count. The `coins: { gte: amount }` guard makes the
@@ -195,13 +196,19 @@ export async function placeBet(
     });
     if (decResult.count === 0) throw new Error('Insufficient coins');
 
+    // ticketFrom / ticketTo are Int audit fields, derived from the Decimal
+    // pot. Floor for storage — the precise probability allocation at
+    // settle time uses Decimal basis points (see resolveRound), so this
+    // round-down has no effect on fairness.
+    const ticketFrom = Math.floor(N(freshRound.potTotal));
+    const ticketTo = ticketFrom + Math.floor(amount);
     const bet = await tx.jackpotBet.create({
       data: {
         roundId: freshRound.id,
         userId,
         amount,
-        ticketFrom: freshRound.potTotal,
-        ticketTo: freshRound.potTotal + amount,
+        ticketFrom,
+        ticketTo,
       },
     });
 
@@ -315,7 +322,7 @@ async function settleRound(roundId: string): Promise<void> {
   if (!round) return;
 
   // Edge case: shouldn't reach SPINNING with <2 participants, but guard anyway.
-  if (round.potTotal === 0 || round.participantCount < PARTICIPANT_THRESHOLD) {
+  if (D(round.potTotal).eq(0) || round.participantCount < PARTICIPANT_THRESHOLD) {
     logger.warn(
       `[Jackpot] Round ${roundId} cancelled at settle (pot=${round.potTotal}, participants=${round.participantCount})`,
     );
@@ -340,13 +347,15 @@ async function settleRound(roundId: string): Promise<void> {
   // Assign each bet a contiguous [fromBP, toBP) range proportional to its
   // share of the pot. Residue from Math.floor goes to the last bet so the
   // ranges always cover [0, 10000) fully (zero dead tickets → perfect
-  // fairness down to 0.01%).
+  // fairness down to 0.01%). Math is in Decimal then floored only at
+  // the basis-point boundary — the share-allocation precision exceeds
+  // the 0.01 % display granularity so no fairness drift.
   let cursor = 0;
   const ranges: Array<{ bet: typeof round.bets[number]; fromBP: number; toBP: number }> = [];
   for (let i = 0; i < round.bets.length; i++) {
     const bet = round.bets[i];
     const isLast = i === round.bets.length - 1;
-    const share = Math.floor((bet.amount / round.potTotal) * 10000);
+    const share = Math.floor(D(bet.amount).div(round.potTotal).mul(10000).toNumber());
     const fromBP = cursor;
     const toBP = isLast ? 10000 : cursor + share;
     ranges.push({ bet, fromBP, toBP });
@@ -363,8 +372,10 @@ async function settleRound(roundId: string): Promise<void> {
   }
   const winningBet = winning.bet;
 
-  const rake = Math.floor(round.potTotal * RAKE_RATE);
-  const netPayout = round.potTotal - rake;
+  // Decimal rake : 100.50 ⚜ pot at 5 % = 5.025 ⚜ rake → winner gets 95.475
+  // (instead of 95 with the old Math.floor truncation).
+  const rake = D(round.potTotal).mul(RAKE_RATE);
+  const netPayout = D(round.potTotal).sub(rake);
 
   // Persist RNG evidence + winner info (still SPINNING status — anim in progress)
   await prisma.jackpotRound.update({
@@ -382,7 +393,7 @@ async function settleRound(roundId: string): Promise<void> {
   });
 
   logger.info(
-    `[Jackpot] Round ${roundId} SPINNING — winner=${winningBet.userId}, ticket=${winningTicket}/${round.potTotal}, pot=${round.potTotal}, rake=${rake}, net=${netPayout}, rngSource=${rng.source}`,
+    `[Jackpot] Round ${roundId} SPINNING — winner=${winningBet.userId}, ticket=${winningTicket}/${round.potTotal}, pot=${N(round.potTotal)}, rake=${N(rake)}, net=${N(netPayout)}, rngSource=${rng.source}`,
   );
 
   // Broadcast spin — winner known, credit happens AFTER the animation delay
@@ -391,9 +402,9 @@ async function settleRound(roundId: string): Promise<void> {
     winningTicket,
     winnerId: winningBet.userId,
     winner: winningBet.user,
-    potTotal: round.potTotal,
-    netPayout,
-    rake,
+    potTotal: N(round.potTotal),
+    netPayout: N(netPayout),
+    rake: N(rake),
     rngSource: rng.source,
   });
 
@@ -417,7 +428,7 @@ async function settleRound(roundId: string): Promise<void> {
         select: { coins: true },
       });
       io?.to(`user:${winningBet.userId}`).emit('coinsUpdate', {
-        coins: winnerFresh?.coins ?? 0,
+        coins: N(winnerFresh?.coins),
         direction: 'up',
       });
 
@@ -436,14 +447,16 @@ async function settleRound(roundId: string): Promise<void> {
       }
 
       logger.info(
-        `[Jackpot] Round ${roundId} COMPLETED — paid ${netPayout} to ${winningBet.userId}, rake=${rake}`,
+        `[Jackpot] Round ${roundId} COMPLETED — paid ${N(netPayout)} to ${winningBet.userId}, rake=${N(rake)}`,
       );
 
       // Revshare on every bet (winners = negative netDelta, losers = positive)
+      const netPayoutNum = N(netPayout);
       for (const bet of round.bets) {
+        const stakeNum = N(bet.amount);
         const won = bet.userId === winningBet.userId;
-        const netDelta = won ? -(netPayout - bet.amount) : bet.amount;
-        creditAffiliateOnBetResolved(bet.userId, bet.amount, netDelta).catch((err) =>
+        const netDelta = won ? -(netPayoutNum - stakeNum) : stakeNum;
+        creditAffiliateOnBetResolved(bet.userId, stakeNum, netDelta).catch((err) =>
           logger.warn('[Affiliate] jackpot credit failed:', err),
         );
       }
@@ -492,7 +505,7 @@ async function cancelRound(roundId: string): Promise<void> {
       select: { coins: true },
     });
     io?.to(`user:${userId}`).emit('coinsUpdate', {
-      coins: u?.coins ?? 0,
+      coins: N(u?.coins),
       direction: 'up',
     });
   }
@@ -590,10 +603,12 @@ export async function initJackpot(): Promise<void> {
           io?.to('jackpot:lobby').emit('jackpot:round:settled', completed);
           // Affiliate revshare on every bet — was skipped for resumed rounds
           // because the normal settle path fires this inside its own timeout.
+          const netPayoutNum = N(r.netPayout);
           for (const bet of completed.bets) {
+            const stakeNum = N(bet.amount);
             const won = bet.userId === r.winnerId;
-            const netDelta = won ? -(r.netPayout! - bet.amount) : bet.amount;
-            creditAffiliateOnBetResolved(bet.userId, bet.amount, netDelta).catch((err) =>
+            const netDelta = won ? -(netPayoutNum - stakeNum) : stakeNum;
+            creditAffiliateOnBetResolved(bet.userId, stakeNum, netDelta).catch((err) =>
               logger.warn('[Affiliate] jackpot resume credit failed:', err),
             );
           }
