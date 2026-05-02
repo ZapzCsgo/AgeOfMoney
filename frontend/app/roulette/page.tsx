@@ -468,6 +468,13 @@ function RoulettePageImpl() {
     if (!selectedZone) { showMsg('error', t('bet_err_select')); return; }
     const amount = parseInt(betAmount);
     if (!amount || amount < 1) { showMsg('error', t('roulette_err_min')); return; }
+    // Defensive : the zone is also disabled in the UI when locked, but
+    // if the user spam-clicked between renders this catches it before
+    // the optimistic update fires.
+    if (selectedZone === lockedZone) {
+      showMsg('error', "Can't combine Knights and Archers in the same round");
+      return;
+    }
     // Keep amount so user can chain bets without retyping
 
     // Optimistic update — show bet instantly before server confirms.
@@ -535,6 +542,20 @@ function RoulettePageImpl() {
   };
   const userId = (session?.user as { id?: string })?.id;
   const myZoneBet = round?.bets.find(b => b.user.id === userId && b.zone === selectedZone);
+
+  // KNIGHTS+ARCHERS combo arbitrages 93 % of the wheel at 2× → forbidden.
+  // If the user already has a bet on one of the two 2× zones this round,
+  // lock the other one. EMPEROR is never locked (legitimate hedge).
+  const myKnightsBet = round?.bets.some(b => b.user.id === userId && b.zone === 'KNIGHTS') ?? false;
+  const myArchersBet = round?.bets.some(b => b.user.id === userId && b.zone === 'ARCHERS') ?? false;
+  const lockedZone: Zone | null = myKnightsBet ? 'ARCHERS' : myArchersBet ? 'KNIGHTS' : null;
+
+  // If a previously-selected zone gets locked (e.g. user just bet on the
+  // sister zone via Socket.io echo), clear the selection so the bet button
+  // can't fire on a forbidden combo.
+  useEffect(() => {
+    if (selectedZone && selectedZone === lockedZone) setSelectedZone(null);
+  }, [selectedZone, lockedZone]);
 
   const zoneTotals = (['KNIGHTS', 'EMPEROR', 'ARCHERS'] as Zone[]).map(z => ({
     zone: z,
@@ -914,17 +935,41 @@ function RoulettePageImpl() {
             // Only shake if user actually bet on THIS zone and it lost
             const userBetThisZone = !!round?.bets.find(b => b.user.id === userId && b.zone === zone);
             const isLose = isResult && winZone !== zone && userBetThisZone;
+            const isLocked = lockedZone === zone;
+            const lockReason = isLocked
+              ? (zone === 'KNIGHTS' ? "You bet on Archers — can't combine the two 2× zones" : "You bet on Knights — can't combine the two 2× zones")
+              : '';
             return (
               <div key={zone}
-                onClick={()=>isBetting&&setSelectedZone(zone)}
-                className={cn('rounded-xl overflow-hidden transition-all', isBetting&&'cursor-pointer', isLose&&'rl-shaking')}
+                onClick={()=>{ if (isBetting && !isLocked) setSelectedZone(zone); }}
+                title={lockReason || undefined}
+                className={cn(
+                  'rounded-xl overflow-hidden transition-all relative',
+                  isBetting && !isLocked && 'cursor-pointer',
+                  isLocked && 'cursor-not-allowed',
+                  isLose && 'rl-shaking',
+                )}
                 style={{
                   background:'#0d0b1a',
                   border:`1px solid ${isSelected||isWin ? z.color : '#1e1a30'}`,
                   boxShadow: isWin ? `0 0 32px ${z.glow}` : isSelected ? `0 0 18px ${z.glow}` : 'none',
                   transform: isSelected&&!isResult ? 'translateY(-3px)' : 'none',
+                  opacity: isLocked ? 0.45 : 1,
                   '--gz': z.glow,
                 } as React.CSSProperties}>
+                {isLocked && (
+                  <div
+                    className="absolute top-2 right-2 z-10 flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider"
+                    style={{ background: 'rgba(7,6,15,0.85)', border: '1px solid #2a2640', color: '#9990b8' }}
+                    aria-label={lockReason}
+                  >
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                    Locked
+                  </div>
+                )}
                 <div className={cn('p-4 flex items-center justify-between', isWin&&'rl-winning')}
                   style={{ borderBottom:'1px solid #1e1a3050', '--gz':z.glow } as React.CSSProperties}>
                   <div className="flex items-center gap-2.5">

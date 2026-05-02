@@ -249,12 +249,16 @@ export async function placeBet(userId: string, zone: Zone, amount: number): Prom
 
   if (amount < 1 || amount > 100_000) return { ok: false, error: 'Invalid amount' };
 
-  // Run all 3 validation queries in parallel
-  const [round, user, existing] = await Promise.all([
+  // Run all 3 validation queries in parallel. We pull EVERY existing bet
+  // by this user this round (not just the same-zone one) because the
+  // KNIGHTS↔ARCHERS exclusion needs to know about all of them. Same
+  // findMany serves both : we cherry-pick the same-zone row downstream.
+  const [round, user, allUserBets] = await Promise.all([
     prisma.rouletteRound.findUnique({ where: { id: currentRoundId } }),
     prisma.user.findUnique({ where: { id: userId }, select: { coins: true, isBanned: true } }),
-    prisma.rouletteBet.findFirst({ where: { roundId: currentRoundId, userId, zone } }),
+    prisma.rouletteBet.findMany({ where: { roundId: currentRoundId, userId } }),
   ]);
+  const existing = allUserBets.find((b) => b.zone === zone) ?? null;
 
   if (!round || round.status !== 'BETTING') return { ok: false, error: 'Betting is closed' };
   // Strict timing check — prevent bets after betting phase deadline (even if DB status not yet updated)
@@ -262,6 +266,19 @@ export async function placeBet(userId: string, zone: Zone, amount: number): Prom
   if (!user) return { ok: false, error: 'User not found' };
   if (user.isBanned) return { ok: false, error: 'Account banned' };
   if (user.coins < amount) return { ok: false, error: 'Insufficient coins' };
+
+  // KNIGHTS and ARCHERS are both 2× zones with non-overlapping coverage
+  // (slots 1-7 vs 9-15). Allowing both in the same round = ~93 % combined
+  // win rate at 2× → effectively a no-risk arbitrage that breaks the
+  // house edge. Emperor (slot 8, 14×) hedges either side fine, so the
+  // legal combos are : KNIGHTS+EMPEROR, ARCHERS+EMPEROR, EMPEROR alone,
+  // or any single zone alone. KNIGHTS+ARCHERS is forbidden.
+  if (zone === 'KNIGHTS' && allUserBets.some((b) => b.zone === 'ARCHERS')) {
+    return { ok: false, error: "You already bet on Archers — Knights and Archers can't be combined this round" };
+  }
+  if (zone === 'ARCHERS' && allUserBets.some((b) => b.zone === 'KNIGHTS')) {
+    return { ok: false, error: "You already bet on Knights — Knights and Archers can't be combined this round" };
+  }
 
   // Atomic + race-safe: `coins: { gte: amount }` guard in the UPDATE kills
   // the double-spend where two concurrent bets both read coins=100 and
