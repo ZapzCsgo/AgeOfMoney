@@ -93,17 +93,27 @@ export function Navbar() {
     };
   }, [notifOpen, dropdownOpen]);
 
-  // Count-up animation for coin increases — 2.5s ease-out from old to new value
+  // Animated coin counter.
+  // Two key design points :
+  //   1. Per-frame value carries 2 decimals (× 100 / 100 round). Without
+  //      that, the integer part ticks by 1 per frame while the formatter
+  //      always renders ",00" — so a 4-coin debit visually = 4 staccato
+  //      jumps over the duration. With cents, the same debit interpolates
+  //      through ~400 micro-steps and reads as a smooth glide.
+  //   2. Down (loss) is faster than up (gain). Watching 1.5s of slow
+  //      drain after a click feels laggy ; a punchy 600ms snap matches
+  //      the optimistic UI. Wins keep the satisfying 2.5s ramp because
+  //      it's a payout the user wants to savour.
   const rampTo = (from: number, to: number) => {
     if (rampRaf.current) cancelAnimationFrame(rampRaf.current);
     if (from === to) { setAnimatedCoins(to); return; }
     const start = performance.now();
-    const duration = 2500;
     const delta = to - from;
+    const duration = delta > 0 ? 2500 : 600;
     const step = (now: number) => {
       const t = Math.min(1, (now - start) / duration);
       const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
-      setAnimatedCoins(Math.round(from + delta * eased));
+      setAnimatedCoins(Math.round((from + delta * eased) * 100) / 100);
       if (t < 1) rampRaf.current = requestAnimationFrame(step);
       else rampRaf.current = null;
     };
