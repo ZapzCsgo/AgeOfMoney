@@ -58,7 +58,11 @@ export function MyBetsPanel() {
         <div
           className="pointer-events-auto mb-2 rounded-xl overflow-hidden shadow-2xl"
           style={{
-            width: 360,
+            // Mobile-safe : the panel sits at right-4 (16px). On phones
+            // narrower than ~376px (320 + 360 + 16) the previous fixed
+            // 360px width would overflow the viewport. Cap to viewport
+            // width minus 32px (the right + left breathing room).
+            width: 'min(360px, calc(100vw - 32px))',
             maxHeight: 440,
             background: '#0d0b1a',
             border: '1px solid #1e1a30',

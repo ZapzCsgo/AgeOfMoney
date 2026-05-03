@@ -469,9 +469,12 @@ export default function AffiliatePage() {
                       </p>
                     </div>
                   ) : (
-                    <div className="divide-y" style={{ borderColor: '#1a1730' }}>
+                    // Wrap in horizontal scroll on mobile — the 5-col grid
+                    // would crush below ~480px otherwise. Desktop keeps the
+                    // edge-to-edge table feel since maxWidth caps the page.
+                    <div className="divide-y overflow-x-auto" style={{ borderColor: '#1a1730' }}>
                       {filteredReferrals.map(r => (
-                        <div key={r.id} className="grid grid-cols-5 items-center px-5 py-3 hover:bg-[#13111f]">
+                        <div key={r.id} className="grid grid-cols-5 items-center px-5 py-3 hover:bg-[#13111f] min-w-[480px]">
                           <div className="col-span-2 flex items-center gap-2">
                             {r.user?.avatar
                               ? <img src={r.user.avatar} alt="" className="w-7 h-7 rounded-full" />

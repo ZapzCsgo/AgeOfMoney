@@ -694,7 +694,22 @@ function RoulettePageImpl() {
               })()}
             </div>
 
-            <div className="relative" style={{ width:WHEEL_W, overflow:'hidden' }}>
+            <div
+              className="relative"
+              style={{
+                // Mobile : clip the wheel to viewport width so it doesn't push
+                // horizontal scroll on phones (was a 784px fixed slab). The
+                // internal slot animation still targets WHEEL_W ; we just
+                // window it to whatever fits. The winning slot lands at
+                // CENTER_OFFSET which stays inside any reasonable viewport.
+                width: '100%',
+                maxWidth: WHEEL_W,
+                overflow: 'hidden',
+              }}
+            >
+              {/* Inner track at full WHEEL_W so the spinner math stays valid ;
+                  the parent above clips. */}
+              <div className="relative mx-auto" style={{ width: WHEEL_W }}>
 
               {/* Custom vertical center bar (replaces the old rectangular frame) */}
               {(() => {
@@ -841,7 +856,8 @@ function RoulettePageImpl() {
                   }}
                 />
               </div>
-            </div>
+              </div>{/* /inner WHEEL_W track */}
+            </div>{/* /viewport-clipping wrapper */}
 
             {/* Win/lose — payout number removed per design.
                 The wallet in the navbar now shows the count-up instead. */}
@@ -929,7 +945,7 @@ function RoulettePageImpl() {
         </div>
 
         {/* 3 zones */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           {zoneTotals.map(({ zone, count, total, bets }) => {
             const z = ZONES[zone]; const Icon = z.icon;
             const isSelected = selectedZone === zone;

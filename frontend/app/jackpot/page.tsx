@@ -288,8 +288,22 @@ function JackpotWheel({
   const cy = WHEEL_SIZE / 2;
 
   return (
-    <div className="relative mx-auto" style={{ width: WHEEL_SIZE, height: WHEEL_SIZE }}>
-      <svg width={WHEEL_SIZE} height={WHEEL_SIZE} viewBox={`0 0 ${WHEEL_SIZE} ${WHEEL_SIZE}`}>
+    // The SVG keeps its 380×380 internal coordinate system (avatar
+    // positioning + arc math all hard-coded in those units), but the
+    // outer container is now a responsive square : `width: 100% ; max-
+    // width: WHEEL_SIZE` lets phones (<380px viewport) shrink the wheel
+    // to fit. The aspect ratio is locked via `aspectRatio: '1'` so the
+    // height tracks the width and the svg stays a perfect circle.
+    <div
+      className="relative mx-auto"
+      style={{ width: '100%', maxWidth: WHEEL_SIZE, aspectRatio: '1' }}
+    >
+      <svg
+        width="100%"
+        height="100%"
+        viewBox={`0 0 ${WHEEL_SIZE} ${WHEEL_SIZE}`}
+        preserveAspectRatio="xMidYMid meet"
+      >
         <defs>
           {/* Soft gold glow filter reused by centre text */}
           <filter id="wheel-gold-glow" x="-50%" y="-50%" width="200%" height="200%">

@@ -701,11 +701,11 @@ export default function ProfilePage() {
             return periods.map(({ label, s }) => (
               <div key={label} className="rounded-xl p-4" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
                 <p className="text-[11px] text-[#6b6488] font-medium mb-3">{label}</p>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-3 gap-2 sm:gap-3">
                   <div>
                     <div className="flex items-center gap-1">
                       <span className="text-[#ffc542] text-xs">⚜</span>
-                      <span className="text-[16px] font-bold text-[#ffc542]">{fmt(s.won)}</span>
+                      <span className="text-[14px] sm:text-[16px] font-bold text-[#ffc542]">{fmt(s.won)}</span>
                     </div>
                     <p className="text-[10px] text-[#6b6488] mt-0.5">Total gagné</p>
                   </div>
