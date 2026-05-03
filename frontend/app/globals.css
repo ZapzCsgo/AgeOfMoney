@@ -476,6 +476,14 @@
 @keyframes shimmer-slide {
   to { transform: translateX(calc(100cqw - 100%)); }
 }
+
+/* Mobile menu drawer slide-in (from bottom). Used by MobileNav. */
+@keyframes slide-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+.animate-slide-up { animation: slide-up 0.22s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
 @keyframes spin-around {
   0% { transform: translateZ(0) rotate(0); }
   15%, 35% { transform: translateZ(0) rotate(90deg); }
