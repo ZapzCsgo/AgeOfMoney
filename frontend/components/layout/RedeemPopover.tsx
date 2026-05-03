@@ -129,7 +129,11 @@ export function RedeemPopover() {
 
       {open && (
           <div
-            className="absolute right-0 top-full mt-2 w-80 rounded-xl overflow-hidden shadow-2xl z-20"
+            // Mobile : escape the navbar's tight relative wrapper and pin
+            // the popover to the viewport (full-width minus 8px each side,
+            // just below the 56px-tall fixed navbar). Desktop unchanged :
+            // 320px panel anchored to the trigger's right edge.
+            className="fixed left-2 right-2 top-[60px] sm:absolute sm:left-auto sm:top-full sm:right-0 sm:mt-2 sm:w-80 rounded-xl overflow-hidden shadow-2xl z-50 sm:z-20 max-h-[calc(100vh-72px-64px)] overflow-y-auto"
             style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}
           >
             {/* Header */}

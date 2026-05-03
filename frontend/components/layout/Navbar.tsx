@@ -221,7 +221,11 @@ export function Navbar() {
 
                 {notifOpen && (
                     <div
-                      className="absolute right-0 top-full mt-2 w-80 rounded-xl overflow-hidden shadow-2xl z-20"
+                      // Same mobile-escape pattern as RedeemPopover : fixed
+                      // viewport-pinned on phones, absolute trigger-anchored
+                      // ≥ sm. Caps at viewport-height-minus-bottom-nav so it
+                      // never disappears under the MobileNav strip.
+                      className="fixed left-2 right-2 top-[60px] sm:absolute sm:left-auto sm:top-full sm:right-0 sm:mt-2 sm:w-80 rounded-xl overflow-hidden shadow-2xl z-50 sm:z-20 max-h-[calc(100vh-72px-64px)] overflow-y-auto"
                       style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}
                     >
                       <div className="flex items-center justify-between px-4 py-3 border-b border-[#1e1a30]">
