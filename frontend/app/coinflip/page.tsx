@@ -343,13 +343,13 @@ export default function CoinFlipPage() {
 
   return (
     <div className="min-h-screen relative" style={{ background: '#07060f', color: '#e8e2f5' }}>
-      <div className="max-w-5xl mx-auto px-4 py-8">
+      <div className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-8">
         {/* Header */}
         <div className="text-center mb-6">
-          <div className="flex items-center justify-center gap-3 mb-1">
-            <Coins size={28} style={{ color: '#ffd97a' }} />
+          <div className="flex items-center justify-center gap-2 sm:gap-3 mb-1">
+            <Coins className="w-6 h-6 sm:w-7 sm:h-7" style={{ color: '#ffd97a' }} />
             <h1
-              className="text-3xl font-bold"
+              className="text-2xl sm:text-3xl font-bold"
               style={{ fontFamily: 'Cinzel, serif', color: '#ffd97a' }}
             >
               COINFLIP

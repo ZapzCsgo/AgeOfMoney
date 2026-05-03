@@ -1300,8 +1300,8 @@ export default function AdminPage() {
                     </div>
                   )}
 
-                  {/* Stats grid */}
-                  <div className="grid grid-cols-4 gap-2">
+                  {/* Stats grid — 2-up on phones, 4-up on desktop */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {[
                       { label: 'Solde', value: `${new Intl.NumberFormat('fr-FR').format(userDetail.user.coins)} ⚜`, color: '#ffc542' },
                       { label: 'Total misé', value: `${new Intl.NumberFormat('fr-FR').format(userDetail.user.totalWagered)} ⚜`, color: '#e8e2f5' },

@@ -644,7 +644,7 @@ export default function ProfilePage() {
     const pubJoined = new Date(publicProfile.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
     return (
       <div className="min-h-screen" style={{ background: '#07060f' }}>
-        <div className="max-w-2xl mx-auto px-4 py-10 space-y-4">
+        <div className="max-w-2xl mx-auto px-3 sm:px-4 py-6 sm:py-10 space-y-4">
           <Link href="/profile" className="text-[11px] text-[#6b6488] hover:text-[#ffc542] transition-colors">{t('profile_back_to_profile')}</Link>
           <div className="rounded-xl p-6 relative overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
             <div className="absolute inset-0 opacity-10" style={{ background: `radial-gradient(ellipse at top right, ${pubColor}, transparent 60%)` }} />

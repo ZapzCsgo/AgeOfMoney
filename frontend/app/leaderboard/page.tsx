@@ -71,7 +71,7 @@ export default function LeaderboardPage() {
     : 0;
 
   return (
-    <div className="min-h-screen px-4 py-10" style={{ background: '#07060f' }}>
+    <div className="min-h-screen px-3 sm:px-4 py-6 sm:py-10" style={{ background: '#07060f' }}>
       <div className="max-w-2xl mx-auto">
 
         {/* Header */}
