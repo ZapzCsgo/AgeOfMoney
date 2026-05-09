@@ -1464,4 +1464,40 @@ router.get('/chat', requireAdmin, async (req: Request, res: Response) => {
   }
 });
 
+// ── Manual backtest trigger ───────────────────────────────────────────────────
+router.post('/backtest/run', requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    const { runDiagnosticBacktest } = await import('../services/backtestHarness');
+    const { runExactScoreBacktest } = await import('../services/exactScoreBacktestHarness');
+    const [binary, exact] = await Promise.all([runDiagnosticBacktest(50), runExactScoreBacktest()]);
+    const snapshotId = `obs_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO "OddsBacktestSnapshot"
+       (id, "runAt", n, "v1Brier", "v1LogLoss", "v1Accuracy",
+        "v2Brier", "v2LogLoss", "v2Accuracy",
+        "v2purBrier", "v2purLogLoss", "v2purAccuracy",
+        "exactScoreRPS", "exactScoreBrier", "exactScoreLogLoss", "exactScoreN", "fullReport")
+       VALUES ($1, NOW(), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::jsonb)`,
+      snapshotId, binary.n,
+      binary.v1.brier, binary.v1.logLoss, binary.v1.accuracy,
+      binary.v2.brier, binary.v2.logLoss, binary.v2.accuracy,
+      binary.v2pur.brier, binary.v2pur.logLoss, binary.v2pur.accuracy,
+      exact.overall.rps, exact.overall.brier, exact.overall.logLoss, exact.overall.n,
+      JSON.stringify({ binary, exact }),
+    );
+    res.json({
+      n: binary.n,
+      v1: { brier: binary.v1.brier, accuracy: binary.v1.accuracy, logLoss: binary.v1.logLoss },
+      v2: { brier: binary.v2.brier, accuracy: binary.v2.accuracy, logLoss: binary.v2.logLoss },
+      v2pur: { brier: binary.v2pur.brier, accuracy: binary.v2pur.accuracy },
+      exactScore: { rps: exact.overall.rps, brier: exact.overall.brier, n: exact.overall.n, topAcc: exact.overall.topChoiceAccuracy },
+      winner: binary.v2.brier < binary.v1.brier ? 'V2' : 'V1',
+      v2Improvement: +(binary.v1.brier - binary.v2.brier).toFixed(4),
+    });
+  } catch (err) {
+    logger.error('[Admin] backtest/run error:', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 export default router;
