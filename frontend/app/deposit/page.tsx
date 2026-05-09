@@ -293,7 +293,7 @@ export default function DepositPage() {
               </div>
               <div className="flex items-start gap-3">
                 <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold font-cinzel" style={{ background: 'rgba(255,197,66,0.15)', color: '#ffc542', border: '1px solid rgba(255,197,66,0.4)' }}>3</div>
-                <p className="text-aoe-parchment-dim text-[13px] leading-relaxed pt-0.5">Pas besoin de rester sur cette page — tu recevras une notification en jeu.</p>
+                <p className="text-aoe-parchment-dim text-[13px] leading-relaxed pt-0.5">Pas besoin de rester sur cette page tu recevras une notification.</p>
               </div>
             </div>
 
