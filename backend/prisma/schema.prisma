@@ -325,6 +325,21 @@ model H2HRecord {
   @@index([player1Id, player2Id])
 }
 
+model ChatMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  username  String
+  avatar    String?
+  message   String
+  room      String   @default("global") // "global" | matchId
+  roomType  String   @default("global") // "global" | "match"
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId])
+  @@index([room])
+}
+
 model ScraperLog {
   id           String   @id @default(cuid())
   source       String

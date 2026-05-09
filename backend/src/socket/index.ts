@@ -264,6 +264,18 @@ export function initSocket(httpServer: HttpServer): void {
       };
 
       io!.to('global').emit('globalChat', payload);
+
+      // Persist to DB (fire-and-forget)
+      prisma.chatMessage.create({
+        data: {
+          userId: socket.userId!,
+          username: socket.username!,
+          avatar: socket.avatar ?? null,
+          message: censored,
+          room: 'global',
+          roomType: 'global',
+        },
+      }).catch(err => logger.error('[Chat] Failed to persist global message:', err));
     });
 
     // Mute a user (mod/admin only)
@@ -337,6 +349,18 @@ export function initSocket(httpServer: HttpServer): void {
       };
 
       io!.to(`matchRoom:${matchId}`).emit('chatMessage', payload);
+
+      // Persist to DB (fire-and-forget)
+      prisma.chatMessage.create({
+        data: {
+          userId: socket.userId!,
+          username: socket.username!,
+          avatar: socket.avatar ?? null,
+          message: trimmed,
+          room: matchId,
+          roomType: 'match',
+        },
+      }).catch(err => logger.error('[Chat] Failed to persist match message:', err));
     });
 
     socket.on('disconnect', () => {

@@ -17,10 +17,10 @@ import {
   Shield, Flag, Users as UsersIcon, Activity, CheckCircle, XCircle,
   Gavel, RefreshCw, Play, Database, ChevronDown, AlertTriangle,
   Swords, Coins, Search, Zap, Trash2, ShieldCheck, Star, VolumeX,
-  Eye, X as XIcon, TrendingUp, Receipt,
+  Eye, X as XIcon, TrendingUp, Receipt, MessageSquare,
 } from 'lucide-react';
 
-type TabType = 'users' | 'risk' | 'transactions' | 'affiliates' | 'matches' | 'flagged' | 'players' | 'scrapers';
+type TabType = 'users' | 'risk' | 'transactions' | 'affiliates' | 'matches' | 'flagged' | 'players' | 'scrapers' | 'chat';
 
 interface SuspiciousReferral {
   id: string;
@@ -467,6 +467,7 @@ export default function AdminPage() {
     { id: 'flagged', label: 'Flaggés', icon: Flag, count: flagged.length },
     { id: 'players', label: 'Joueurs', icon: Database, count: players.length },
     { id: 'scrapers', label: 'Scrapers', icon: Activity },
+    { id: 'chat', label: 'Chat', icon: MessageSquare },
   ];
 
   return (
@@ -1245,6 +1246,9 @@ export default function AdminPage() {
 
         {/* ── SCRAPERS TAB ──────────────────────────────────────────────── */}
         {tab === 'scrapers' && <ScrapersPanel showMsg={showMsg} />}
+
+        {/* ── CHAT TAB ──────────────────────────────────────────────────── */}
+        {tab === 'chat' && <ChatHistoryPanel />}
       </div>
 
       {/* ── USER DETAIL MODAL ───────────────────────────────────────────── */}
@@ -1922,6 +1926,141 @@ function ScrapersPanel({ showMsg }: { showMsg: (type: 'success' | 'error', text:
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+interface ChatMsg {
+  id: string;
+  userId: string;
+  username: string;
+  avatar: string | null;
+  message: string;
+  room: string;
+  roomType: string;
+  createdAt: string;
+}
+
+function ChatHistoryPanel() {
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [roomFilter, setRoomFilter] = useState('global');
+  const [userFilter, setUserFilter] = useState('');
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+
+  const fetchChat = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ page: String(page), limit: '100' });
+      if (roomFilter) params.set('room', roomFilter);
+      if (userFilter.trim()) params.set('userId', userFilter.trim());
+      const res = await apiClient.get(`/admin/chat?${params}`);
+      setMessages(res.data.data ?? []);
+      setTotal(res.data.total ?? 0);
+      setPages(res.data.pages ?? 1);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, roomFilter, userFilter]);
+
+  useEffect(() => { fetchChat(); }, [fetchChat]);
+
+  return (
+    <div className="space-y-4">
+      {/* Filters */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex rounded-lg overflow-hidden" style={{ border: '1px solid #1e1a30' }}>
+          {(['global', 'match', ''] as const).map((r, i) => (
+            <button
+              key={i}
+              onClick={() => { setRoomFilter(r); setPage(1); }}
+              className={cn(
+                'px-4 py-2 text-[12px] font-medium transition-colors',
+                roomFilter === r ? 'text-[#d4a017] bg-[#d4a01715]' : 'text-[#6b6488] hover:text-[#c8c0e0]'
+              )}
+            >
+              {r === 'global' ? 'Global' : r === 'match' ? 'Matchs' : 'Tous'}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 flex-1 max-w-xs px-3 py-2 rounded-lg text-[12px]" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+          <Search size={12} className="text-[#6b6488]" />
+          <input
+            className="bg-transparent outline-none text-[#e8e2f5] placeholder-[#6b6488] w-full"
+            placeholder="Filtrer par userId..."
+            value={userFilter}
+            onChange={e => { setUserFilter(e.target.value); setPage(1); }}
+          />
+        </div>
+        <button onClick={fetchChat} className="flex items-center gap-1.5 text-[#6b6488] hover:text-[#e8e2f5] text-[12px]">
+          <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+          Rafraîchir
+        </button>
+        <span className="text-[11px] text-[#6b6488] ml-auto">{total} message(s)</span>
+      </div>
+
+      {/* Table */}
+      <div className="rounded-lg overflow-hidden" style={{ border: '1px solid #1e1a30', background: '#0d0b1a' }}>
+        <table className="w-full text-[12px]">
+          <thead>
+            <tr style={{ borderBottom: '1px solid #1e1a30' }}>
+              {['Date', 'Utilisateur', 'Room', 'Message'].map(h => (
+                <th key={h} className="text-left px-4 py-2.5 text-[11px] text-[#6b6488] uppercase tracking-wider font-medium">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={4} className="px-4 py-8 text-center text-[#6b6488]">Chargement...</td></tr>
+            ) : messages.length === 0 ? (
+              <tr><td colSpan={4} className="px-4 py-8 text-center text-[#6b6488]">Aucun message</td></tr>
+            ) : messages.map(m => (
+              <tr key={m.id} className="hover:bg-[#13111f] transition-colors" style={{ borderBottom: '1px solid #1e1a3022' }}>
+                <td className="px-4 py-2.5 text-[#6b6488] whitespace-nowrap">
+                  {new Date(m.createdAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                </td>
+                <td className="px-4 py-2.5">
+                  <span className="font-semibold text-[#e8e2f5]">{m.username}</span>
+                  <span className="ml-1.5 text-[10px] text-[#6b6488]">{m.userId.slice(0, 8)}…</span>
+                </td>
+                <td className="px-4 py-2.5">
+                  {m.roomType === 'global' ? (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold text-[#d4a017]" style={{ background: '#d4a01715', border: '1px solid #d4a01730' }}>global</span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold text-violet-400" style={{ background: '#7c3aed15', border: '1px solid #7c3aed30' }}>match</span>
+                  )}
+                </td>
+                <td className="px-4 py-2.5 text-[#c8c0e0] max-w-[500px] truncate">{m.message}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination */}
+      {pages > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          <button
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="px-3 py-1.5 rounded text-[12px] disabled:opacity-30 text-[#9990b8]"
+            style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}
+          >
+            ←
+          </button>
+          <span className="text-[12px] text-[#6b6488]">Page {page} / {pages}</span>
+          <button
+            onClick={() => setPage(p => Math.min(pages, p + 1))}
+            disabled={page === pages}
+            className="px-3 py-1.5 rounded text-[12px] disabled:opacity-30 text-[#9990b8]"
+            style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}
+          >
+            →
+          </button>
+        </div>
+      )}
     </div>
   );
 }

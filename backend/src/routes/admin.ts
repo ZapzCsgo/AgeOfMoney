@@ -1435,4 +1435,33 @@ router.post('/affiliate/referrals/:id/revoke', async (req: Request, res: Respons
 });
 
 
+// ── Chat history ──────────────────────────────────────────────────────────────
+router.get('/chat', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const room = req.query.room as string | undefined;
+    const userId = req.query.userId as string | undefined;
+    const page = Math.max(1, parseInt(req.query.page as string || '1'));
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string || '100')));
+    const skip = (page - 1) * limit;
+
+    const where: Record<string, unknown> = {};
+    if (room) where.room = room;
+    if (userId) where.userId = userId;
+
+    const [messages, total] = await Promise.all([
+      prisma.chatMessage.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip,
+      }),
+      prisma.chatMessage.count({ where }),
+    ]);
+
+    res.json({ data: messages, total, page, pages: Math.ceil(total / limit) });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 export default router;
