@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn, getAvatarSrc } from '@/lib/utils';
+import { JsonLd } from '@/components/JsonLd';
 
 // ── My bets on this match ─────────────────────────────────────────────────────
 function MyMatchBets({ matchId, match, refreshKey }: { matchId: string; match: Match; refreshKey: number }) {
@@ -506,8 +507,68 @@ export default function MatchPage() {
   const twitchChannel = match.twitchChannel ?? match.tournament?.twitchChannel ?? null;
   const hasBoHistory = (match.boResults?.length ?? 0) > 0;
 
+  const breadcrumbSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Accueil', item: 'https://ageof.money' },
+      { '@type': 'ListItem', position: 2, name: 'Matchs', item: 'https://ageof.money/matches' },
+      { '@type': 'ListItem', position: 3, name: `${match.player1.name} vs ${match.player2.name}`, item: `https://ageof.money/matches/${match.id}` },
+    ],
+  };
+
+  const matchSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'SportsEvent',
+    '@id': `https://ageof.money/matches/${match.id}`,
+    name: `${match.player1.name} vs ${match.player2.name}${match.tournament ? ` — ${match.tournament.name}` : ''}`,
+    description: `Paris esport Age of Empires : ${match.player1.name} affronte ${match.player2.name} en ${match.format}${match.tournament ? ` dans le tournoi ${match.tournament.name}` : ''}. Cotes en temps réel sur AgeOfMoney.`,
+    url: `https://ageof.money/matches/${match.id}`,
+    startDate: match.scheduledAt,
+    eventStatus: match.status === 'LIVE'
+      ? 'https://schema.org/EventScheduled'
+      : match.status === 'COMPLETED'
+      ? 'https://schema.org/EventPostponed'
+      : 'https://schema.org/EventScheduled',
+    eventAttendanceMode: 'https://schema.org/OnlineEventAttendanceMode',
+    location: {
+      '@type': 'VirtualLocation',
+      url: twitchChannel ? `https://twitch.tv/${twitchChannel}` : 'https://ageof.money',
+    },
+    organizer: match.tournament ? {
+      '@type': 'Organization',
+      name: match.tournament.name,
+    } : { '@id': 'https://ageof.money/#organization' },
+    competitor: [
+      {
+        '@type': 'Person',
+        name: match.player1.name,
+        url: `https://ageof.money/matches?player=${encodeURIComponent(match.player1.name)}`,
+      },
+      {
+        '@type': 'Person',
+        name: match.player2.name,
+        url: `https://ageof.money/matches?player=${encodeURIComponent(match.player2.name)}`,
+      },
+    ],
+    ...(match.status === 'COMPLETED' && match.resultScore ? {
+      result: {
+        '@type': 'Result',
+        description: `Score final : ${match.resultScore} — ${match.winnerId === match.player1Id ? match.player1.name : match.player2.name} gagne`,
+      },
+    } : {}),
+    offers: {
+      '@type': 'Offer',
+      description: `Pariez sur ${match.player1.name} (×${match.odds1.toFixed(2)}) ou ${match.player2.name} (×${match.odds2.toFixed(2)})`,
+      url: `https://ageof.money/matches/${match.id}`,
+      seller: { '@id': 'https://ageof.money/#organization' },
+    },
+  };
+
   return (
     <div className="min-h-screen bg-aoe">
+      <JsonLd data={breadcrumbSchema} />
+      <JsonLd data={matchSchema} />
       {/* ── Header ── */}
       <div className="bg-aoe-bg-card border-b border-aoe-border">
         <div className="max-w-7xl mx-auto px-4 py-4">

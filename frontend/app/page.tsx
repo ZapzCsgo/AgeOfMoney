@@ -20,6 +20,7 @@ import {
   Zap, Clock, TrendingUp, ChevronRight, Swords, Trophy,
   RefreshCw, AlertTriangle, Users, Crown, Minus, Plus, Lock, Tv,
 } from 'lucide-react';
+import { JsonLd } from '@/components/JsonLd';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function getCountryFlag(code?: string | null): string {
@@ -851,8 +852,26 @@ export default function HomePage() {
   const upcomingCount  = matches.filter((m) => m.status === 'UPCOMING').length;
   const totalBetVolume = matches.reduce((acc, m) => acc + (m.betVolume?.total ?? 0), 0);
 
+  const homeSchema = matches.length > 0 ? {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: 'Matchs Age of Empires LIVE et à venir',
+    description: 'Matchs professionnels Age of Empires disponibles au pari sur AgeOfMoney. Cotes en temps réel.',
+    url: 'https://ageof.money',
+    itemListElement: matches
+      .filter(m => m.status !== 'COMPLETED')
+      .slice(0, 10)
+      .map((m, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        name: `${m.player1.name} vs ${m.player2.name}`,
+        url: `https://ageof.money/matches/${m.id}`,
+      })),
+  } : null;
+
   return (
     <div className="min-h-full">
+      {homeSchema && <JsonLd data={homeSchema} />}
       {/* Hero */}
       <Hero liveCount={liveMatches.length} totalBets={totalBetVolume} matchCount={matches.length} />
 

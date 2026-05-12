@@ -119,7 +119,7 @@ export const metadata: Metadata = {
   },
 };
 
-// Structured data for Google Rich Results — WebSite + Organization schema
+// Structured data for Google Rich Results — WebSite + Organization + FAQ schema
 const structuredData = {
   '@context': 'https://schema.org',
   '@graph': [
@@ -138,6 +138,7 @@ const structuredData = {
         width: 1200,
         height: 630,
       },
+      description: 'La première plateforme de paris esport dédiée à Age of Empires (AoE4, AoE2, AoE3, AoM). Cotes en temps réel, roulette provably fair, dépôts crypto.',
       sameAs: [],
     },
     {
@@ -145,7 +146,7 @@ const structuredData = {
       '@id': 'https://ageof.money/#website',
       url: 'https://ageof.money',
       name: 'AgeOfMoney',
-      description: 'Paris esport Age of Empires — matchs pro, roulette',
+      description: 'Paris esport Age of Empires — matchs pro, roulette provably fair, cotes live, dépôts crypto.',
       publisher: { '@id': 'https://ageof.money/#organization' },
       inLanguage: ['fr-FR', 'en-US', 'es-ES'],
       potentialAction: {
@@ -153,6 +154,76 @@ const structuredData = {
         target: 'https://ageof.money/matches?search={search_term_string}',
         'query-input': 'required name=search_term_string',
       },
+    },
+    {
+      '@type': 'FAQPage',
+      '@id': 'https://ageof.money/#faq',
+      mainEntity: [
+        {
+          '@type': 'Question',
+          name: 'Qu\'est-ce qu\'AgeOfMoney ?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'AgeOfMoney est la première plateforme de paris esport dédiée à Age of Empires. Elle permet de parier sur des matchs professionnels AoE4, AoE2, AoE3 et AoM avec des jetons virtuels, via un système de cotes calculées en temps réel.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'Comment parier sur un match Age of Empires ?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Connectez-vous via Steam, déposez des coins (1$ = 1.69 ⚜), puis rendez-vous sur la page d\'un match UPCOMING pour choisir votre joueur et placer votre mise. Les cotes sont affichées en temps réel et ajustées selon le volume de paris.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'Comment sont calculées les cotes sur AgeOfMoney ?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Les cotes sont calculées par un moteur propriétaire basé sur l\'algorithme Glicko-2, enrichi des résultats H2H (tête-à-tête) en tournoi issus de Liquipedia. Elles sont recalculées toutes les 10 minutes et s\'ajustent en temps réel selon les paris placés.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'Quels tournois Age of Empires sont disponibles pour les paris ?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'AgeOfMoney intègre les tournois de Tier S et A scrapés depuis Liquipedia et le calendrier officiel ageofempires.com. Sont couverts : les tournois AoE4 (Red Bull Wololo, Nations Cup, etc.), AoE2 (Red Bull Wololo Legacy, etc.), AoE3 et AoM.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'La roulette AgeOfMoney est-elle équitable ?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Oui, la roulette est "provably fair" : le résultat de chaque tour est déterminé par un seed cryptographique public vérifiable. Vous pouvez contrôler l\'équité de chaque partie en vérifiant le hash avant et après chaque tour.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'Comment déposer des coins sur AgeOfMoney ?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Les dépôts se font en crypto (Bitcoin, Ethereum, USDT et autres) via NOWPayments. Le taux est fixe : 1 USD = 1.69 ⚜ (coins). Les retraits sont possibles au taux de 1.69 ⚜ = 0.99 USD.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'What is AgeOfMoney?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'AgeOfMoney (ageof.money) is the first esports betting platform dedicated to Age of Empires (AoE4, AoE2, AoE3, AoM). It offers real-time odds on professional matches, a provably fair roulette, coinflip, jackpot, and crypto deposits.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'How to bet on Age of Empires matches?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Sign in with Steam on ageof.money, deposit coins via crypto (1 USD = 1.69 coins), go to any upcoming AoE4 or AoE2 match page, pick your winner and enter your stake. Odds update live based on betting volume.',
+          },
+        },
+      ],
     },
   ],
 };
@@ -163,6 +234,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/* llms.txt — AI crawler briefing (emerging standard) */}
+        <link rel="ai-info" href="https://ageof.money/llms.txt" type="text/plain" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}

@@ -10,6 +10,7 @@ import { Trophy, Calendar, ExternalLink, Users, Clock, Tv, Crown, ArrowLeft } fr
 import { apiClient } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import type { Match, Tournament } from '@/types';
+import { JsonLd } from '@/components/JsonLd';
 
 interface TournamentDetail extends Tournament {
   twitchChannel?: string | null;
@@ -194,8 +195,50 @@ export default function TournamentDetailPage() {
   const startDate = new Date(tournament.startDate);
   const endDate = tournament.endDate ? new Date(tournament.endDate) : null;
 
+  const breadcrumbSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Accueil', item: 'https://ageof.money' },
+      { '@type': 'ListItem', position: 2, name: 'Tournois', item: 'https://ageof.money/tournaments' },
+      { '@type': 'ListItem', position: 3, name: tournament.name, item: `https://ageof.money/tournaments/${tournament.id}` },
+    ],
+  };
+
+  const tournamentSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'SportsEvent',
+    '@id': `https://ageof.money/tournaments/${tournament.id}`,
+    name: tournament.name,
+    description: `Tournoi ${tournament.game ?? 'Age of Empires'} — Tier ${tournament.tier}${tournament.prizePool ? ` — Prize pool ${tournament.prizePool}` : ''}. Pariez sur les matchs de ce tournoi sur AgeOfMoney.`,
+    url: `https://ageof.money/tournaments/${tournament.id}`,
+    startDate: tournament.startDate,
+    ...(endDate ? { endDate: tournament.endDate } : {}),
+    eventAttendanceMode: 'https://schema.org/OnlineEventAttendanceMode',
+    eventStatus: tournament.isActive
+      ? 'https://schema.org/EventScheduled'
+      : 'https://schema.org/EventPostponed',
+    location: {
+      '@type': 'VirtualLocation',
+      url: tournament.twitchChannel
+        ? `https://twitch.tv/${tournament.twitchChannel}`
+        : 'https://ageof.money',
+    },
+    organizer: { '@id': 'https://ageof.money/#organization' },
+    sport: 'Age of Empires',
+    ...(tournament.prizePool ? {
+      offers: {
+        '@type': 'Offer',
+        description: `Prize pool : ${tournament.prizePool}`,
+        url: `https://ageof.money/tournaments/${tournament.id}`,
+      },
+    } : {}),
+  };
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+      <JsonLd data={breadcrumbSchema} />
+      <JsonLd data={tournamentSchema} />
       {/* Back link */}
       <button
         onClick={() => router.back()}

@@ -1,0 +1,58 @@
+# AgeOfMoney
+
+> La première plateforme de paris esport dédiée à Age of Empires (AoE4, AoE2, AoE3, AoM).
+
+AgeOfMoney (ageof.money) est un site de paris en ligne sur les matchs et tournois professionnels Age of Empires.
+Les utilisateurs parient avec des jetons virtuels (⚜ coins) sur des matchs issus des circuits compétitifs officiels
+(Liquipedia, calendrier officiel AoE). Dépôts en crypto via NOWPayments.
+
+## Fonctionnalités principales
+
+- **Paris matchs 1v1** : cotes calculées en temps réel via un moteur Glicko-2 enrichi de données H2H et tournoi
+- **Score exact** : parier sur le score précis d'un match (ex : 2-1 sur MbL)
+- **Roulette provably fair** : roulette crypto-vérifiable basée sur des seeds publics
+- **Coinflip** : duel 1v1 de joueurs, résultat équitable aléatoire
+- **Jackpot** : pool commun où les mises de tous les joueurs entrent dans un tirage pondéré
+- **Chat global** : chat communauté en temps réel (Socket.io)
+- **Leaderboard** : classement des meilleurs parieurs de la plateforme
+
+## Jeux couverts
+
+- Age of Empires IV (AoE4)
+- Age of Empires II: Definitive Edition (AoE2)
+- Age of Empires III: Definitive Edition (AoE3)
+- Age of Mythology: Retold (AoM)
+
+## Tournois et matchs
+
+Les matchs sont scrappés depuis Liquipedia (wikis AoE) et le calendrier officiel ageofempires.com.
+Seuls les tournois de Tier S et A sont intégrés. Les cotes sont recalculées toutes les 10 minutes.
+
+## Authentification
+
+Connexion uniquement via Steam (via Steam OpenID). Aucun mot de passe stocké.
+
+## Économie virtuelle
+
+- 1 USD = 1.69 ⚜ (dépôt)
+- 1.69 ⚜ = 0.99 USD (retrait)
+- Système de niveaux XP basé sur le volume parié (20 niveaux)
+
+## Pages importantes
+
+- / — Accueil, matchs LIVE et UPCOMING
+- /matches — Liste complète des matchs avec filtres par jeu/statut
+- /tournaments — Calendrier des tournois actifs
+- /leaderboard — Top parieurs
+- /roulette — Roulette provably fair
+- /coinflip — Mini-jeu coinflip
+
+## Contact et support
+
+- Support : /support (formulaire de contact)
+- Politique de confidentialité : /privacy
+
+## Données
+
+Les cotes sont des prédictions probabilistes basées sur les performances historiques en tournoi.
+Elles ne constituent pas des conseils financiers. Paris disponibles uniquement en jetons virtuels.

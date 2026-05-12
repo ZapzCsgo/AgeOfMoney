@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Clock, RefreshCw, AlertTriangle, Swords, Search } from 'lucide-react';
 import { useT, type TKey } from '@/lib/i18n';
 import { EmptyState } from '@/components/ui/empty-state';
+import { JsonLd } from '@/components/JsonLd';
 
 function formatCountdown(dateStr: string, t: (k: TKey) => string): string {
   const diff = new Date(dateStr).getTime() - Date.now();
@@ -300,8 +301,37 @@ export default function MatchesPage() {
     else groups.push({ id: tid, name: match.tournament?.name ?? t('matches_no_tournament'), tier: match.tournament?.tier ?? 'C', format: match.format, game: match.game ?? 'AoE4', matches: [match] });
   }
 
+  const matchListSchema = matches.length > 0 ? {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: 'Matchs Age of Empires — AgeOfMoney',
+    description: 'Liste des matchs professionnels Age of Empires disponibles pour les paris : AoE4, AoE2, AoE3, AoM.',
+    url: 'https://ageof.money/matches',
+    numberOfItems: matches.filter(m => m.status !== 'COMPLETED').length,
+    itemListElement: matches
+      .filter(m => m.status !== 'COMPLETED')
+      .slice(0, 20)
+      .map((m, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        name: `${m.player1.name} vs ${m.player2.name}${m.tournament ? ` — ${m.tournament.name}` : ''}`,
+        url: `https://ageof.money/matches/${m.id}`,
+        item: {
+          '@type': 'SportsEvent',
+          name: `${m.player1.name} vs ${m.player2.name}`,
+          startDate: m.scheduledAt,
+          eventStatus: m.status === 'LIVE' ? 'https://schema.org/EventScheduled' : 'https://schema.org/EventScheduled',
+          competitor: [
+            { '@type': 'Person', name: m.player1.name },
+            { '@type': 'Person', name: m.player2.name },
+          ],
+        },
+      })),
+  } : null;
+
   return (
     <div className="min-h-full">
+      {matchListSchema && <JsonLd data={matchListSchema} />}
       {/* Header */}
       <div className="relative border-b border-[#1e1a30] px-6 py-6 overflow-hidden" style={{ background: 'linear-gradient(180deg, #0a0918 0%, #07060f 100%)' }}>
         <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, #ffc542 40%, #ffd97a 50%, #ffc542 60%, transparent)' }} />
