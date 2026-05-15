@@ -916,28 +916,43 @@ function RoulettePageImpl() {
               {msg.text}
             </div>
           )}
-          <div className="flex gap-2 mb-3">
-            <div className="relative flex-1">
-              <input type="number" step="0.01" inputMode="decimal" value={betAmount} onChange={e=>setBetAmount(e.target.value)}
+          {/* Stacked on mobile so the input occupies its own full-width row
+              (used to be one of 7 cells in a single row → 60-80 px wide, the
+              placeholder was clipped and the input looked identical to a
+              preset button). From sm: up we keep the horizontal layout. */}
+          <div className="flex flex-col sm:flex-row gap-2 mb-3">
+            {/* Custom-amount input — clearly an input on mobile, with a coin
+                icon on the left, larger min-height, and visible placeholder. */}
+            <div className="relative sm:flex-1">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#ffd97a] text-[14px] pointer-events-none">⚜</span>
+              <input
+                type="number"
+                step="0.01"
+                inputMode="decimal"
+                value={betAmount}
+                onChange={e=>setBetAmount(e.target.value)}
                 placeholder={t('deposit_amount_coins')}
-                className="w-full px-3 py-2.5 rounded-lg text-[13px] outline-none text-[#e8e2f5] placeholder:text-[#3d3860] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                style={{ background:'#13111f', border:'1px solid #1e1a30' }} />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#ffd97a] text-[11px]">⚜</span>
+                className="w-full pl-9 pr-3 py-3 sm:py-2.5 rounded-lg text-[14px] sm:text-[13px] outline-none text-[#e8e2f5] placeholder:text-[#6b6488] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:border-[#ffc54260]"
+                style={{ background:'#13111f', border:'1px solid #2a2640' }}
+              />
             </div>
-            {([1,10,100] as number[]).map(v=>(
-              <button key={v} onClick={()=>setBetAmount(a=>String(round2(parseCoinAmount(a)+v)))}
-                className="px-3 py-2 rounded-lg text-[11px] font-bold hover:opacity-80"
-                style={{ background:'#1e1a30',color:'#9990b8',border:'1px solid #2a2640' }}>+{v}</button>
-            ))}
-            <button onClick={()=>setBetAmount(a=>String(Math.max(1,round2(parseCoinAmount(a)/2))))}
-              className="px-3 py-2 rounded-lg text-[11px] font-bold hover:opacity-80"
-              style={{ background:'#1e1a30',color:'#9990b8',border:'1px solid #2a2640' }}>½</button>
-            <button onClick={()=>setBetAmount(String(userCoins))}
-              className="px-3 py-2 rounded-lg text-[11px] font-bold hover:opacity-80"
-              style={{ background:'#1e1a30',color:'#9990b8',border:'1px solid #2a2640' }}>MAX</button>
-            <button onClick={()=>setBetAmount('')}
-              className="px-3 py-2 rounded-lg text-[11px] text-[#6b6488] hover:text-[#9990b8]"
-              style={{ background:'#13111f',border:'1px solid #1e1a30' }}>CLR</button>
+            {/* Presets row — scrollable on mobile if it overflows. */}
+            <div className="flex gap-2 overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0 sm:contents">
+              {([1,10,100] as number[]).map(v=>(
+                <button key={v} onClick={()=>setBetAmount(a=>String(round2(parseCoinAmount(a)+v)))}
+                  className="shrink-0 px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-80 min-w-[44px]"
+                  style={{ background:'#1e1a30',color:'#9990b8',border:'1px solid #2a2640' }}>+{v}</button>
+              ))}
+              <button onClick={()=>setBetAmount(a=>String(Math.max(1,round2(parseCoinAmount(a)/2))))}
+                className="shrink-0 px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-80 min-w-[44px]"
+                style={{ background:'#1e1a30',color:'#9990b8',border:'1px solid #2a2640' }}>½</button>
+              <button onClick={()=>setBetAmount(String(userCoins))}
+                className="shrink-0 px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-80 min-w-[44px]"
+                style={{ background:'#1e1a30',color:'#9990b8',border:'1px solid #2a2640' }}>MAX</button>
+              <button onClick={()=>setBetAmount('')}
+                className="shrink-0 px-3 py-2 rounded-lg text-[12px] text-[#6b6488] hover:text-[#9990b8] min-w-[44px]"
+                style={{ background:'#13111f',border:'1px solid #1e1a30' }}>CLR</button>
+            </div>
           </div>
           <button onClick={placeBet} disabled={!isBetting||!selectedZone||!betAmount}
             className="w-full py-3 rounded-lg text-[14px] font-bold font-cinzel tracking-wider transition-all disabled:opacity-40"
