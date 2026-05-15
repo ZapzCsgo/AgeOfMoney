@@ -337,9 +337,16 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
               <Zap size={9} />LIVE
             </span>
           ) : isCompleted ? (
-            <span className="text-[11px] text-[#6b6488] font-cinzel border border-[#2a2540] rounded px-1.5 py-0.5">
-              {t('matches_finished')}
-            </span>
+            <div className="flex items-center gap-1.5">
+              {/* Finished-at date — short locale-aware ("24 avr.", "Apr 24",
+                  "24 abr."). Tooltip shows the full timestamp on hover. */}
+              <span className="text-[11px] text-[#6b6488] tabular-nums" title={new Date(match.updatedAt).toLocaleString()}>
+                {new Date(match.updatedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
+              </span>
+              <span className="text-[11px] text-[#6b6488] font-cinzel border border-[#2a2540] rounded px-1.5 py-0.5">
+                {t('matches_finished')}
+              </span>
+            </div>
           ) : (
             <span className="flex items-center gap-1 text-[11px] text-aoe-parchment-dim">
               <Clock size={11} />
