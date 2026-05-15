@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { headers } from 'next/headers';
 import { Cinzel, Inter } from 'next/font/google';
 import './globals.css';
 import { Navbar } from '@/components/layout/Navbar';
@@ -27,97 +28,177 @@ const inter = Inter({
   display: 'swap',
 });
 
-export const metadata: Metadata = {
-  title: {
-    default: 'AgeOfMoney — Paris esport Age of Empires',
-    template: '%s · AgeOfMoney',
-  },
-  description:
-    "Paris en ligne sur les matchs pro Age of Empires (AoE4, AoE2, AoE3, AoM). Cotes en temps réel, roulette provably fair, dépôts crypto. La plateforme dédiée à la communauté AoE.",
-  keywords: [
-    // FR — priority audience
-    'paris esport Age of Empires', 'paris AoE4', 'paris AoE2', 'paris Age of Empires',
-    'paris matchs AoE4', 'plateforme paris AoE', 'tournois AoE4', 'cotes AoE4',
-    'roulette AoE', 'paris crypto esport', 'AgeOfMoney',
-    // EN
-    'Age of Empires betting', 'AoE4 betting', 'AoE2 betting', 'AoE esports betting',
-    'Age of Empires 4 match betting', 'AoE tournament betting', 'AoE pro matches',
-    'Age of Empires esports', 'AoE crypto betting', 'provably fair roulette',
-    // ES
-    'apuestas Age of Empires', 'apuestas AoE4', 'apuestas esports AoE',
-  ],
-  applicationName: 'AgeOfMoney',
-  authors: [{ name: 'AgeOfMoney', url: 'https://ageof.money' }],
-  creator: 'AgeOfMoney',
-  publisher: 'AgeOfMoney',
-  metadataBase: new URL('https://ageof.money'),
-  alternates: {
-    canonical: 'https://ageof.money',
-    languages: {
-      'fr': 'https://ageof.money',
-      'en': 'https://ageof.money',
-      'es': 'https://ageof.money',
-      'x-default': 'https://ageof.money',
-    },
-  },
-  robots: {
-    index: true,
-    follow: true,
-    nocache: false,
-    googleBot: {
-      index: true,
-      follow: true,
-      'max-snippet': -1,
-      'max-image-preview': 'large',
-      'max-video-preview': -1,
-    },
-  },
-  openGraph: {
+// ─── Locale-aware metadata ─────────────────────────────────────────────────
+// Discord/Twitter/etc. fetch the URL once from their crawler datacenters and
+// show the SAME preview to every recipient — we can't adapt per viewer there.
+// What we CAN do : look at the Accept-Language of the incoming request and
+// pick the best matching locale (fr / en / es). Browsers send it correctly,
+// most crawlers send `*` or nothing → we fall back to EN as the most
+// international description.
+type Locale = 'fr' | 'en' | 'es';
+
+function pickLocale(acceptLanguage: string | null): Locale {
+  if (!acceptLanguage) return 'en';
+  // Parse "fr-FR,fr;q=0.9,en-US;q=0.8" → ordered list of [lang, q]
+  const parts = acceptLanguage
+    .split(',')
+    .map(s => s.trim())
+    .map(s => {
+      const [tag, ...rest] = s.split(';');
+      const qMatch = rest.find(p => p.startsWith('q='));
+      const q = qMatch ? parseFloat(qMatch.slice(2)) : 1;
+      return { lang: tag.toLowerCase().split('-')[0], q: Number.isFinite(q) ? q : 1 };
+    })
+    .sort((a, b) => b.q - a.q);
+  for (const p of parts) {
+    if (p.lang === 'fr' || p.lang === 'en' || p.lang === 'es') return p.lang as Locale;
+  }
+  return 'en';
+}
+
+const META: Record<Locale, {
+  title: string;
+  description: string;
+  ogDescription: string;
+  twitterDescription: string;
+  ogLocale: string;
+  imageAlt: string;
+}> = {
+  fr: {
     title: 'AgeOfMoney — Paris esport Age of Empires',
     description:
+      "Paris en ligne sur les matchs pro Age of Empires (AoE4, AoE2, AoE3, AoM). Cotes en temps réel, roulette provably fair, dépôts crypto. La plateforme dédiée à la communauté AoE.",
+    ogDescription:
       "Paris en ligne sur les matchs pro Age of Empires (AoE4, AoE2, AoE3, AoM). Cotes live, roulette provably fair, dépôts crypto.",
-    type: 'website',
-    url: 'https://ageof.money',
-    siteName: 'AgeOfMoney',
-    images: [
-      {
-        url: '/banneraom.png',
-        width: 1200,
-        height: 630,
-        alt: 'AgeOfMoney — Paris esport Age of Empires',
-      },
-    ],
-    locale: 'fr_FR',
-    alternateLocale: ['en_US', 'es_ES'],
+    twitterDescription: "Paris sur les matchs pro Age of Empires. Cotes live, roulette",
+    ogLocale: 'fr_FR',
+    imageAlt: 'AgeOfMoney — Paris esport Age of Empires',
   },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'AgeOfMoney — Paris esport Age of Empires',
+  en: {
+    title: 'AgeOfMoney — Age of Empires esports betting',
     description:
-      "Paris sur les matchs pro Age of Empires. Cotes live, roulette",
-    images: ['/banneraom.png'],
-    site: '@ageofmoney',
-    creator: '@ageofmoney',
+      "Bet on pro Age of Empires matches (AoE4, AoE2, AoE3, AoM). Live odds, provably-fair roulette, crypto deposits. The betting platform built for the AoE community.",
+    ogDescription:
+      "Bet on pro Age of Empires matches (AoE4, AoE2, AoE3, AoM). Live odds, provably-fair roulette, crypto deposits.",
+    twitterDescription: "Bet on pro Age of Empires matches. Live odds, roulette, crypto.",
+    ogLocale: 'en_US',
+    imageAlt: 'AgeOfMoney — Age of Empires esports betting',
   },
-  category: 'esports betting',
-  icons: {
-    icon: [
-      { url: '/aomlogo.png', type: 'image/png' },
-    ],
-    apple: [
-      { url: '/aomlogo.png', type: 'image/png' },
-    ],
-    shortcut: ['/aomlogo.png'],
-  },
-  formatDetection: {
-    telephone: false,
-    email: false,
-    address: false,
-  },
-  other: {
-    'theme-color': '#07060f',
+  es: {
+    title: 'AgeOfMoney — Apuestas esports Age of Empires',
+    description:
+      "Apuestas en línea sobre los partidos profesionales de Age of Empires (AoE4, AoE2, AoE3, AoM). Cuotas en tiempo real, ruleta provably fair, depósitos en cripto.",
+    ogDescription:
+      "Apuestas en línea sobre los partidos profesionales de Age of Empires (AoE4, AoE2, AoE3, AoM). Cuotas en vivo, ruleta provably fair, depósitos en cripto.",
+    twitterDescription: "Apuestas en partidos profesionales de Age of Empires. Cuotas en vivo, ruleta.",
+    ogLocale: 'es_ES',
+    imageAlt: 'AgeOfMoney — Apuestas esports Age of Empires',
   },
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+  // headers() is async in Next 15+, sync in 14. Both shapes are accepted by
+  // an `await` (no-op on the sync flavor). Wrapping in try/catch covers
+  // either signature without locking us to a Next version.
+  let accept: string | null = null;
+  try {
+    const h = await headers();
+    accept = h.get('accept-language');
+  } catch {
+    /* SSG / no request context → fall through to default */
+  }
+  const lang = pickLocale(accept);
+  const m = META[lang];
+
+  return {
+    title: {
+      default: m.title,
+      template: '%s · AgeOfMoney',
+    },
+    description: m.description,
+    keywords: [
+      // FR — priority audience
+      'paris esport Age of Empires', 'paris AoE4', 'paris AoE2', 'paris Age of Empires',
+      'paris matchs AoE4', 'plateforme paris AoE', 'tournois AoE4', 'cotes AoE4',
+      'roulette AoE', 'paris crypto esport', 'AgeOfMoney',
+      // EN
+      'Age of Empires betting', 'AoE4 betting', 'AoE2 betting', 'AoE esports betting',
+      'Age of Empires 4 match betting', 'AoE tournament betting', 'AoE pro matches',
+      'Age of Empires esports', 'AoE crypto betting', 'provably fair roulette',
+      // ES
+      'apuestas Age of Empires', 'apuestas AoE4', 'apuestas esports AoE',
+    ],
+    applicationName: 'AgeOfMoney',
+    authors: [{ name: 'AgeOfMoney', url: 'https://ageof.money' }],
+    creator: 'AgeOfMoney',
+    publisher: 'AgeOfMoney',
+    metadataBase: new URL('https://ageof.money'),
+    alternates: {
+      canonical: 'https://ageof.money',
+      languages: {
+        'fr': 'https://ageof.money',
+        'en': 'https://ageof.money',
+        'es': 'https://ageof.money',
+        'x-default': 'https://ageof.money',
+      },
+    },
+    robots: {
+      index: true,
+      follow: true,
+      nocache: false,
+      googleBot: {
+        index: true,
+        follow: true,
+        'max-snippet': -1,
+        'max-image-preview': 'large',
+        'max-video-preview': -1,
+      },
+    },
+    openGraph: {
+      title: m.title,
+      description: m.ogDescription,
+      type: 'website',
+      url: 'https://ageof.money',
+      siteName: 'AgeOfMoney',
+      images: [
+        {
+          url: '/banneraom.png',
+          width: 1200,
+          height: 630,
+          alt: m.imageAlt,
+        },
+      ],
+      locale: m.ogLocale,
+      alternateLocale: (['fr_FR', 'en_US', 'es_ES'] as const).filter(l => l !== m.ogLocale),
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: m.title,
+      description: m.twitterDescription,
+      images: ['/banneraom.png'],
+      site: '@ageofmoney',
+      creator: '@ageofmoney',
+    },
+    category: 'esports betting',
+    icons: {
+      icon: [
+        { url: '/aomlogo.png', type: 'image/png' },
+      ],
+      apple: [
+        { url: '/aomlogo.png', type: 'image/png' },
+      ],
+      shortcut: ['/aomlogo.png'],
+    },
+    formatDetection: {
+      telephone: false,
+      email: false,
+      address: false,
+    },
+    other: {
+      'theme-color': '#07060f',
+    },
+  };
+}
 
 // Structured data for Google Rich Results — WebSite + Organization + FAQ schema
 const structuredData = {
