@@ -422,7 +422,7 @@ export default function DepositPage() {
 
           {/* USD AMOUNT INPUT */}
           <div>
-            <p className="text-[10px] font-cinzel tracking-widest text-aoe-parchment-dim uppercase mb-2">Montant en dollars</p>
+            <p className="text-[10px] font-cinzel tracking-widest text-aoe-parchment-dim uppercase mb-2">{t('deposit_usd_amount')}</p>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-aoe-gold text-xl font-bold">$</span>
               <input
@@ -437,14 +437,14 @@ export default function DepositPage() {
             </div>
             <p className="text-[10px] mt-1.5 text-right" style={{ color: usdCost > 0 && usdCost < 5 ? '#f87171' : '#3d3860' }}>
               {usdCost > 0 && usdCost < 5
-                ? `Minimum $5.00 — manque $${(5 - usdCost).toFixed(2)}`
-                : 'Minimum $5.00'}
+                ? `${t('deposit_min_5')} — $${(5 - usdCost).toFixed(2)}`
+                : t('deposit_min_5')}
             </p>
           </div>
 
           {/* PAYMENT METHOD */}
           <div>
-            <p className="text-[10px] font-cinzel tracking-widest text-aoe-parchment-dim uppercase mb-2">Méthode de paiement</p>
+            <p className="text-[10px] font-cinzel tracking-widest text-aoe-parchment-dim uppercase mb-2">{t('deposit_payment_method')}</p>
 
             <div className="space-y-2">
               {/* Option 1 — Crypto via OxaPay */}
@@ -480,10 +480,10 @@ export default function DepositPage() {
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline gap-2 mb-0.5">
-                      <span className="font-cinzel font-bold text-[15px] text-aoe-parchment">Payer en crypto</span>
-                      <span className="text-[9px] font-bold tracking-[0.2em] uppercase text-aoe-parchment-muted">via OxaPay</span>
+                      <span className="font-cinzel font-bold text-[15px] text-aoe-parchment">{t('deposit_method_crypto')}</span>
+                      <span className="text-[9px] font-bold tracking-[0.2em] uppercase text-aoe-parchment-muted">{t('deposit_method_crypto_via')}</span>
                     </div>
-                    <p className="text-[11px] text-aoe-parchment-muted">Crédit direct sur ton compte après confirmation réseau</p>
+                    <p className="text-[11px] text-aoe-parchment-muted">{t('deposit_method_crypto_desc')}</p>
                   </div>
 
                   <div className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center" style={{
@@ -500,7 +500,7 @@ export default function DepositPage() {
                       <CryptoLogo id={c.id} size={18} />
                     </div>
                   ))}
-                  <span className="text-[10px] text-aoe-parchment-muted ml-auto font-cinzel tracking-wide">+ autres</span>
+                  <span className="text-[10px] text-aoe-parchment-muted ml-auto font-cinzel tracking-wide">{t('deposit_more_cryptos')}</span>
                 </div>
               </button>
 
@@ -537,10 +537,10 @@ export default function DepositPage() {
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline gap-2 mb-0.5">
-                      <span className="font-cinzel font-bold text-[15px] text-aoe-parchment">Carte bancaire</span>
-                      <span className="text-[9px] font-bold tracking-[0.2em] uppercase text-aoe-parchment-muted">via MoonPay</span>
+                      <span className="font-cinzel font-bold text-[15px] text-aoe-parchment">{t('deposit_method_card')}</span>
+                      <span className="text-[9px] font-bold tracking-[0.2em] uppercase text-aoe-parchment-muted">{t('deposit_method_card_via')}</span>
                     </div>
-                    <p className="text-[11px] text-aoe-parchment-muted">Achète de la crypto par CB, puis dépose-la ici</p>
+                    <p className="text-[11px] text-aoe-parchment-muted">{t('deposit_method_card_desc')}</p>
                   </div>
 
                   <div className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center" style={{
@@ -577,7 +577,7 @@ export default function DepositPage() {
               {!promoApplied && (
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold normal-case"
                   style={{ background: 'rgba(52,211,153,0.12)', color: '#34d399', border: '1px solid rgba(52,211,153,0.35)' }}>
-                  +5% bonus coins
+                  {t('deposit_bonus_5pct')}
                 </span>
               )}
             </div>
@@ -649,7 +649,7 @@ export default function DepositPage() {
                         <ArrowDownToLine size={16} />
                         {totalCoins.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         <span style={{ fontSize: '1.4em', lineHeight: 1, color: '#07060f' }}>⚜︎</span>
-                        for ${usdCost.toFixed(2)}
+                        {t('deposit_for')} ${usdCost.toFixed(2)}
                       </>
               }
             </button>

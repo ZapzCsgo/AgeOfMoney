@@ -394,11 +394,14 @@ export default function WithdrawPage() {
         </div>
       </div>
 
-      {/* Page title */}
+      {/* Page title — drop the "(Processing...)" parenthesis that was reusing
+          the common loading label as a "processing delay" hint. The phrase
+          read literally as "Processing..." in every language and looked like
+          the page was loading. The 1,69 ⚜ = $0,99 rate is enough on its own. */}
       <div className="text-center mb-8">
         <h1 className="font-cinzel font-black text-3xl text-aoe-gold tracking-wider mb-2">{t('withdraw_title')}</h1>
         <p className="text-aoe-parchment-muted text-sm">
-          <span className="text-aoe-gold font-bold">1,69 ⚜ = $0,99</span> <span className="text-aoe-parchment-muted">({t('common_processing')})</span>
+          <span className="text-aoe-gold font-bold">1,69 ⚜ = $0,99</span>
         </p>
       </div>
 
@@ -511,18 +514,30 @@ export default function WithdrawPage() {
 
       {/* Step 3 — Wallet address */}
       <div className="aoe-card p-5 mb-6">
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
           <div className="w-6 h-6 rounded-full bg-aoe-gold/20 border border-aoe-border-gold flex items-center justify-center text-aoe-gold text-xs font-bold font-cinzel">3</div>
           <span className="font-cinzel text-sm font-bold text-aoe-gold tracking-wider">{t('withdraw_address').toUpperCase()} {crypto.symbol}</span>
+          {crypto.id === 'usdt' && (
+            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider"
+              style={{ background: 'rgba(38,161,123,0.15)', color: '#26A17B', border: '1px solid rgba(38,161,123,0.4)' }}>
+              TRC-20 only
+            </span>
+          )}
         </div>
 
         <input
           type="text"
           value={walletAddress}
           onChange={e => setWalletAddress(e.target.value)}
-          placeholder={`${t('withdraw_address')} ${crypto.symbol}...`}
+          placeholder={crypto.id === 'usdt' ? 'T...' : `${t('withdraw_address')} ${crypto.symbol}...`}
           className="w-full bg-aoe-stone/50 border border-aoe-border rounded px-4 py-3 text-aoe-parchment placeholder-aoe-parchment-muted outline-none focus:border-aoe-border-gold transition-colors font-mono text-sm"
         />
+        {crypto.id === 'usdt' && (
+          <p className="text-aoe-parchment-muted text-[11px] mt-2 flex items-center gap-1.5">
+            <span className="text-[#26A17B]">●</span>
+            <span>Réseau : <span className="font-bold text-aoe-parchment">Tron (TRC-20)</span> — adresse qui commence par <span className="font-mono text-aoe-gold">T</span>, 34 caractères. ERC-20 / BEP-20 / autres réseaux ne sont PAS supportés.</span>
+          </p>
+        )}
         <p className="text-aoe-parchment-muted text-xs mt-2 flex items-center gap-1">
           <AlertTriangle size={11} className="text-yellow-500" />
           {t('withdraw_warning')}
