@@ -555,11 +555,11 @@ export default function DepositPage() {
                   <div className="px-4 pb-3 pt-2 border-t text-[10px] text-aoe-parchment-muted leading-relaxed space-y-1" style={{ borderColor: 'rgba(30,26,48,0.8)', background: 'rgba(0,0,0,0.15)' }}>
                     <div className="flex gap-2">
                       <span className="text-[#ffc542] font-bold">1.</span>
-                      <span>On t'envoie sur MoonPay, tu achètes ${usdCost > 0 ? usdCost.toFixed(2) : '5.00'} d'USDT par CB.</span>
+                      <span>{t('deposit_moonpay_step_1').replace('{amount}', `$${usdCost > 0 ? usdCost.toFixed(2) : '5.00'}`)}</span>
                     </div>
                     <div className="flex gap-2">
                       <span className="text-[#ffc542] font-bold">2.</span>
-                      <span>Une fois l'USDT reçue sur ton wallet, reviens ici et utilise « Payer en crypto ».</span>
+                      <span>{t('deposit_moonpay_step_2')}</span>
                     </div>
                   </div>
                 )}

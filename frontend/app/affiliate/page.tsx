@@ -7,6 +7,7 @@ import { useSession } from 'next-auth/react';
 import { signInWithSteam } from '@/lib/authHelpers';
 import { apiClient, setAuthToken } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 import {
   Copy, Check, Users, TrendingUp, Coins, UserCheck, Rocket,
 } from 'lucide-react';
@@ -38,18 +39,20 @@ interface AffiliateData {
 
 type TabType = 'dashboard' | 'tiers';
 
-// 3-tier progressive revshare on net losses
+// 3-tier progressive revshare on net losses. The `descKey` points to the
+// i18n key — the actual translated string is read inside the component.
 const TIERS = [
-  { level: 'Bronze', rate: 0.25, refs:  0,  color: '#cd7f32', desc: 'Par défaut — dès ton premier code' },
-  { level: 'Silver', rate: 0.30, refs: 10,  color: '#c0c0c0', desc: '10 filleuls actifs + 10 000⚜ déposés' },
-  { level: 'Gold',   rate: 0.35, refs: 50,  color: '#ffc542', desc: '50 filleuls actifs + 50 000⚜ déposés' },
+  { level: 'Bronze', rate: 0.25, refs:  0,  color: '#cd7f32', descKey: 'aff_tier_bronze_desc' as const },
+  { level: 'Silver', rate: 0.30, refs: 10,  color: '#c0c0c0', descKey: 'aff_tier_silver_desc' as const },
+  { level: 'Gold',   rate: 0.35, refs: 50,  color: '#ffc542', descKey: 'aff_tier_gold_desc' as const },
 ];
 
 function EarningsChart({ data }: { data: number[] }) {
+  const { t } = useT();
   if (data.length < 2 || data.every(v => v === 0)) {
     return (
       <div className="flex items-center justify-center h-full">
-        <p className="text-[12px]" style={{ color: '#3d3860' }}>Pas encore de données</p>
+        <p className="text-[12px]" style={{ color: '#3d3860' }}>{t('aff_no_chart_data')}</p>
       </div>
     );
   }
@@ -79,6 +82,7 @@ function EarningsChart({ data }: { data: number[] }) {
 
 export default function AffiliatePage() {
   const { data: session, status } = useSession();
+  const { t } = useT();
 
   const [aff, setAff] = useState<AffiliateData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -265,7 +269,7 @@ export default function AffiliatePage() {
                   type="text"
                   value={customCode}
                   onChange={e => setCustomCode(e.target.value.replace(/[^A-Za-z0-9]/g, '').slice(0, 16))}
-                  placeholder="Choisis ton code (3-16 car.)"
+                  placeholder={t('aff_code_placeholder')}
                   maxLength={16}
                   className="px-4 py-2.5 rounded-lg text-[13px] font-mono tracking-widest w-full sm:w-60 outline-none"
                   style={{ background: '#13111f', border: '1px solid #2a2640', color: '#e8e2f5' }}
@@ -276,7 +280,7 @@ export default function AffiliatePage() {
                   className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold text-[13px] transition-opacity hover:opacity-80 disabled:opacity-40 w-full sm:w-auto justify-center"
                   style={{ background: '#ffc542', color: '#07060f' }}>
                   <Rocket size={14} />
-                  {creating ? 'Création...' : 'Créer mon code'}
+                  {creating ? t('aff_creating') : t('aff_create_code_btn')}
                 </button>
               </div>
             ) : editingCode ? (
@@ -285,7 +289,7 @@ export default function AffiliatePage() {
                   type="text"
                   value={newCodeInput}
                   onChange={e => setNewCodeInput(e.target.value.replace(/[^A-Za-z0-9]/g, '').slice(0, 16))}
-                  placeholder="Nouveau code"
+                  placeholder={t('aff_new_code_placeholder')}
                   maxLength={16}
                   className="px-4 py-2.5 rounded-lg text-[13px] font-mono tracking-widest w-full sm:w-60 outline-none"
                   style={{ background: '#13111f', border: '1px solid #2a2640', color: '#e8e2f5' }}
@@ -293,19 +297,19 @@ export default function AffiliatePage() {
                 <button onClick={changeCode} disabled={changing || !newCodeInput.trim()}
                   className="px-5 py-2.5 rounded-lg font-bold text-[13px] disabled:opacity-40"
                   style={{ background: '#ffc542', color: '#07060f' }}>
-                  {changing ? '...' : 'Confirmer'}
+                  {changing ? '...' : t('aff_confirm')}
                 </button>
                 <button onClick={() => { setEditingCode(false); setNewCodeInput(''); setChangeErr(null); }}
                   className="px-4 py-2.5 rounded-lg text-[12px]"
                   style={{ background: 'transparent', border: '1px solid #2a2640', color: '#8a82a8' }}>
-                  Annuler
+                  {t('aff_cancel')}
                 </button>
               </div>
             ) : (
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg"
                   style={{ background: '#13111f', border: '1px solid #2a2640' }}>
-                  <span className="text-[11px] uppercase tracking-widest" style={{ color: '#6b6488' }}>Code</span>
+                  <span className="text-[11px] uppercase tracking-widest" style={{ color: '#6b6488' }}>{t('aff_code_label')}</span>
                   <span className="text-[14px] font-mono font-bold tracking-widest" style={{ color: '#ffc542' }}>
                     {aff.code}
                   </span>
@@ -326,14 +330,14 @@ export default function AffiliatePage() {
                       <button onClick={() => setEditingCode(true)}
                         className="text-[11px] px-3 py-2 rounded-lg hover:opacity-80"
                         style={{ background: 'transparent', border: '1px solid #2a2640', color: '#8a82a8' }}>
-                        Modifier le code
+                        {t('aff_edit_code')}
                       </button>
                     );
                   }
                   const daysLeft = Math.ceil((unlocksAt!.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
                   return (
                     <span className="text-[11px] px-3 py-2 rounded-lg" style={{ background: '#13111f', color: '#6b6488', border: '1px solid #1a1730' }}>
-                      modifiable dans {daysLeft}j
+                      {t('aff_modifiable_in').replace('{days}', String(daysLeft))}
                     </span>
                   );
                 })()}
@@ -352,8 +356,8 @@ export default function AffiliatePage() {
         {/* ── Tabs ── */}
         <div className="flex items-center gap-1 p-1 rounded-xl w-fit" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
           {(session
-            ? [['dashboard', 'Dashboard'], ['tiers', 'Tiers']]
-            : [['tiers', 'Tiers']]
+            ? [['dashboard', t('aff_tab_dashboard')], ['tiers', t('aff_tab_tiers')]]
+            : [['tiers', t('aff_tab_tiers')]]
           ).map(([id, label]) => (
             <button key={id} onClick={() => setActiveTab(id as TabType)}
               className="px-4 md:px-5 py-2 rounded-lg text-[12px] font-medium transition-all"
@@ -375,8 +379,8 @@ export default function AffiliatePage() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <div className="lg:col-span-2 rounded-xl p-5" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
                     <div className="flex items-center justify-between mb-1">
-                      <p className="text-[11px] uppercase tracking-widest" style={{ color: '#6b6488' }}>Commissions gagnées</p>
-                      <span className="text-[10px] px-2 py-0.5 rounded" style={{ background: '#1a1630', color: '#6b6488' }}>7 jours</span>
+                      <p className="text-[11px] uppercase tracking-widest" style={{ color: '#6b6488' }}>{t('aff_commissions_earned')}</p>
+                      <span className="text-[10px] px-2 py-0.5 rounded" style={{ background: '#1a1630', color: '#6b6488' }}>{t('aff_7_days')}</span>
                     </div>
                     <p className="text-2xl font-bold mb-5" style={{ color: '#ffc542', fontFamily: 'Cinzel,serif' }}>
                       ⚜ {aff.totalEarnings.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
@@ -398,10 +402,10 @@ export default function AffiliatePage() {
                         <button onClick={claim} disabled={claiming || aff.available === 0}
                           className="px-3 py-1.5 rounded-lg text-[11px] font-bold disabled:opacity-40"
                           style={{ background: '#ffc542', color: '#07060f' }}>
-                          {claiming ? '...' : 'Réclamer'}
+                          {claiming ? '...' : t('aff_claim')}
                         </button>
                       </div>
-                      <p className="text-[11px]" style={{ color: '#6b6488' }}>Disponible</p>
+                      <p className="text-[11px]" style={{ color: '#6b6488' }}>{t('aff_available')}</p>
                       {claimMsg && (
                         <p className={cn('text-[11px] mt-2', claimMsg.type === 'ok' ? 'text-emerald-400' : 'text-red-400')}>
                           {claimMsg.text}
@@ -416,7 +420,7 @@ export default function AffiliatePage() {
                           {aff.totalEarnings.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                         </span>
                       </div>
-                      <p className="text-[11px]" style={{ color: '#6b6488' }}>Total gagné</p>
+                      <p className="text-[11px]" style={{ color: '#6b6488' }}>{t('aff_total_earned')}</p>
                     </div>
 
                     <div className="rounded-xl p-4" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
@@ -426,7 +430,7 @@ export default function AffiliatePage() {
                           {aff.totalReferrals}
                         </span>
                       </div>
-                      <p className="text-[11px]" style={{ color: '#6b6488' }}>Filleuls total</p>
+                      <p className="text-[11px]" style={{ color: '#6b6488' }}>{t('aff_total_referrals')}</p>
                     </div>
 
                     <div className="rounded-xl p-4" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
@@ -436,7 +440,7 @@ export default function AffiliatePage() {
                           {aff.activeReferrals}
                         </span>
                       </div>
-                      <p className="text-[11px]" style={{ color: '#6b6488' }}>Filleuls actifs</p>
+                      <p className="text-[11px]" style={{ color: '#6b6488' }}>{t('aff_active_referrals')}</p>
                     </div>
                   </div>
                 </div>
@@ -444,7 +448,7 @@ export default function AffiliatePage() {
                 {/* Referrals table */}
                 <div className="rounded-xl overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
                   <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: '1px solid #1e1a30' }}>
-                    <h3 className="text-[12px] font-bold uppercase tracking-wider" style={{ color: '#e8e2f5' }}>Filleuls</h3>
+                    <h3 className="text-[12px] font-bold uppercase tracking-wider" style={{ color: '#e8e2f5' }}>{t('aff_referrals')}</h3>
                     <div className="flex items-center gap-1">
                       {(['all', 'active'] as const).map(f => (
                         <button key={f} onClick={() => setReferralFilter(f)}
@@ -454,7 +458,7 @@ export default function AffiliatePage() {
                             color: referralFilter === f ? '#e8e2f5' : '#6b6488',
                             border: `1px solid ${referralFilter === f ? '#2a2640' : 'transparent'}`,
                           }}>
-                          {f === 'all' ? 'Tous' : 'Actifs'}
+                          {f === 'all' ? t('aff_filter_all') : t('aff_filter_active')}
                         </button>
                       ))}
                     </div>
@@ -463,9 +467,13 @@ export default function AffiliatePage() {
                   {filteredReferrals.length === 0 ? (
                     <div className="text-center py-12">
                       <Users size={24} className="mx-auto mb-3" style={{ color: '#3d3860' }} />
-                      <p className="text-[13px]" style={{ color: '#6b6488' }}>Aucun filleul pour le moment</p>
+                      <p className="text-[13px]" style={{ color: '#6b6488' }}>{t('aff_no_referrals')}</p>
                       <p className="text-[11px] mt-1" style={{ color: '#4a4468' }}>
-                        Partage ton code <span style={{ color: '#ffc542' }}>{aff.code}</span> pour commencer à gagner
+                        {t('aff_share_to_earn').split('{code}').map((part, i, arr) =>
+                          i < arr.length - 1
+                            ? <span key={i}>{part}<span style={{ color: '#ffc542' }}>{aff.code}</span></span>
+                            : <span key={i}>{part}</span>
+                        )}
                       </p>
                     </div>
                   ) : (
@@ -492,7 +500,7 @@ export default function AffiliatePage() {
                               color: r.isActive ? '#22c55e' : '#4a4468',
                               border: `1px solid ${r.isActive ? '#22c55e33' : '#2a2640'}`,
                             }}>
-                            {r.isActive ? 'Actif' : 'Inactif'}
+                            {r.isActive ? t('aff_status_active') : t('aff_status_inactive')}
                           </span>
                           <span className="text-[12px]" style={{ color: '#e8e2f5' }}>
                             {r.totalDeposited.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}⚜
@@ -512,14 +520,14 @@ export default function AffiliatePage() {
             {!aff && session && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {[
-                  { n: '01', t: 'Génère ton code', d: 'Un clic. Choisis un code custom ou laisse-nous en générer un.' },
-                  { n: '02', t: 'Partage-le', d: 'Stream, Discord, Twitter, Reddit, TikTok... à toi de jouer.' },
-                  { n: '03', t: 'Encaisse', d: 'Commission créditée en temps réel à chaque pari résolu.' },
+                  { n: '01', titleKey: 'aff_step_1_title' as const, descKey: 'aff_step_1_desc' as const },
+                  { n: '02', titleKey: 'aff_step_2_title' as const, descKey: 'aff_step_2_desc' as const },
+                  { n: '03', titleKey: 'aff_step_3_title' as const, descKey: 'aff_step_3_desc' as const },
                 ].map(step => (
                   <div key={step.n} className="p-5 rounded-xl" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
                     <span className="text-[32px] font-black" style={{ color: '#1a1630', fontFamily: 'Cinzel,serif' }}>{step.n}</span>
-                    <h3 className="font-bold text-[14px] mt-1 mb-2" style={{ color: '#e8e2f5' }}>{step.t}</h3>
-                    <p className="text-[12px]" style={{ color: '#8a82a8' }}>{step.d}</p>
+                    <h3 className="font-bold text-[14px] mt-1 mb-2" style={{ color: '#e8e2f5' }}>{t(step.titleKey)}</h3>
+                    <p className="text-[12px]" style={{ color: '#8a82a8' }}>{t(step.descKey)}</p>
                   </div>
                 ))}
               </div>
@@ -531,8 +539,7 @@ export default function AffiliatePage() {
         {activeTab === 'tiers' && (
           <div className="space-y-3">
             <p className="text-[12px]" style={{ color: '#8a82a8' }}>
-              Tu gagnes <span className="font-bold" style={{ color: '#e8e2f5' }}>X% des pertes nettes</span> de
-              chaque filleul (pas des dépôts). Plus tu en ramènes, plus ton taux monte.
+              {t('aff_tiers_intro_part1')} <span className="font-bold" style={{ color: '#e8e2f5' }}>{t('aff_tiers_intro_part2')}</span> {t('aff_tiers_intro_part3')}
             </p>
             {TIERS.map((tier) => {
               const isCurrent = aff ? Math.abs(aff.commissionRate - tier.rate) < 1e-9 : tier.rate === TIERS[0].rate;
@@ -558,18 +565,18 @@ export default function AffiliatePage() {
                           {isCurrent && (
                             <span className="text-[9px] font-bold px-2 py-0.5 rounded-full"
                               style={{ background: `${tier.color}30`, color: tier.color, border: `1px solid ${tier.color}60` }}>
-                              ACTUEL
+                              {t('aff_current_badge')}
                             </span>
                           )}
                         </div>
-                        <p className="text-[11px] mt-0.5" style={{ color: '#8a82a8' }}>{tier.desc}</p>
+                        <p className="text-[11px] mt-0.5" style={{ color: '#8a82a8' }}>{t(tier.descKey)}</p>
                       </div>
                     </div>
                     <div className="text-right">
                       <p className="text-[28px] md:text-[32px] font-black" style={{ color: tier.color, fontFamily: 'Cinzel,serif' }}>
                         {Math.round(tier.rate * 100)}%
                       </p>
-                      <p className="text-[10px]" style={{ color: '#4a4468' }}>des pertes nettes</p>
+                      <p className="text-[10px]" style={{ color: '#4a4468' }}>{t('aff_of_net_losses')}</p>
                     </div>
                   </div>
                 </div>
