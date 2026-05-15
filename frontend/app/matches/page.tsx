@@ -148,6 +148,11 @@ function MatchRow({ match }: { match: Match }) {
                 </p>
               )}
               <span className="text-[8px] font-bold text-[#4a4570] tracking-wider">FIN</span>
+              {/* Finished-at date : short locale-aware ("24 avr.") so users
+                  can tell how old the result is at a glance. */}
+              <span className="text-[8px] text-[#3d3860] tabular-nums whitespace-nowrap" title={new Date(match.updatedAt).toLocaleString()}>
+                {new Date(match.updatedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
+              </span>
             </>
           ) : (
             <>

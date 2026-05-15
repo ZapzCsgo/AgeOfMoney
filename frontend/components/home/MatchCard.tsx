@@ -82,9 +82,17 @@ export function MatchCard({ match }: MatchCardProps) {
                 <span className="text-[10px] text-red-400 font-bold tracking-wider">LIVE</span>
               </div>
             ) : isCompleted ? (
-              <span className="text-[10px] text-[#6b6488] font-semibold tracking-wider uppercase border border-[#2a2540] rounded px-1.5 py-0.5">
-                Terminé
-              </span>
+              <div className="flex items-center gap-1.5">
+                {/* Finished-at date — uses match.updatedAt because the row is
+                    touched once when the result is settled (the COMPLETED
+                    transition). Short locale-aware format like "24 avr.". */}
+                <span className="text-[10px] text-[#6b6488] tabular-nums" title={new Date(match.updatedAt).toLocaleString()}>
+                  {new Date(match.updatedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
+                </span>
+                <span className="text-[10px] text-[#6b6488] font-semibold tracking-wider uppercase border border-[#2a2540] rounded px-1.5 py-0.5">
+                  Terminé
+                </span>
+              </div>
             ) : (
               <span className="text-aoe-parchment-dim text-xs tabular-nums">{countdown}</span>
             )}
