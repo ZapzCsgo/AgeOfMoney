@@ -509,14 +509,20 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* Tabs */}
-        <div className="flex gap-1 mb-6" style={{ borderBottom: '1px solid #1e1a30' }}>
+        {/* Tabs — horizontal scroll on mobile so the 9 tabs aren't clipped
+            (only 3 fit on a 375 px viewport otherwise). scrollbar-hide keeps
+            the strip clean ; whitespace-nowrap + shrink-0 prevent the labels
+            from wrapping or collapsing. */}
+        <div
+          className="flex gap-1 mb-6 overflow-x-auto scrollbar-hide -mx-6 px-6 sm:mx-0 sm:px-0"
+          style={{ borderBottom: '1px solid #1e1a30' }}
+        >
           {tabs.map(t => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
               className={cn(
-                'flex items-center gap-2 px-4 py-2.5 text-[12px] font-medium transition-all border-b-2 -mb-px',
+                'shrink-0 flex items-center gap-2 px-4 py-2.5 text-[12px] font-medium transition-all border-b-2 -mb-px whitespace-nowrap',
                 tab === t.id
                   ? 'border-[#ffc542] text-[#ffc542]'
                   : 'border-transparent text-[#6b6488] hover:text-[#c8c0e0]'
