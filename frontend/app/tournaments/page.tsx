@@ -265,11 +265,23 @@ export default function TournamentsPage() {
   const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
   const oneWeekAgo  = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const isRecentlyFinished = (t: Tournament) => isEnded(t) && t.endDate && new Date(t.endDate) >= twoHoursAgo;
-  // A tournament whose endDate is older than 7 days is considered stale —
-  // hide it from every tab (including "Finished") to keep the page focused
-  // on the current season. The data stays in DB ; the admin panel still
-  // exposes it.
-  const isStaleFinished = (t: Tournament) => isEnded(t) && (!t.endDate || new Date(t.endDate) < oneWeekAgo);
+
+  // "Finished" predicate aligned with the rendering logic (see line ~462) :
+  // a tournament is finished if endDate < now OR if it has started and is
+  // no longer active. Many older tournaments in DB have NO endDate set —
+  // they were finished via the "!isActive && hasStarted" path — so the
+  // previous endDate-only check missed them entirely.
+  const isFinishedAnyWay = (t: Tournament) =>
+    isEnded(t) || (!isReallyActive(t) && new Date(t.startDate) <= now);
+
+  // A tournament finished more than 7 days ago is hidden from every tab.
+  // When endDate is missing we fall back to startDate as the age reference
+  // (a tournament that started > 7d ago and is no longer active is stale).
+  const isStaleFinished = (t: Tournament) => {
+    if (!isFinishedAnyWay(t)) return false;
+    const ref = t.endDate ? new Date(t.endDate) : new Date(t.startDate);
+    return ref < oneWeekAgo;
+  };
 
   const filtered = processed
     .filter(t => {
