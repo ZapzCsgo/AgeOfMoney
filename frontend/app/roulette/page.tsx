@@ -216,6 +216,18 @@ function RoulettePageImpl() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
+  // Recovery polling — if we don't have an active BETTING round (round is
+  // null, or stuck on COMPLETED/SPINNING for too long), re-fetch every 2 s
+  // until we land on a fresh BETTING round. Catches the gap where the user
+  // arrives between rounds (post-result animation but before `startRound`
+  // fires on the backend) OR when the `roulette:roundStart` socket event
+  // was missed (mobile screen lock, flaky wifi, backend cycle hiccup).
+  useEffect(() => {
+    if (round?.status === 'BETTING') return; // happy path → no polling
+    const id = setInterval(() => { fetchAll(); }, 2000);
+    return () => clearInterval(id);
+  }, [round?.status, fetchAll]);
+
   // Flush a pending result (set when the tab was hidden) — snaps the wheel
   // to the final prize without animation, plays the post-result effects.
   const applyPendingResult = useCallback(() => {
