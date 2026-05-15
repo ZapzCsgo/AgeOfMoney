@@ -124,7 +124,7 @@ export function MobileNav() {
                 )}
               >
                 <Icon size={20} />
-                <span className="text-[9px] font-medium uppercase tracking-wider truncate max-w-[48px]">
+                <span className="text-[9px] font-medium uppercase tracking-wide truncate max-w-[68px]">
                   {label}
                 </span>
                 {active && (

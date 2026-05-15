@@ -587,7 +587,7 @@ function RoulettePageImpl() {
         </div>
 
         {/* History + Zone stats */}
-        <div className="flex items-start gap-3 mb-5">
+        <div className="flex items-start gap-3 mb-3 sm:mb-5">
           {/* Scrollable history icons */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 flex-1 min-w-0">
             <span className="text-[10px] uppercase tracking-widest text-[#6b6488] shrink-0">{t('roulette_history')}</span>
@@ -604,13 +604,15 @@ function RoulettePageImpl() {
             })}
           </div>
 
-          {/* Last 50 zone stats */}
+          {/* Last 50 zone stats — hidden on mobile (the chip strip on the left already
+              conveys recent results ; the stats card was duplicating the same "Last 50
+              rolls" label and eating ~140px of mobile width). Re-shown from sm: up. */}
           {history.length > 0 && (() => {
             const last50 = history.slice(0, 50);
             const total = last50.length;
             return (
-              <div className="shrink-0 flex flex-col gap-1 rounded-xl p-2.5" style={{ background:'#0d0b1a', border:'1px solid #1e1a30', minWidth: 130 }}>
-                <span className="text-[9px] uppercase tracking-widest text-[#6b6488] mb-0.5">{t('roulette_history')}</span>
+              <div className="hidden sm:flex shrink-0 flex-col gap-1 rounded-xl p-2.5" style={{ background:'#0d0b1a', border:'1px solid #1e1a30', minWidth: 130 }}>
+                <span className="text-[9px] uppercase tracking-widest text-[#6b6488] mb-0.5">Stats</span>
                 {(['KNIGHTS','EMPEROR','ARCHERS'] as Zone[]).map(zone => {
                   const z = ZONES[zone];
                   const Icon = z.icon;
@@ -632,7 +634,7 @@ function RoulettePageImpl() {
         </div>
 
         {/* Wheel card */}
-        <div className="rounded-2xl mb-5 overflow-hidden" style={{ background:'#0d0b1a', border:'1px solid #1e1a30' }}>
+        <div className="rounded-2xl mb-3 sm:mb-5 overflow-hidden" style={{ background:'#0d0b1a', border:'1px solid #1e1a30' }}>
 
           {/* Status bar */}
           <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom:'1px solid #1e1a30' }}>
@@ -648,10 +650,15 @@ function RoulettePageImpl() {
           </div>
 
           {/* Wheel */}
-          <div className="py-6 flex flex-col items-center">
+          <div className="py-3 sm:py-6 flex flex-col items-center">
 
-            {/* Timer — circular progress ring */}
-            <div className="h-16 flex items-center justify-center mb-3">
+            {/* Timer — circular progress ring. Container collapses to 0 when no
+                countdown is active (round in SPINNING or RESULT phase) — was a
+                permanent 64 px slot reserving dead space on mobile. */}
+            <div className={cn(
+              'flex items-center justify-center transition-all',
+              isBetting && countdown > 0 ? 'h-16 mb-3' : 'h-0',
+            )}>
               {isBetting && countdown > 0 && (() => {
                 const max = countdownMaxRef.current;
                 const progress = max > 0 ? countdownExact / max : 0;
@@ -798,9 +805,11 @@ function RoulettePageImpl() {
                 </div>
               )}
 
-              {/* Fades — narrow so items stay visible during spin */}
-              <div className="absolute inset-y-0 left-0 w-10 z-10 pointer-events-none" style={{ background:'linear-gradient(to right,rgba(13,11,26,0.85),transparent)' }} />
-              <div className="absolute inset-y-0 right-0 w-10 z-10 pointer-events-none" style={{ background:'linear-gradient(to left,rgba(13,11,26,0.85),transparent)' }} />
+              {/* Fades — wider on mobile so the half-cards at the wheel edges
+                  blend out instead of hard-clipping. Items in the middle stay
+                  fully visible (the bar indicator is at left:50%). */}
+              <div className="absolute inset-y-0 left-0 w-16 sm:w-10 z-10 pointer-events-none" style={{ background:'linear-gradient(to right,rgba(13,11,26,0.98) 0%,rgba(13,11,26,0.85) 40%,transparent 100%)' }} />
+              <div className="absolute inset-y-0 right-0 w-16 sm:w-10 z-10 pointer-events-none" style={{ background:'linear-gradient(to left,rgba(13,11,26,0.98) 0%,rgba(13,11,26,0.85) 40%,transparent 100%)' }} />
 
               {/* Wheel powered by react-roulette-pro with custom designPlugin */}
               {/* The CSS overrides below kill the lib's default 205x174 boxes,    */}
