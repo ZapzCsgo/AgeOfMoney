@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
 import { signInWithSteam } from '@/lib/authHelpers';
-import { ChevronDown, User, LogOut, Shield, Wallet, PlusCircle, Crown, Bell, Gift, TrendingUp } from 'lucide-react';
+import { ChevronDown, User, LogOut, Shield, Wallet, PlusCircle, Crown, Bell, Gift, TrendingUp, ArrowDownToLine } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -353,6 +353,24 @@ export function Navbar() {
                       >
                         <User size={14} className="text-aoe-gold" />
                         {t('auth_my_profile')}
+                      </Link>
+                      {/* Deposit / Withdraw — mobile only. Desktop already exposes
+                          these via the sidebar so the dropdown stays clean there. */}
+                      <Link
+                        href="/deposit"
+                        className="flex items-center gap-2 px-4 py-2 text-sm text-aoe-parchment hover:bg-aoe-stone transition-colors md:hidden"
+                        onClick={() => setDropdownOpen(false)}
+                      >
+                        <PlusCircle size={14} className="text-emerald-400" />
+                        {t('nav_deposit')}
+                      </Link>
+                      <Link
+                        href="/withdraw"
+                        className="flex items-center gap-2 px-4 py-2 text-sm text-aoe-parchment hover:bg-aoe-stone transition-colors md:hidden"
+                        onClick={() => setDropdownOpen(false)}
+                      >
+                        <ArrowDownToLine size={14} className="text-aoe-gold" />
+                        {t('nav_withdraw') || 'Withdraw'}
                       </Link>
                       <Link
                         href="/affiliate"
