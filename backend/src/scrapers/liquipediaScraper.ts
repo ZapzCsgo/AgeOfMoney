@@ -285,6 +285,15 @@ async function fetchHtml(url: string, retries = 3): Promise<string | null> {
     return mwHtml;
   }
 
+  // If the MW API call just tripped the breaker (429/503), hammering the
+  // direct HTML URL would only escalate the backoff for the same incident
+  // (count→2, 5min→15min). Bail out and let the next cron tick retry
+  // after the breaker window expires.
+  if (isLpBlocked()) {
+    logger.info(`[Liquipedia] Skipping direct HTML fallback — MediaWiki API just tripped the breaker (url=${url})`);
+    return null;
+  }
+
   // Fallback: direct HTML fetch — NO retry on 429 (retrying a rate-limited
   // request just extends the IP ban). Only retry on transient errors.
   for (let attempt = 1; attempt <= retries; attempt++) {
