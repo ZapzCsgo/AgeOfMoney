@@ -71,7 +71,7 @@ function Hero() {
             sur sources officielles.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
+          <div className="pt-1">
             <Link
               href="/tournaments"
               className={cn(
@@ -82,16 +82,6 @@ function Hero() {
             >
               Voir les tournois
               <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
-            </Link>
-            <Link
-              href="/how-it-works"
-              className={cn(
-                'inline-flex items-center justify-center gap-2 px-5 py-3 rounded-sm cursor-pointer',
-                'font-ui font-semibold text-[12px] tracking-[0.18em] uppercase text-tft-text-dim',
-                'border border-tft-border bg-tft-bg-card hover:border-tft-purple/60 hover:text-tft-text transition-colors',
-              )}
-            >
-              Comment ça marche
             </Link>
           </div>
 

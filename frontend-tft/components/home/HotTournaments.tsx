@@ -18,16 +18,26 @@ import { getTftTournaments, type TftTournament } from '@/lib/api';
  */
 export function HotTournaments() {
   const [tournaments, setTournaments] = useState<TftTournament[] | null>(null);
+  const [error, setError]             = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     Promise.all([
       getTftTournaments({ status: 'live',     limit: 3 }),
       getTftTournaments({ status: 'upcoming', limit: 6 }),
-    ]).then(([live, upcoming]) => {
-      if (cancelled) return;
-      setTournaments([...live, ...upcoming].slice(0, 6));
-    });
+    ])
+      .then(([live, upcoming]) => {
+        if (cancelled) return;
+        setTournaments([...live, ...upcoming].slice(0, 6));
+      })
+      .catch((e) => {
+        // Without this catch the promise rejects silently and the UI
+        // stays on its skeleton state forever — looks broken. CORS
+        // rejections and 500s from the backend both surface here.
+        if (cancelled) return;
+        setTournaments([]);
+        setError(e instanceof Error ? e.message : 'Erreur réseau');
+      });
     return () => { cancelled = true; };
   }, []);
 

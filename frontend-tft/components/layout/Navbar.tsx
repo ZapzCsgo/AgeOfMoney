@@ -68,7 +68,6 @@ const NAV_LINKS = [
   { href: '/', label: 'Accueil' },
   { href: '/tournaments', label: 'Tournois' },
   { href: '/matches', label: 'Matchs' },
-  { href: '/how-it-works', label: 'Comment ça marche' },
 ];
 
 export function Navbar() {
