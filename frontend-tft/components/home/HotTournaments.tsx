@@ -35,29 +35,28 @@ export function HotTournaments() {
     <section className="relative border-t border-tft-border bg-tft-bg">
       <div className="absolute inset-0 bg-hex-grid opacity-[0.03] pointer-events-none" aria-hidden="true" />
       <div className="relative max-w-7xl mx-auto px-4 md:px-6 py-10">
-        <div className="flex items-end justify-between mb-5">
+        <div className="flex items-end justify-between mb-4">
           <div>
-            <p className="font-ui text-[10px] tracking-[0.22em] uppercase text-tft-rose-bright font-bold mb-1 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-tft-rose animate-pulse-live" />
-              Tournois chauds
+            <p className="font-ui text-[10px] tracking-[0.22em] uppercase text-tft-text-muted mb-1">
+              Live + à venir
             </p>
-            <h2 className="font-display font-bold text-2xl md:text-3xl text-tft-text leading-tight">
-              Ouverts aux paris
+            <h2 className="font-display font-semibold text-xl md:text-2xl text-tft-text leading-tight">
+              Tournois ouverts aux paris
             </h2>
           </div>
           <Link
             href="/tournaments"
-            className="hidden md:inline-flex items-center gap-1 text-tft-text-dim hover:text-tft-cyan-bright transition-colors text-sm font-ui"
+            className="hidden md:inline-flex items-center gap-1 text-tft-text-dim hover:text-tft-text transition-colors text-xs font-ui tracking-wider uppercase"
           >
-            Tous les tournois
-            <ChevronRight size={14} />
+            Tous
+            <ChevronRight size={12} />
           </Link>
         </div>
 
         {tournaments === null && <GridSkeleton />}
 
         {tournaments && tournaments.length === 0 && (
-          <div className="rounded-xl border border-tft-border bg-tft-bg-card/50 p-8 text-center text-sm text-tft-text-muted">
+          <div className="rounded-md border border-tft-border bg-tft-bg-card/50 p-8 text-center text-sm text-tft-text-muted">
             Aucun tournoi S/A ouvert pour l&apos;instant. Reviens dans 30 min — le scraper Liquipedia tourne en boucle.
           </div>
         )}
@@ -81,30 +80,31 @@ function Card({ t }: { t: TftTournament }) {
     <Link
       href={`/tournaments/${t.id}`}
       className={cn(
-        'group relative rounded-xl p-4 transition-all cursor-pointer',
-        'bg-card-arcane border border-tft-border',
-        'hover:border-tft-purple/60 hover:shadow-arcane-md hover:-translate-y-0.5',
+        'group relative rounded-md p-4 transition-colors cursor-pointer',
+        'bg-tft-bg-card border border-tft-border',
+        'hover:border-tft-purple/60',
       )}
     >
-      {isLive && (
-        <div className="absolute top-3 left-3 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-tft-rose/20 border border-tft-rose/50 font-ui text-[9px] tracking-[0.18em] uppercase text-tft-rose-bright shadow-live">
-          <span className="w-1 h-1 rounded-full bg-tft-rose animate-pulse-live" />
-          Live
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="font-ui text-[10px] tracking-wider uppercase text-tft-text-muted">
+            {t.tier}-Tier
+          </span>
+          {isLive && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm bg-tft-rose/15 border border-tft-rose/40 font-ui text-[9px] tracking-[0.16em] uppercase text-tft-rose-bright">
+              <span className="w-1 h-1 rounded-full bg-tft-rose animate-pulse-live" />
+              Live
+            </span>
+          )}
         </div>
-      )}
-
-      <div className="flex items-start justify-between mb-3 pt-4">
-        <span className="font-ui text-[10px] tracking-wider uppercase text-tft-text-muted">
-          {t.tier}-Tier
-        </span>
         {!isLive && (
-          <span className="font-ui text-[10px] tracking-wider uppercase text-tft-cyan-bright">
+          <span className="font-ui text-[10px] tracking-wider uppercase text-tft-text-dim">
             {startLabel}
           </span>
         )}
       </div>
 
-      <h3 className="font-display font-semibold text-base text-tft-text leading-snug mb-3 min-h-[2.5rem] group-hover:text-arcane transition-all">
+      <h3 className="font-display font-semibold text-base text-tft-text leading-snug mb-3 min-h-[2.5rem] group-hover:text-tft-purple-bright transition-colors">
         {t.name}
       </h3>
 
@@ -146,7 +146,7 @@ function GridSkeleton() {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
       {[0, 1, 2, 3, 4, 5].map((i) => (
-        <div key={i} className="rounded-xl p-4 bg-card-arcane border border-tft-border animate-pulse">
+        <div key={i} className="rounded-md p-4 bg-card-arcane border border-tft-border animate-pulse">
           <div className="h-3 w-12 mb-3 rounded bg-tft-bg-elevated" />
           <div className="h-5 w-3/4 mb-2 rounded bg-tft-bg-elevated" />
           <div className="h-5 w-1/2 mb-3 rounded bg-tft-bg-elevated" />
