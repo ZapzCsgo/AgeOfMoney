@@ -131,6 +131,36 @@ const config: Config = {
           from: { transform: 'rotate(0deg)' },
           to:   { transform: 'rotate(360deg)' },
         },
+        // ── Gambling-vibe animations (refonte home 2026-05-29) ──────────
+        // Coin falling from top of viewport to bottom, with a slow rotation
+        // for a "rain of gold" background ambiance. Used by CoinRain.
+        'coin-fall': {
+          '0%':   { transform: 'translateY(-10vh) rotate(0deg)',   opacity: '0' },
+          '10%':  { opacity: '0.55' },
+          '90%':  { opacity: '0.45' },
+          '100%': { transform: 'translateY(110vh) rotate(360deg)', opacity: '0' },
+        },
+        // Slow shimmer + soft glow on primary CTA so the eye is always
+        // pulled to "JOUER MAINTENANT" even when nothing else is moving.
+        'glow-cta': {
+          '0%, 100%': { boxShadow: '0 0 18px rgba(244,63,94,0.45), 0 0 8px rgba(244,63,94,0.25)' },
+          '50%':      { boxShadow: '0 0 36px rgba(244,63,94,0.7),  0 0 18px rgba(244,63,94,0.4)' },
+        },
+        // Activity feed entries — drop from above with a fade
+        'slide-in-top': {
+          from: { opacity: '0', transform: 'translateY(-12px)' },
+          to:   { opacity: '1', transform: 'translateY(0)' },
+        },
+        // Hot pick badge — fast pulse like "look at me"
+        'badge-pulse': {
+          '0%, 100%': { transform: 'scale(1)',    boxShadow: '0 0 8px rgba(251,191,36,0.6)'  },
+          '50%':      { transform: 'scale(1.05)', boxShadow: '0 0 18px rgba(251,191,36,0.9)' },
+        },
+        // Number ticker — flash green briefly when an animated counter ticks up
+        'num-tick': {
+          '0%':   { color: '#34d399', textShadow: '0 0 8px rgba(52,211,153,0.6)' },
+          '100%': { color: 'inherit', textShadow: 'none' },
+        },
       },
       animation: {
         'hex-pulse':      'hex-pulse 6s ease-in-out infinite',
@@ -144,6 +174,11 @@ const config: Config = {
         shimmer:          'shimmer 2.4s linear infinite',
         'border-arcane':  'border-arcane 3s ease-in-out infinite',
         'spin-slow':      'spin-slow 12s linear infinite',
+        'coin-fall':      'coin-fall var(--coin-duration,8s) linear infinite',
+        'glow-cta':       'glow-cta 2.4s ease-in-out infinite',
+        'slide-in-top':   'slide-in-top 0.35s ease-out',
+        'badge-pulse':    'badge-pulse 1.6s ease-in-out infinite',
+        'num-tick':       'num-tick 0.7s ease-out',
       },
       backgroundImage: {
         // Hero gradient — the void deepening into purple toward the centre
