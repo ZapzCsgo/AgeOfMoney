@@ -22,23 +22,32 @@ export function HotTournaments() {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([
-      getTftTournaments({ status: 'live',     limit: 3 }),
-      getTftTournaments({ status: 'upcoming', limit: 6 }),
-    ])
-      .then(([live, upcoming]) => {
+
+    // 20s polling so live odds + standings stay fresh without WebSocket
+    // infra. CompeteTFT-side updates land every 30s on the backend, so a
+    // 20s frontend poll catches them within one tick of arrival.
+    async function refresh() {
+      try {
+        const [live, upcoming] = await Promise.all([
+          getTftTournaments({ status: 'live',     limit: 3 }),
+          getTftTournaments({ status: 'upcoming', limit: 6 }),
+        ]);
         if (cancelled) return;
         setTournaments([...live, ...upcoming].slice(0, 6));
-      })
-      .catch((e) => {
-        // Without this catch the promise rejects silently and the UI
-        // stays on its skeleton state forever — looks broken. CORS
-        // rejections and 500s from the backend both surface here.
+        setError(null);
+      } catch (e) {
+        // Keep the previous list on error — only flip to empty state if
+        // we never managed an initial load. Without this guard one CORS
+        // hiccup mid-session would wipe a populated grid.
         if (cancelled) return;
-        setTournaments([]);
         setError(e instanceof Error ? e.message : 'Erreur réseau');
-      });
-    return () => { cancelled = true; };
+        setTournaments((prev) => prev ?? []);
+      }
+    }
+
+    refresh();
+    const id = setInterval(refresh, 20_000);
+    return () => { cancelled = true; clearInterval(id); };
   }, []);
 
   return (

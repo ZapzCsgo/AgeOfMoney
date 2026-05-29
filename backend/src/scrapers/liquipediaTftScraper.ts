@@ -111,6 +111,15 @@ async function fetchHtml(url: string): Promise<string | null> {
   }
 }
 
+/**
+ * Module-level cache of the most-recent wikitext fetched per page. The
+ * MediaWiki API returns text+wikitext in the same call, but cheerio-based
+ * paths only consume the HTML half. We park the wikitext here so the
+ * downstream `fetchTournamentDetail` can pull infobox fields without
+ * needing a second round-trip.
+ */
+const wikitextCache = new Map<string, string>();
+
 async function fetchViaMediaWikiApi(url: string): Promise<string | null> {
   const m = url.match(/liquipedia\.net\/(tft)\/(.+)/);
   if (!m) return null;
@@ -119,7 +128,10 @@ async function fetchViaMediaWikiApi(url: string): Promise<string | null> {
   const pageName = decodeURIComponent(pagePath.split('?')[0]);
   try {
     const res = await axios.get(lpRouteUrl(`https://liquipedia.net/${wiki}/api.php`), {
-      params: { action: 'parse', page: pageName, format: 'json', prop: 'text' },
+      // `prop=text|wikitext` returns both halves in one round-trip — costs
+      // the same rate-limit token as `prop=text` alone, gains us infobox
+      // parsing without a second call.
+      params: { action: 'parse', page: pageName, format: 'json', prop: 'text|wikitext' },
       headers: {
         'User-Agent': LP_USER_AGENT,
         'Accept-Encoding': 'gzip, deflate, br',
@@ -129,6 +141,10 @@ async function fetchViaMediaWikiApi(url: string): Promise<string | null> {
       timeout: 30_000,
     });
     const html = res.data?.parse?.text?.['*'];
+    const wikitext = res.data?.parse?.wikitext?.['*'];
+    if (typeof wikitext === 'string' && wikitext.length > 0) {
+      wikitextCache.set(url, wikitext);
+    }
     if (typeof html === 'string' && html.length > 200) {
       logger.info(`[LiquipediaTFT] Fetched via MediaWiki API: ${pageName}`);
       return html;
@@ -147,13 +163,73 @@ async function fetchViaMediaWikiApi(url: string): Promise<string | null> {
   }
 }
 
-// ── Discovery — Portal:Tournaments ───────────────────────────────────────
+/**
+ * Extract a named parameter from the `{{Infobox league}}` template in a
+ * wikitext blob. Handles the common LP idioms : `|key=value`, possibly with
+ * leading whitespace and trailing newline. Returns null when missing.
+ *
+ * Designed for the dozen-ish fields the tournament card actually needs
+ * (sdate, edate, prizepool, prizepoolusd, country, location, twitch, etc.)
+ * — not a full template parser. Avoids regex catastrophic backtracking by
+ * anchoring on `|key=` boundaries.
+ */
+function parseInfoboxField(wikitext: string, field: string): string | null {
+  // Match `|<spaces>field<spaces>=<spaces>value<newline>` ; value runs until
+  // the next `|<field>=` on a fresh line or the closing `}}` of the infobox.
+  const re = new RegExp(`\\|\\s*${field}\\s*=\\s*([^\\n]*)`, 'i');
+  const m = wikitext.match(re);
+  if (!m) return null;
+  const raw = m[1].trim();
+  if (!raw) return null;
+  // Strip simple wiki markup : [[Link|display]] → display, {{flag|US}} → US,
+  // <ref>...</ref> → '', '''bold''' → bold.
+  return raw
+    .replace(/<ref[^>]*>.*?<\/ref>/gi, '')
+    .replace(/\[\[(?:[^\]|]*\|)?([^\]]+)\]\]/g, '$1')
+    .replace(/\{\{(?:[^}|]*\|)?([^}]+)\}\}/g, '$1')
+    .replace(/'''(.*?)'''/g, '$1')
+    .replace(/''(.*?)''/g, '$1')
+    .replace(/^[-–—\s]+|[-–—\s]+$/g, '')
+    .trim() || null;
+}
+
+/**
+ * LP's Infobox league dates come in two shapes : YYYY-MM-DD (machine
+ * format, preferred) and "Month DD, YYYY" (human format). Both parse via
+ * `new Date()` reliably ; we normalise to a JS Date.
+ */
+function parseInfoboxDate(raw: string | null): Date | null {
+  if (!raw) return null;
+  const cleaned = raw.replace(/\s*\(.*?\)\s*/g, '').trim();
+  const d = new Date(cleaned);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+// ── Discovery — MediaWiki Query API (categorymembers) ────────────────────
+// Refactored 2026-05-29 : we no longer scrape Portal:Tournaments HTML. That
+// path was fragile (every LP markup tweak broke selectors) and heavy (~150KB
+// payload for one discovery cycle). The MediaWiki Query API lets us pull
+// the same set of S/A-tier pages via the official `Category:S-Tier_Tournaments`
+// / `Category:A-Tier_Tournaments` categorisation — JSON in, ~10KB payload,
+// immune to UI changes, and LP rate-limits this endpoint separately from
+// `action=parse` so we get back budget for the per-tournament detail calls.
+//
+// Trade-off : categorymembers returns ALL pages in the category (including
+// past tournaments). We filter post-hoc by the per-tournament parse which
+// gives us the real start/end dates. To keep this affordable we sort by
+// timestamp descending and cap at LP_CATEGORY_LIMIT — recent edits ≈ active
+// tournaments.
 
 export interface ScrapedTournament {
   name: string;
   tier: string;
   liquipediaUrl: string;
-  startDate: Date;
+  /**
+   * Start/end dates are populated lazily by the per-tournament detail fetch.
+   * Discovery returns nulls — caller (scrapeTftTournaments) skips persistence
+   * for tournaments whose detail pass fails to resolve dates.
+   */
+  startDate: Date | null;
   endDate?: Date | null;
   prizePool?: string | null;
   region?: string | null;
@@ -161,30 +237,147 @@ export interface ScrapedTournament {
   competeTftUrl?: string | null;
 }
 
-const PORTAL_URL = 'https://liquipedia.net/tft/Portal:Tournaments';
+const LP_CATEGORY_LIMIT = 75; // recent pages per tier — enough to cover the
+                              // live + next ~120d horizon comfortably
+
+const TIER_CATEGORIES: Array<{ tier: string; cmtitle: string }> = [
+  { tier: 'S', cmtitle: 'Category:S-Tier_Tournaments' },
+  { tier: 'A', cmtitle: 'Category:A-Tier_Tournaments' },
+];
+
+interface CategoryMember {
+  pageid: number;
+  ns: number;
+  title: string;
+  timestamp?: string;
+}
+
+interface MwQueryResponse {
+  query?: { categorymembers?: CategoryMember[] };
+  error?: { code: string; info: string };
+}
 
 /**
- * Pull the upcoming + ongoing tournaments from the Portal page. Liquipedia
- * splits this into S-tier / A-tier / B-tier accordions, each containing a
- * table of (tournament, dates, prize, location). We extract S+A only.
- *
- * Returns minimal metadata — full participants list comes from a second
- * pass that fetches each tournament page individually.
+ * Hit the MediaWiki Query API on the TFT wiki to pull category members.
+ * Goes through the same lpRoute infra (proxy + circuit breaker) as the
+ * other scrapers so we share the rate budget cleanly.
  */
-export async function discoverUpcomingTournaments(): Promise<ScrapedTournament[]> {
-  const html = await fetchHtml(PORTAL_URL);
-  if (!html) {
-    logger.warn('[LiquipediaTFT] Could not fetch Portal:Tournaments — skipping discovery cycle');
+async function fetchCategoryMembers(cmtitle: string): Promise<CategoryMember[]> {
+  const { isLpBlocked, lpRouteUrl, lpProxyHeaders, tripCircuitBreaker, resetCircuitBreaker } =
+    require('../services/liquipediaLiveScorer');
+  if (isLpBlocked()) {
+    logger.info(`[LiquipediaTFT] Skipping categorymembers ${cmtitle} (circuit breaker open)`);
     return [];
   }
+  try {
+    const res = await axios.get<MwQueryResponse>(
+      lpRouteUrl('https://liquipedia.net/tft/api.php'),
+      {
+        params: {
+          action: 'query',
+          list: 'categorymembers',
+          cmtitle,
+          cmlimit: LP_CATEGORY_LIMIT,
+          cmsort: 'timestamp',
+          cmdir: 'desc',
+          cmprop: 'ids|title|timestamp',
+          format: 'json',
+        },
+        headers: {
+          'User-Agent': LP_USER_AGENT,
+          'Accept-Encoding': 'gzip, deflate, br',
+          ...lpProxyHeaders(),
+        },
+        decompress: true,
+        timeout: 25_000,
+      },
+    );
+    if (res.data?.error) {
+      logger.warn(`[LiquipediaTFT] Query API error on ${cmtitle}: ${res.data.error.code} ${res.data.error.info}`);
+      return [];
+    }
+    const members = res.data?.query?.categorymembers ?? [];
+    resetCircuitBreaker();
+    return members;
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      const status = err.response?.status;
+      if (status === 429 || status === 503) {
+        logger.warn(`[LiquipediaTFT] Query API ${status} on ${cmtitle} — tripping breaker`);
+        tripCircuitBreaker();
+      } else {
+        logger.warn(`[LiquipediaTFT] Query API failed on ${cmtitle}: ${err.message} (HTTP ${status ?? 'timeout'})`);
+      }
+    }
+    return [];
+  }
+}
+
+/**
+ * Convert a page title like "Esports World Cup/2026/TFT" into the LP URL
+ * and a human-readable display name. We keep the full path in the URL
+ * because LP needs it to resolve sub-pages, but show only the leaf segment
+ * as the tournament name (admin UI / bet form readability).
+ */
+function pageTitleToTournament(title: string, tier: string): ScrapedTournament {
+  const pagePath = title.replace(/ /g, '_');
+  const liquipediaUrl = `https://liquipedia.net/tft/${pagePath}`;
+  // Strip leading category-style sub-page hierarchy ("/Set_X/", "/2026/") for
+  // a cleaner display name. Empirically the leaf segment is usually the most
+  // recognisable form of the tournament name.
+  const displayName = title.split('/').filter(Boolean).pop() ?? title;
+  return {
+    name: displayName,
+    tier,
+    liquipediaUrl,
+    startDate: null, // filled by per-tournament detail fetch
+  };
+}
+
+/**
+ * Discovery via categorymembers. Returns S/A-tier tournament shells with no
+ * dates/prize-pool — the caller's per-tournament detail pass fills those in.
+ *
+ * Idempotent : LP's category index is the authoritative tier marker, so a
+ * second call returns the same list (modulo new tournament pages created
+ * since the last call).
+ */
+export async function discoverUpcomingTournaments(): Promise<ScrapedTournament[]> {
+  const results: ScrapedTournament[] = [];
+  const seenUrl = new Set<string>();
+
+  for (const { tier, cmtitle } of TIER_CATEGORIES) {
+    const members = await fetchCategoryMembers(cmtitle);
+    for (const m of members) {
+      if (m.ns !== 0) continue; // skip Talk/User/etc namespaces
+      const t = pageTitleToTournament(m.title, tier);
+      // Drop sub-pages that LP categorises as their own entries but which are
+      // logically children of a parent tournament (e.g. ".../CN_Qualifier").
+      // The parent page already covers them and bets shouldn't be split.
+      if (/\/(Qualifier|Group_Stage|Playoffs|Bracket|Last_Chance)/i.test(t.liquipediaUrl)) continue;
+      if (seenUrl.has(t.liquipediaUrl)) continue;
+      seenUrl.add(t.liquipediaUrl);
+      results.push(t);
+    }
+    await sleep(800); // polite spacing between the two category fetches
+  }
+
+  logger.info(`[LiquipediaTFT] Discovered ${results.length} S/A-tier tournament candidates via category API`);
+  return results;
+}
+
+/**
+ * @deprecated — kept exported because tests import it. Internal callers
+ * should use `discoverUpcomingTournaments` which is now category-based.
+ */
+export async function discoverUpcomingTournamentsViaPortal(): Promise<ScrapedTournament[]> {
+  const PORTAL_URL = 'https://liquipedia.net/tft/Portal:Tournaments';
+  const html = await fetchHtml(PORTAL_URL);
+  if (!html) return [];
   const $ = cheerio.load(html);
   const results: ScrapedTournament[] = [];
   const now = Date.now();
-  const horizonMs = 120 * 24 * 3600 * 1000; // 120 days forward
-
-  // LP groups tournaments into `.divRow` blocks under tier headers. We walk
-  // every divRow and check its parent tier indicator. Empirically the tier
-  // is encoded as `lp-{s/a/b/c}-tier` CSS class on a descendant span.
+  const horizonMs = 120 * 24 * 3600 * 1000;
   $('.divRow, tr.divRow').each((_i, el) => {
     try {
       const tierClass = $(el).find('[class*="-tier"]').attr('class') ?? '';
@@ -192,45 +385,22 @@ export async function discoverUpcomingTournaments(): Promise<ScrapedTournament[]
       if (!tierMatch) return;
       const tier = tierMatch[1].toUpperCase();
       if (!isTierAllowed(tier)) return;
-
       const nameLink = $(el).find('.divCell.Tournament a, td.Tournament a').first();
       const name = (nameLink.attr('title') ?? nameLink.text() ?? '').trim();
       const href = nameLink.attr('href') ?? '';
       if (!name || !href) return;
-
-      const liquipediaUrl = href.startsWith('http')
-        ? href.split('#')[0]
-        : `https://liquipedia.net${href.split('#')[0]}`;
-
-      // Dates — LP renders "Aug 14 - Aug 16, 2026" inside a Date cell
+      const liquipediaUrl = href.startsWith('http') ? href.split('#')[0] : `https://liquipedia.net${href.split('#')[0]}`;
       const dateText = $(el).find('.divCell.Date, td.Date').text().trim();
       const { startDate, endDate } = parseLpDateRange(dateText);
       if (!startDate) return;
-
-      // Skip events past + outside the planning horizon
       if (startDate.getTime() < now - 24 * 3600 * 1000) return;
       if (startDate.getTime() > now + horizonMs) return;
-
       const prizePool = $(el).find('.divCell.Prize, td.Prize').text().trim() || null;
       const region = $(el).find('.divCell.Location, td.Location').text().trim() || null;
-
       results.push({ name, tier, liquipediaUrl, startDate, endDate, prizePool, region });
-    } catch {
-      /* skip malformed rows */
-    }
+    } catch { /* skip */ }
   });
-
-  // Deduplicate on liquipediaUrl — Portal sometimes lists the same event
-  // under both ongoing and upcoming accordions during transition windows.
-  const seen = new Set<string>();
-  const unique = results.filter((t) => {
-    if (seen.has(t.liquipediaUrl)) return false;
-    seen.add(t.liquipediaUrl);
-    return true;
-  });
-
-  logger.info(`[LiquipediaTFT] Discovered ${unique.length} S/A-tier tournaments (raw rows: ${results.length})`);
-  return unique;
+  return results;
 }
 
 /**
@@ -290,6 +460,13 @@ export interface ScrapedTournamentDetail {
   bracketStarted: boolean;
   /** Live standings if the LP page exposes a finished/in-progress bracket. */
   liveStandings: Array<{ liquipediaSlug: string; rank: number }>;
+  // Filled from the wikitext infobox when discovery comes from categorymembers
+  // (which doesn't carry dates/prizepool). Null when LP omits the fields or
+  // the page is missing an `Infobox league` block.
+  startDate: Date | null;
+  endDate: Date | null;
+  prizePool: string | null;
+  region: string | null;
 }
 
 export async function fetchTournamentDetail(
@@ -387,7 +564,53 @@ export async function fetchTournamentDetail(
     if (slug && rank >= 1 && rank <= 64) liveStandings.push({ liquipediaSlug: slug, rank });
   });
 
-  return { participants, twitchChannel, competeTftUrl, bracketStarted, liveStandings };
+  // ── Infobox metadata (start/end date, prize pool, region) ────────────
+  // fetchHtml stashed the wikitext in `wikitextCache` when going through
+  // the MediaWiki API. We pull dates from there because the rendered HTML
+  // formats dates inconsistently across LP skins, while the wikitext
+  // `|sdate=YYYY-MM-DD` form is stable.
+  let startDate: Date | null = null;
+  let endDate: Date | null = null;
+  let prizePool: string | null = null;
+  let region: string | null = null;
+  const wikitext = wikitextCache.get(liquipediaUrl);
+  if (wikitext) {
+    startDate = parseInfoboxDate(parseInfoboxField(wikitext, 'sdate'))
+             ?? parseInfoboxDate(parseInfoboxField(wikitext, 'date'));
+    endDate = parseInfoboxDate(parseInfoboxField(wikitext, 'edate')) ?? startDate;
+    // Prize pool : prefer USD when both are present (most readable for an
+    // international audience), fall back to local currency.
+    prizePool = parseInfoboxField(wikitext, 'prizepoolusd')
+             ?? parseInfoboxField(wikitext, 'prizepool')
+             ?? null;
+    if (prizePool && !/[$€£¥]|USD|EUR/i.test(prizePool)) {
+      // raw number → assume USD which is LP's prizepoolusd convention
+      prizePool = `$${prizePool}`;
+    }
+    region = parseInfoboxField(wikitext, 'country')
+          ?? parseInfoboxField(wikitext, 'city')
+          ?? parseInfoboxField(wikitext, 'location')
+          ?? null;
+    // wikitextCache is bounded by LP_CATEGORY_LIMIT × 2 entries per run, but
+    // be defensive against runaway growth across cron cycles.
+    if (wikitextCache.size > 500) {
+      // Drop oldest half — JS Maps preserve insertion order.
+      const drop = Array.from(wikitextCache.keys()).slice(0, 250);
+      drop.forEach((k) => wikitextCache.delete(k));
+    }
+  }
+
+  return {
+    participants,
+    twitchChannel,
+    competeTftUrl,
+    bracketStarted,
+    liveStandings,
+    startDate,
+    endDate,
+    prizePool,
+    region,
+  };
 }
 
 // ── Persist ──────────────────────────────────────────────────────────────
@@ -413,50 +636,71 @@ export async function scrapeTftTournaments(): Promise<{ tournaments: number; par
 
   let tournamentsSaved = 0;
   let participantsSaved = 0;
+  let skippedOutOfWindow = 0;
+  const now = Date.now();
+  const horizonForward = 120 * 24 * 3600 * 1000;
+  const horizonBackward = 7 * 24 * 3600 * 1000; // keep recently-ended events
+                                                // for settlement; older are dropped
 
   for (const t of discovered) {
     try {
-      // ── Upsert tournament shell ─────────────────────────────────────
+      // ── Fetch detail FIRST ─────────────────────────────────────────
+      // Discovery comes from categorymembers which carries no dates, so
+      // we need the infobox before we can decide whether to persist.
+      // Empty shell upserts would clutter the DB with old/irrelevant
+      // tournaments that LP keeps in the S/A categories forever.
+      await sleep(3000); // 3s between LP page fetches — under their limiter
+      const detail = await fetchTournamentDetail(t.liquipediaUrl);
+      if (!detail) {
+        logger.info(`[LiquipediaTFT] No detail for "${t.name}" — will retry next cycle`);
+        continue;
+      }
+
+      // ── Filter to the live window ───────────────────────────────────
+      // discoverUpcomingTournaments() returns ALL S/A category members.
+      // The date filter that used to live in the Portal scrape now runs
+      // here, post-detail. Tournaments with no resolved dates are kept
+      // (admin can fix manually) but never older than horizonBackward.
+      const sd = detail.startDate;
+      const ed = detail.endDate ?? sd;
+      if (sd && sd.getTime() > now + horizonForward) {
+        skippedOutOfWindow++;
+        continue;
+      }
+      if (ed && ed.getTime() < now - horizonBackward) {
+        skippedOutOfWindow++;
+        continue;
+      }
+
+      // ── Upsert tournament with full data ────────────────────────────
       const tournament = await prisma.tournament.upsert({
         where: { liquipediaUrl: t.liquipediaUrl },
         create: {
           name: t.name,
           game: 'TFT',
           tier: t.tier,
-          prizePool: t.prizePool,
-          startDate: t.startDate,
-          endDate: t.endDate,
+          prizePool: detail.prizePool,
+          startDate: sd ?? new Date(now + 7 * 24 * 3600 * 1000), // placeholder if LP omits it; admin can fix
+          endDate: ed,
           liquipediaUrl: t.liquipediaUrl,
+          twitchChannel: detail.twitchChannel,
+          competeTftUrl: detail.competeTftUrl,
+          bracketStarted: detail.bracketStarted,
           isActive: true,
         },
         update: {
           name: t.name,
           tier: t.tier,
-          prizePool: t.prizePool,
-          startDate: t.startDate,
-          endDate: t.endDate,
+          prizePool: detail.prizePool ?? undefined,
+          startDate: sd ?? undefined,
+          endDate: ed ?? undefined,
+          twitchChannel: detail.twitchChannel ?? undefined,
+          competeTftUrl: detail.competeTftUrl ?? undefined,
+          bracketStarted: detail.bracketStarted,
           isActive: true,
         },
       });
       tournamentsSaved++;
-
-      // ── Fetch detail (rate-limited via fetchHtml's LP infra) ────────
-      await sleep(3000); // 3s between tournament page fetches — under LP's limiter
-      const detail = await fetchTournamentDetail(t.liquipediaUrl);
-      if (!detail) {
-        logger.info(`[LiquipediaTFT] No detail for "${t.name}" — keeping shell, will retry next cycle`);
-        continue;
-      }
-
-      // ── Patch tournament with metadata from detail ──────────────────
-      await prisma.tournament.update({
-        where: { id: tournament.id },
-        data: {
-          twitchChannel: detail.twitchChannel,
-          competeTftUrl: detail.competeTftUrl,
-          bracketStarted: detail.bracketStarted,
-        },
-      });
 
       // ── Upsert players + participants ───────────────────────────────
       for (const p of detail.participants) {
@@ -508,7 +752,9 @@ export async function scrapeTftTournaments(): Promise<{ tournaments: number; par
     },
   }).catch(() => { /* scraperLog is best-effort */ });
 
-  logger.info(`[LiquipediaTFT] Done: ${tournamentsSaved} tournaments, ${participantsSaved} participants saved`);
+  logger.info(
+    `[LiquipediaTFT] Cycle complete — ${tournamentsSaved} saved, ${skippedOutOfWindow} out-of-window, ${participantsSaved} participants`,
+  );
   return { tournaments: tournamentsSaved, participants: participantsSaved };
 }
 
