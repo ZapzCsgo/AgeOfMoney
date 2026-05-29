@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSession, signIn } from 'next-auth/react';
-import { ArrowRight, Wallet, Hexagon } from 'lucide-react';
+import { ArrowRight, Wallet } from 'lucide-react';
 import { cn, formatCoins } from '@/lib/utils';
 import { CoinRain }       from '@/components/home/CoinRain';
 import { HotTournaments } from '@/components/home/HotTournaments';
@@ -53,13 +53,6 @@ function Hero() {
       <div className="relative max-w-6xl mx-auto px-6 py-14 md:py-20 grid lg:grid-cols-[1.2fr_1fr] gap-10 items-center">
         {/* Left — tight copy + CTAs */}
         <div className="space-y-5">
-          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-sm border border-tft-purple/40 bg-tft-purple/10">
-            <Hexagon size={10} className="text-tft-purple-bright" />
-            <span className="font-ui text-[10.5px] tracking-[0.22em] uppercase text-tft-purple-bright">
-              Saison TFT 14 · S/A-Tier
-            </span>
-          </div>
-
           <h1 className="font-display font-bold text-4xl md:text-5xl lg:text-[58px] leading-[1.05] tracking-tight text-tft-text">
             Parie sur la scène
             <span className="block text-tft-purple-bright">Teamfight Tactics</span>
