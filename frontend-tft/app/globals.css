@@ -1,0 +1,76 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+  body {
+    background-color: #08081a;
+    color: #e2e8f0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Focus rings — arcane purple, always visible for keyboard nav */
+  :focus-visible {
+    outline: 2px solid #a78bfa;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Honour reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer utilities {
+  /* Hexagonal grid background — repeating SVG pattern.
+     Used as a subtle overlay on hero / section dividers. */
+  .bg-hex-grid {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='56' height='48' viewBox='0 0 56 48'><path d='M28 1l24 14v18L28 47 4 33V15z' fill='none' stroke='%237c3aed' stroke-opacity='0.18' stroke-width='1'/></svg>");
+    background-size: 56px 48px;
+  }
+  .bg-hex-grid-cyan {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='56' height='48' viewBox='0 0 56 48'><path d='M28 1l24 14v18L28 47 4 33V15z' fill='none' stroke='%2322d3ee' stroke-opacity='0.12' stroke-width='1'/></svg>");
+    background-size: 56px 48px;
+  }
+
+  /* Hexagonal clip — used on featured cards / avatar frames */
+  .clip-hex {
+    clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  }
+
+  /* Arcane title gradient — purple→cyan→gold */
+  .text-arcane {
+    background: linear-gradient(135deg, #a78bfa 0%, #67e8f9 50%, #fcd34d 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* Subtle inner glow on bet/CTA cards */
+  .ring-arcane {
+    box-shadow:
+      inset 0 1px 0 rgba(167, 139, 250, 0.1),
+      0 0 0 1px rgba(124, 58, 237, 0.25),
+      0 0 24px rgba(124, 58, 237, 0.18);
+  }
+
+  /* Custom scrollbar for the void aesthetic */
+  .scrollbar-arcane::-webkit-scrollbar { width: 8px; height: 8px; }
+  .scrollbar-arcane::-webkit-scrollbar-track { background: #101028; }
+  .scrollbar-arcane::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #5b21b6, #7c3aed);
+    border-radius: 4px;
+  }
+}

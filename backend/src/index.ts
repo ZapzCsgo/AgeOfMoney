@@ -62,6 +62,7 @@ import supportRouter from './routes/support';
 import devRouter from './routes/dev';
 import redeemRouter from './routes/redeem';
 import adminRedeemRouter from './routes/adminRedeem';
+import tftRouter from './routes/tftTournaments';
 import logger from './logger';
 
 // Fail-fast: crash at startup if required secrets are missing in production
@@ -253,6 +254,9 @@ app.use('/api/v1/affiliate', affiliateLimiter, affiliateRouter);
 app.use('/api/v1/support', supportRouter);
 app.use('/api/v1/redeem', redeemIpLimiter, redeemRouter);
 app.use('/api/v1/admin/redeem-codes', adminRedeemRouter);
+// TFT tournament betting — separate router so the "tournament winner"
+// market doesn't collide with AoE's match-based betting under /matches.
+app.use('/api/v1/tft', betLimiter, tftRouter);
 
 // Dev-only routes
 if (process.env.NODE_ENV !== 'production') {

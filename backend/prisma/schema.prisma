@@ -58,6 +58,7 @@ model User {
   totalWageringProgress Decimal                @default(0) @db.Decimal(20, 8)
   redeemRedemptions     RedeemCodeRedemption[]
   redeemCodesCreated    RedeemCode[]           @relation("RedeemCodeCreator")
+  tournamentWinnerBets  TournamentWinnerBet[]
 
   @@unique([provider, providerId])
   @@index([totalWagered])
@@ -86,7 +87,15 @@ model Player {
   name             String              @unique
   liquipediaSlug   String              @unique
   aoe4worldId      String?
-  game             String              @default("AoE4") // "AoE4" | "AoE2" | "AoE3" | "AoM" | "AoE1"
+  // TFT-only — Riot's stable per-account identifier (PUUID is region-agnostic
+  // and survives name changes). Drives the Riot tft-summoner-v1 / tft-match-v1
+  // / tft-league-v1 calls used by tftOddsEngine. NULL for non-TFT players.
+  riotPuuid        String?             @unique
+  // Snapshot of the player's current ranked TFT tier (e.g. "CHALLENGER 845 LP")
+  // — refreshed daily by riotTftClient.syncTftStats. Surfaced as-is in the
+  // participants list of frontend-tft so users can sanity-check our odds.
+  tftCurrentTier   String?
+  game             String              @default("AoE4") // "AoE4" | "AoE2" | "AoE3" | "AoM" | "AoE1" | "TFT"
   aiEnrichedGames  String[] // games for which Claude AI has already been called (skip credit waste)
   elo              Int                 @default(1000)
   winrate          Float               @default(0.5)
@@ -104,6 +113,7 @@ model Player {
   matchesAsPlayer2 Match[]             @relation("Player2")
   matchHistory     PlayerMatchRecord[] @relation("PlayerHistory")
   opponentHistory  PlayerMatchRecord[] @relation("OpponentHistory")
+  tournamentParticipations TournamentParticipant[]
   rating           PlayerRating?
 }
 
@@ -157,17 +167,23 @@ model PlayerMatchRecord {
   id             String    @id @default(cuid())
   playerId       String
   player         Player    @relation("PlayerHistory", fields: [playerId], references: [id])
+  // For TFT lobby finishes the "opponent" is the lobby itself (8 players),
+  // so opponentName is the tournament/lobby identifier and opponentId stays
+  // null. Keeps the schema unchanged for AoE while letting TFT reuse it.
   opponentName   String
   opponentId     String?
   opponent       Player?   @relation("OpponentHistory", fields: [opponentId], references: [id])
-  game           String    @default("AoE4") // "AoE4" | "AoE2" | "AoE3" | "AoM" | "AoE1"
+  game           String    @default("AoE4") // "AoE4" | "AoE2" | "AoE3" | "AoM" | "AoE1" | "TFT"
   won            Boolean
-  score          String? // "3-1" from this player's perspective
+  // TFT — final placement in an 8-player lobby (1 = first, 8 = last). NULL
+  // for 1v1 games where `won` alone carries the result.
+  placement      Int?
+  score          String? // "3-1" from this player's perspective (AoE) or "1st of 8" (TFT)
   tier           String    @default("B") // "S" | "A" | "B" | "C" | "Qualifier" | "Misc"
   tournamentName String
   matchDate      DateTime?
-  format         String? // "BO3", "BO5"
-  source         String    @default("ai") // "ai" | "manual" | "aoe4world" | "liquipedia"
+  format         String? // "BO3", "BO5" (AoE) | "TFT_LOBBY" (TFT)
+  source         String    @default("ai") // "ai" | "manual" | "aoe4world" | "liquipedia" | "riot"
   sourceUrl      String?
   confidence     Float     @default(0.8)
   createdAt      DateTime  @default(now())
@@ -181,7 +197,7 @@ model PlayerMatchRecord {
 model Tournament {
   id            String    @id @default(cuid())
   name          String
-  game          String    @default("AoE4") // "AoE4" | "AoE2" | "AoE3" | "AoM" | "AoE1"
+  game          String    @default("AoE4") // "AoE4" | "AoE2" | "AoE3" | "AoM" | "AoE1" | "TFT"
   tier          String
   prizePool     String?
   startDate     DateTime
@@ -191,11 +207,79 @@ model Tournament {
   // matches federation. Postgres treats NULLs as distinct in unique indexes,
   // so multiple nulls coexist safely.
   liquipediaUrl String?   @unique
+  // CompeteTFT.com tournament page — Riot's official platform for TFT pro
+  // events. Populated by liquipediaTftScraper when the LP page exposes it.
+  // Drives the 30s live-standings poller in tftLiveScorer.ts.
+  competeTftUrl  String?
   logoUrl       String?
   twitchChannel String? // e.g. "ageofempires" for twitch.tv/ageofempires
+  // TFT-only — outright "tournament winner" market.
+  // Closed once `bracketStarted = true` to prevent late lining.
+  bracketStarted Boolean  @default(false)
+  // Live standings sync — populated by tftLiveScorer/liquipediaTftScraper
+  // while the tournament is running. Source tracks which scraper updated
+  // the standings last so we know which one to trust on conflicts.
+  lastLiveSync   DateTime?
+  liveSyncSource String?  // "competetft" | "liquipedia" | "admin"
   isActive      Boolean   @default(true)
   createdAt     DateTime  @default(now())
   matches       Match[]
+  participants  TournamentParticipant[]
+  tournamentWinnerBets TournamentWinnerBet[]
+}
+
+// TFT — many-to-many Tournament ↔ Player with per-participant odds for the
+// "outright tournament winner" market. AoE doesn't use this model (1v1 odds
+// live on Match), but TFT lobbies are 8-player free-for-all so the betting
+// unit is the tournament, not a head-to-head match.
+model TournamentParticipant {
+  id            String   @id @default(cuid())
+  tournament    Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  tournamentId  String
+  player        Player   @relation(fields: [playerId], references: [id])
+  playerId      String
+  // Computed odds from tftOddsEngine. Recalculated every 30 min while the
+  // tournament is `bracketStarted = false`. Frozen when bracket starts.
+  odds          Decimal  @db.Decimal(10, 4)
+  // Admin override — when set, `odds` is ignored for the bet form. Used
+  // when our model is missing data on a wildcard player or when public
+  // sportsbook odds drift significantly from ours.
+  manualOdds    Decimal? @db.Decimal(10, 4)
+  // Live placement during the tournament (1 = leading, 8 = bottom). Updated
+  // by tftLiveScorer poller. Distinct from `finalRank` which only sets at
+  // settlement and is what payouts read.
+  currentRank   Int?
+  finalRank     Int?
+  isWinner      Boolean  @default(false)
+  // Snapshot of stats used to compute odds — exposed in admin UI for audit.
+  // Cleared and rewritten on each recalc.
+  oddsBasis     Json?    // { avgPlacement, currentLp, formScore, riotPuuid }
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  bets          TournamentWinnerBet[]
+
+  @@unique([tournamentId, playerId])
+  @@index([tournamentId])
+  @@index([tournamentId, currentRank])
+}
+
+model TournamentWinnerBet {
+  id            String       @id @default(cuid())
+  user          User         @relation(fields: [userId], references: [id])
+  userId        String
+  tournament    Tournament   @relation(fields: [tournamentId], references: [id])
+  tournamentId  String
+  participant   TournamentParticipant @relation(fields: [participantId], references: [id])
+  participantId String
+  stake         Decimal      @db.Decimal(20, 8)
+  oddsAtBet     Decimal      @db.Decimal(10, 4)
+  status        BetStatus    @default(PENDING)
+  payout        Decimal?     @db.Decimal(20, 8)
+  placedAt      DateTime     @default(now())
+  settledAt     DateTime?
+
+  @@index([userId])
+  @@index([tournamentId, status])
 }
 
 enum MatchStatus {
