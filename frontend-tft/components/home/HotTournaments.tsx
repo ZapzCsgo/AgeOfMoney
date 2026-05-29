@@ -76,7 +76,7 @@ export function HotTournaments() {
 
         {tournaments && tournaments.length === 0 && (
           <div className="rounded-md border border-tft-border bg-tft-bg-card/50 p-8 text-center text-sm text-tft-text-muted">
-            Aucun tournoi S/A ouvert pour l&apos;instant. Reviens dans 30 min — le scraper Liquipedia tourne en boucle.
+            Aucun tournois ouvert pour l&apos;instant.
           </div>
         )}
 
