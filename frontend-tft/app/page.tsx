@@ -1,10 +1,11 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSession, signIn } from 'next-auth/react';
-import { ArrowRight, Wallet } from 'lucide-react';
-import { cn, formatCoins } from '@/lib/utils';
+import { ArrowRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { CoinRain }       from '@/components/home/CoinRain';
 import { HotTournaments } from '@/components/home/HotTournaments';
 
@@ -40,7 +41,7 @@ export default function HomePage() {
 
 /* ─────────────────────── HERO ─────────────────────── */
 function Hero() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
 
   return (
     <section className="relative overflow-hidden bg-tft-bg border-b border-tft-border">
@@ -59,9 +60,7 @@ function Hero() {
           </h1>
 
           <p className="text-tft-text-dim text-sm md:text-base max-w-lg leading-relaxed">
-            Tactician&apos;s Crown, Set Championship, Regional Finals, Esports World Cup.
-            Odds maison fixées sur les vraies stats Riot, settlement automatique
-            sur sources officielles.
+            Tous les tournois TFT pros, en direct.
           </p>
 
           <div className="pt-1">
@@ -78,48 +77,90 @@ function Hero() {
             </Link>
           </div>
 
-          {status === 'authenticated' && session?.user ? (
-            <AccountPill name={session.user.name ?? 'Tactician'} coins={session.user.coins ?? 0} />
-          ) : status === 'unauthenticated' ? (
-            <SteamPill />
-          ) : null}
+          {/* Steam CTA only when logged out — when logged in, the navbar
+              already carries the wallet + name pill, repeating it here
+              under the hero copy was redundant noise. */}
+          {status === 'unauthenticated' && <SteamPill />}
         </div>
 
-        {/* Right — character art (replaces previous procedural hex SVG) */}
-        <div className="relative hidden lg:flex items-center justify-center">
-          <div className="relative w-full max-w-[420px] aspect-square">
-            <Image
-              src="/tft.png"
-              alt="Teamfight Tactics little legend"
-              fill
-              priority
-              sizes="(min-width: 1024px) 420px, 100vw"
-              className="object-contain drop-shadow-[0_0_40px_rgba(124,58,237,0.35)] select-none"
-            />
-          </div>
-        </div>
+        {/* Right — character art with subtle parallax follow */}
+        <HeroArt />
       </div>
     </section>
   );
 }
 
-/* ─────────────────────── Account / Steam pills ─────────────────────── */
-function AccountPill({ name, coins }: { name: string; coins: number }) {
+/**
+ * Tracks the viewport cursor and translates the little legend by a small
+ * fraction of the distance from screen center. Smoothed via rAF lerp so
+ * the motion feels weighted rather than 1:1 jittery, and capped to a
+ * ±18px box so it never looks dramatic. Respects `prefers-reduced-motion`
+ * by short-circuiting the listener.
+ */
+function HeroArt() {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const target = useRef({ x: 0, y: 0 });
+  const current = useRef({ x: 0, y: 0 });
+  const rafId = useRef<number | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) return;
+
+    const MAX = 18; // px envelope — keeps the effect "subtle weight", not a tilt-on-rails
+    const onMove = (e: MouseEvent) => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      // normalise to [-1, 1] from screen center, then scale to MAX
+      const nx = (e.clientX / w - 0.5) * 2;
+      const ny = (e.clientY / h - 0.5) * 2;
+      target.current = { x: nx * MAX, y: ny * MAX };
+    };
+    window.addEventListener('mousemove', onMove, { passive: true });
+
+    const tick = () => {
+      // lerp toward target with a soft factor — 0.08 gives ~200ms catch-up,
+      // which reads as "the legend follows the cursor lazily" rather than
+      // "the legend is glued to the cursor".
+      current.current.x += (target.current.x - current.current.x) * 0.08;
+      current.current.y += (target.current.y - current.current.y) * 0.08;
+      if (wrapRef.current) {
+        wrapRef.current.style.transform =
+          `translate3d(${current.current.x.toFixed(2)}px, ${current.current.y.toFixed(2)}px, 0)`;
+      }
+      rafId.current = requestAnimationFrame(tick);
+    };
+    rafId.current = requestAnimationFrame(tick);
+
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      if (rafId.current !== null) cancelAnimationFrame(rafId.current);
+    };
+  }, []);
+
   return (
-    <div className="inline-flex items-center gap-3 px-3.5 py-2 rounded-sm border border-tft-border bg-tft-bg-card">
-      <Wallet size={12} className="text-tft-purple-bright" />
-      <span className="font-ui text-[12px] text-tft-text-dim">
-        {name} ·{' '}
-        <span className="text-tft-gold-bright font-semibold tabular-nums">
-          {formatCoins(coins)} ◈
-        </span>
-      </span>
-      <Link
-        href="/deposit"
-        className="font-ui text-[10px] tracking-wider uppercase text-tft-text hover:text-tft-purple-bright transition-colors"
+    <div className="relative hidden lg:flex items-center justify-center">
+      <div
+        ref={wrapRef}
+        className="relative w-full max-w-[420px] aspect-square will-change-transform"
+        style={{
+          // Hide the slight cold-start jump before useEffect runs by holding
+          // a 0 transform until mount. Without this the image visibly snaps
+          // on the first mousemove event of the session.
+          transform: mounted ? undefined : 'translate3d(0,0,0)',
+        }}
       >
-        + Dépôt
-      </Link>
+        <Image
+          src="/tft.png"
+          alt="Teamfight Tactics little legend"
+          fill
+          priority
+          sizes="(min-width: 1024px) 420px, 100vw"
+          className="object-contain drop-shadow-[0_0_40px_rgba(124,58,237,0.35)] select-none pointer-events-none"
+        />
+      </div>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Cormorant_Garamond, Chakra_Petch, Inter } from 'next/font/google';
 import { Navbar } from '@/components/layout/Navbar';
+import { LeftSidebar } from '@/components/layout/LeftSidebar';
 import { Footer } from '@/components/layout/Footer';
 import { Providers } from '@/components/Providers';
 import './globals.css';
@@ -51,7 +52,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="font-sans bg-tft-bg text-tft-text antialiased min-h-screen flex flex-col">
         <Providers>
           <Navbar />
-          <main className="flex-1 pt-14">{children}</main>
+          {/* pt-14 to clear the fixed navbar. Sidebar + content live in a
+              flex row below it. Sidebar is hidden on mobile (md:flex inside
+              the component) so phones keep a single-column layout driven
+              by the top nav alone. */}
+          <div className="flex flex-1 pt-14">
+            <LeftSidebar />
+            <main className="flex-1 min-w-0">{children}</main>
+          </div>
           <Footer />
         </Providers>
       </body>

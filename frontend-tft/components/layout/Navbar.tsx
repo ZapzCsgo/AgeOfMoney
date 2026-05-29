@@ -11,22 +11,21 @@ import { cn, formatCoins } from '@/lib/utils';
  * TftHexLogo — small inline SVG, a single hex outline with a crown notch on
  * top. Reads as "Tactician's seat" without needing an external asset.
  */
-function TftHexLogo({ size = 22 }: { size?: number }) {
+function TftHexLogo({ size = 30 }: { size?: number }) {
   return (
     <svg width={size} height={size * 0.9} viewBox="0 0 32 28" fill="none" aria-hidden="true">
       <defs>
         <linearGradient id="tft-hex-grad" x1="0" y1="0" x2="32" y2="28" gradientUnits="userSpaceOnUse">
           <stop offset="0%"  stopColor="#a78bfa" />
-          <stop offset="60%" stopColor="#7c3aed" />
-          <stop offset="100%" stopColor="#22d3ee" />
+          <stop offset="100%" stopColor="#7c3aed" />
         </linearGradient>
       </defs>
       <path
         d="M16 1.5l12.5 7.3v10.4L16 26.5 3.5 19.2V8.8z"
         fill="url(#tft-hex-grad)"
-        fillOpacity="0.18"
-        stroke="url(#tft-hex-grad)"
-        strokeWidth="1.6"
+        fillOpacity="0.5"
+        stroke="#a78bfa"
+        strokeWidth="1.8"
       />
       <path d="M11 9l5 4 5-4 1 2-6 5-6-5z" fill="#fcd34d" />
     </svg>
@@ -92,8 +91,8 @@ export function Navbar() {
           <TftHexLogo />
           <span
             className={cn(
-              'font-display font-bold text-[16px] md:text-lg tracking-[0.18em]',
-              'text-arcane group-hover:drop-shadow-[0_0_8px_rgba(167,139,250,0.6)] transition-all',
+              'font-display font-bold text-[18px] md:text-[20px] tracking-[0.16em]',
+              'text-tft-text group-hover:text-tft-purple-bright transition-colors',
             )}
           >
             tft.money
