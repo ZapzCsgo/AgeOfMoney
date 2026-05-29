@@ -4,6 +4,17 @@ import type { NextRequest } from 'next/server';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
+// Railway env vars are sometimes saved without the scheme (e.g.
+// "ageofmoney-production.up.railway.app" instead of the https:// form).
+// next-auth-steam feeds this straight into `new URL()`, which then throws
+// ERR_INVALID_URL and 500s every Steam sign-in. Defensive normalisation.
+function normalizeBaseUrl(raw: string | undefined): string {
+  if (!raw) return 'http://localhost:3000';
+  const trimmed = raw.trim().replace(/\/+$/, '');
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+}
+
 /**
  * next-auth config for tft.money. Architecture cloned from AgeOfMoney
  * because the backend is shared : same Steam OpenID flow, same JWT issued
@@ -21,7 +32,7 @@ export function getAuthOptions(req?: NextRequest): NextAuthOptions {
       ? [
           SteamProvider(req, {
             clientSecret: process.env.STEAM_SECRET!,
-            callbackUrl: `${process.env.NEXTAUTH_URL}/api/auth/callback/steam`,
+            callbackUrl: `${normalizeBaseUrl(process.env.NEXTAUTH_URL)}/api/auth/callback/steam`,
           }),
         ]
       : [],
