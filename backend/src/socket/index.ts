@@ -398,3 +398,25 @@ export function broadcastMatchStatus(matchId: string, status: string, extra?: Re
   if (!io) return;
   io.to(`matchRoom:${matchId}`).emit('matchStatusUpdate', { matchId, status, ...extra });
 }
+
+/* ── TFT live broadcasts ────────────────────────────────────────────────
+ * Distinct event namespace (`tft:*`) so a future AoE consumer connected to
+ * the same socket doesn't receive TFT noise. Emits go to the global room
+ * because the home grid + tournament list need them on any open tab.
+ * ──────────────────────────────────────────────────────────────────── */
+
+export function broadcastTftStandings(
+  tournamentId: string,
+  standings: Array<{ participantId: string; rank: number }>,
+): void {
+  if (!io) return;
+  io.to('global').emit('tft:standings', { tournamentId, standings });
+}
+
+export function broadcastTftTournamentChanged(
+  tournamentId: string,
+  kind: 'created' | 'updated',
+): void {
+  if (!io) return;
+  io.to('global').emit('tft:tournament', { tournamentId, kind });
+}

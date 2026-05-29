@@ -274,20 +274,35 @@ export async function refreshLiveStandingsFromCompeteTft(tournamentId: string): 
   if (standings.length === 0) return 0;
 
   let updated = 0;
+  const changed: Array<{ participantId: string; rank: number }> = [];
   for (const s of standings) {
     const participantId = await resolveParticipantId(tournament.id, s);
     if (!participantId) continue;
+    // Only emit on actual rank change. Reading currentRank with a tiny
+    // select before update is cheap and avoids spamming every connected
+    // socket every 30s with no-op standings.
+    const prev = await prisma.tournamentParticipant.findUnique({
+      where: { id: participantId },
+      select: { currentRank: true },
+    });
     await prisma.tournamentParticipant.update({
       where: { id: participantId },
       data: { currentRank: s.rank },
     });
     updated++;
+    if (prev?.currentRank !== s.rank) {
+      changed.push({ participantId, rank: s.rank });
+    }
   }
   await prisma.tournament.update({
     where: { id: tournament.id },
     data: { lastLiveSync: new Date(), liveSyncSource: 'competetft' },
   });
-  logger.info(`[CompeteTFT] ${tournament.id}: updated ${updated}/${standings.length} ranks`);
+  if (changed.length > 0) {
+    const { broadcastTftStandings } = await import('../socket');
+    broadcastTftStandings(tournament.id, changed);
+  }
+  logger.info(`[CompeteTFT] ${tournament.id}: updated ${updated}/${standings.length} ranks (${changed.length} changed)`);
   return updated;
 }
 

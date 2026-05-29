@@ -1,10 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ChevronRight, Hexagon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getTftTournaments, type TftTournament } from '@/lib/api';
+import {
+  connectTftSocket,
+  onTftStandings,
+  onTftTournamentChanged,
+} from '@/lib/socket';
 
 /**
  * Below-the-fold grid of tournament cards. Mixes live + upcoming so the
@@ -20,12 +25,15 @@ export function HotTournaments() {
   const [tournaments, setTournaments] = useState<TftTournament[] | null>(null);
   const [error, setError]             = useState<string | null>(null);
 
+  // Coalesce socket-driven refreshes : a noisy burst of `tft:standings`
+  // shouldn't trigger 20 simultaneous API calls. We debounce 800ms so
+  // multiple rank updates within the same poll cycle collapse into one
+  // refetch.
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     let cancelled = false;
 
-    // 20s polling so live odds + standings stay fresh without WebSocket
-    // infra. CompeteTFT-side updates land every 30s on the backend, so a
-    // 20s frontend poll catches them within one tick of arrival.
     async function refresh() {
       try {
         const [live, upcoming] = await Promise.all([
@@ -45,9 +53,34 @@ export function HotTournaments() {
       }
     }
 
+    function scheduleRefresh() {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+      debounceTimer.current = setTimeout(() => {
+        if (!cancelled) refresh();
+      }, 800);
+    }
+
+    // ── Initial load + fallback polling ────────────────────────────────
+    // Socket.io carries the "live" updates, but we keep a slow poll
+    // (60s instead of 20s) as a safety net : if the socket disconnects
+    // silently or the backend missed an emit (e.g. failed import), the
+    // poll catches up. 60s is invisible to users compared to socket
+    // pushes that land in <100ms.
     refresh();
-    const id = setInterval(refresh, 20_000);
-    return () => { cancelled = true; clearInterval(id); };
+    const pollId = setInterval(refresh, 60_000);
+
+    // ── Socket subscription for instant updates ────────────────────────
+    connectTftSocket(); // anonymous connection — read-only, no auth needed
+    const offStandings = onTftStandings(scheduleRefresh);
+    const offTournament = onTftTournamentChanged(scheduleRefresh);
+
+    return () => {
+      cancelled = true;
+      clearInterval(pollId);
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+      offStandings();
+      offTournament();
+    };
   }, []);
 
   return (

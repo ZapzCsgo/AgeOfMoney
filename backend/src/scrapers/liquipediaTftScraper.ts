@@ -673,6 +673,13 @@ export async function scrapeTftTournaments(): Promise<{ tournaments: number; par
       }
 
       // ── Upsert tournament with full data ────────────────────────────
+      // We check existence first so we can fire the correct socket event
+      // (created vs updated). Adds one tiny lookup ; saves frontend from
+      // re-fetching when the only change is a participant odds tick.
+      const preExisting = await prisma.tournament.findUnique({
+        where: { liquipediaUrl: t.liquipediaUrl },
+        select: { id: true },
+      });
       const tournament = await prisma.tournament.upsert({
         where: { liquipediaUrl: t.liquipediaUrl },
         create: {
@@ -701,6 +708,10 @@ export async function scrapeTftTournaments(): Promise<{ tournaments: number; par
         },
       });
       tournamentsSaved++;
+      try {
+        const { broadcastTftTournamentChanged } = await import('../socket');
+        broadcastTftTournamentChanged(tournament.id, preExisting ? 'updated' : 'created');
+      } catch { /* socket optional in tests */ }
 
       // ── Upsert players + participants ───────────────────────────────
       for (const p of detail.participants) {
