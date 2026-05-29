@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { cn, formatCoins } from '@/lib/utils';
 import { getMe, getMyTftBets, type TftBet, type MeResponse } from '@/lib/api';
+import { computeLevel, levelTier, tierColor } from '@/lib/level';
 
 type BetFilter = 'all' | 'PENDING' | 'WON' | 'LOST' | 'REFUNDED';
 const FILTERS: { key: BetFilter; label: string }[] = [
@@ -73,6 +74,9 @@ function ProfileHeader({
   const avatar = me?.avatar ?? session.user.image ?? null;
   const coins  = me?.coins ?? session.user.coins ?? 0;
   const wagered = me?.totalWagered ?? 0;
+  const { level, pct } = computeLevel(wagered);
+  const tier = levelTier(level);
+  const lvlColor = tierColor(tier);
   const memberSince = me?.createdAt
     ? new Date(me.createdAt).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
     : '—';
@@ -85,36 +89,71 @@ function ProfileHeader({
 
       <div className="relative max-w-6xl mx-auto px-6 pt-12 pb-10">
         <div className="flex items-center gap-5">
-          <div className="shrink-0 w-20 h-20 md:w-24 md:h-24 rounded-md bg-tft-bg-card border-2 border-tft-purple/50 overflow-hidden shadow-arcane-md flex items-center justify-center">
-            {avatar ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={avatar} alt={username} className="w-full h-full object-cover" />
-            ) : (
-              <User size={36} className="text-tft-purple-bright" />
-            )}
+          <div className="relative shrink-0">
+            <div
+              className="w-20 h-20 md:w-24 md:h-24 rounded-md bg-tft-bg-card overflow-hidden shadow-arcane-md flex items-center justify-center"
+              style={{ border: `2px solid ${lvlColor}99` }}
+            >
+              {avatar ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={avatar} alt={username} className="w-full h-full object-cover" />
+              ) : (
+                <User size={36} className="text-tft-purple-bright" />
+              )}
+            </div>
+            {/* Level badge over the avatar — same pattern as the chat row */}
+            <div
+              className="absolute -bottom-1.5 -right-1.5 font-ui font-black text-[11px] tabular-nums rounded-sm flex items-center justify-center px-1.5 py-0.5 shadow-md"
+              style={{ background: lvlColor, color: '#07060f', minWidth: 24 }}
+            >
+              {level}
+            </div>
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="font-ui text-[10px] tracking-[0.22em] uppercase text-tft-text-muted mb-1">
               Profil
             </p>
             <h1 className="font-display font-bold text-3xl md:text-4xl text-tft-text leading-tight truncate">
               {username}
             </h1>
-            <p className="text-tft-text-dim text-sm mt-1">
-              Membre depuis {memberSince}
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              <span className="text-tft-text-dim text-sm">Membre depuis {memberSince}</span>
+              <span
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-[9.5px] font-bold uppercase tracking-wider border"
+                style={{ background: `${lvlColor}1a`, color: lvlColor, borderColor: `${lvlColor}55` }}
+              >
+                {tier}
+              </span>
               {me?.isAdmin && (
-                <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-tft-rose/15 border border-tft-rose/40 text-tft-rose-bright">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-[9.5px] font-bold uppercase tracking-wider bg-tft-rose/15 border border-tft-rose/40 text-tft-rose-bright">
                   Admin
                 </span>
               )}
-            </p>
+            </div>
+            {/* Level progress bar — only when there's actually a next level to grind for */}
+            {level < 20 && (
+              <div className="mt-3 max-w-md">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-ui text-[9.5px] tracking-[0.18em] uppercase text-tft-text-muted">
+                    Niveau {level} → {level + 1}
+                  </span>
+                  <span className="font-ui text-[10px] tabular-nums text-tft-text-dim">{pct.toFixed(0)}%</span>
+                </div>
+                <div className="h-1.5 rounded-full overflow-hidden bg-tft-bg-elevated">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{ width: `${pct}%`, background: lvlColor }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
         <div className="mt-8 grid grid-cols-2 md:grid-cols-3 gap-4">
           <StatTile icon={Wallet}      label="Solde"          value={`${formatCoins(coins)} ◈`}   accent="purple" />
           <StatTile icon={TrendingUp} label="Total wagered"   value={`${formatCoins(wagered)} ◈`} accent="cyan"   />
-          <StatTile icon={Hexagon}    label="Saison"          value="TFT Set 14"                  accent="gold" />
+          <StatTile icon={Hexagon}    label={`Niveau ${level}`} value={tier[0].toUpperCase() + tier.slice(1)} accent="gold" />
         </div>
       </div>
     </section>

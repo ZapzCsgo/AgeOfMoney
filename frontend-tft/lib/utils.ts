@@ -12,3 +12,15 @@ export function formatCoins(n: number | string): string {
     maximumFractionDigits: 2,
   }).format(isFinite(num) ? num : 0);
 }
+
+/**
+ * Parse a coin amount typed by the user. Accepts "1,2" (FR), "1.2" (intl),
+ * and strips spaces / non-numeric noise. Returns a safe finite number ;
+ * callers should still validate the range against their business limits.
+ */
+export function parseCoinAmount(raw: string | number): number {
+  if (typeof raw === 'number') return isFinite(raw) ? raw : 0;
+  const cleaned = String(raw).replace(/\s/g, '').replace(',', '.').replace(/[^\d.]/g, '');
+  const n = parseFloat(cleaned);
+  return isFinite(n) ? n : 0;
+}

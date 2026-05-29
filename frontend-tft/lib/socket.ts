@@ -42,6 +42,90 @@ export function disconnectTftSocket(): void {
   socket?.disconnect();
 }
 
+/** Re-auths the socket if the token has changed since last connect. Idempotent. */
+export function connectAuthenticated(token: string): void {
+  ensureSocket(token);
+  // ensureSocket already forces a disconnect when the token changes ; here we
+  // just make sure we end up connected.
+  if (!socket?.connected) socket?.connect();
+}
+
+/** Direct access for emit calls (chat send, mute, etc.) */
+export function getTftSocket(): Socket {
+  return ensureSocket();
+}
+
+export type ChatTier = 'legend' | 'diamond' | 'platinum' | 'gold' | 'silver' | 'bronze';
+
+export interface ChatMessage {
+  id: string;
+  userId: string;
+  username: string;
+  avatar: string | null;
+  coins: number;
+  level: number;
+  tier: ChatTier;
+  isAdmin: boolean;
+  isMod: boolean;
+  isPartner: boolean;
+  message: string;
+  timestamp: string;
+}
+
+export function onGlobalChat(cb: (msg: ChatMessage) => void): () => void {
+  const s = ensureSocket();
+  s.on('globalChat', cb);
+  return () => s.off('globalChat', cb);
+}
+
+export function onOnlineCount(cb: (n: number) => void): () => void {
+  const s = ensureSocket();
+  s.on('onlineCount', cb);
+  return () => s.off('onlineCount', cb);
+}
+
+export function onChatMuted(cb: (data: { until: string; remainingMinutes: number; by?: string }) => void): () => void {
+  const s = ensureSocket();
+  s.on('chatMuted', cb);
+  return () => s.off('chatMuted', cb);
+}
+
+export function onChatUnmuted(cb: () => void): () => void {
+  const s = ensureSocket();
+  s.on('chatUnmuted', cb);
+  return () => s.off('chatUnmuted', cb);
+}
+
+export function onChatSystem(cb: (data: { message: string }) => void): () => void {
+  const s = ensureSocket();
+  s.on('chatSystem', cb);
+  return () => s.off('chatSystem', cb);
+}
+
+export function onSocketConnect(cb: () => void): () => void {
+  const s = ensureSocket();
+  s.on('connect', cb);
+  return () => s.off('connect', cb);
+}
+
+export function onSocketDisconnect(cb: () => void): () => void {
+  const s = ensureSocket();
+  s.on('disconnect', cb);
+  return () => s.off('disconnect', cb);
+}
+
+export function sendGlobalChat(message: string): void {
+  const s = ensureSocket();
+  if (!s.connected) return;
+  s.emit('globalChat', { message });
+}
+
+export function emitMuteUser(userId: string, durationMinutes: number): void {
+  const s = ensureSocket();
+  if (!s.connected) return;
+  s.emit('muteUser', { userId, durationMinutes });
+}
+
 /* ── Event listener helpers (return cleanup fn) ─────────────────────── */
 
 export interface TftStandingsPayload {

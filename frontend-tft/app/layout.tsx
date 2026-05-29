@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Cormorant_Garamond, Chakra_Petch, Inter } from 'next/font/google';
 import { Navbar } from '@/components/layout/Navbar';
 import { LeftSidebar } from '@/components/layout/LeftSidebar';
+import { ChatPanel } from '@/components/chat/ChatPanel';
 import { Footer } from '@/components/layout/Footer';
 import { Providers } from '@/components/Providers';
 import './globals.css';
@@ -59,6 +60,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="flex flex-1 pt-14">
             <LeftSidebar />
             <main className="flex-1 min-w-0">{children}</main>
+            {/* Chat panel sticks to the right rail on lg+. On md it hides
+                (md:hidden inside the component) so the layout collapses
+                cleanly back to nav + sidebar + main. */}
+            <ChatPanel />
           </div>
           <Footer />
         </Providers>
