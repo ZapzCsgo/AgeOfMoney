@@ -33,12 +33,13 @@ const LP_USER_AGENT = 'TftMoneyBot/1.0 (https://tft.money; contact@tft.money)';
 //   S-Tier : Esports World Cup, Space Gods Tactician's Crown
 //   A-Tier : Regional Finals (AMER/EMEA/APAC/CN), TFT Pro Circuit Anima Cup,
 //            Tactician's Crown qualifier circuit
-//   B-Tier : Tactician's Trials, regional Open Cups
-// We only ingest S/A — filtering anything below keeps the participant
-// pool manageable for the odds engine and matches the betting market's
-// natural focus on top events.
+//   B-Tier : Tactician's Trials, regional Open Cups, weekly community
+//            tournaments (1k-5k$ prize pools)
+// 2026-05-30 : opened up B-tier on user request — more events on the site
+// means more betting surface area, even if the prize pools are smaller
+// and the Riot stat coverage is patchier.
 function isTierAllowed(tier: string): boolean {
-  return tier === 'S' || tier === 'A';
+  return tier === 'S' || tier === 'A' || tier === 'B';
 }
 
 function sleep(ms: number): Promise<void> {
@@ -243,6 +244,11 @@ const LP_CATEGORY_LIMIT = 75; // recent pages per tier — enough to cover the
 const TIER_CATEGORIES: Array<{ tier: string; cmtitle: string }> = [
   { tier: 'S', cmtitle: 'Category:S-Tier_Tournaments' },
   { tier: 'A', cmtitle: 'Category:A-Tier_Tournaments' },
+  // B-tier opened 2026-05-30. LP categorises these under
+  // "B-Tier Tournaments" (same naming convention as S/A). Volume is
+  // higher than S+A combined, so the categorymembers limit of 75 still
+  // applies — recent-first ordering keeps the budget on active events.
+  { tier: 'B', cmtitle: 'Category:B-Tier_Tournaments' },
 ];
 
 interface CategoryMember {

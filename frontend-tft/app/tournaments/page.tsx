@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Calendar, Trophy, Users, ChevronRight, AlertTriangle, Hexagon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { getTftTournaments, type TftTournament } from '@/lib/api';
+import { getTftTournaments, type TftTournament, type TftParticipant } from '@/lib/api';
 
 type StatusFilter = 'all' | 'upcoming' | 'live' | 'completed';
 
@@ -81,16 +81,14 @@ function PageHeader({
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-tft-purple/40 bg-tft-purple/10 backdrop-blur-sm">
             <Hexagon size={11} className="text-tft-cyan-bright" />
             <span className="font-ui text-[11px] tracking-[0.22em] uppercase text-tft-purple-bright">
-              Saison TFT 14 · S-Tier / A-Tier
+              Saison TFT 14 · S / A / B-Tier
             </span>
           </div>
           <h1 className="font-display font-bold text-4xl md:text-5xl text-tft-text leading-tight">
             Tournois TFT esport
           </h1>
           <p className="text-tft-text-dim text-base max-w-2xl">
-            Tactician&apos;s Crown, Tactician&apos;s Trials, Regional Finals, Esports World Cup.
-            Tous les tournois Tier S et A trackés par notre scraper Liquipedia + CompeteTFT,
-            avec odds maison calculées en continu.
+            Tous les tournois TFT esport pour parier en direct.
           </p>
         </div>
 
@@ -122,94 +120,130 @@ function PageHeader({
 
 /* ─────────────────────── Card ─────────────────────── */
 function TournamentCard({ tournament: t }: { tournament: TftTournament }) {
-  const isLive      = t.bracketStarted && !isCompleted(t);
-  const completed   = isCompleted(t);
-  const winner      = t.participants?.find((p) => p.isWinner);
-  const favorite    = !winner && t.participants?.[0];
-
+  const isLive    = t.bracketStarted && !isCompleted(t);
+  const completed = isCompleted(t);
+  const winner    = t.participants?.find((p) => p.isWinner);
+  // Top 4 favourites for the list page (more space than home card → can
+  // afford one extra row). Skip the winner from the list when completed
+  // so we don't double-print them in the bottom slot.
+  const topPicks = [...(t.participants ?? [])]
+    .filter((p) => !winner || !p.isWinner)
+    .sort((a, b) => (a.odds || 999) - (b.odds || 999))
+    .slice(0, 4);
+  const totalPlayers = t.participants?.length ?? 0;
   const startLabel = new Date(t.startDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
 
   return (
     <Link
       href={`/tournaments/${t.id}`}
       className={cn(
-        'group relative rounded-xl p-5 transition-all cursor-pointer',
-        'bg-card-arcane border border-tft-border',
-        'hover:border-tft-purple/60 hover:shadow-arcane-md hover:-translate-y-0.5',
+        'group relative rounded-md p-5 transition-colors cursor-pointer flex flex-col',
+        'bg-tft-bg-card border border-tft-border',
+        'hover:border-tft-purple/60',
       )}
     >
-      <div className="flex items-center justify-between mb-4">
-        {completed ? (
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-tft-bg-elevated border border-tft-border font-ui text-[10px] tracking-[0.18em] uppercase text-tft-text-dim">
-            Terminé
+      {/* Top row : status pill · tier · players count */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          {completed ? (
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-tft-bg-elevated border border-tft-border font-ui text-[10px] tracking-[0.16em] uppercase text-tft-text-dim">
+              Terminé
+            </span>
+          ) : isLive ? (
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-tft-rose/15 border border-tft-rose/40 font-ui text-[10px] tracking-[0.16em] uppercase text-tft-rose-bright">
+              <span className="w-1.5 h-1.5 rounded-full bg-tft-rose animate-pulse-live" />
+              Live
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-tft-cyan-dim border border-tft-cyan/30 font-ui text-[10px] tracking-[0.16em] uppercase text-tft-cyan-bright">
+              <Calendar size={10} />
+              {startLabel}
+            </span>
+          )}
+          <span className="font-ui text-[10px] tracking-wider uppercase text-tft-text-muted">
+            {t.tier}-Tier
           </span>
-        ) : isLive ? (
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-tft-rose/15 border border-tft-rose/40 font-ui text-[10px] tracking-[0.18em] uppercase text-tft-rose-bright">
-            <span className="w-1.5 h-1.5 rounded-full bg-tft-rose animate-pulse-live" />
-            Live
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-tft-cyan-dim border border-tft-cyan/30 font-ui text-[10px] tracking-[0.18em] uppercase text-tft-cyan-bright">
-            <Calendar size={10} />
-            {startLabel}
-          </span>
-        )}
-        <span className="font-ui text-[10px] tracking-wider uppercase text-tft-text-muted">
-          {t.tier}-Tier
+        </div>
+        <span className="inline-flex items-center gap-1 font-ui text-[10px] tracking-wider uppercase text-tft-text-muted">
+          <Users size={10} />
+          {totalPlayers || '—'}
         </span>
       </div>
 
-      <h3 className="font-display font-semibold text-lg text-tft-text leading-snug mb-4 group-hover:text-arcane transition-all min-h-[3rem]">
+      {/* Tournament name */}
+      <h3 className="font-display font-semibold text-base md:text-lg text-tft-text leading-snug mb-3 min-h-[2.8rem] line-clamp-2 group-hover:text-tft-purple-bright transition-colors">
         {t.name}
       </h3>
 
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        <div>
-          <p className="font-ui text-[9px] tracking-[0.22em] uppercase text-tft-text-muted mb-1">Prize pool</p>
-          <p className="font-ui text-lg font-bold text-tft-gold-bright tabular-nums">
-            {t.prizePool ?? '—'}
-          </p>
+      {/* Winner row (only on completed) — keep prize-pool out of the way */}
+      {winner && (
+        <div className="mb-3 flex items-center gap-2 px-2.5 py-2 rounded-sm bg-tft-gold/8 border border-tft-gold/30">
+          <Trophy size={14} className="text-tft-gold-bright shrink-0" />
+          <div className="min-w-0 flex-1">
+            <p className="font-ui text-[8.5px] tracking-[0.22em] uppercase text-tft-text-muted leading-none mb-0.5">
+              Vainqueur
+            </p>
+            <p className="text-[13px] text-tft-text font-medium truncate">{winner.name}</p>
+          </div>
+          {winner.country && <span className="text-base shrink-0">{winner.country}</span>}
         </div>
-        <div>
-          <p className="font-ui text-[9px] tracking-[0.22em] uppercase text-tft-text-muted mb-1">
-            <Users size={9} className="inline mr-1" />
-            Participants
-          </p>
-          <p className="font-ui text-lg font-bold text-tft-text tabular-nums">
-            {t.participants?.length ?? '—'}
-          </p>
-        </div>
-      </div>
+      )}
 
-      <div className="flex items-center justify-between pt-3 border-t border-tft-border">
-        {winner ? (
-          <>
-            <div className="min-w-0 flex items-center gap-2">
-              <Trophy size={14} className="text-tft-gold-bright shrink-0" />
-              <div className="min-w-0">
-                <p className="font-ui text-[9px] tracking-[0.22em] uppercase text-tft-text-muted mb-0.5">Vainqueur</p>
-                <p className="text-sm text-tft-text font-medium truncate">{winner.name}</p>
-              </div>
-            </div>
-          </>
-        ) : favorite ? (
-          <>
-            <div className="min-w-0">
-              <p className="font-ui text-[9px] tracking-[0.22em] uppercase text-tft-text-muted mb-0.5">Favori</p>
-              <p className="text-sm text-tft-text font-medium truncate">{favorite.name}</p>
-            </div>
-            <div className="text-right shrink-0">
-              <p className="font-ui text-[9px] tracking-[0.22em] uppercase text-tft-text-muted mb-0.5">Côte</p>
-              <p className="font-ui text-xl font-bold text-tft-purple-bright tabular-nums">
-                {favorite.odds.toFixed(2)}×
-              </p>
-            </div>
-          </>
+      {/* Pick rows */}
+      <div className="space-y-1 mb-3">
+        {topPicks.length > 0 ? (
+          topPicks.map((p, i) => <PickRow key={p.id} pick={p} highlight={i === 0 && !winner} />)
         ) : (
-          <p className="text-xs text-tft-text-muted">Participants à venir</p>
+          <div className="text-[11px] text-tft-text-muted px-2 py-4 text-center border border-dashed border-tft-border rounded-sm">
+            Participants pas encore publiés
+          </div>
         )}
       </div>
+
+      {/* Footer CTA */}
+      <div className="mt-auto pt-2.5 border-t border-tft-border flex items-center justify-between">
+        <span className="font-ui text-[10px] tracking-[0.18em] uppercase text-tft-text-muted">
+          {totalPlayers > topPicks.length + (winner ? 1 : 0)
+            ? `+${totalPlayers - topPicks.length - (winner ? 1 : 0)} autres`
+            : completed ? 'Détails' : 'Voir le tournoi'}
+        </span>
+        <span className="inline-flex items-center gap-1 font-ui text-[11px] font-semibold tracking-wider uppercase text-tft-purple-bright group-hover:translate-x-0.5 transition-transform">
+          {completed ? 'Détails' : 'Parier'}
+          <ChevronRight size={12} />
+        </span>
+      </div>
     </Link>
+  );
+}
+
+/** Compact pick row reused across cards on home + listing pages. */
+function PickRow({ pick, highlight }: { pick: TftParticipant; highlight: boolean }) {
+  return (
+    <div
+      className={cn(
+        'flex items-center gap-2 px-2 py-1.5 rounded-sm border transition-colors',
+        highlight
+          ? 'bg-tft-purple/[0.08] border-tft-purple/30'
+          : 'bg-tft-bg/40 border-tft-border',
+      )}
+    >
+      {pick.country ? (
+        <span className="text-sm leading-none shrink-0">{pick.country}</span>
+      ) : (
+        <span className="w-4 h-4 rounded-sm bg-tft-bg-elevated shrink-0" />
+      )}
+      <span className="flex-1 min-w-0 text-[12px] text-tft-text truncate">
+        {pick.name}
+      </span>
+      <span
+        className={cn(
+          'font-ui font-bold text-[12.5px] tabular-nums shrink-0',
+          highlight ? 'text-tft-purple-bright' : 'text-tft-text-dim',
+        )}
+      >
+        {pick.odds > 0 ? `${pick.odds.toFixed(2)}×` : '—'}
+      </span>
+    </div>
   );
 }
 
