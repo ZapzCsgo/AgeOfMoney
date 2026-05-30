@@ -26,7 +26,13 @@ import * as cheerio from 'cheerio';
 import { prisma } from '../index';
 import logger from '../logger';
 
-const LP_USER_AGENT = 'TftMoneyBot/1.0 (https://tft.money; contact@tft.money)';
+// Mirror the User-Agent the AoM scrapers have been using for months. LP
+// appears to rate-limit unknown UA strings more aggressively (the TFT
+// scraper got 429 on the very first request when it identified as
+// "TftMoneyBot/1.0", while AoM with "AgeOfMoney/1.0" continued to work
+// from the same Cloudflare Worker proxy IP pool). Sharing UA means LP
+// sees one client identity instead of two — simpler trust profile.
+const LP_USER_AGENT = 'AgeOfMoney/1.0 (contact@ageofmoney.com)';
 
 // ── Tier whitelist ────────────────────────────────────────────────────────
 // Liquipedia tiers as observed on the TFT wiki (2026) :
@@ -238,8 +244,12 @@ export interface ScrapedTournament {
   competeTftUrl?: string | null;
 }
 
-const LP_CATEGORY_LIMIT = 75; // recent pages per tier — enough to cover the
-                              // live + next ~120d horizon comfortably
+// Reduced from 75 → 30 on 2026-05-30 because LP returns 429 on heavy
+// categorymembers queries from non-whitelisted UA pools. 30 still covers
+// the ~120d window for S/A tiers comfortably ; B tier might miss the
+// oldest community events but the cron tick will pick them up in
+// subsequent cycles.
+const LP_CATEGORY_LIMIT = 30;
 
 const TIER_CATEGORIES: Array<{ tier: string; cmtitle: string }> = [
   { tier: 'S', cmtitle: 'Category:S-Tier_Tournaments' },
