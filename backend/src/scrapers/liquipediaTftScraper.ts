@@ -216,7 +216,7 @@ function parseInfoboxDate(raw: string | null): Date | null {
 // Refactored 2026-05-29 : we no longer scrape Portal:Tournaments HTML. That
 // path was fragile (every LP markup tweak broke selectors) and heavy (~150KB
 // payload for one discovery cycle). The MediaWiki Query API lets us pull
-// the same set of S/A-tier pages via the official `Category:S-Tier_Tournaments`
+// the same set of S/A/B-tier pages via the official `Category:S-Tier_Tournaments`
 // / `Category:A-Tier_Tournaments` categorisation — JSON in, ~10KB payload,
 // immune to UI changes, and LP rate-limits this endpoint separately from
 // `action=parse` so we get back budget for the per-tournament detail calls.
@@ -351,7 +351,7 @@ function pageTitleToTournament(title: string, tier: string): ScrapedTournament {
 }
 
 /**
- * Discovery via categorymembers. Returns S/A-tier tournament shells with no
+ * Discovery via categorymembers. Returns S/A/B-tier tournament shells with no
  * dates/prize-pool — the caller's per-tournament detail pass fills those in.
  *
  * Idempotent : LP's category index is the authoritative tier marker, so a
@@ -378,7 +378,7 @@ export async function discoverUpcomingTournaments(): Promise<ScrapedTournament[]
     await sleep(800); // polite spacing between the two category fetches
   }
 
-  logger.info(`[LiquipediaTFT] Discovered ${results.length} S/A-tier tournament candidates via category API`);
+  logger.info(`[LiquipediaTFT] Discovered ${results.length} S/A/B-tier tournament candidates via category API`);
   return results;
 }
 
