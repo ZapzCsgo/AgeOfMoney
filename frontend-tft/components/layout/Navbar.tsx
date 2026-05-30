@@ -8,26 +8,57 @@ import { ChevronDown, User, LogOut, Shield, Wallet, PlusCircle, Bell, ArrowDownT
 import { cn, formatCoins } from '@/lib/utils';
 
 /**
- * TftHexLogo — small inline SVG, a single hex outline with a crown notch on
- * top. Reads as "Tactician's seat" without needing an external asset.
+ * TftHexLogo — a hex-in-hex composition with a gold diamond core. Reads as
+ * a tactician's board cell holding a wager : hex = TFT board geometry, gold
+ * diamond = money / pot. Layered geometry gives the mark depth at all sizes
+ * without depending on the rasterised crown notch the previous version used
+ * (which collapsed into mush below 24px).
  */
-function TftHexLogo({ size = 30 }: { size?: number }) {
+function TftHexLogo({ size = 32 }: { size?: number }) {
   return (
-    <svg width={size} height={size * 0.9} viewBox="0 0 32 28" fill="none" aria-hidden="true">
+    <svg width={size} height={size * 1.1} viewBox="0 0 36 40" fill="none" aria-hidden="true">
       <defs>
-        <linearGradient id="tft-hex-grad" x1="0" y1="0" x2="32" y2="28" gradientUnits="userSpaceOnUse">
-          <stop offset="0%"  stopColor="#a78bfa" />
+        <linearGradient id="tft-hex-stroke" x1="0" y1="0" x2="36" y2="40" gradientUnits="userSpaceOnUse">
+          <stop offset="0%"  stopColor="#c4b5fd" />
           <stop offset="100%" stopColor="#7c3aed" />
         </linearGradient>
+        <linearGradient id="tft-hex-fill" x1="0" y1="6" x2="36" y2="34" gradientUnits="userSpaceOnUse">
+          <stop offset="0%"  stopColor="#1a1230" />
+          <stop offset="100%" stopColor="#0d0b1a" />
+        </linearGradient>
+        <linearGradient id="tft-hex-inner" x1="10" y1="13" x2="26" y2="27" gradientUnits="userSpaceOnUse">
+          <stop offset="0%"  stopColor="#a78bfa" stopOpacity="0.35" />
+          <stop offset="100%" stopColor="#5b21b6" stopOpacity="0.15" />
+        </linearGradient>
+        <linearGradient id="tft-gold" x1="15" y1="14" x2="21" y2="26" gradientUnits="userSpaceOnUse">
+          <stop offset="0%"  stopColor="#fcd34d" />
+          <stop offset="100%" stopColor="#b8881a" />
+        </linearGradient>
       </defs>
+      {/* Outer hex with gradient stroke + deep fill for the silhouette */}
       <path
-        d="M16 1.5l12.5 7.3v10.4L16 26.5 3.5 19.2V8.8z"
-        fill="url(#tft-hex-grad)"
-        fillOpacity="0.5"
-        stroke="#a78bfa"
-        strokeWidth="1.8"
+        d="M18 2.5L33 11v18L18 37.5L3 29V11z"
+        fill="url(#tft-hex-fill)"
+        stroke="url(#tft-hex-stroke)"
+        strokeWidth="2"
+        strokeLinejoin="round"
       />
-      <path d="M11 9l5 4 5-4 1 2-6 5-6-5z" fill="#fcd34d" />
+      {/* Inner hex — adds depth, suggests the TFT board cell within the cell */}
+      <path
+        d="M18 9L26 13.5v13L18 31l-8-4.5v-13z"
+        fill="url(#tft-hex-inner)"
+      />
+      {/* Gold diamond core — the "money" half of tft.money */}
+      <path
+        d="M18 14L21.5 20L18 26L14.5 20Z"
+        fill="url(#tft-gold)"
+      />
+      {/* Tiny highlight on the diamond for that "polished coin" feel */}
+      <path
+        d="M18 14L19.5 16.5L18 19L16.5 16.5Z"
+        fill="#fffbeb"
+        fillOpacity="0.55"
+      />
     </svg>
   );
 }
