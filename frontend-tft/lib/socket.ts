@@ -154,3 +154,43 @@ export function onTftTournamentChanged(
   s.on('tft:tournament', cb);
   return () => s.off('tft:tournament', cb);
 }
+
+/* ── Shared backend listeners (wallet + notifications) ───────────────
+ * Same events as AoM's lib/socket.ts — the backend is shared, so when a
+ * bet is placed / settled from either site the wallet broadcast lands on
+ * both. We expose simple subscriber helpers so the game pages can mirror
+ * the AoM implementation without re-discovering the contract.                 */
+
+export function onCoinsUpdate(
+  cb: (data: { coins: number; direction?: 'up' | 'down' }) => void,
+): () => void {
+  const s = ensureSocket();
+  s.on('coinsUpdate', cb);
+  return () => s.off('coinsUpdate', cb);
+}
+
+export interface AppNotificationPayload {
+  type: 'tip' | 'deposit' | 'withdrawal';
+  from?: string;
+  amount: number;
+}
+
+export function onNotification(cb: (data: AppNotificationPayload) => void): () => void {
+  const s = ensureSocket();
+  s.on('notification', cb);
+  return () => s.off('notification', cb);
+}
+
+/* ── Aliased helpers — preserve the AoM imports verbatim ─────────────
+ * The roulette / coinflip / jackpot pages on AoM import `connectSocket`
+ * and `getSocket` from `@/lib/socket`. Re-exporting under those names
+ * lets us paste the page bodies straight in without touching every
+ * subscribe call site. */
+
+export function connectSocket(token?: string): void {
+  connectTftSocket(token);
+}
+
+export function getSocket(): Socket {
+  return ensureSocket();
+}

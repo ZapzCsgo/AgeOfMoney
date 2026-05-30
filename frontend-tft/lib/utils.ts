@@ -24,3 +24,9 @@ export function parseCoinAmount(raw: string | number): number {
   const n = parseFloat(cleaned);
   return isFinite(n) ? n : 0;
 }
+
+/** Round to 2 decimals — keeps coin display in lockstep with the
+ *  Decimal(20, 8) backend storage. Mirrors AoM's lib/utils.ts. */
+export function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
