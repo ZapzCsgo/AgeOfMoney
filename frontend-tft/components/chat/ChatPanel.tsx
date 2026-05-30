@@ -242,14 +242,28 @@ export function ChatPanel() {
     return () => document.removeEventListener('mousedown', handler);
   }, [userMenu]);
 
+  // Socket health diagnostic — surfaces a clearer error when the WS URL
+  // is misconfigured (typical : NEXT_PUBLIC_WS_URL not set on the Railway
+  // service → client tries http://localhost:4000 → connection refused).
+  const [socketError, setSocketError] = useState<string | null>(null);
+
   // ── Socket wiring ─────────────────────────────────────────────────────
   useEffect(() => {
     // Anonymous connection — globalChat events flow even without auth ;
     // sending requires auth which we handle in `handleSend`.
     connectTftSocket();
 
-    const offConn    = onSocketConnect(() => setConnected(true));
-    const offDis     = onSocketDisconnect(() => setConnected(false));
+    const offConn = onSocketConnect(() => { setConnected(true); setSocketError(null); });
+    const offDis  = onSocketDisconnect(() => setConnected(false));
+
+    // Catch connect_error to surface URL / CORS / auth issues to the user
+    // instead of leaving them on a silent "Connexion au chat..." loop.
+    const sk = getTftSocket();
+    const onErr = (err: Error) => {
+      setSocketError(err.message || 'Connexion impossible');
+      setConnected(false);
+    };
+    sk.on('connect_error', onErr);
     const offChat    = onGlobalChat((msg) =>
       setMessages((prev) => {
         const next = [...prev, msg];
@@ -283,6 +297,7 @@ export function ChatPanel() {
 
     return () => {
       offConn(); offDis(); offChat(); offOnline(); offMuted(); offUnmuted(); offSystem();
+      sk.off('connect_error', onErr);
     };
   }, []);
 
@@ -361,7 +376,19 @@ export function ChatPanel() {
         className="flex-1 overflow-y-auto min-h-0 py-1"
         style={{ scrollbarWidth: 'thin', scrollbarColor: '#2d2850 transparent' }}
       >
-        {messages.length === 0 ? (
+        {socketError ? (
+          <div className="flex flex-col items-center justify-center h-32 gap-2 px-4">
+            <div className="w-8 h-8 rounded-full bg-tft-rose/15 border border-tft-rose/40 flex items-center justify-center">
+              <VolumeX size={14} className="text-tft-rose" />
+            </div>
+            <p className="text-[11px] text-tft-rose-bright text-center font-medium">
+              Chat indisponible
+            </p>
+            <p className="text-[10px] text-tft-text-muted text-center leading-relaxed">
+              {socketError}
+            </p>
+          </div>
+        ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-32 gap-2">
             <div className="w-8 h-8 rounded-full bg-tft-bg-elevated flex items-center justify-center">
               <Users size={14} className="text-tft-text-muted" />

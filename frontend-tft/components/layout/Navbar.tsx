@@ -190,8 +190,18 @@ export function Navbar() {
                     </span>
                   </div>
                   <div className="flex items-center gap-2 px-2.5">
-                    <div className="w-6 h-6 rounded-full bg-tft-bg-elevated border border-tft-border flex items-center justify-center text-[10px] font-bold text-tft-purple-bright">
-                      {user.name.slice(0, 2).toUpperCase()}
+                    <div className="w-6 h-6 rounded-full bg-tft-bg-elevated border border-tft-border overflow-hidden flex items-center justify-center text-[10px] font-bold text-tft-purple-bright shrink-0">
+                      {user.image ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img
+                          src={user.image}
+                          alt={user.name}
+                          className="w-full h-full object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        user.name.slice(0, 2).toUpperCase()
+                      )}
                     </div>
                     <span className="text-tft-text text-sm font-medium max-w-[80px] truncate hidden md:block">
                       {user.name}
