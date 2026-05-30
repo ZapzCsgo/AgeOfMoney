@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import {
-  User, Wallet, TrendingUp, Trophy, Calendar, ExternalLink,
-  ChevronRight, Hexagon, ArrowRight, ShieldCheck, Sparkles,
+  User, Wallet, TrendingUp, Trophy, Calendar,
+  ChevronRight, Hexagon, ArrowRight, Sparkles,
 } from 'lucide-react';
 import { cn, formatCoins } from '@/lib/utils';
 import { getMe, getMyTftBets, type TftBet, type MeResponse } from '@/lib/api';
@@ -55,7 +55,6 @@ export default function ProfilePage() {
 
         <aside className="lg:sticky lg:top-20 lg:self-start space-y-5">
           <QuickActions me={me} />
-          <ResponsibleGamingCard />
         </aside>
       </section>
     </div>
@@ -375,26 +374,6 @@ function QuickActions({ me }: { me: MeResponse | null }) {
         </div>
       )}
     </div>
-  );
-}
-
-function ResponsibleGamingCard() {
-  return (
-    <Link href="/responsible-gaming" className="block rounded-xl border border-tft-mint/30 bg-tft-mint/5 p-5 hover:border-tft-mint/50 transition-colors cursor-pointer">
-      <div className="flex items-center gap-3 mb-2">
-        <div className="w-10 h-10 rounded-md bg-tft-mint/15 border border-tft-mint/40 flex items-center justify-center">
-          <ShieldCheck size={18} className="text-tft-mint" />
-        </div>
-        <p className="font-display font-semibold text-base text-tft-text">Garde le contrôle</p>
-      </div>
-      <p className="text-xs text-tft-text-dim leading-relaxed">
-        Time-out, plafond de mise, auto-exclusion — tous les outils sont là si tu as besoin de mettre un cap. 18+ uniquement.
-      </p>
-      <div className="mt-3 inline-flex items-center gap-1 text-xs text-tft-mint">
-        En savoir plus
-        <ExternalLink size={11} />
-      </div>
-    </Link>
   );
 }
 

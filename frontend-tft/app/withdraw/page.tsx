@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowDownToLine, AlertTriangle, ShieldCheck, CheckCircle2, Hexagon,
-  ChevronRight, Wallet, Lock,
+  ChevronRight, Wallet,
 } from 'lucide-react';
 import { cn, formatCoins } from '@/lib/utils';
 import {
@@ -110,12 +110,6 @@ export default function WithdrawPage() {
             title="Traité sous 5 min"
             body="Une fois validé manuellement par notre équipe (anti-fraude), le retrait est broadcasté sur le réseau crypto immédiatement."
           />
-          <InfoCard
-            icon={Lock}
-            title="Adresse vérifiée 1× par compte"
-            body="Première utilisation d'une adresse = délai de 24 h. Les retraits suivants vers la même adresse sont instantanés."
-          />
-
           <div className="rounded-xl border border-tft-rose/30 bg-tft-rose/5 p-4">
             <p className="font-ui text-[10px] tracking-[0.22em] uppercase text-tft-rose-bright mb-2">
               ⚠️ Important

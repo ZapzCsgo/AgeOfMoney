@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Coins, Copy, AlertTriangle, ShieldCheck, CheckCircle2, Hexagon, ExternalLink,
+  Coins, Copy, AlertTriangle, CheckCircle2, Hexagon, ExternalLink,
   ChevronRight, Zap, Clock,
 } from 'lucide-react';
 import { cn, formatCoins } from '@/lib/utils';
@@ -100,11 +100,6 @@ export default function DepositPage() {
             icon={Zap}
             title="Crédité en < 2 min"
             body="Une fois confirmé sur le réseau crypto, les coins sont auto-crédités en moins de 2 minutes."
-          />
-          <InfoCard
-            icon={ShieldCheck}
-            title="Sans KYC < 1k$/mois"
-            body="Tant que tu déposes moins de 1 000 $ cumulés par mois, aucune vérification d'identité n'est requise."
           />
           <InfoCard
             icon={Clock}
