@@ -52,36 +52,61 @@ export async function settleTournament(tournamentId: string): Promise<{
 
   const pendingBets = await prisma.tournamentWinnerBet.findMany({
     where: { tournamentId, status: 'PENDING' },
-    select: { id: true, userId: true, participantId: true, stake: true, oddsAtBet: true },
+    select: { id: true, userId: true, participantId: true, market: true, stake: true, oddsAtBet: true },
   });
   if (pendingBets.length === 0) {
     return { paid: 0, lost: 0, refunded: 0, totalPayout: '0' };
   }
 
   // ── Decide outcome ────────────────────────────────────────────────────
-  const winners = tournament.participants.filter((p) => p.isWinner || p.finalRank === 1);
+  // We need final placements (1..N) for every participant who has bets on
+  // them. For WINNER market we need rank==1 ; for TOP_4 we need rank<=4 ;
+  // for TOP_8 we need rank<=8. Build a lookup once.
+  const finalRankByParticipantId = new Map<string, number>();
+  for (const p of tournament.participants) {
+    const r = p.finalRank;
+    if (r !== null && r !== undefined) finalRankByParticipantId.set(p.id, r);
+  }
+
   const endPast = tournament.endDate ? tournament.endDate.getTime() < Date.now() : false;
   const pastGrace = tournament.endDate
     ? tournament.endDate.getTime() + SETTLEMENT_GRACE_HOURS * 3600 * 1000 < Date.now()
     : false;
 
-  // No winner identified and we're past the grace window → refund everyone.
-  // Same path also runs when tournament has been marked isActive=false
-  // (admin cancel). It's the conservative escape hatch.
-  if (winners.length === 0 && pastGrace) {
+  // Coverage threshold : for top-K bets to settle correctly we need the
+  // top K ranks to be known. WINNER needs rank=1. TOP_4 needs ranks 1..4.
+  // TOP_8 needs ranks 1..8. We compute the highest rank requirement across
+  // pending markets and check the live data covers it.
+  const requiredCoverage = pendingBets.reduce((max, b) => {
+    if (b.market === 'WINNER') return Math.max(max, 1);
+    if (b.market === 'TOP_4')  return Math.max(max, 4);
+    if (b.market === 'TOP_8')  return Math.max(max, 8);
+    return max;
+  }, 1);
+  const knownRanks = Array.from(finalRankByParticipantId.values())
+    .filter((r) => r >= 1 && r <= requiredCoverage);
+  const coverageOk = knownRanks.length >= requiredCoverage;
+
+  // No coverage at all and past grace → refund everyone (conservative).
+  if (knownRanks.length === 0 && pastGrace) {
     return refundAllBets(tournamentId, tournament.name, 'Tournoi sans gagnant déterminé après le délai');
   }
 
-  // Mid-grace : still waiting for live scorer to set finalRank — skip
-  if (winners.length === 0 || !endPast) {
-    logger.info(`[TFTSettle] "${tournament.name}" not ready yet (endPast=${endPast}, winners=${winners.length})`);
+  // Mid-grace : still waiting for live scorer to fill ranks — skip
+  if (!coverageOk || !endPast) {
+    logger.info(`[TFTSettle] "${tournament.name}" not ready yet (endPast=${endPast}, known=${knownRanks.length}/${requiredCoverage})`);
     return { paid: 0, lost: 0, refunded: 0, totalPayout: '0' };
   }
 
-  if (winners.length > 1) {
-    logger.warn(`[TFTSettle] "${tournament.name}" has ${winners.length} winners — unexpected, taking first by finalRank`);
+  /** Did this bet win, given the bet's market + the participant's finalRank ? */
+  function isBetWon(market: string, participantId: string): boolean {
+    const rank = finalRankByParticipantId.get(participantId);
+    if (rank === undefined) return false;
+    if (market === 'WINNER') return rank === 1;
+    if (market === 'TOP_4')  return rank <= 4;
+    if (market === 'TOP_8')  return rank <= 8;
+    return false;
   }
-  const winnerParticipantId = winners[0].id;
 
   // ── Pay / mark losses ─────────────────────────────────────────────────
   let paid = 0, lost = 0;
@@ -89,7 +114,7 @@ export async function settleTournament(tournamentId: string): Promise<{
   const io = getIo();
 
   for (const bet of pendingBets) {
-    const won = bet.participantId === winnerParticipantId;
+    const won = isBetWon(bet.market, bet.participantId);
     try {
       await prisma.$transaction(async (tx) => {
         if (won) {

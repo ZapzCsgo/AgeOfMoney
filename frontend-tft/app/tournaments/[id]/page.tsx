@@ -10,8 +10,46 @@ import {
 import { cn, formatCoins } from '@/lib/utils';
 import {
   getTftTournament, placeTournamentWinnerBet,
-  type TftTournament, type TftParticipant,
+  type TftTournament, type TftParticipant, type TftBetMarket,
 } from '@/lib/api';
+
+/** Market metadata shared between the tabs row, the participant list and
+ *  the bet form. Centralised here so the labels / odds-accessor / settle
+ *  rule stay in sync. */
+const MARKETS: Array<{
+  key: TftBetMarket;
+  label: string;
+  shortLabel: string;
+  pitch: string;
+  settleRule: string;
+  /** Returns the odd for this market on a participant, or null if not priced yet. */
+  oddOf: (p: TftParticipant) => number | null;
+}> = [
+  {
+    key: 'WINNER',
+    label: 'Tournament Winner',
+    shortLabel: 'Winner',
+    pitch: 'Parie sur le tacticien qui soulèvera le trophée.',
+    settleRule: 'Settle si finalRank = 1.',
+    oddOf: (p) => p.odds,
+  },
+  {
+    key: 'TOP_4',
+    label: 'Top 4 finish',
+    shortLabel: 'Top 4',
+    pitch: 'Le joueur finit dans les 4 premiers (= qualif lobby finals).',
+    settleRule: 'Settle si finalRank ≤ 4.',
+    oddOf: (p) => p.oddsTop4,
+  },
+  {
+    key: 'TOP_8',
+    label: 'Top 8 finish',
+    shortLabel: 'Top 8',
+    pitch: 'Le joueur finit dans les 8 premiers (= qualif finals Day 3).',
+    settleRule: 'Settle si finalRank ≤ 8.',
+    oddOf: (p) => p.oddsTop8,
+  },
+];
 
 export default function TournamentPage() {
   const params = useParams<{ id: string }>();
@@ -58,11 +96,22 @@ export default function TournamentPage() {
 /* ───────────────────────── Main view ───────────────────────── */
 
 function TournamentView({ tournament }: { tournament: TftTournament }) {
-  const participants = useMemo(
-    () =>
-      [...(tournament.participants ?? [])].sort((a, b) => a.odds - b.odds),
-    [tournament.participants],
-  );
+  const [market, setMarket] = useState<TftBetMarket>('WINNER');
+  const marketDef = MARKETS.find((m) => m.key === market) ?? MARKETS[0];
+
+  // Sort by the active market's odds (favourites first). Participants
+  // missing a market price fall to the back of the list.
+  const participants = useMemo(() => {
+    const all = tournament.participants ?? [];
+    return [...all].sort((a, b) => {
+      const oa = marketDef.oddOf(a);
+      const ob = marketDef.oddOf(b);
+      if (oa === null && ob === null) return 0;
+      if (oa === null) return 1;
+      if (ob === null) return -1;
+      return oa - ob;
+    });
+  }, [tournament.participants, marketDef]);
 
   const [selected, setSelected] = useState<string>(participants[0]?.id ?? '');
   const pick = participants.find((p) => p.id === selected) ?? participants[0];
@@ -181,17 +230,15 @@ function TournamentView({ tournament }: { tournament: TftTournament }) {
       <section className="max-w-6xl mx-auto px-6 mt-10 grid lg:grid-cols-[1fr_360px] gap-8">
 
         <div className="space-y-8 min-w-0">
-          <div className="flex items-center justify-between">
+          <div className="flex items-end justify-between flex-wrap gap-3">
             <div>
               <p className="font-ui text-[11px] tracking-[0.22em] uppercase text-tft-purple-bright mb-1">
                 Marché actif
               </p>
               <h2 className="font-display font-bold text-2xl md:text-3xl text-tft-text">
-                Tournament Winner
+                {marketDef.label}
               </h2>
-              <p className="text-tft-text-dim text-sm mt-1">
-                Parie sur le tacticien qui soulèvera le trophée. Forfait = remboursement intégral.
-              </p>
+              <p className="text-tft-text-dim text-sm mt-1">{marketDef.pitch}</p>
             </div>
             <div className="hidden md:flex items-center gap-1.5 text-tft-text-muted text-xs">
               <Info size={13} className="text-tft-cyan-bright" />
@@ -199,11 +246,15 @@ function TournamentView({ tournament }: { tournament: TftTournament }) {
             </div>
           </div>
 
+          {/* Market tabs — Winner / Top 4 / Top 8 */}
+          <MarketTabs market={market} setMarket={setMarket} participants={tournament.participants ?? []} />
+
           <ParticipantList
             participants={participants}
             selectedId={selected}
             onSelect={setSelected}
             bracketStarted={tournament.bracketStarted}
+            marketDef={marketDef}
           />
 
           <LiveStandingsCard
@@ -233,6 +284,8 @@ function TournamentView({ tournament }: { tournament: TftTournament }) {
             pick={pick}
             bracketStarted={tournament.bracketStarted}
             participantCount={participants.length}
+            market={market}
+            marketDef={marketDef}
           />
 
           <div className="mt-4 rounded-xl border border-tft-border bg-tft-bg-card/50 p-4 flex items-center gap-3">
@@ -250,14 +303,59 @@ function TournamentView({ tournament }: { tournament: TftTournament }) {
   );
 }
 
+/* ───────────────────────── Market tabs ───────────────────────── */
+function MarketTabs({
+  market, setMarket, participants,
+}: {
+  market: TftBetMarket;
+  setMarket: (m: TftBetMarket) => void;
+  participants: TftParticipant[];
+}) {
+  // Disable a tab when the odds engine hasn't priced it yet for ANY
+  // participant (i.e. all oddsTopK are null). Reduces confusion vs
+  // showing a tab where every pick says "—".
+  function tabAvailable(key: TftBetMarket): boolean {
+    const def = MARKETS.find((m) => m.key === key)!;
+    return participants.some((p) => def.oddOf(p) !== null);
+  }
+
+  return (
+    <div className="inline-flex items-center gap-1 p-1 rounded-md bg-tft-bg-card border border-tft-border">
+      {MARKETS.map((m) => {
+        const active = m.key === market;
+        const enabled = tabAvailable(m.key);
+        return (
+          <button
+            key={m.key}
+            onClick={() => enabled && setMarket(m.key)}
+            disabled={!enabled}
+            className={cn(
+              'px-4 py-1.5 rounded-sm font-ui text-[11px] tracking-[0.18em] uppercase transition-colors cursor-pointer',
+              active
+                ? 'bg-tft-purple text-white shadow-arcane-sm'
+                : enabled
+                  ? 'text-tft-text-dim hover:text-tft-text hover:bg-tft-bg-hover'
+                  : 'text-tft-text-faint opacity-50 cursor-not-allowed',
+            )}
+            title={enabled ? m.pitch : 'Cotes pas encore calculées'}
+          >
+            {m.shortLabel}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 /* ───────────────────────── Participants list ───────────────────────── */
 function ParticipantList({
-  participants, selectedId, onSelect, bracketStarted,
+  participants, selectedId, onSelect, bracketStarted, marketDef,
 }: {
   participants: TftParticipant[];
   selectedId: string;
   onSelect: (id: string) => void;
   bracketStarted: boolean;
+  marketDef: typeof MARKETS[number];
 }) {
   return (
     <div className="rounded-xl border border-tft-border bg-tft-bg-card/60 overflow-hidden">
@@ -278,6 +376,7 @@ function ParticipantList({
 
       {participants.map((p) => {
         const isSelected = selectedId === p.id;
+        const odd = marketDef.oddOf(p);
         const rankPill = p.currentRank
           ? `${ordinalFr(p.currentRank)} live`
           : p.finalRank
@@ -287,11 +386,11 @@ function ParticipantList({
           <button
             key={p.id}
             onClick={() => onSelect(p.id)}
-            disabled={bracketStarted}
+            disabled={bracketStarted || odd === null}
             className={cn(
               'w-full text-left grid grid-cols-[1fr_auto] md:grid-cols-[1fr_auto_140px_120px_100px] gap-3 md:gap-4',
               'px-4 md:px-5 py-3 border-b border-tft-border last:border-0 transition-all',
-              bracketStarted ? 'cursor-not-allowed opacity-70' : 'cursor-pointer',
+              bracketStarted || odd === null ? 'cursor-not-allowed opacity-70' : 'cursor-pointer',
               isSelected
                 ? 'bg-tft-purple/10 border-l-2 border-l-tft-purple-bright'
                 : 'hover:bg-tft-bg-hover',
@@ -324,7 +423,7 @@ function ParticipantList({
 
             <div className="text-right md:text-left">
               <p className="font-ui font-bold text-lg text-tft-purple-bright tabular-nums">
-                {p.odds.toFixed(2)}×
+                {odd !== null ? `${odd.toFixed(2)}×` : '—'}
               </p>
               {p.country && (
                 <p className="font-ui text-[10px] tracking-wider uppercase text-tft-text-muted md:hidden">
@@ -422,12 +521,14 @@ function LiveStandingsCard({
 
 /* ───────────────────────── Bet form ───────────────────────── */
 function BetForm({
-  tournamentId, pick, bracketStarted, participantCount,
+  tournamentId, pick, bracketStarted, participantCount, market, marketDef,
 }: {
   tournamentId: string;
   pick: TftParticipant | undefined;
   bracketStarted: boolean;
   participantCount: number;
+  market: TftBetMarket;
+  marketDef: typeof MARKETS[number];
 }) {
   const [stake, setStake]     = useState<string>('25');
   const [posting, setPosting] = useState(false);
@@ -435,10 +536,18 @@ function BetForm({
   const [success, setSuccess] = useState<{ payout: string } | null>(null);
 
   const stakeNum     = parseFloat(stake) || 0;
-  const odds         = pick?.odds ?? 0;
+  const odds         = pick ? (marketDef.oddOf(pick) ?? 0) : 0;
   const potential    = useMemo(() => stakeNum * odds, [stakeNum, odds]);
   const stakeInvalid = stakeNum <= 0 || stakeNum > 10_000;
-  const disabled     = bracketStarted || participantCount === 0 || !pick || stakeInvalid;
+  const oddsMissing  = pick && marketDef.oddOf(pick) === null;
+  const disabled     = bracketStarted || participantCount === 0 || !pick || stakeInvalid || !!oddsMissing;
+
+  // Clear any post-submit feedback when the user switches market — keeps
+  // the form state coherent (the previous success/error referenced a
+  // different market's odds and would be confusing if we kept showing it).
+  useEffect(() => {
+    setSuccess(null); setError(null);
+  }, [market]);
 
   async function handleSubmit() {
     if (!pick) return;
@@ -447,6 +556,7 @@ function BetForm({
       const bet = await placeTournamentWinnerBet({
         tournamentId,
         participantId: pick.id,
+        market,
         stake: stakeNum,
         expectedOdds: odds,
       });
@@ -478,9 +588,14 @@ function BetForm({
 
         {pick ? (
           <div className="p-4 rounded-lg bg-tft-purple/10 border border-tft-purple/30">
-            <p className="font-ui text-[10px] tracking-[0.22em] uppercase text-tft-text-muted mb-2">
-              Tu paries sur
-            </p>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <p className="font-ui text-[10px] tracking-[0.22em] uppercase text-tft-text-muted">
+                Tu paries sur
+              </p>
+              <span className="font-ui text-[9.5px] tracking-[0.18em] uppercase px-1.5 py-0.5 rounded-sm bg-tft-purple/20 border border-tft-purple/40 text-tft-purple-bright">
+                {marketDef.shortLabel}
+              </span>
+            </div>
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 {pick.country && <span className="text-2xl">{pick.country}</span>}
@@ -492,9 +607,14 @@ function BetForm({
                 </div>
               </div>
               <p className="font-ui font-bold text-2xl text-tft-purple-bright shrink-0 tabular-nums">
-                {pick.odds.toFixed(2)}×
+                {odds > 0 ? `${odds.toFixed(2)}×` : '—'}
               </p>
             </div>
+            {oddsMissing && (
+              <p className="mt-2 text-[10px] text-tft-rose-bright">
+                Cotes {marketDef.shortLabel} pas encore calculées — choisis un autre marché ou attends 1 min.
+              </p>
+            )}
           </div>
         ) : (
           <div className="p-4 rounded-lg border border-tft-border bg-tft-bg-card text-sm text-tft-text-muted">
@@ -541,9 +661,9 @@ function BetForm({
             <span className="font-ui tabular-nums text-tft-text">{formatCoins(stakeNum)} ◈</span>
           </div>
           <div className="flex items-center justify-between text-sm">
-            <span className="text-tft-text-muted">Côte</span>
+            <span className="text-tft-text-muted">Côte {marketDef.shortLabel}</span>
             <span className="font-ui tabular-nums text-tft-purple-bright">
-              {pick ? pick.odds.toFixed(2) : '—'}×
+              {odds > 0 ? `${odds.toFixed(2)}×` : '—'}
             </span>
           </div>
           <div className="flex items-center justify-between text-base pt-2">

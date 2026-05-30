@@ -245,7 +245,13 @@ model TournamentParticipant {
   playerId      String
   // Computed odds from tftOddsEngine. Recalculated every 30 min while the
   // tournament is `bracketStarted = false`. Frozen when bracket starts.
+  // `odds` = WINNER market (1-of-N). `oddsTop4` / `oddsTop8` = derived
+  // markets calculated alongside via Plackett-Luce-ish approximation
+  // (K × p_winner capped at min-odds floor). Stored as separate columns
+  // for indexable queries — the bet API picks the right one per market.
   odds          Decimal  @db.Decimal(10, 4)
+  oddsTop4      Decimal? @db.Decimal(10, 4)
+  oddsTop8      Decimal? @db.Decimal(10, 4)
   // Admin override — when set, `odds` is ignored for the bet form. Used
   // when our model is missing data on a wildcard player or when public
   // sportsbook odds drift significantly from ours.
@@ -276,6 +282,14 @@ model TournamentWinnerBet {
   tournamentId  String
   participant   TournamentParticipant @relation(fields: [participantId], references: [id])
   participantId String
+  // Bet market — "WINNER" = qui soulève le trophée (settle si finalRank=1),
+  // "TOP_4" = finit dans le top 4 (settle si finalRank ≤ 4),
+  // "TOP_8" = finit dans le top 8 (settle si finalRank ≤ 8).
+  // Le format Anima Cup / Tactician's Cup typique : 32 joueurs → 24 (Day 2)
+  // → 16 → 8 (Day 3 finalists) → 4 (Day 3 lobby finalists) → 1.
+  // Top 8 = "qualif finals", Top 4 = "lobby finals". Markets calibrés sur
+  // ces transitions narratives, qui sont les enjeux betting réels.
+  market        String       @default("WINNER")
   stake         Decimal      @db.Decimal(20, 8)
   oddsAtBet     Decimal      @db.Decimal(10, 4)
   status        BetStatus    @default(PENDING)
@@ -285,6 +299,7 @@ model TournamentWinnerBet {
 
   @@index([userId])
   @@index([tournamentId, status])
+  @@index([tournamentId, market, status])
 }
 
 enum MatchStatus {

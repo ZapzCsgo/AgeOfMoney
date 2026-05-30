@@ -20,6 +20,8 @@ apiClient.interceptors.request.use((config) => {
 
 // ── Domain types — mirror what /api/v1/tft/* actually returns ─────────────
 
+export type TftBetMarket = 'WINNER' | 'TOP_4' | 'TOP_8';
+
 export interface TftParticipant {
   id: string;
   playerId: string;
@@ -28,8 +30,12 @@ export interface TftParticipant {
   avatarUrl: string | null;
   /** "CHALLENGER 845 LP", "DIAMOND I (32 LP)", or null when no Riot snapshot yet. */
   currentTier: string | null;
-  /** Already accounts for manualOdds override — render as-is. */
+  /** WINNER market odd. Already accounts for manualOdds override — render as-is. */
   odds: number;
+  /** TOP 4 market odd. Null when odds engine hasn't priced this tournament yet. */
+  oddsTop4: number | null;
+  /** TOP 8 market odd. Null when odds engine hasn't priced this tournament yet. */
+  oddsTop8: number | null;
   /** Live placement during the tournament (1 = leading, 8 = last). Null pre-bracket. */
   currentRank: number | null;
   /** Final ranking after settlement. 1 = winner. */
@@ -94,6 +100,8 @@ export async function getTftTournament(id: string): Promise<TftTournament | null
 export async function placeTournamentWinnerBet(input: {
   tournamentId: string;
   participantId: string;
+  /** Defaults to WINNER server-side. TOP_4 / TOP_8 settle on rank ≤ 4 or ≤ 8. */
+  market?: TftBetMarket;
   stake: number;
   expectedOdds?: number;
 }): Promise<{

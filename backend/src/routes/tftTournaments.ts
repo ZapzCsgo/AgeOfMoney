@@ -45,8 +45,12 @@ interface ParticipantPublic {
   country: string | null;
   avatarUrl: string | null;
   currentTier: string | null;
-  /** Effective odd shown to bettors — manualOdds if set, else odds. */
+  /** Effective odd shown to bettors for WINNER market — manualOdds if set, else odds. */
   odds: number;
+  /** Top 4 finish market odd (null if engine hasn't priced it yet). */
+  oddsTop4: number | null;
+  /** Top 8 finish market odd (null if engine hasn't priced it yet). */
+  oddsTop8: number | null;
   /** Live rank during the tournament (1..N). Null when not yet live. */
   currentRank: number | null;
   finalRank: number | null;
@@ -74,6 +78,8 @@ function shapeParticipant(p: {
   id: string;
   playerId: string;
   odds: Decimal;
+  oddsTop4: Decimal | null;
+  oddsTop8: Decimal | null;
   manualOdds: Decimal | null;
   currentRank: number | null;
   finalRank: number | null;
@@ -89,6 +95,8 @@ function shapeParticipant(p: {
     avatarUrl: p.player.avatarUrl,
     currentTier: p.player.tftCurrentTier,
     odds: Number(effectiveOdds.toString()),
+    oddsTop4: p.oddsTop4 ? Number(p.oddsTop4.toString()) : null,
+    oddsTop8: p.oddsTop8 ? Number(p.oddsTop8.toString()) : null,
     currentRank: p.currentRank,
     finalRank: p.finalRank,
     isWinner: p.isWinner,
@@ -215,6 +223,14 @@ router.get('/tournaments/:id', async (req: Request, res: Response): Promise<void
 const placeBetSchema = z.object({
   tournamentId:  z.string().min(1),
   participantId: z.string().min(1),
+  /**
+   * Bet market — defaults to WINNER for backwards-compat with bets placed
+   * before the multi-market refactor (2026-05-30). TOP_4 / TOP_8 pull
+   * odds from oddsTop4 / oddsTop8 columns respectively. Settlement reads
+   * this field to decide what counts as "won" : finalRank=1 for WINNER,
+   * finalRank≤4 for TOP_4, finalRank≤8 for TOP_8.
+   */
+  market:        z.enum(['WINNER', 'TOP_4', 'TOP_8']).default('WINNER'),
   stake:         z.coerce.number().positive(),
   /**
    * Client-side odds snapshot. Server rejects if the live odds have moved
@@ -231,7 +247,7 @@ router.post('/bets/tournament-winner', requireAuth, async (req: Request, res: Re
       res.status(400).json({ error: 'Invalid body', details: parsed.error.flatten() });
       return;
     }
-    const { tournamentId, participantId, stake: stakeNum, expectedOdds } = parsed.data;
+    const { tournamentId, participantId, market, stake: stakeNum, expectedOdds } = parsed.data;
     const userId = req.user!.id;
     const stake = new Decimal(stakeNum.toFixed(8));
 
@@ -278,7 +294,26 @@ router.post('/bets/tournament-winner', requireAuth, async (req: Request, res: Re
         return { ok: false as const, status: 400, error: 'Paris fermés (moins de 5 min avant le coup d\'envoi)' };
       }
 
-      const effectiveOdds = participant.manualOdds ?? participant.odds;
+      // Pick the right odds column for the chosen market. WINNER falls
+      // back to manualOdds (admin override) before participant.odds ;
+      // TOP_4/TOP_8 have no manual override path yet (admin UI doesn't
+      // ship it) so we go straight to the computed column. If the column
+      // is null (legacy tournaments scraped before the multi-market
+      // refacto), reject — odds engine should fill it on next recompute.
+      let effectiveOdds;
+      if (market === 'WINNER') {
+        effectiveOdds = participant.manualOdds ?? participant.odds;
+      } else if (market === 'TOP_4') {
+        if (!participant.oddsTop4) {
+          return { ok: false as const, status: 503, error: 'Cotes Top 4 pas encore calculées — réessaie dans 1 min.' };
+        }
+        effectiveOdds = participant.oddsTop4;
+      } else {
+        if (!participant.oddsTop8) {
+          return { ok: false as const, status: 503, error: 'Cotes Top 8 pas encore calculées — réessaie dans 1 min.' };
+        }
+        effectiveOdds = participant.oddsTop8;
+      }
       const oddsNum = Number(effectiveOdds.toString());
 
       if (expectedOdds !== undefined) {
@@ -327,11 +362,12 @@ router.post('/bets/tournament-winner', requireAuth, async (req: Request, res: Re
           userId,
           tournamentId,
           participantId,
+          market,
           stake,
           oddsAtBet: effectiveOdds,
           status: 'PENDING',
         },
-        select: { id: true, stake: true, oddsAtBet: true, placedAt: true },
+        select: { id: true, stake: true, oddsAtBet: true, placedAt: true, market: true },
       });
 
       await recordLedger(tx, { userId, type: 'tft_bet_placed', coins: stake.neg() });

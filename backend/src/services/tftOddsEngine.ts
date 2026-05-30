@@ -105,6 +105,29 @@ function probabilitiesToOdds(probs: number[]): number[] {
   return odds.map((o) => Math.min(MAX_ODDS, Math.max(MIN_ODDS, Number(o.toFixed(2)))));
 }
 
+/**
+ * Top-K market pricing — derived from winner probabilities via the
+ * heuristic p(in top K) ≈ min(1, K × p_winner). Plackett-Luce gives the
+ * exact form but requires Monte Carlo ; the linear approximation is tight
+ * enough for 32-player fields and the house margin absorbs the noise.
+ *
+ * Sanity with uniform 32-player field (p_winner = 1/32) :
+ *   top 4 : p_topK = 0.125 → odds = 1/(0.125 × 1.08) ≈ 7.4×
+ *   top 8 : p_topK = 0.250 → odds = 1/(0.250 × 1.08) ≈ 3.7×
+ *
+ * Favourites cap at MIN_ODDS — if a heavy favorite has p_winner=0.2 then
+ * raw top-8 prob is 1.6, clamped to 0.999 → odds floor at MIN_ODDS.
+ */
+function topKOdds(p_winner: number[], k: number): number[] {
+  if (p_winner.length === 0) return [];
+  const target = 1 + HOUSE_MARGIN;
+  return p_winner.map((p) => {
+    const p_topK = Math.min(0.999, k * p);
+    const decimal = 1 / (p_topK * target);
+    return Math.min(MAX_ODDS, Math.max(MIN_ODDS, Number(decimal.toFixed(2))));
+  });
+}
+
 // ── Public surface ───────────────────────────────────────────────────────
 
 interface ComputedOdd {
@@ -195,9 +218,15 @@ export async function recomputeTournamentOdds(tournamentId: string): Promise<Com
     return { participant: p, snap, score };
   });
 
-  // ── 3. Softmax → probabilities → odds ────────────────────────────────
+  // ── 3. Softmax → winner probabilities → odds (3 markets) ─────────────
   const probabilities = softmax(items.map((i) => i.score), SOFTMAX_TEMP);
   const odds = probabilitiesToOdds(probabilities);
+  // Top-4 / Top-8 derived from winner probs. We price these alongside the
+  // winner market so the bet form can offer 3 markets per participant —
+  // critical for tournaments with 16+ players where the winner odds
+  // exceed 15× and discourage casual play.
+  const top4Odds = topKOdds(probabilities, 4);
+  const top8Odds = topKOdds(probabilities, 8);
 
   // ── 4. Write back, respecting manualOdds overrides ────────────────────
   const computed: ComputedOdd[] = [];
@@ -224,6 +253,8 @@ export async function recomputeTournamentOdds(tournamentId: string): Promise<Com
         // Only the computed value gets written here — manualOdds is left
         // alone so the admin can revert by clearing it in the UI.
         odds: new Decimal(computedOdd.toFixed(4)),
+        oddsTop4: new Decimal(top4Odds[i].toFixed(4)),
+        oddsTop8: new Decimal(top8Odds[i].toFixed(4)),
         oddsBasis: basis as unknown as object,
       },
     });
