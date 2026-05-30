@@ -642,13 +642,46 @@ export async function scrapeTftTournaments(): Promise<{ tournaments: number; par
   const horizonBackward = 7 * 24 * 3600 * 1000; // keep recently-ended events
                                                 // for settlement; older are dropped
 
+  // ── Skip refetch for tournaments fetched recently ───────────────────
+  // LP's per-page parse calls trip the rate-limiter at 5-10 req/min even
+  // through the Cloudflare worker proxy. With 75 tournaments per discovery
+  // cycle, fetching every detail every 30min = 150 req/h = always 429.
+  // Solution : only refetch when (a) the tournament is new to us, OR
+  // (b) its bracket has started (live data needs to stay fresh), OR
+  // (c) the last detail fetch was > 24h ago.
+  //
+  // Pull cache snapshot for all discovered URLs in one query.
+  const knownTournaments = await prisma.tournament.findMany({
+    where: { liquipediaUrl: { in: discovered.map((d) => d.liquipediaUrl) } },
+    select: {
+      liquipediaUrl: true,
+      lastDetailFetchedAt: true,
+      bracketStarted: true,
+      startDate: true,
+      endDate: true,
+    },
+  });
+  const cacheByUrl = new Map(knownTournaments.map((k) => [k.liquipediaUrl, k]));
+  const DETAIL_TTL_MS = 24 * 3600 * 1000;
+  const nowMs = Date.now();
+  let skippedFresh = 0;
+
   for (const t of discovered) {
     try {
+      const cached = cacheByUrl.get(t.liquipediaUrl);
+      const isFresh = cached?.lastDetailFetchedAt
+        && nowMs - cached.lastDetailFetchedAt.getTime() < DETAIL_TTL_MS;
+      const isLive = cached?.bracketStarted === true;
+      const shouldRefetch = !cached || isLive || !isFresh;
+
+      if (!shouldRefetch) {
+        skippedFresh++;
+        continue; // tournament already in DB, < 24h old, not live → skip LP hit
+      }
+
       // ── Fetch detail FIRST ─────────────────────────────────────────
       // Discovery comes from categorymembers which carries no dates, so
       // we need the infobox before we can decide whether to persist.
-      // Empty shell upserts would clutter the DB with old/irrelevant
-      // tournaments that LP keeps in the S/A categories forever.
       await sleep(3000); // 3s between LP page fetches — under their limiter
       const detail = await fetchTournamentDetail(t.liquipediaUrl);
       if (!detail) {
@@ -693,6 +726,7 @@ export async function scrapeTftTournaments(): Promise<{ tournaments: number; par
           twitchChannel: detail.twitchChannel,
           competeTftUrl: detail.competeTftUrl,
           bracketStarted: detail.bracketStarted,
+          lastDetailFetchedAt: new Date(),
           isActive: true,
         },
         update: {
@@ -704,6 +738,7 @@ export async function scrapeTftTournaments(): Promise<{ tournaments: number; par
           twitchChannel: detail.twitchChannel ?? undefined,
           competeTftUrl: detail.competeTftUrl ?? undefined,
           bracketStarted: detail.bracketStarted,
+          lastDetailFetchedAt: new Date(),
           isActive: true,
         },
       });
@@ -764,7 +799,7 @@ export async function scrapeTftTournaments(): Promise<{ tournaments: number; par
   }).catch(() => { /* scraperLog is best-effort */ });
 
   logger.info(
-    `[LiquipediaTFT] Cycle complete — ${tournamentsSaved} saved, ${skippedOutOfWindow} out-of-window, ${participantsSaved} participants`,
+    `[LiquipediaTFT] Cycle complete — ${tournamentsSaved} saved, ${skippedFresh} cached-fresh, ${skippedOutOfWindow} out-of-window, ${participantsSaved} participants`,
   );
   return { tournaments: tournamentsSaved, participants: participantsSaved };
 }

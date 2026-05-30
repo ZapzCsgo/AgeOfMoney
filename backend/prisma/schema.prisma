@@ -221,6 +221,11 @@ model Tournament {
   // the standings last so we know which one to trust on conflicts.
   lastLiveSync   DateTime?
   liveSyncSource String?  // "competetft" | "liquipedia" | "admin"
+  // Last time we hit the LP per-tournament parse endpoint for this row.
+  // scrapeTftTournaments skips the detail fetch when this is < 24h ago
+  // AND bracketStarted is false — drops per-cycle LP requests by ~10×
+  // and keeps us under LP's per-page rate limit.
+  lastDetailFetchedAt DateTime?
   isActive      Boolean   @default(true)
   createdAt     DateTime  @default(now())
   matches       Match[]
