@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0d0b1a" />
+      <stop offset="100%" stop-color="#05040a" />
+    </linearGradient>
+
+    <linearGradient id="purpleGrad" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#7c3aed" />
+      <stop offset="100%" stop-color="#a78bfa" />
+    </linearGradient>
+
+    <linearGradient id="goldGrad" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#b8881a" />
+      <stop offset="50%" stop-color="#fcd34d" />
+      <stop offset="100%" stop-color="#fff3c4" />
+    </linearGradient>
+
+    <linearGradient id="darkCore" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1c163a" />
+      <stop offset="100%" stop-color="#0b0914" />
+    </linearGradient>
+  </defs>
+
+  <rect width="40" height="40" rx="8" fill="url(#bgGrad)" />
+
+  <polygon points="20,2.5 36,11.7 36,30.3 20,39.5 4,30.3 4,11.7" 
+           fill="none" 
+           stroke="url(#purpleGrad)" 
+           stroke-width="3" 
+           stroke-linejoin="miter" />
+
+  <polygon points="20,6 32,13 32,27 20,34 8,27 8,13" 
+           fill="url(#darkCore)" />
+
+  <g transform="translate(0, -0.5)">
+    <polygon points="20,11 13,17 20,19" fill="#ffd966" />
+    
+    <polygon points="20,11 27,17 20,19" fill="#fff3c4" />
+    
+    <polygon points="13,17 20,30 20,19" fill="#b8881a" />
+    
+    <polygon points="27,17 20,30 20,19" fill="url(#goldGrad)" />
+    
+    <line x1="20" y1="11" x2="20" y2="30" stroke="#fff" stroke-width="0.75" opacity="0.6" stroke-linecap="round"/>
+  </g>
+
+  <polygon points="2,17 6,15 5,21 1,23" fill="#7c3aed" opacity="0.7" />
+  <polygon points="38,17 34,15 35,21 39,23" fill="#a78bfa" opacity="0.7" />
+</svg>

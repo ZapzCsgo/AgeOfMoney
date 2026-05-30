@@ -124,11 +124,13 @@ export function initCronJobs(): void {
     }
   });
 
-  // ── TFT — every 30 minutes : full tournament scrape + odds recalc ────────
-  // Offset by 7 min so we don't collide with AoE's */15 Liquipedia scrape
-  // (they share the same circuit breaker — running them together doubles
-  // 429 pressure for no win).
-  cron.schedule('7,37 * * * *', async () => {
+  // ── TFT — every 15 minutes : full tournament scrape + odds recalc ────────
+  // Cadence tightened from 30 → 15 min on 2026-05-30 because the 24h
+  // detail cache (Tournament.lastDetailFetchedAt) means each cycle only
+  // hits LP for new + live tournaments (~5-10 calls), not the full 75.
+  // The two ticks are offset away from AoE's */15 by 4 minutes so the
+  // shared LP circuit breaker doesn't get pummelled by both at once.
+  cron.schedule('4,19,34,49 * * * *', async () => {
     try {
       const { tournaments } = await scrapeTftTournaments();
       if (tournaments > 0) {
@@ -141,6 +143,20 @@ export function initCronJobs(): void {
       logger.error('[CRON] TFT scrape + odds failed:', err);
     }
   });
+
+  // ── TFT — immediate scrape on boot ────────────────────────────────────────
+  // Without this, a backend restart leaves the home page empty for up to
+  // 15 minutes (worst case). Triggered with a 15s delay so the rest of
+  // the boot (DB connection, socket server, etc.) finishes first.
+  setTimeout(async () => {
+    try {
+      logger.info('[CRON] Boot-time TFT scrape starting');
+      const { tournaments } = await scrapeTftTournaments();
+      if (tournaments > 0) await recomputeAllOpenTftOdds();
+    } catch (err) {
+      logger.error('[CRON] Boot-time TFT scrape failed:', err);
+    }
+  }, 15_000);
 
   // ── TFT — every 30 seconds : poll CompeteTFT for live standings ─────────
   // Runs only when there's at least one tournament with bracketStarted=true.
