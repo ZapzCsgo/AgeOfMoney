@@ -89,16 +89,24 @@ export function Navbar() {
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-arcane opacity-70" />
 
       <div className="flex items-center w-full px-3 md:px-5 gap-2 md:gap-6">
-        {/* Logo */}
+        {/* Logo + wordmark — split colour so the wordmark mirrors the SVG
+            mark (purple hex + gold diamond). Chakra Petch (font-ui) reads
+            tighter and more "esports" than the Cormorant serif we used to
+            ship here, which felt out of place next to the hex glyph. */}
         <Link href="/" className="flex items-center gap-2.5 group shrink-0">
           <TftLogo />
           <span
             className={cn(
-              'font-display font-bold text-[18px] md:text-[20px] tracking-[0.16em]',
-              'text-tft-text group-hover:text-tft-purple-bright transition-colors',
+              'font-ui font-extrabold leading-none',
+              'text-[19px] md:text-[22px] tracking-[-0.01em]',
             )}
           >
-            tft.money
+            <span className="text-tft-purple-bright group-hover:text-tft-purple-bright/90 transition-colors">
+              tft
+            </span>
+            <span className="text-tft-gold-bright group-hover:text-tft-gold-bright/90 transition-colors">
+              .money
+            </span>
           </span>
         </Link>
 
