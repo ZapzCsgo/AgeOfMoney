@@ -1,0 +1,2067 @@
+'use client';
+
+export const dynamic = 'force-dynamic';
+
+import { useEffect, useState, useCallback, useDeferredValue, useMemo } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import Image from 'next/image';
+import { setAuthToken, apiClient } from '@/lib/api';
+import { cn } from '@/lib/utils';
+import {
+  Shield, Flag, Users as UsersIcon, Activity, CheckCircle, XCircle,
+  Gavel, RefreshCw, Play, Database, AlertTriangle,
+  Swords, Coins, Search, Zap, Trash2, ShieldCheck, Star, VolumeX,
+  Eye, X as XIcon, TrendingUp, Receipt, MessageSquare,
+} from 'lucide-react';
+
+// ── Local types (kept inline so this page doesn't depend on a shared /types
+//    package that doesn't exist on the TFT frontend). Mirrors the shape used
+//    by the AgeOfMoney admin and what the shared backend actually returns. ──
+
+type TabType = 'users' | 'risk' | 'transactions' | 'affiliates' | 'matches' | 'flagged' | 'players' | 'scrapers' | 'chat';
+
+interface AdminUser {
+  id: string;
+  username: string;
+  email?: string | null;
+  avatar?: string | null;
+  coins: number;
+  totalWagered?: number;
+  isAdmin: boolean;
+  isMod?: boolean;
+  isPartner?: boolean;
+  isBanned?: boolean;
+  provider?: string;
+  createdAt: string;
+  lastActiveAt?: string;
+}
+
+interface PlayerLite { id: string; name: string }
+
+interface AdminMatch {
+  id: string;
+  player1Id: string;
+  player2Id: string;
+  player1: PlayerLite;
+  player2: PlayerLite;
+  tournamentId?: string | null;
+  tournament?: { id: string; name: string } | null;
+  game?: string;
+  format: string;
+  scheduledAt: string;
+  status: 'UPCOMING' | 'LIVE' | 'COMPLETED' | 'CANCELLED' | 'POSTPONED';
+  resultScore?: string | null;
+  winnerId?: string | null;
+  odds1: number;
+  odds2: number;
+  p1Score?: number;
+  p2Score?: number;
+  _count?: { bets: number };
+}
+
+interface SuspiciousReferral {
+  id: string;
+  referredUser: { id: string; username: string; avatar: string | null; coins: number; isBanned: boolean } | null;
+  referrer:     { id: string; username: string; avatar: string | null; coins: number; isBanned: boolean } | null;
+  code: string;
+  totalDeposited: number;
+  totalWagered: number;
+  commission: number;
+  isActive: boolean;
+  suspicious: boolean;
+  suspiciousReason: string | null;
+  reviewed: boolean;
+  joinedAt: string;
+}
+
+interface AdminPlayer {
+  id: string;
+  name: string;
+  aoe4worldId: string | null;
+  winrate: number;
+  totalGames: number;
+  country: string | null;
+  lastUpdatedAt: string;
+  game?: string;
+  aiEnrichedGames?: string[];
+  _count: { matchHistory: number };
+}
+
+interface InspectBet {
+  id: string;
+  userId: string;
+  amount: number;
+  oddsAtBet: number;
+  status: string;
+  payout: number | null;
+  createdAt: string;
+  user: { id: string; username: string; avatar: string | null; coins: number };
+}
+
+interface InspectData {
+  match: AdminMatch & { boResults: Array<{ boNumber: number; winnerId: string | null; p1Civ: string | null; p2Civ: string | null }> };
+  betsPlayer1: InspectBet[];
+  betsPlayer2: InspectBet[];
+  stats: { total: number; volume1: number; volume2: number; count1: number; count2: number; pct1: number; pct2: number };
+}
+
+interface ResultModal {
+  matchId: string;
+  player1Id: string;
+  player2Id: string;
+  player1Name: string;
+  player2Name: string;
+}
+
+interface ScoreModal {
+  matchId: string;
+  player1Name: string;
+  player2Name: string;
+  currentP1: number;
+  currentP2: number;
+}
+
+interface SuspiciousUser {
+  id: string;
+  username: string;
+  avatar: string | null;
+  coins: number;
+  totalWagered: number;
+  totalBets: number;
+  wonBets: number;
+  winrate: number;
+  netProfit: number;
+  isBanned: boolean;
+  createdAt: string;
+  lastActiveAt: string | null;
+}
+
+interface AdminTransaction {
+  id: string;
+  userId: string;
+  type: string;
+  amount: number;
+  coins: number;
+  status: string;
+  createdAt: string;
+  user: { id: string; username: string; avatar: string | null; coins: number; isBanned: boolean };
+}
+
+interface UserDetail {
+  user: {
+    id: string; username: string; email: string | null; avatar: string | null; bio: string | null;
+    steamId: string | null; coins: number; totalWagered: number;
+    isAdmin: boolean; isMod: boolean; isPartner: boolean; isBanned: boolean;
+    mutedUntil: string | null; totpEnabled: boolean; provider: string;
+    createdAt: string; lastActiveAt: string | null;
+    counts: { bets: number; transactions: number; rouletteBets: number };
+  };
+  stats: {
+    totalBets: number; wonBets: number; lostBets: number; winrate: number;
+    totalWagered: number; totalWon: number; netProfit: number;
+    bets24h: number; bets7d: number;
+  };
+  flags: Array<{ type: string; severity: 'low' | 'med' | 'high'; message: string }>;
+  recentBets: Array<{
+    id: string; amount: number; oddsAtBet: number; status: string; payout: number | null;
+    selectedPlayer: number; createdAt: string;
+    match: { id: string; status: string; winnerId: string | null; resultScore: string | null; scheduledAt: string;
+      player1: { id: string; name: string }; player2: { id: string; name: string } };
+  }>;
+  recentTransactions: Array<{ id: string; type: string; amount: number; coins: number; status: string; createdAt: string }>;
+}
+
+// ── Small date formatter so we don't need to pull in date-fns just for this. ──
+function fmtDateTime(s: string): string {
+  try {
+    return new Date(s).toLocaleString('fr-FR', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+  } catch {
+    return s;
+  }
+}
+
+export default function AdminPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const [tab, setTab] = useState<TabType>('users');
+  const [matches, setMatches] = useState<AdminMatch[]>([]);
+  const [flagged, setFlagged] = useState<AdminMatch[]>([]);
+  const [players, setPlayers] = useState<AdminPlayer[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [usersTotal, setUsersTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [resultModal, setResultModal] = useState<ResultModal | null>(null);
+  const [resultForm, setResultForm] = useState({ winnerId: '', score: '' });
+  const [submitting, setSubmitting] = useState(false);
+  const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [seeding, setSeeding] = useState<string | null>(null);
+  const [userSearch, setUserSearch] = useState('');
+  const [adjustModal, setAdjustModal] = useState<{ userId: string; username: string } | null>(null);
+  const [adjustAmount, setAdjustAmount] = useState('');
+  const [muteModal, setMuteModal] = useState<{ userId: string; username: string } | null>(null);
+  const [muteDuration, setMuteDuration] = useState(15);
+  const [inspectData, setInspectData] = useState<InspectData | null>(null);
+  const [inspectLoading, setInspectLoading] = useState(false);
+  const [scoreModal, setScoreModal] = useState<ScoreModal | null>(null);
+  const [scoreP1, setScoreP1] = useState('0');
+  const [scoreP2, setScoreP2] = useState('0');
+  const [lpDebug, setLpDebug] = useState<Record<string, unknown> | null>(null);
+  const [suspiciousUsers, setSuspiciousUsers] = useState<SuspiciousUser[]>([]);
+  const [suspiciousReferrals, setSuspiciousReferrals] = useState<SuspiciousReferral[]>([]);
+  const [affiliateFilter, setAffiliateFilter] = useState<'suspicious' | 'pending' | 'all'>('pending');
+  const [adminTransactions, setAdminTransactions] = useState<AdminTransaction[]>([]);
+  const [userDetail, setUserDetail] = useState<UserDetail | null>(null);
+  const [userDetailLoading, setUserDetailLoading] = useState(false);
+  const [txFilter, setTxFilter] = useState<'all' | 'pending' | 'deposit' | 'withdrawal'>('pending');
+
+  const showMsg = (type: 'success' | 'error', text: string) => {
+    setMsg({ type, text });
+    setTimeout(() => setMsg(null), 4000);
+  };
+
+  useEffect(() => {
+    if (status === 'loading') return;
+    if (!session?.user.isAdmin) { router.push('/'); return; }
+    if (session.user.accessToken) setAuthToken(session.user.accessToken);
+    loadAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, status]);
+
+  // Auto-seed players with < 10 records when players tab is opened
+  useEffect(() => {
+    if (tab !== 'players' || players.length === 0) return;
+    const needsSeed = players.some(p => p._count.matchHistory < 10);
+    if (needsSeed) {
+      apiClient.post('/admin/players/seed-all', {}).catch(() => {});
+      const t = setTimeout(() => apiClient.get('/admin/players').then(r => setPlayers(r.data.data ?? [])).catch(() => {}), 15000);
+      return () => clearTimeout(t);
+    }
+  }, [tab, players]);
+
+  const loadAll = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [mRes, fRes, pRes, uRes, sRes, tRes, aRes] = await Promise.allSettled([
+        apiClient.get('/admin/matches'),
+        apiClient.get('/admin/matches/flagged'),
+        apiClient.get('/admin/players'),
+        apiClient.get('/admin/users', { params: { limit: 50 } }),
+        apiClient.get('/admin/suspicious'),
+        apiClient.get('/admin/transactions?status=pending&limit=100'),
+        apiClient.get('/admin/affiliate/referrals?filter=pending'),
+      ]);
+      if (mRes.status === 'fulfilled') setMatches(mRes.value.data.data ?? []);
+      if (fRes.status === 'fulfilled') setFlagged(fRes.value.data.data ?? []);
+      if (pRes.status === 'fulfilled') setPlayers(pRes.value.data.data ?? []);
+      if (uRes.status === 'fulfilled') { setUsers(uRes.value.data.data ?? []); setUsersTotal(uRes.value.data.total ?? 0); }
+      if (sRes.status === 'fulfilled') setSuspiciousUsers(sRes.value.data.data ?? []);
+      if (tRes.status === 'fulfilled') setAdminTransactions(tRes.value.data.data ?? []);
+      if (aRes.status === 'fulfilled') setSuspiciousReferrals(aRes.value.data.data ?? []);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const loadAffiliateReferrals = async (filter: typeof affiliateFilter) => {
+    setAffiliateFilter(filter);
+    try {
+      const res = await apiClient.get(`/admin/affiliate/referrals?filter=${filter}`);
+      setSuspiciousReferrals(res.data.data ?? []);
+    } catch { /* ignore */ }
+  };
+
+  const reviewReferral = async (id: string) => {
+    try {
+      await apiClient.post(`/admin/affiliate/referrals/${id}/review`, {});
+      showMsg('success', 'Parrainage marqué comme validé');
+      loadAffiliateReferrals(affiliateFilter);
+    } catch {
+      showMsg('error', 'Erreur');
+    }
+  };
+
+  const revokeReferral = async (id: string) => {
+    if (!confirm('Confisquer toute la commission gagnée sur ce filleul ?')) return;
+    try {
+      const res = await apiClient.post(`/admin/affiliate/referrals/${id}/revoke`, {});
+      showMsg('success', `${res.data.revoked}⚜ confisqués`);
+      loadAffiliateReferrals(affiliateFilter);
+    } catch {
+      showMsg('error', 'Erreur');
+    }
+  };
+
+  const openUserDetail = async (userId: string) => {
+    if (userDetailLoading) return;
+    setUserDetailLoading(true);
+    setUserDetail(null);
+    try {
+      const res = await apiClient.get(`/admin/users/${userId}`);
+      setUserDetail(res.data.data);
+    } catch {
+      showMsg('error', 'Impossible de charger le profil utilisateur');
+    } finally {
+      setUserDetailLoading(false);
+    }
+  };
+
+  const loadTransactions = async (filter: typeof txFilter) => {
+    setTxFilter(filter);
+    const params = new URLSearchParams();
+    if (filter === 'pending') params.set('status', 'pending');
+    if (filter === 'deposit') params.set('type', 'deposit');
+    if (filter === 'withdrawal') params.set('type', 'withdrawal');
+    params.set('limit', '100');
+    try {
+      const res = await apiClient.get(`/admin/transactions?${params}`);
+      setAdminTransactions(res.data.data ?? []);
+    } catch {
+      showMsg('error', 'Erreur chargement transactions');
+    }
+  };
+
+  const [syncingOxaPay, setSyncingOxaPay] = useState(false);
+  const handleSyncOxaPay = async () => {
+    setSyncingOxaPay(true);
+    try {
+      const res = await apiClient.post('/admin/transactions/sync-oxapay', {});
+      const { checked, paid, expired, failed } = res.data;
+      showMsg('success', `${checked} vérifiées · ${paid} payées · ${expired + failed} expirées`);
+      await loadTransactions(txFilter);
+    } catch {
+      showMsg('error', 'Erreur sync OxaPay');
+    } finally {
+      setSyncingOxaPay(false);
+    }
+  };
+
+  const handleSetResult = async () => {
+    if (!resultModal || !resultForm.winnerId || !resultForm.score) return;
+    setSubmitting(true);
+    try {
+      await apiClient.post(`/admin/matches/${resultModal.matchId}/result`, { winnerId: resultForm.winnerId, resultScore: resultForm.score });
+      showMsg('success', 'Résultat enregistré et gains distribués');
+      setResultModal(null);
+      setResultForm({ winnerId: '', score: '' });
+      loadAll();
+    } catch (err) {
+      showMsg('error', err instanceof Error ? err.message : 'Erreur');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCancel = async (matchId: string) => {
+    if (!confirm('Annuler ce match et rembourser tous les paris ?')) return;
+    try {
+      await apiClient.post(`/admin/matches/${matchId}/cancel`);
+      showMsg('success', 'Match annulé et paris remboursés');
+      loadAll();
+    } catch (err) {
+      showMsg('error', err instanceof Error ? err.message : 'Erreur');
+    }
+  };
+
+  const handleDelete = async (matchId: string) => {
+    if (!confirm('Supprimer définitivement ce match ? Les paris seront remboursés.')) return;
+    try {
+      await apiClient.delete(`/admin/matches/${matchId}`);
+      showMsg('success', 'Match supprimé');
+      loadAll();
+    } catch (err) {
+      showMsg('error', err instanceof Error ? err.message : 'Erreur');
+    }
+  };
+
+  const handleBan = async (userId: string, isBanned: boolean) => {
+    try {
+      await apiClient.post(`/admin/users/${userId}/ban`, { banned: !isBanned });
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, isBanned: !isBanned } : u));
+      showMsg('success', `Utilisateur ${isBanned ? 'débanni' : 'banni'}`);
+    } catch (err) {
+      showMsg('error', err instanceof Error ? err.message : 'Erreur');
+    }
+  };
+
+  const handleSetRole = async (userId: string, role: 'isMod' | 'isPartner' | 'isAdmin', currentValue: boolean) => {
+    try {
+      await apiClient.post(`/admin/users/${userId}/role`, { role, value: !currentValue });
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, [role]: !currentValue } : u));
+      showMsg('success', `Rôle mis à jour`);
+    } catch (err) {
+      showMsg('error', err instanceof Error ? err.message : 'Erreur');
+    }
+  };
+
+  const handleMute = async () => {
+    if (!muteModal) return;
+    try {
+      await apiClient.post(`/admin/users/${muteModal.userId}/mute`, { durationMinutes: muteDuration });
+      showMsg('success', `${muteModal.username} muté ${muteDuration} min`);
+      setMuteModal(null);
+    } catch (err) {
+      showMsg('error', err instanceof Error ? err.message : 'Erreur');
+    }
+  };
+
+  const handleAdjustCoins = async () => {
+    if (!adjustModal || !adjustAmount) return;
+    try {
+      await apiClient.post(`/admin/users/${adjustModal.userId}/adjust-coins`, {
+        amount: parseInt(adjustAmount),
+        reason: 'Admin adjustment',
+      });
+      showMsg('success', `Coins ajustés pour ${adjustModal.username}`);
+      setAdjustModal(null);
+      setAdjustAmount('');
+      loadAll();
+    } catch (err) {
+      showMsg('error', err instanceof Error ? err.message : 'Erreur');
+    }
+  };
+
+  const handleSeedPlayer = async (playerId: string, playerName: string, source: 'all' | 'ai' | 'aoe4world' | 'liquipedia' = 'all', game?: string) => {
+    setSeeding(playerId);
+    try {
+      await apiClient.post(`/admin/players/${playerId}/seed-history`, { force: true, source, ...(game ? { game } : {}) });
+      const label = source === 'ai' ? 'Claude AI' : source === 'aoe4world' ? 'aoe4world' : source === 'liquipedia' ? 'Liquipedia' : 'toutes sources';
+      showMsg('success', `Seed ${playerName} via ${label}${game ? ` (${game})` : ''}`);
+    } catch (err) {
+      showMsg('error', err instanceof Error ? err.message : 'Erreur');
+    } finally {
+      setSeeding(null);
+    }
+  };
+
+  const handleSeedAll = async () => {
+    setSeeding('all');
+    try {
+      await apiClient.post('/admin/players/seed-all', {});
+      showMsg('success', 'Seeding de tous les joueurs démarré en background');
+    } catch (err) {
+      showMsg('error', err instanceof Error ? err.message : 'Erreur');
+    } finally {
+      setSeeding(null);
+    }
+  };
+
+  const handleSetScore = async () => {
+    if (!scoreModal) return;
+    try {
+      await apiClient.post(`/admin/matches/${scoreModal.matchId}/score`, {
+        p1Score: parseInt(scoreP1),
+        p2Score: parseInt(scoreP2),
+      });
+      showMsg('success', `Score mis à jour : ${scoreP1}-${scoreP2}`);
+      setScoreModal(null);
+      loadAll();
+    } catch (err) {
+      showMsg('error', err instanceof Error ? err.message : 'Erreur');
+    }
+  };
+
+  const handleLpDebug = async (matchId: string) => {
+    try {
+      const res = await apiClient.get(`/admin/matches/${matchId}/lp-debug`);
+      setLpDebug(res.data);
+    } catch (err) {
+      showMsg('error', err instanceof Error ? err.message : 'Erreur LP debug');
+    }
+  };
+
+  const handleInspect = async (matchId: string) => {
+    setInspectLoading(true);
+    try {
+      const res = await apiClient.get(`/admin/matches/${matchId}/inspect`);
+      setInspectData(res.data.data);
+    } catch (err) {
+      showMsg('error', err instanceof Error ? err.message : 'Erreur inspection');
+    } finally {
+      setInspectLoading(false);
+    }
+  };
+
+  const deferredUserSearch = useDeferredValue(userSearch);
+  const filteredUsers = useMemo(
+    () => users.filter(u =>
+      !deferredUserSearch || u.username.toLowerCase().includes(deferredUserSearch.toLowerCase())
+    ),
+    [users, deferredUserSearch]
+  );
+
+  if (status === 'loading' && !session) return (
+    <div className="min-h-screen flex items-center justify-center bg-tft-bg">
+      <div className="w-8 h-8 border-2 border-tft-purple-bright border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+  if (!session?.user.isAdmin) return null;
+
+  const tabs: { id: TabType; label: string; icon: React.ElementType; count?: number }[] = [
+    { id: 'users', label: 'Utilisateurs', icon: UsersIcon, count: usersTotal },
+    { id: 'risk', label: 'Risque', icon: AlertTriangle, count: suspiciousUsers.length },
+    { id: 'transactions', label: 'Transactions', icon: Receipt, count: adminTransactions.filter(t => t.status === 'pending').length },
+    { id: 'affiliates', label: 'Affiliés', icon: Zap, count: suspiciousReferrals.filter(r => !r.reviewed).length },
+    { id: 'matches', label: 'Matchs', icon: Swords, count: matches.length },
+    { id: 'flagged', label: 'Flaggés', icon: Flag, count: flagged.length },
+    { id: 'players', label: 'Joueurs', icon: Database, count: players.length },
+    { id: 'scrapers', label: 'Scrapers', icon: Activity },
+    { id: 'chat', label: 'Chat', icon: MessageSquare },
+  ];
+
+  return (
+    <div className="min-h-screen bg-tft-bg text-tft-text">
+
+      {/* Header */}
+      <div className="bg-tft-bg-card border-b border-tft-border px-6 py-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-md flex items-center justify-center bg-tft-rose/10 border border-tft-rose/40">
+              <Shield size={16} className="text-tft-rose" />
+            </div>
+            <div>
+              <h1 className="font-display font-bold text-[15px] text-tft-text tracking-wide">
+                ADMINISTRATION
+              </h1>
+              <p className="text-[11px] text-tft-text-muted font-ui">tft.money — Panel Admin</p>
+            </div>
+          </div>
+          <button onClick={loadAll} className="flex items-center gap-2 text-tft-text-muted hover:text-tft-text transition-colors text-[12px] font-ui">
+            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+            Rafraîchir
+          </button>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-6 py-6">
+        {/* Toast */}
+        {msg && (
+          <div className={cn(
+            'flex items-center gap-2 p-3 rounded-md mb-4 text-[12px]',
+            msg.type === 'success'
+              ? 'bg-emerald-950 border border-emerald-800/40 text-emerald-400'
+              : 'bg-red-950 border border-red-800/40 text-red-400'
+          )}>
+            {msg.type === 'success' ? <CheckCircle size={14} /> : <XCircle size={14} />}
+            {msg.text}
+            <button onClick={() => setMsg(null)} className="ml-auto opacity-60 hover:opacity-100">×</button>
+          </div>
+        )}
+
+        {/* Tabs */}
+        <div className="flex gap-1 mb-6 overflow-x-auto scrollbar-hide -mx-6 px-6 sm:mx-0 sm:px-0 border-b border-tft-border">
+          {tabs.map(t => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={cn(
+                'shrink-0 flex items-center gap-2 px-4 py-2.5 text-[12px] font-ui font-medium transition-all border-b-2 -mb-px whitespace-nowrap',
+                tab === t.id
+                  ? 'border-tft-purple-bright text-tft-purple-bright'
+                  : 'border-transparent text-tft-text-muted hover:text-tft-text-dim'
+              )}
+            >
+              <t.icon size={13} />
+              {t.label}
+              {t.count !== undefined && (
+                <span className={cn(
+                  'px-1.5 py-0.5 rounded text-[10px] font-bold',
+                  tab === t.id ? 'bg-tft-purple-bright/15 text-tft-purple-bright' : 'bg-tft-bg-elevated text-tft-text-muted',
+                )}>
+                  {t.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* ── MATCHES TAB ────────────────────────────────────────────────── */}
+        {tab === 'matches' && (
+          <div className="rounded-md overflow-hidden border border-tft-border bg-tft-bg-card shadow-arcane-sm">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-tft-border">
+              <Swords size={14} className="text-tft-purple-bright" />
+              <span className="text-[13px] font-display font-semibold text-tft-purple-bright tracking-wide">MATCHS ACTIFS</span>
+              <span className="ml-auto text-[11px] text-tft-text-muted font-ui">{matches.length} match(s)</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-[12px]">
+                <thead>
+                  <tr className="border-b border-tft-border">
+                    {['Match', 'Tournoi', 'Format', 'Statut', 'Cotes', 'Paris', 'Date', 'Actions'].map(h => (
+                      <th key={h} className="text-left px-4 py-2.5 text-[11px] text-tft-text-muted uppercase tracking-wider font-ui font-medium">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {matches.map(m => (
+                    <tr key={m.id} className="hover:bg-tft-bg-hover transition-colors border-b border-tft-border/30">
+                      <td className="px-4 py-3">
+                        <p className="font-semibold text-tft-text">{m.player1.name}</p>
+                        <p className="text-tft-text-muted text-[11px]">vs {m.player2.name}</p>
+                      </td>
+                      <td className="px-4 py-3 text-tft-text-dim">{m.tournament?.name ?? ''}</td>
+                      <td className="px-4 py-3">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold text-tft-purple-bright bg-tft-purple-bright/10 border border-tft-purple-bright/30">
+                          {m.format}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={cn(
+                          'px-2 py-0.5 rounded text-[10px] font-bold',
+                          m.status === 'LIVE' ? 'bg-emerald-950 border border-emerald-800/40 text-emerald-400' : 'bg-tft-bg-elevated text-tft-text-dim'
+                        )}>
+                          {m.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-tft-text-dim font-mono text-[11px]">
+                        {m.odds1?.toFixed(2)} / {m.odds2?.toFixed(2)}
+                      </td>
+                      <td className="px-4 py-3 text-tft-text-dim">{m._count?.bets ?? 0}</td>
+                      <td className="px-4 py-3 text-tft-text-muted whitespace-nowrap">
+                        {fmtDateTime(m.scheduledAt)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleInspect(m.id)}
+                            className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium transition-all hover:opacity-90 bg-tft-cyan/15 border border-tft-cyan/40 text-tft-cyan-bright"
+                            title="Inspecter le match"
+                          >
+                            <Eye size={11} />
+                            Inspecter
+                          </button>
+                          {m.status === 'LIVE' && (
+                            <>
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await apiClient.post(`/admin/matches/${m.id}/sync-liquipedia`);
+                                    showMsg('success', 'Sync Liquipedia déclenché');
+                                    setTimeout(loadAll, 4000);
+                                  } catch (err) {
+                                    showMsg('error', err instanceof Error ? err.message : 'Erreur');
+                                  }
+                                }}
+                                className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium transition-all hover:opacity-90 bg-tft-purple/15 border border-tft-purple/40 text-tft-purple-bright"
+                                title="Sync score depuis Liquipedia"
+                              >
+                                <RefreshCw size={11} />
+                                LP
+                              </button>
+                              <button
+                                onClick={() => handleLpDebug(m.id)}
+                                className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium transition-all hover:opacity-90 bg-tft-bg border border-tft-purple/60 text-tft-purple-bright"
+                                title="Diagnostiquer le scraping LP"
+                              >
+                                <Search size={11} />
+                                LP Debug
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setScoreP1(String(m.p1Score ?? 0));
+                                  setScoreP2(String(m.p2Score ?? 0));
+                                  setScoreModal({ matchId: m.id, player1Name: m.player1.name, player2Name: m.player2.name, currentP1: m.p1Score ?? 0, currentP2: m.p2Score ?? 0 });
+                                }}
+                                className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium transition-all hover:opacity-90 bg-tft-mint/15 border border-tft-mint/40 text-tft-mint"
+                                title="Définir le score BO manuellement"
+                              >
+                                <Zap size={11} />
+                                Score
+                              </button>
+                            </>
+                          )}
+                          <button
+                            onClick={() => setResultModal({ matchId: m.id, player1Id: m.player1Id, player2Id: m.player2Id, player1Name: m.player1.name, player2Name: m.player2.name })}
+                            className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium transition-all hover:opacity-90 bg-tft-purple-bright/15 border border-tft-purple-bright/40 text-tft-purple-bright"
+                          >
+                            <Gavel size={11} />
+                            Résultat
+                          </button>
+                          <button
+                            onClick={() => handleCancel(m.id)}
+                            className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium transition-all hover:opacity-90 bg-tft-rose-dark/15 border border-tft-rose-dark/40 text-tft-rose-bright"
+                            title="Annuler (rembourser)"
+                          >
+                            Annuler
+                          </button>
+                          <button
+                            onClick={() => handleDelete(m.id)}
+                            className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium transition-all hover:opacity-90 bg-red-900/40 border border-red-900/60 text-red-400"
+                            title="Supprimer définitivement"
+                          >
+                            <Trash2 size={11} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {matches.length === 0 && (
+                    <tr><td colSpan={8} className="px-4 py-10 text-center text-tft-text-muted">Aucun match actif</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ── FLAGGED TAB ───────────────────────────────────────────────── */}
+        {tab === 'flagged' && (
+          <div className="rounded-md overflow-hidden border border-tft-border bg-tft-bg-card shadow-arcane-sm">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-tft-border">
+              <Flag size={14} className="text-amber-400" />
+              <span className="text-[13px] font-display font-semibold text-amber-400 tracking-wide">MATCHS FLAGGÉS</span>
+              {flagged.length === 0 && <span className="ml-2 text-[11px] text-emerald-400 flex items-center gap-1 font-ui"><CheckCircle size={11} />Tout est en ordre</span>}
+            </div>
+            {flagged.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-[12px]">
+                  <thead>
+                    <tr className="border-b border-tft-border">
+                      {['Match', 'Tournoi', 'Format', 'Date', 'Paris', 'Action'].map(h => (
+                        <th key={h} className="text-left px-4 py-2.5 text-[11px] text-tft-text-muted uppercase tracking-wider font-ui font-medium">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {flagged.map(m => (
+                      <tr key={m.id} className="hover:bg-tft-bg-hover border-b border-tft-border/30">
+                        <td className="px-4 py-3 font-semibold text-tft-text">{m.player1.name} vs {m.player2.name}</td>
+                        <td className="px-4 py-3 text-tft-text-dim">{m.tournament?.name ?? ''}</td>
+                        <td className="px-4 py-3 text-tft-purple-bright font-bold text-[11px]">{m.format}</td>
+                        <td className="px-4 py-3 text-tft-text-muted">{fmtDateTime(m.scheduledAt)}</td>
+                        <td className="px-4 py-3 text-tft-text-dim">{m._count?.bets ?? 0}</td>
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={() => setResultModal({ matchId: m.id, player1Id: m.player1Id, player2Id: m.player2Id, player1Name: m.player1.name, player2Name: m.player2.name })}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded text-[11px] font-medium bg-tft-purple-bright/15 border border-tft-purple-bright/40 text-tft-purple-bright"
+                          >
+                            <Gavel size={11} />
+                            Résultat
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="py-12 text-center text-tft-text-muted text-[13px]">Aucun match flaggé</div>
+            )}
+          </div>
+        )}
+
+        {/* ── PLAYERS TAB ───────────────────────────────────────────────── */}
+        {tab === 'players' && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-[12px] text-tft-text-muted font-ui">{players.length} joueurs — historique mis à jour automatiquement via aoe4world + Liquipedia</p>
+              <button
+                onClick={handleSeedAll}
+                disabled={seeding === 'all'}
+                className="flex items-center gap-2 px-4 py-2 rounded text-[12px] font-ui font-medium transition-all disabled:opacity-50 bg-tft-purple-bright/15 border border-tft-purple-bright/40 text-tft-purple-bright"
+              >
+                {seeding === 'all' ? <RefreshCw size={13} className="animate-spin" /> : <Zap size={13} />}
+                Seed tous les joueurs
+              </button>
+            </div>
+
+            {/* Quick fix: manually set tournament game (cascades to matches) */}
+            <div className="rounded-md p-3 bg-tft-bg-elevated border border-tft-border">
+              <p className="text-[11px] text-tft-text-muted mb-2 uppercase tracking-wider font-ui">Forcer le jeu d&apos;un tournoi (override classification)</p>
+              <form
+                className="flex items-center gap-2"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  const form = e.currentTarget;
+                  const nameInput = form.elements.namedItem('tname') as HTMLInputElement;
+                  const gameSelect = form.elements.namedItem('tgame') as HTMLSelectElement;
+                  if (!nameInput.value || !gameSelect.value) return;
+                  try {
+                    const r = await apiClient.post('/admin/tournaments/set-game', {
+                      name: nameInput.value,
+                      game: gameSelect.value,
+                    });
+                    const data = r.data as { tournamentsUpdated: number; matchesUpdated: number };
+                    showMsg('success', `${data.tournamentsUpdated} tournoi(s) → ${gameSelect.value} (${data.matchesUpdated} matchs cascadés)`);
+                    nameInput.value = '';
+                    loadAll();
+                  } catch (err) {
+                    showMsg('error', err instanceof Error ? err.message : 'Erreur');
+                  }
+                }}
+              >
+                <input
+                  name="tname"
+                  placeholder="Nom du tournoi (ex: Tactician's Trials)"
+                  className="flex-1 px-3 py-2 rounded text-[12px] outline-none text-tft-text placeholder:text-tft-text-faint bg-tft-bg-card border border-tft-border"
+                />
+                <select
+                  name="tgame"
+                  defaultValue=""
+                  className="px-2 py-2 rounded text-[12px] outline-none text-tft-text bg-tft-bg-card border border-tft-border"
+                  required
+                >
+                  <option value="" disabled>Jeu…</option>
+                  <option value="TFT">TFT</option>
+                  <option value="AoE1">AoE1</option>
+                  <option value="AoE2">AoE2</option>
+                  <option value="AoE3">AoE3</option>
+                  <option value="AoE4">AoE4</option>
+                  <option value="AoM">AoM</option>
+                </select>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded text-[12px] font-ui font-medium bg-tft-purple-bright/15 border border-tft-purple-bright/40 text-tft-purple-bright"
+                >
+                  Appliquer
+                </button>
+              </form>
+            </div>
+
+            <div className="rounded-md overflow-hidden border border-tft-border bg-tft-bg-card shadow-arcane-sm">
+              <table className="w-full text-[12px]">
+                <thead>
+                  <tr className="border-b border-tft-border">
+                    {['Joueur', 'Winrate', 'Pays', 'Records DB', 'Dernière MAJ', 'Action'].map(h => (
+                      <th key={h} className="text-left px-4 py-2.5 text-[11px] text-tft-text-muted uppercase tracking-wider font-ui font-medium">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {players.map(p => {
+                    const records = p._count.matchHistory;
+                    const recordsClass = records >= 50 ? 'text-tft-mint' : records >= 20 ? 'text-tft-purple-bright' : records > 0 ? 'text-red-400' : 'text-tft-text-muted';
+                    const enrichedGames = p.aiEnrichedGames ?? [];
+                    const aiDone = enrichedGames.length > 0;
+                    return (
+                      <tr key={p.id} className="hover:bg-tft-bg-hover transition-colors border-b border-tft-border/30">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-semibold text-tft-text">{p.name}</p>
+                            {p.game && p.game !== 'AoE4' && (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded font-display bg-tft-bg-elevated border border-tft-border-mid text-tft-text-dim">
+                                {p.game}
+                              </span>
+                            )}
+                            {aiDone && (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded font-display inline-flex items-center gap-1 bg-tft-cyan/10 border border-tft-cyan/30 text-tft-cyan"
+                                title={`Claude AI a déjà été appelé pour: ${enrichedGames.join(', ')}`}>
+                                AI {enrichedGames.join('+')}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-tft-text-muted font-mono">{p.aoe4worldId ?? 'no aoe4world ID'}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={cn('font-bold', (p.winrate ?? 0) >= 0.55 ? 'text-emerald-400' : (p.winrate ?? 0) >= 0.45 ? 'text-tft-purple-bright' : 'text-red-400')}>
+                            {((p.winrate ?? 0) * 100).toFixed(0)}%
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-tft-text-dim">{p.country ?? ''}</td>
+                        <td className="px-4 py-3">
+                          <span className={cn('font-bold text-[13px]', recordsClass)}>
+                            {records}/50
+                          </span>
+                          <div className="w-16 h-1 rounded-full mt-1 bg-tft-bg-elevated">
+                            <div className={cn('h-full rounded-full transition-all', recordsClass.replace('text-', 'bg-'))} style={{ width: `${Math.min(100, (records / 50) * 100)}%` }} />
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-tft-text-muted text-[11px]">
+                          {new Date(p.lastUpdatedAt).toLocaleDateString('fr-FR')}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1 flex-wrap">
+                            <button
+                              onClick={() => handleSeedPlayer(p.id, p.name, 'liquipedia')}
+                              disabled={seeding === p.id}
+                              className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-all disabled:opacity-40 bg-tft-purple-bright/10 border border-tft-purple-bright/25 text-tft-purple-bright"
+                              title="Seed via Liquipedia /Matches page (S/A tier tournament results)"
+                            >
+                              {seeding === p.id ? <RefreshCw size={10} className="animate-spin" /> : 'LP'}
+                            </button>
+                            <button
+                              onClick={() => handleSeedPlayer(p.id, p.name, 'ai')}
+                              disabled={seeding === p.id}
+                              className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-all disabled:opacity-40 bg-tft-cyan/10 border border-tft-cyan/25 text-tft-cyan"
+                              title="Seed via Claude AI (esport knowledge)"
+                            >
+                              AI
+                            </button>
+                            {p.aoe4worldId && (
+                              <button
+                                onClick={() => handleSeedPlayer(p.id, p.name, 'aoe4world')}
+                                disabled={seeding === p.id}
+                                className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-all disabled:opacity-40 bg-tft-mint/10 border border-tft-mint/25 text-tft-mint"
+                                title="Seed via aoe4world API (AoE4 real match data)"
+                              >
+                                aoe4w
+                              </button>
+                            )}
+                            <select
+                              defaultValue=""
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  handleSeedPlayer(p.id, p.name, 'ai', e.target.value);
+                                  e.target.value = '';
+                                }
+                              }}
+                              disabled={seeding === p.id}
+                              className="px-1 py-1 rounded text-[9px] font-medium outline-none disabled:opacity-40 bg-tft-bg-elevated border border-tft-border text-tft-text-muted"
+                              title="Force AI seed pour un jeu spécifique"
+                            >
+                              <option value="">jeu…</option>
+                              <option value="TFT">TFT</option>
+                              <option value="AoE2">AoE2</option>
+                              <option value="AoE4">AoE4</option>
+                              <option value="AoE3">AoE3</option>
+                              <option value="AoM">AoM</option>
+                            </select>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ── USERS TAB ─────────────────────────────────────────────────── */}
+        {tab === 'users' && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1 max-w-xs">
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-tft-text-muted" />
+                <input
+                  value={userSearch}
+                  onChange={e => setUserSearch(e.target.value)}
+                  placeholder="Rechercher un utilisateur…"
+                  className="w-full pl-8 pr-3 py-2 rounded-md text-[12px] text-tft-text placeholder:text-tft-text-faint outline-none bg-tft-bg-elevated border border-tft-border"
+                />
+              </div>
+              <span className="text-[12px] text-tft-text-muted font-ui">{usersTotal} utilisateurs</span>
+            </div>
+
+            <div className="rounded-md overflow-hidden border border-tft-border bg-tft-bg-card shadow-arcane-sm">
+              <table className="w-full text-[12px]">
+                <thead>
+                  <tr className="border-b border-tft-border">
+                    {['Utilisateur', 'Coins', 'Rôles', 'Statut', 'Dernière activité', 'Actions'].map(h => (
+                      <th key={h} className="text-left px-4 py-2.5 text-[11px] text-tft-text-muted uppercase tracking-wider font-ui font-medium">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredUsers.map(u => (
+                    <tr key={u.id} className="hover:bg-tft-bg-hover transition-colors border-b border-tft-border/30">
+                      <td className="px-4 py-3">
+                        <button onClick={() => openUserDetail(u.id)} className="flex items-center gap-2 hover:opacity-80 transition-opacity text-left">
+                          {u.avatar && <Image src={u.avatar} alt="" width={28} height={28} unoptimized className="w-7 h-7 rounded-full" />}
+                          <div>
+                            <p className="font-semibold text-tft-text hover:text-tft-purple-bright transition-colors">{u.username}</p>
+                            <p className="text-[10px] text-tft-text-muted capitalize">{u.provider}</p>
+                          </div>
+                        </button>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="font-bold text-tft-gold-bright">{new Intl.NumberFormat('fr-FR').format(u.coins)} ⚜</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-1">
+                          {u.isAdmin && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-950 border border-red-800/40 text-red-400">ADMIN</span>}
+                          {u.isMod && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-tft-cyan/15 border border-tft-cyan/40 text-tft-cyan-bright">MOD</span>}
+                          {u.isPartner && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-tft-purple/20 border border-tft-purple/40 text-tft-purple-bright">PARTNER</span>}
+                          {!u.isAdmin && !u.isMod && !u.isPartner && <span className="text-tft-text-muted text-[11px]">Joueur</span>}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={cn('px-2 py-0.5 rounded text-[10px] font-bold',
+                          u.isBanned ? 'bg-red-950 border border-red-800/40 text-red-400' : 'bg-emerald-950 border border-emerald-800/40 text-emerald-400'
+                        )}>
+                          {u.isBanned ? 'Banni' : 'Actif'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-tft-text-muted whitespace-nowrap">
+                        {u.lastActiveAt ? fmtDateTime(u.lastActiveAt) : ''}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <button onClick={() => openUserDetail(u.id)}
+                            className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-all bg-tft-purple-bright/15 border border-tft-purple-bright/40 text-tft-purple-bright"
+                            title="Inspecter l'activité complète">
+                            <Eye size={11} /> Inspecter
+                          </button>
+                          {!u.isAdmin && (
+                            <button onClick={() => handleBan(u.id, u.isBanned ?? false)}
+                              className={cn('px-2 py-1 rounded text-[10px] font-medium transition-all',
+                                u.isBanned ? 'bg-emerald-950 border border-emerald-800/40 text-emerald-400' : 'bg-red-950 border border-red-800/40 text-red-400'
+                              )}>
+                              {u.isBanned ? 'Débannir' : 'Bannir'}
+                            </button>
+                          )}
+                          <button onClick={() => setAdjustModal({ userId: u.id, username: u.username })}
+                            className="p-1.5 rounded transition-all bg-tft-gold-bright/15 border border-tft-gold/30 text-tft-gold-bright" title="Ajuster coins">
+                            <Coins size={11} />
+                          </button>
+                          <button onClick={() => handleSetRole(u.id, 'isMod', !!u.isMod)}
+                            className={cn('p-1.5 rounded transition-all border',
+                              u.isMod ? 'bg-tft-cyan/15 border-tft-cyan/50 text-tft-cyan-bright' : 'bg-tft-bg-elevated border-tft-border text-tft-text-faint',
+                            )} title={`${u.isMod ? 'Retirer' : 'Donner'} Mod`}>
+                            <ShieldCheck size={11} />
+                          </button>
+                          <button onClick={() => handleSetRole(u.id, 'isPartner', !!u.isPartner)}
+                            className={cn('p-1.5 rounded transition-all border',
+                              u.isPartner ? 'bg-tft-purple/20 border-tft-purple/50 text-tft-purple-bright' : 'bg-tft-bg-elevated border-tft-border text-tft-text-faint',
+                            )} title={`${u.isPartner ? 'Retirer' : 'Donner'} Partner`}>
+                            <Star size={11} />
+                          </button>
+                          <button onClick={() => setMuteModal({ userId: u.id, username: u.username })}
+                            className="p-1.5 rounded transition-all bg-tft-bg-elevated border border-tft-border text-tft-text-muted" title="Muter">
+                            <VolumeX size={11} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ── RISK TAB ──────────────────────────────────────────────────── */}
+        {tab === 'risk' && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <AlertTriangle size={16} className="text-red-400" />
+              <h2 className="font-display font-bold text-[14px] text-tft-text tracking-wide">Utilisateurs à risque</h2>
+              <span className="text-[11px] text-tft-text-muted font-ui">· Winrate &gt; 75% ou profit net &gt; 20 000 ⚜</span>
+            </div>
+            {suspiciousUsers.length === 0 ? (
+              <div className="rounded-md p-6 text-center bg-tft-bg-card border border-tft-border">
+                <CheckCircle size={24} className="text-emerald-400 mx-auto mb-2" />
+                <p className="text-tft-text-muted text-[13px]">Aucun utilisateur suspect détecté</p>
+              </div>
+            ) : (
+              <div className="rounded-md overflow-hidden border border-tft-border bg-tft-bg-card shadow-arcane-sm">
+                <table className="w-full text-[12px]">
+                  <thead>
+                    <tr className="border-b border-tft-border">
+                      {['Utilisateur', 'Paris', 'Winrate', 'Misé', 'Profit net', 'Solde', 'Statut', 'Actions'].map(h => (
+                        <th key={h} className="text-left px-4 py-2.5 text-[11px] text-tft-text-muted uppercase tracking-wider font-ui font-medium">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {suspiciousUsers.map(u => (
+                      <tr key={u.id} className="hover:bg-tft-bg-hover transition-colors border-b border-tft-border/30">
+                        <td className="px-4 py-3">
+                          <button onClick={() => openUserDetail(u.id)} className="flex items-center gap-2 hover:opacity-80">
+                            {u.avatar && <Image src={u.avatar} alt="" width={28} height={28} unoptimized className="w-7 h-7 rounded-full" />}
+                            <p className="font-semibold text-tft-text hover:text-tft-purple-bright">{u.username}</p>
+                          </button>
+                        </td>
+                        <td className="px-4 py-3 text-tft-text">{u.totalBets}</td>
+                        <td className="px-4 py-3">
+                          <span className={cn('font-bold', u.winrate > 0.80 ? 'text-red-400' : u.winrate > 0.70 ? 'text-orange-400' : 'text-tft-text')}>
+                            {(u.winrate * 100).toFixed(0)}%
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-tft-text-muted">{new Intl.NumberFormat('fr-FR').format(u.totalWagered)} ⚜</td>
+                        <td className="px-4 py-3">
+                          <span className={cn('font-bold', u.netProfit > 50000 ? 'text-red-400' : u.netProfit > 0 ? 'text-emerald-400' : 'text-tft-text-muted')}>
+                            {u.netProfit > 0 ? '+' : ''}{new Intl.NumberFormat('fr-FR').format(u.netProfit)} ⚜
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-tft-gold-bright font-bold">{new Intl.NumberFormat('fr-FR').format(u.coins)} ⚜</td>
+                        <td className="px-4 py-3">
+                          <span className={cn('px-2 py-0.5 rounded text-[10px] font-bold',
+                            u.isBanned ? 'bg-red-950 border border-red-800/40 text-red-400' : 'bg-emerald-950 border border-emerald-800/40 text-emerald-400'
+                          )}>
+                            {u.isBanned ? 'Banni' : 'Actif'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <button onClick={() => openUserDetail(u.id)}
+                            className="px-2 py-1 rounded text-[10px] font-medium bg-tft-purple-bright/15 border border-tft-purple-bright/30 text-tft-purple-bright">
+                            <Eye size={11} className="inline -mt-0.5" /> Inspecter
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── TRANSACTIONS TAB ──────────────────────────────────────────── */}
+        {tab === 'transactions' && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1 p-0.5 rounded bg-tft-bg-elevated border border-tft-border">
+                {(['pending', 'all', 'deposit', 'withdrawal'] as const).map(f => (
+                  <button key={f} onClick={() => loadTransactions(f)}
+                    className={cn('px-3 py-1 rounded text-[11px] font-ui font-medium transition-colors',
+                      txFilter === f ? 'bg-tft-purple-bright text-tft-bg' : 'text-tft-text-dim hover:text-tft-text'
+                    )}>
+                    {f === 'pending' ? 'En attente' : f === 'all' ? 'Toutes' : f === 'deposit' ? 'Dépôts' : 'Retraits'}
+                  </button>
+                ))}
+              </div>
+              <span className="text-[12px] text-tft-text-muted font-ui">{adminTransactions.length} transaction(s)</span>
+              <button
+                onClick={handleSyncOxaPay}
+                disabled={syncingOxaPay}
+                className="ml-auto px-3 py-1 rounded text-[11px] font-ui font-medium transition-colors bg-tft-bg-elevated border border-tft-border text-tft-purple-bright hover:bg-tft-bg-hover disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {syncingOxaPay ? 'Sync…' : 'Sync OxaPay'}
+              </button>
+            </div>
+            <div className="rounded-md overflow-hidden border border-tft-border bg-tft-bg-card shadow-arcane-sm">
+              <table className="w-full text-[12px]">
+                <thead>
+                  <tr className="border-b border-tft-border">
+                    {['Utilisateur', 'Type', 'Montant USD', 'Coins', 'Statut', 'Date'].map(h => (
+                      <th key={h} className="text-left px-4 py-2.5 text-[11px] text-tft-text-muted uppercase tracking-wider font-ui font-medium">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {adminTransactions.length === 0 ? (
+                    <tr><td colSpan={6} className="text-center text-tft-text-muted py-8">Aucune transaction</td></tr>
+                  ) : adminTransactions.map(tx => (
+                    <tr key={tx.id} className="hover:bg-tft-bg-hover border-b border-tft-border/30">
+                      <td className="px-4 py-3">
+                        <button onClick={() => openUserDetail(tx.user.id)} className="flex items-center gap-2 hover:opacity-80">
+                          {tx.user.avatar && <Image src={tx.user.avatar} alt="" width={24} height={24} unoptimized className="w-6 h-6 rounded-full" />}
+                          <span className="font-semibold text-tft-text hover:text-tft-purple-bright">{tx.user.username}</span>
+                          {tx.user.isBanned && <span className="text-[9px] text-red-400">BANNI</span>}
+                        </button>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={cn('px-2 py-0.5 rounded text-[10px] font-bold uppercase',
+                          tx.type === 'deposit' ? 'bg-emerald-950 border border-emerald-800/40 text-emerald-400' :
+                          tx.type === 'withdrawal' ? 'bg-orange-950 border border-orange-800/40 text-orange-400' :
+                          'bg-blue-950 border border-blue-800/40 text-blue-400'
+                        )}>
+                          {tx.type}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-tft-text">${(tx.amount / 100).toFixed(2)}</td>
+                      <td className="px-4 py-3 text-tft-gold-bright font-bold">{tx.coins > 0 ? '+' : ''}{new Intl.NumberFormat('fr-FR').format(tx.coins)} ⚜</td>
+                      <td className="px-4 py-3">
+                        <span className={cn('px-2 py-0.5 rounded text-[10px] font-bold',
+                          tx.status === 'completed' ? 'bg-emerald-950 border border-emerald-800/40 text-emerald-400' :
+                          tx.status === 'pending' ? 'bg-amber-950 border border-amber-800/40 text-amber-400' :
+                          'bg-red-950 border border-red-800/40 text-red-400'
+                        )}>
+                          {tx.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-tft-text-muted whitespace-nowrap">{fmtDateTime(tx.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ── AFFILIATES TAB ────────────────────────────────────────────── */}
+        {tab === 'affiliates' && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-1 p-0.5 rounded bg-tft-bg-elevated border border-tft-border">
+                {(['pending', 'suspicious', 'all'] as const).map(f => (
+                  <button key={f} onClick={() => loadAffiliateReferrals(f)}
+                    className={cn('px-3 py-1 rounded text-[11px] font-ui font-medium transition-colors',
+                      affiliateFilter === f ? 'bg-tft-purple-bright text-tft-bg' : 'text-tft-text-dim hover:text-tft-text'
+                    )}>
+                    {f === 'pending' ? 'À review' : f === 'suspicious' ? 'Tous suspects' : 'Tous'}
+                  </button>
+                ))}
+              </div>
+              <span className="text-[12px] text-tft-text-muted font-ui">{suspiciousReferrals.length} parrainage(s)</span>
+              <p className="text-[10px] text-tft-text-faint flex-1 font-ui">
+                Flag automatique : parrain et filleul partagent une IP (possible double compte)
+              </p>
+            </div>
+            <div className="rounded-md overflow-hidden border border-tft-border bg-tft-bg-card shadow-arcane-sm">
+              <table className="w-full text-[12px]">
+                <thead>
+                  <tr className="border-b border-tft-border">
+                    {['Parrain', 'Filleul', 'Code', 'Déposé', 'Misé', 'Commission', 'Raison', 'Actions'].map(h => (
+                      <th key={h} className="text-left px-3 py-2.5 text-[11px] text-tft-text-muted uppercase tracking-wider font-ui font-medium">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {suspiciousReferrals.length === 0 ? (
+                    <tr><td colSpan={8} className="text-center text-tft-text-muted py-8">Aucun parrainage suspect</td></tr>
+                  ) : suspiciousReferrals.map(r => (
+                    <tr key={r.id} className="hover:bg-tft-bg-hover border-b border-tft-border/30">
+                      <td className="px-3 py-3">
+                        {r.referrer ? (
+                          <button onClick={() => openUserDetail(r.referrer!.id)} className="flex items-center gap-2 hover:opacity-80">
+                            {r.referrer.avatar && <Image src={r.referrer.avatar} alt="" width={24} height={24} unoptimized className="w-6 h-6 rounded-full" />}
+                            <span className="text-tft-text hover:text-tft-purple-bright">{r.referrer.username}</span>
+                            {r.referrer.isBanned && <span className="text-[9px] text-red-400">BANNI</span>}
+                          </button>
+                        ) : '—'}
+                      </td>
+                      <td className="px-3 py-3">
+                        {r.referredUser ? (
+                          <button onClick={() => openUserDetail(r.referredUser!.id)} className="flex items-center gap-2 hover:opacity-80">
+                            {r.referredUser.avatar && <Image src={r.referredUser.avatar} alt="" width={24} height={24} unoptimized className="w-6 h-6 rounded-full" />}
+                            <span className="text-tft-text hover:text-tft-purple-bright">{r.referredUser.username}</span>
+                            {r.referredUser.isBanned && <span className="text-[9px] text-red-400">BANNI</span>}
+                          </button>
+                        ) : '—'}
+                      </td>
+                      <td className="px-3 py-3 font-mono text-tft-purple-bright">{r.code}</td>
+                      <td className="px-3 py-3 text-tft-text">{r.totalDeposited.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}⚜</td>
+                      <td className="px-3 py-3 text-tft-text-dim">{r.totalWagered.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}⚜</td>
+                      <td className="px-3 py-3 text-tft-gold-bright font-bold">{r.commission.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}⚜</td>
+                      <td className="px-3 py-3 text-[11px]">
+                        {r.suspicious && !r.reviewed && (
+                          <span className="px-2 py-0.5 rounded bg-red-950 border border-red-800/40 text-red-400 text-[10px] font-bold">
+                            {r.suspiciousReason ?? 'Suspect'}
+                          </span>
+                        )}
+                        {r.suspicious && r.reviewed && (
+                          <span className="px-2 py-0.5 rounded bg-emerald-950 border border-emerald-800/40 text-emerald-400 text-[10px] font-bold">
+                            Validé
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-3">
+                        {!r.reviewed && (
+                          <div className="flex gap-1">
+                            <button onClick={() => reviewReferral(r.id)}
+                              className="px-2 py-1 rounded text-[10px] font-bold bg-emerald-950 border border-emerald-800/40 text-emerald-400 hover:bg-emerald-900">
+                              Valider
+                            </button>
+                            <button onClick={() => revokeReferral(r.id)}
+                              className="px-2 py-1 rounded text-[10px] font-bold bg-red-950 border border-red-800/40 text-red-400 hover:bg-red-900">
+                              Confisquer
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ── SCRAPERS TAB ──────────────────────────────────────────────── */}
+        {tab === 'scrapers' && <ScrapersPanel showMsg={showMsg} />}
+
+        {/* ── CHAT TAB ──────────────────────────────────────────────────── */}
+        {tab === 'chat' && <ChatHistoryPanel />}
+      </div>
+
+      {/* ── USER DETAIL MODAL ───────────────────────────────────────────── */}
+      {(userDetail || userDetailLoading) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={() => { setUserDetail(null); }}>
+          <div className="rounded-md max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col bg-tft-bg-card border border-tft-border shadow-elevated"
+            onClick={e => e.stopPropagation()}>
+            {userDetailLoading ? (
+              <div className="p-12 text-center text-tft-text-muted">Chargement...</div>
+            ) : userDetail && (
+              <>
+                <div className="flex items-start justify-between gap-4 p-5 border-b border-tft-border">
+                  <div className="flex items-center gap-3">
+                    {userDetail.user.avatar && <Image src={userDetail.user.avatar} alt="" width={48} height={48} unoptimized className="w-12 h-12 rounded-full" />}
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h2 className="font-display font-bold text-[16px] text-tft-text tracking-wide">{userDetail.user.username}</h2>
+                        {userDetail.user.isAdmin && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-950 border border-red-800/40 text-red-400">ADMIN</span>}
+                        {userDetail.user.isMod && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-tft-cyan/15 border border-tft-cyan/40 text-tft-cyan-bright">MOD</span>}
+                        {userDetail.user.isPartner && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-tft-purple/20 border border-tft-purple/40 text-tft-purple-bright">PARTNER</span>}
+                        {userDetail.user.isBanned && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-950 border border-red-800/40 text-red-400">BANNI</span>}
+                        {userDetail.user.totpEnabled && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-950 border border-emerald-800/40 text-emerald-400">2FA</span>}
+                      </div>
+                      <p className="text-[11px] text-tft-text-muted">
+                        {userDetail.user.email ?? '—'} · {userDetail.user.provider} · Membre depuis {fmtDateTime(userDetail.user.createdAt)}
+                      </p>
+                      {userDetail.user.steamId && <p className="text-[10px] text-tft-text-faint font-mono">Steam: {userDetail.user.steamId}</p>}
+                    </div>
+                  </div>
+                  <button onClick={() => setUserDetail(null)} className="text-tft-text-muted hover:text-tft-text">
+                    <XIcon size={18} />
+                  </button>
+                </div>
+
+                <div className="overflow-y-auto flex-1 p-5 space-y-4">
+                  {userDetail.flags.length > 0 && (
+                    <div className="rounded-md p-3 bg-tft-bg-elevated border border-red-500/30">
+                      <div className="flex items-center gap-2 mb-2">
+                        <AlertTriangle size={13} className="text-red-400" />
+                        <span className="text-[11px] font-ui font-bold text-red-400 uppercase">Alertes</span>
+                      </div>
+                      <div className="space-y-1">
+                        {userDetail.flags.map((f, i) => (
+                          <div key={i} className="flex items-center gap-2 text-[11px]">
+                            <span className={cn('w-1.5 h-1.5 rounded-full',
+                              f.severity === 'high' ? 'bg-red-400' : f.severity === 'med' ? 'bg-orange-400' : 'bg-yellow-400'
+                            )} />
+                            <span className="text-tft-text">{f.message}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                      { label: 'Solde', value: `${new Intl.NumberFormat('fr-FR').format(userDetail.user.coins)} ⚜`, className: 'text-tft-gold-bright' },
+                      { label: 'Total misé', value: `${new Intl.NumberFormat('fr-FR').format(userDetail.user.totalWagered)} ⚜`, className: 'text-tft-text' },
+                      { label: 'Profit net', value: `${userDetail.stats.netProfit >= 0 ? '+' : ''}${new Intl.NumberFormat('fr-FR').format(userDetail.stats.netProfit)} ⚜`, className: userDetail.stats.netProfit >= 0 ? 'text-tft-mint' : 'text-red-500' },
+                      { label: 'Winrate', value: `${(userDetail.stats.winrate * 100).toFixed(0)}%`, className: userDetail.stats.winrate > 0.75 ? 'text-red-500' : 'text-tft-text' },
+                    ].map((s, i) => (
+                      <div key={i} className="rounded-md p-3 bg-tft-bg-elevated border border-tft-border">
+                        <p className="text-[9px] text-tft-text-muted uppercase tracking-wider font-ui">{s.label}</p>
+                        <p className={cn('font-bold text-[14px] mt-1', s.className)}>{s.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { label: 'Paris 24h', value: userDetail.stats.bets24h },
+                      { label: 'Paris 7j', value: userDetail.stats.bets7d },
+                      { label: 'Total paris', value: userDetail.stats.totalBets },
+                    ].map((s, i) => (
+                      <div key={i} className="rounded-md p-2 text-center bg-tft-bg-elevated border border-tft-border">
+                        <p className="text-[9px] text-tft-text-muted uppercase font-ui">{s.label}</p>
+                        <p className="font-bold text-[13px] text-tft-text">{s.value}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div>
+                    <h3 className="text-[11px] font-ui font-bold text-tft-text-muted uppercase mb-2">Derniers paris ({userDetail.recentBets.length})</h3>
+                    <div className="rounded-md overflow-hidden bg-tft-bg-elevated border border-tft-border">
+                      <table className="w-full text-[11px]">
+                        <thead>
+                          <tr className="border-b border-tft-border">
+                            {['Match', 'Pick', 'Cote', 'Mise', 'Gain', 'Statut', 'Date'].map(h => (
+                              <th key={h} className="text-left px-3 py-2 text-[10px] text-tft-text-muted uppercase font-ui">{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {userDetail.recentBets.slice(0, 20).map(b => {
+                            const pick = b.selectedPlayer === 1 ? b.match.player1.name : b.selectedPlayer === 2 ? b.match.player2.name : 'Draw';
+                            return (
+                              <tr key={b.id} className="border-b border-tft-border/30">
+                                <td className="px-3 py-2 text-tft-text">{b.match.player1.name} vs {b.match.player2.name}</td>
+                                <td className="px-3 py-2 text-tft-text-dim">{pick}</td>
+                                <td className="px-3 py-2 text-tft-text-dim">{b.oddsAtBet.toFixed(2)}</td>
+                                <td className="px-3 py-2 text-tft-gold-bright">{b.amount} ⚜</td>
+                                <td className={cn('px-3 py-2', b.status === 'WON' ? 'text-tft-mint' : b.status === 'LOST' ? 'text-red-500' : 'text-tft-text-muted')}>
+                                  {b.payout ? `+${b.payout}` : '—'}
+                                </td>
+                                <td className="px-3 py-2">
+                                  <span className={cn('px-1.5 py-0.5 rounded text-[9px] font-bold',
+                                    b.status === 'WON' ? 'text-emerald-400 bg-emerald-950/50' :
+                                    b.status === 'LOST' ? 'text-red-400 bg-red-950/50' :
+                                    b.status === 'REFUNDED' ? 'text-blue-400 bg-blue-950/50' :
+                                    'text-tft-text-muted bg-tft-bg-elevated'
+                                  )}>{b.status}</span>
+                                </td>
+                                <td className="px-3 py-2 text-tft-text-muted whitespace-nowrap">{fmtDateTime(b.createdAt)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {userDetail.recentTransactions.length > 0 && (
+                    <div>
+                      <h3 className="text-[11px] font-ui font-bold text-tft-text-muted uppercase mb-2">Transactions ({userDetail.recentTransactions.length})</h3>
+                      <div className="rounded-md overflow-hidden bg-tft-bg-elevated border border-tft-border">
+                        <table className="w-full text-[11px]">
+                          <thead>
+                            <tr className="border-b border-tft-border">
+                              {['Type', 'Montant USD', 'Coins', 'Statut', 'Date'].map(h => (
+                                <th key={h} className="text-left px-3 py-2 text-[10px] text-tft-text-muted uppercase font-ui">{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {userDetail.recentTransactions.map(tx => (
+                              <tr key={tx.id} className="border-b border-tft-border/30">
+                                <td className="px-3 py-2 text-tft-text capitalize">{tx.type}</td>
+                                <td className="px-3 py-2 text-tft-text-dim">${(tx.amount / 100).toFixed(2)}</td>
+                                <td className="px-3 py-2 text-tft-gold-bright">{tx.coins > 0 ? '+' : ''}{tx.coins} ⚜</td>
+                                <td className="px-3 py-2">
+                                  <span className={cn('px-1.5 py-0.5 rounded text-[9px] font-bold',
+                                    tx.status === 'completed' ? 'text-emerald-400 bg-emerald-950/50' :
+                                    tx.status === 'pending' ? 'text-amber-400 bg-amber-950/50' :
+                                    'text-red-400 bg-red-950/50'
+                                  )}>{tx.status}</span>
+                                </td>
+                                <td className="px-3 py-2 text-tft-text-muted whitespace-nowrap">{fmtDateTime(tx.createdAt)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2 pt-2 border-t border-tft-border">
+                    <button onClick={() => { handleBan(userDetail.user.id, userDetail.user.isBanned); setUserDetail(null); }}
+                      className={cn('px-3 py-1.5 rounded text-[11px] font-medium',
+                        userDetail.user.isBanned ? 'bg-emerald-950 border border-emerald-800/40 text-emerald-400' : 'bg-red-950 border border-red-800/40 text-red-400'
+                      )}>
+                      {userDetail.user.isBanned ? 'Débannir' : 'Bannir'}
+                    </button>
+                    <button onClick={() => { setAdjustModal({ userId: userDetail.user.id, username: userDetail.user.username }); setUserDetail(null); }}
+                      className="px-3 py-1.5 rounded text-[11px] font-medium bg-tft-gold-bright/15 border border-tft-gold/30 text-tft-gold-bright">
+                      <Coins size={11} className="inline -mt-0.5 mr-1" /> Ajuster coins
+                    </button>
+                    <button onClick={() => { setMuteModal({ userId: userDetail.user.id, username: userDetail.user.username }); setUserDetail(null); }}
+                      className="px-3 py-1.5 rounded text-[11px] font-medium bg-tft-bg-elevated border border-tft-border text-tft-text-dim">
+                      <VolumeX size={11} className="inline -mt-0.5 mr-1" /> Muter
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── SCORE MODAL ──────────────────────────────────────────────────── */}
+      {scoreModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={() => setScoreModal(null)}>
+          <div className="rounded-md p-6 max-w-sm w-full bg-tft-bg-card border border-tft-mint/40 shadow-elevated" onClick={e => e.stopPropagation()}>
+            <h3 className="font-display font-bold text-[15px] mb-1 text-tft-mint tracking-wide">Score BO en direct</h3>
+            <p className="text-[12px] text-tft-text-muted mb-5">{scoreModal.player1Name} vs {scoreModal.player2Name}</p>
+
+            <div className="flex items-center gap-4 mb-6">
+              <div className="flex-1">
+                <label className="text-[10px] text-tft-purple-bright uppercase tracking-wider font-display block mb-1.5">{scoreModal.player1Name}</label>
+                <input
+                  type="number" min="0" max="9"
+                  value={scoreP1}
+                  onChange={e => setScoreP1(e.target.value)}
+                  className="w-full text-center text-2xl font-bold font-display h-14 rounded-md border outline-none bg-tft-bg border-tft-purple-bright/40 text-tft-purple-bright"
+                />
+              </div>
+              <span className="text-tft-text-muted font-display text-xl mt-5">—</span>
+              <div className="flex-1">
+                <label className="text-[10px] text-tft-cyan-bright uppercase tracking-wider font-display block mb-1.5">{scoreModal.player2Name}</label>
+                <input
+                  type="number" min="0" max="9"
+                  value={scoreP2}
+                  onChange={e => setScoreP2(e.target.value)}
+                  className="w-full text-center text-2xl font-bold font-display h-14 rounded-md border outline-none bg-tft-bg border-tft-cyan/40 text-tft-cyan-bright"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={() => setScoreModal(null)} className="flex-1 py-2 rounded-md text-[12px] text-tft-text-muted border border-tft-border hover:border-tft-border-mid font-display transition-colors">
+                Annuler
+              </button>
+              <button
+                onClick={handleSetScore}
+                className="flex-1 py-2 rounded-md text-[12px] font-bold font-display transition-all bg-tft-mint/15 border border-tft-mint/50 text-tft-mint"
+              >
+                Mettre à jour
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── INSPECT MODAL ────────────────────────────────────────────────── */}
+      {(inspectData || inspectLoading) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4" onClick={() => setInspectData(null)}>
+          <div
+            className="rounded-md w-full max-w-3xl overflow-hidden bg-tft-bg-card border border-tft-border shadow-elevated"
+            style={{ maxHeight: '90vh', overflowY: 'auto' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {inspectLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <div className="w-8 h-8 border-2 border-tft-purple-bright border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : inspectData ? (() => {
+              const { match: m, betsPlayer1, betsPlayer2, stats } = inspectData;
+              const statusClass = m.status === 'LIVE' ? 'text-tft-mint bg-tft-mint/15 border-tft-mint/40' : m.status === 'COMPLETED' ? 'text-tft-text-muted bg-tft-bg-elevated border-tft-border' : 'text-tft-purple-bright bg-tft-purple-bright/15 border-tft-purple-bright/40';
+
+              const BetRow = ({ bet }: { bet: InspectBet }) => {
+                const statusClasses: Record<string, string> = {
+                  WON: 'text-tft-mint border-tft-mint/40 bg-tft-mint/10',
+                  LOST: 'text-red-500 border-red-500/40 bg-red-500/10',
+                  REFUNDED: 'text-tft-cyan-bright border-tft-cyan/40 bg-tft-cyan/10',
+                  PENDING: 'text-tft-text-dim border-tft-border bg-tft-bg-elevated',
+                  CANCELLED: 'text-tft-text-muted border-tft-border bg-tft-bg-elevated',
+                };
+                return (
+                  <tr className="hover:bg-tft-bg-hover transition-colors border-b border-tft-border/30">
+                    <td className="px-3 py-2.5">
+                      <div className="flex items-center gap-2">
+                        {bet.user.avatar
+                          ? <Image src={bet.user.avatar} alt="" width={24} height={24} unoptimized className="w-6 h-6 rounded-full object-cover" />
+                          : <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold bg-tft-bg-elevated text-tft-purple-bright">{bet.user.username[0]?.toUpperCase()}</div>
+                        }
+                        <span className="text-[12px] font-semibold text-tft-text">{bet.user.username}</span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2.5 text-[12px] text-tft-gold-bright font-bold font-mono">{bet.amount.toFixed(2)} ⚜</td>
+                    <td className="px-3 py-2.5 text-[11px] text-tft-text-dim font-mono">×{bet.oddsAtBet.toFixed(2)}</td>
+                    <td className="px-3 py-2.5 text-[11px] font-mono text-tft-text-dim">{(bet.amount * bet.oddsAtBet).toFixed(2)} ⚜</td>
+                    <td className="px-3 py-2.5">
+                      <span className={cn('text-[10px] font-bold px-1.5 py-0.5 rounded border', statusClasses[bet.status] ?? 'text-tft-text-muted border-tft-border')}>
+                        {bet.status}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 text-[11px] text-tft-text-muted">{bet.user.coins.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜</td>
+                  </tr>
+                );
+              };
+
+              return (
+                <div>
+                  <div className="flex items-center justify-between px-5 py-4 border-b border-tft-border">
+                    <div className="flex items-center gap-3">
+                      <Eye size={15} className="text-tft-cyan-bright" />
+                      <div>
+                        <h3 className="font-display font-bold text-[14px] text-tft-text tracking-wide">
+                          {m.player1.name} <span className="text-tft-text-muted">vs</span> {m.player2.name}
+                        </h3>
+                        <p className="text-[11px] text-tft-text-muted">{m.tournament?.name} · {m.format}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={cn('text-[11px] font-bold px-2 py-1 rounded border', statusClass)}>
+                        {m.status}
+                      </span>
+                      <button onClick={() => setInspectData(null)} className="text-tft-text-muted hover:text-tft-text transition-colors">
+                        <XIcon size={16} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="p-5 space-y-5">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="rounded-md p-3 bg-tft-bg border border-tft-border">
+                        <p className="text-[10px] text-tft-text-muted uppercase tracking-wider mb-2 font-ui">Cotes</p>
+                        <p className="text-[13px] font-mono font-bold text-tft-purple-bright">{m.odds1.toFixed(2)} <span className="text-tft-text-muted">vs</span> {m.odds2.toFixed(2)}</p>
+                      </div>
+                      <div className="rounded-md p-3 bg-tft-bg border border-tft-border">
+                        <p className="text-[10px] text-tft-text-muted uppercase tracking-wider mb-2 font-ui">Score live</p>
+                        <p className="text-[13px] font-mono font-bold text-tft-text">{m.p1Score ?? 0} – {m.p2Score ?? 0}</p>
+                      </div>
+                    </div>
+
+                    <div className="rounded-md p-4 bg-tft-bg border border-tft-border">
+                      <div className="flex justify-between text-[11px] mb-2">
+                        <span className="text-tft-purple-bright font-bold">{m.player1.name} — {stats.volume1.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜ ({stats.pct1}%)</span>
+                        <span className="text-tft-cyan-bright font-bold">{stats.pct2}% ({stats.volume2.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜) — {m.player2.name}</span>
+                      </div>
+                      <div className="h-2 rounded-full overflow-hidden bg-tft-bg-elevated">
+                        <div className="h-full rounded-full bg-tft-purple-bright" style={{ width: `${stats.pct1}%` }} />
+                      </div>
+                      <div className="flex justify-between text-[10px] mt-1.5 text-tft-text-muted">
+                        <span>{stats.count1} pari(s)</span>
+                        <span>Total : {stats.total.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜</span>
+                        <span>{stats.count2} pari(s)</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="rounded-md overflow-hidden border border-tft-purple-bright/25">
+                        <div className="px-3 py-2 flex items-center gap-2 bg-tft-purple-bright/10 border-b border-tft-purple-bright/15">
+                          <TrendingUp size={11} className="text-tft-purple-bright" />
+                          <span className="text-[11px] font-bold text-tft-purple-bright font-display truncate">{m.player1.name}</span>
+                          <span className="ml-auto text-[10px] text-tft-text-muted">{stats.count1}</span>
+                        </div>
+                        {betsPlayer1.length > 0 ? (
+                          <table className="w-full text-[11px]">
+                            <thead>
+                              <tr className="border-b border-tft-border/40">
+                                {['Joueur', 'Mise', 'Cote', 'Retour', 'Statut', 'Solde'].map(h => (
+                                  <th key={h} className="text-left px-3 py-1.5 text-[10px] text-tft-text-muted font-ui font-medium">{h}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {betsPlayer1.map(bet => <BetRow key={bet.id} bet={bet} />)}
+                            </tbody>
+                          </table>
+                        ) : (
+                          <p className="text-center py-6 text-[11px] text-tft-text-muted">Aucun pari</p>
+                        )}
+                      </div>
+
+                      <div className="rounded-md overflow-hidden border border-tft-cyan/25">
+                        <div className="px-3 py-2 flex items-center gap-2 bg-tft-cyan/10 border-b border-tft-cyan/15">
+                          <TrendingUp size={11} className="text-tft-cyan-bright" />
+                          <span className="text-[11px] font-bold text-tft-cyan-bright font-display truncate">{m.player2.name}</span>
+                          <span className="ml-auto text-[10px] text-tft-text-muted">{stats.count2}</span>
+                        </div>
+                        {betsPlayer2.length > 0 ? (
+                          <table className="w-full text-[11px]">
+                            <thead>
+                              <tr className="border-b border-tft-border/40">
+                                {['Joueur', 'Mise', 'Cote', 'Retour', 'Statut', 'Solde'].map(h => (
+                                  <th key={h} className="text-left px-3 py-1.5 text-[10px] text-tft-text-muted font-ui font-medium">{h}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {betsPlayer2.map(bet => <BetRow key={bet.id} bet={bet} />)}
+                            </tbody>
+                          </table>
+                        ) : (
+                          <p className="text-center py-6 text-[11px] text-tft-text-muted">Aucun pari</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })() : null}
+          </div>
+        </div>
+      )}
+
+      {/* ── LP DEBUG MODAL ───────────────────────────────────────────────── */}
+      {lpDebug && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4" onClick={() => setLpDebug(null)}>
+          <div
+            className="rounded-md w-full max-w-2xl overflow-hidden bg-tft-bg-card border border-tft-purple/40 shadow-elevated"
+            style={{ maxHeight: '85vh', overflowY: 'auto' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b border-tft-border">
+              <h3 className="font-display font-bold text-[14px] text-tft-purple-bright tracking-wide">LP Debug</h3>
+              <button onClick={() => setLpDebug(null)} className="text-tft-text-muted hover:text-white text-xl">×</button>
+            </div>
+            <div className="p-5 space-y-3">
+              <div className={cn('rounded-md px-4 py-3 text-[13px] font-semibold',
+                String(lpDebug.diagnosis ?? '').startsWith('Found')
+                  ? 'bg-green-900/30 border border-green-600/40 text-green-300'
+                  : 'bg-red-900/30 border border-red-600/40 text-red-300'
+              )}>
+                {String(lpDebug.diagnosis ?? lpDebug.error ?? 'Unknown')}
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-[12px]">
+                {([
+                  ['Page LP', lpDebug.page],
+                  ['Score DB', lpDebug.dbScore],
+                  ['Statut DB', lpDebug.dbStatus],
+                  ['Matchs LP trouvés', lpDebug.lpMatchesFound],
+                ] as [string, unknown][]).map(([label, value]) => value !== undefined && (
+                  <div key={label} className="rounded p-2 bg-tft-bg-elevated border border-tft-border">
+                    <div className="text-tft-text-muted text-[10px] uppercase tracking-wider font-ui">{label}</div>
+                    <div className="text-tft-text mt-0.5 font-mono">{String(value ?? '—')}</div>
+                  </div>
+                ))}
+              </div>
+
+              {Array.isArray(lpDebug.allOpponentPairs) && lpDebug.allOpponentPairs.length > 0 && (
+                <div>
+                  <div className="text-[11px] text-tft-text-muted uppercase tracking-wider mb-2 font-ui">Tous les matchs sur la page LP</div>
+                  <div className="space-y-1 max-h-48 overflow-y-auto">
+                    {(lpDebug.allOpponentPairs as Array<{ opp1: string; opp2: string; score: string; bestof: number }>).map((pair, i) => (
+                      <div key={i} className="flex items-center justify-between rounded px-3 py-2 text-[12px] bg-tft-bg-elevated border border-tft-border">
+                        <span className="text-tft-text">{pair.opp1} <span className="text-tft-text-muted">vs</span> {pair.opp2}</span>
+                        <span className="text-tft-purple-bright font-mono">{pair.score} <span className="text-tft-text-muted">BO{pair.bestof}</span></span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {Boolean(lpDebug.matchedBlock) && (
+                <div>
+                  <div className="text-[11px] text-tft-text-muted uppercase tracking-wider mb-2 font-ui">Bloc matché</div>
+                  <pre className="text-[11px] text-tft-purple-bright rounded p-3 overflow-x-auto bg-tft-bg-elevated border border-tft-purple/30">
+                    {JSON.stringify(lpDebug.matchedBlock, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── RESULT MODAL ─────────────────────────────────────────────────── */}
+      {resultModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="rounded-md p-6 max-w-md w-full bg-tft-bg-card border border-tft-purple-bright/40 shadow-elevated">
+            <h3 className="font-display font-bold text-[16px] text-tft-purple-bright mb-1 tracking-wide">Définir le résultat</h3>
+            <p className="text-[12px] text-tft-text-muted mb-5">{resultModal.player1Name} vs {resultModal.player2Name}</p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-[11px] text-tft-text-muted uppercase tracking-wider mb-2 block font-ui">Gagnant</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[{ id: resultModal.player1Id, name: resultModal.player1Name }, { id: resultModal.player2Id, name: resultModal.player2Name }].map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => setResultForm(f => ({ ...f, winnerId: p.id }))}
+                      className={cn('p-3 rounded-md text-[13px] font-semibold transition-all border',
+                        resultForm.winnerId === p.id
+                          ? 'border-tft-purple-bright bg-tft-purple-bright/15 text-tft-purple-bright'
+                          : 'border-tft-border bg-tft-bg-elevated text-tft-text-dim',
+                      )}
+                    >
+                      {p.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] text-tft-text-muted uppercase tracking-wider mb-2 block font-ui">Score (ex: 2-1)</label>
+                <input
+                  type="text"
+                  value={resultForm.score}
+                  onChange={e => setResultForm(f => ({ ...f, score: e.target.value }))}
+                  placeholder="2-1"
+                  className="w-full px-3 py-2.5 rounded-md text-[13px] outline-none text-tft-text bg-tft-bg-elevated border border-tft-border"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={() => { setResultModal(null); setResultForm({ winnerId: '', score: '' }); }}
+                className="flex-1 py-2.5 rounded-md text-[13px] font-medium text-tft-text-dim transition-all hover:text-tft-text bg-tft-bg-elevated border border-tft-border"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleSetResult}
+                disabled={!resultForm.winnerId || !resultForm.score || submitting}
+                className="flex-1 py-2.5 rounded-md text-[13px] font-bold transition-all disabled:opacity-40 bg-tft-purple-bright text-tft-bg"
+              >
+                {submitting ? <RefreshCw size={14} className="animate-spin mx-auto" /> : 'Confirmer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MUTE MODAL ───────────────────────────────────────────────────── */}
+      {muteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="rounded-md p-6 max-w-sm w-full bg-tft-bg-card border border-tft-cyan/40 shadow-elevated">
+            <h3 className="font-display font-bold text-[15px] mb-1 flex items-center gap-2 text-tft-cyan-bright tracking-wide">
+              <VolumeX size={16} /> Muter {muteModal.username}
+            </h3>
+            <p className="text-[12px] text-tft-text-muted mb-4">Sélectionne la durée du mute</p>
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              {[5, 15, 60, 360, 1440, 10080].map(min => (
+                <button key={min} onClick={() => setMuteDuration(min)}
+                  className={cn('py-2 rounded-md text-[11px] font-bold transition-all border',
+                    muteDuration === min
+                      ? 'bg-tft-cyan/15 border-tft-cyan/50 text-tft-cyan-bright'
+                      : 'bg-tft-bg-elevated border-tft-border text-tft-text-muted',
+                  )}>
+                  {min < 60 ? `${min} min` : min < 1440 ? `${min/60}h` : min === 1440 ? '24h' : '7j'}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setMuteModal(null)} className="flex-1 py-2 rounded-md text-[12px] text-tft-text-dim bg-tft-bg-elevated border border-tft-border">Annuler</button>
+              <button onClick={handleMute} className="flex-1 py-2 rounded-md text-[12px] font-bold bg-tft-cyan text-tft-bg">Muter</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── ADJUST COINS MODAL ───────────────────────────────────────────── */}
+      {adjustModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="rounded-md p-6 max-w-sm w-full bg-tft-bg-card border border-tft-gold/40 shadow-elevated">
+            <h3 className="font-display font-bold text-[15px] text-tft-gold-bright mb-1 tracking-wide">Ajuster les coins</h3>
+            <p className="text-[12px] text-tft-text-muted mb-4">{adjustModal.username}</p>
+            <input
+              type="number"
+              value={adjustAmount}
+              onChange={e => setAdjustAmount(e.target.value)}
+              placeholder="Montant (négatif pour débiter)"
+              className="w-full px-3 py-2.5 rounded-md text-[13px] outline-none text-tft-text mb-4 bg-tft-bg-elevated border border-tft-border"
+            />
+            <div className="flex gap-3">
+              <button onClick={() => setAdjustModal(null)} className="flex-1 py-2 rounded-md text-[12px] text-tft-text-dim bg-tft-bg-elevated border border-tft-border">Annuler</button>
+              <button onClick={handleAdjustCoins} className="flex-1 py-2 rounded-md text-[12px] font-bold bg-tft-gold-bright text-tft-bg">Confirmer</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Scrapers panel ──────────────────────────────────────────────────────────
+
+interface ScraperLogEntry {
+  id: string;
+  source: string;
+  status: string;
+  matchesFound: number;
+  duration: number | null;
+  error: string | null;
+  createdAt: string;
+}
+
+function ScrapersPanel({ showMsg }: { showMsg: (type: 'success' | 'error', text: string) => void }) {
+  const [logs, setLogs] = useState<ScraperLogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [triggering, setTriggering] = useState<string | null>(null);
+
+  const fetchLogs = useCallback(async () => {
+    try {
+      const res = await apiClient.get('/admin/scrapers/logs', { params: { limit: 30 } });
+      setLogs((res.data?.data ?? []) as ScraperLogEntry[]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchLogs(); const i = setInterval(fetchLogs, 30000); return () => clearInterval(i); }, [fetchLogs]);
+
+  const trigger = async (source: string) => {
+    setTriggering(source);
+    try {
+      await apiClient.post('/admin/scrapers/run', { source });
+      showMsg('success', `Scraper ${source} déclenché`);
+      setTimeout(fetchLogs, 2000);
+    } catch (err) {
+      showMsg('error', err instanceof Error ? err.message : 'Erreur');
+    } finally {
+      setTriggering(null);
+    }
+  };
+
+  const scrapers = [
+    { id: 'liquipedia-tft', label: 'Matchs Liquipedia TFT', desc: 'Scrape le wiki TFT pour les matchs à venir et les tournois compétitifs' },
+    { id: 'liquipedia', label: 'Matchs Liquipedia AoE', desc: 'Scrape les 4 wikis AoE pour les matchs à venir' },
+    { id: 'tournaments', label: 'Tournois aoe4world', desc: 'Fetch matchs à venir depuis aoe4world API' },
+    { id: 'enrich', label: 'Enrichir cotes', desc: 'Recalculer H2H + cotes de tous les matchs' },
+    { id: 'aoe4world', label: 'Stats joueurs', desc: 'MAJ winrate + historique tournoi via aoe4world' },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {scrapers.map(s => {
+          const last = logs.find(l => l.source === s.id);
+          return (
+            <div key={s.id} className="rounded-md p-4 border border-tft-border bg-tft-bg-card shadow-arcane-sm">
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <p className="font-semibold text-[13px] text-tft-text">{s.label}</p>
+                  <p className="text-[11px] text-tft-text-muted mt-0.5 font-ui">{s.desc}</p>
+                </div>
+                <button
+                  onClick={() => trigger(s.id)}
+                  disabled={triggering === s.id}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-ui font-medium transition-all disabled:opacity-50 shrink-0 ml-2 bg-tft-purple-bright/15 border border-tft-purple-bright/40 text-tft-purple-bright"
+                >
+                  {triggering === s.id ? <RefreshCw size={11} className="animate-spin" /> : <Play size={11} />}
+                  Lancer
+                </button>
+              </div>
+              {last && (
+                <div className="flex items-center gap-2 text-[11px] mt-3 pt-3 border-t border-tft-border">
+                  {last.status === 'success' ? <CheckCircle size={12} className="text-emerald-400" /> : <AlertTriangle size={12} className="text-amber-400" />}
+                  <span className={last.status === 'success' ? 'text-emerald-400' : 'text-amber-400'}>
+                    {last.matchesFound} matchs · {last.duration ? `${(last.duration / 1000).toFixed(1)}s` : '?'}
+                  </span>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="rounded-md overflow-hidden border border-tft-border bg-tft-bg-card shadow-arcane-sm">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-tft-border">
+          <span className="text-[13px] font-display font-semibold text-tft-purple-bright tracking-wide">JOURNAUX</span>
+          <button onClick={fetchLogs} className="text-tft-text-muted hover:text-tft-text">
+            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+          </button>
+        </div>
+        <table className="w-full text-[12px]">
+          <thead>
+            <tr className="border-b border-tft-border">
+              {['Source', 'Statut', 'Matchs', 'Durée', 'Date', 'Erreur'].map(h => (
+                <th key={h} className="text-left px-4 py-2 text-[11px] text-tft-text-muted uppercase tracking-wider font-ui font-medium">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {logs.map(log => (
+              <tr key={log.id} className="hover:bg-tft-bg-hover border-b border-tft-border/30">
+                <td className="px-4 py-2 font-semibold text-tft-text">{log.source}</td>
+                <td className="px-4 py-2">
+                  <span className={log.status === 'success' ? 'text-emerald-400' : log.status === 'error' ? 'text-red-400' : 'text-amber-400'}>
+                    {log.status === 'success' ? '✓' : log.status === 'error' ? '✗' : '~'} {log.status}
+                  </span>
+                </td>
+                <td className="px-4 py-2 text-tft-text-dim">{log.matchesFound}</td>
+                <td className="px-4 py-2 text-tft-text-dim">{log.duration ? `${(log.duration / 1000).toFixed(1)}s` : ''}</td>
+                <td className="px-4 py-2 text-tft-text-muted">{new Date(log.createdAt).toLocaleTimeString('fr-FR')}</td>
+                <td className="px-4 py-2 text-red-400 truncate max-w-[200px]">{log.error ?? ''}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ── Chat history panel ─────────────────────────────────────────────────────
+
+interface ChatMsg {
+  id: string;
+  userId: string;
+  username: string;
+  avatar: string | null;
+  message: string;
+  room: string;
+  roomType: string;
+  createdAt: string;
+}
+
+function ChatHistoryPanel() {
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [roomFilter, setRoomFilter] = useState('global');
+  const [userFilter, setUserFilter] = useState('');
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+
+  const fetchChat = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ page: String(page), limit: '100' });
+      if (roomFilter) params.set('room', roomFilter);
+      if (userFilter.trim()) params.set('userId', userFilter.trim());
+      const res = await apiClient.get(`/admin/chat?${params}`);
+      setMessages(res.data.data ?? []);
+      setTotal(res.data.total ?? 0);
+      setPages(res.data.pages ?? 1);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, roomFilter, userFilter]);
+
+  useEffect(() => { fetchChat(); }, [fetchChat]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex rounded-md overflow-hidden border border-tft-border">
+          {(['global', 'match', ''] as const).map((r, i) => (
+            <button
+              key={i}
+              onClick={() => { setRoomFilter(r); setPage(1); }}
+              className={cn(
+                'px-4 py-2 text-[12px] font-ui font-medium transition-colors',
+                roomFilter === r ? 'text-tft-purple-bright bg-tft-purple-bright/10' : 'text-tft-text-muted hover:text-tft-text-dim'
+              )}
+            >
+              {r === 'global' ? 'Global' : r === 'match' ? 'Matchs' : 'Tous'}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 flex-1 max-w-xs px-3 py-2 rounded-md text-[12px] bg-tft-bg-card border border-tft-border">
+          <Search size={12} className="text-tft-text-muted" />
+          <input
+            className="bg-transparent outline-none text-tft-text placeholder:text-tft-text-muted w-full"
+            placeholder="Filtrer par userId..."
+            value={userFilter}
+            onChange={e => { setUserFilter(e.target.value); setPage(1); }}
+          />
+        </div>
+        <button onClick={fetchChat} className="flex items-center gap-1.5 text-tft-text-muted hover:text-tft-text text-[12px] font-ui">
+          <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+          Rafraîchir
+        </button>
+        <span className="text-[11px] text-tft-text-muted ml-auto font-ui">{total} message(s)</span>
+      </div>
+
+      <div className="rounded-md overflow-hidden border border-tft-border bg-tft-bg-card shadow-arcane-sm">
+        <table className="w-full text-[12px]">
+          <thead>
+            <tr className="border-b border-tft-border">
+              {['Date', 'Utilisateur', 'Room', 'Message'].map(h => (
+                <th key={h} className="text-left px-4 py-2.5 text-[11px] text-tft-text-muted uppercase tracking-wider font-ui font-medium">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={4} className="px-4 py-8 text-center text-tft-text-muted">Chargement...</td></tr>
+            ) : messages.length === 0 ? (
+              <tr><td colSpan={4} className="px-4 py-8 text-center text-tft-text-muted">Aucun message</td></tr>
+            ) : messages.map(m => (
+              <tr key={m.id} className="hover:bg-tft-bg-hover transition-colors border-b border-tft-border/30">
+                <td className="px-4 py-2.5 text-tft-text-muted whitespace-nowrap">
+                  {new Date(m.createdAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                </td>
+                <td className="px-4 py-2.5">
+                  <span className="font-semibold text-tft-text">{m.username}</span>
+                  <span className="ml-1.5 text-[10px] text-tft-text-muted">{m.userId.slice(0, 8)}…</span>
+                </td>
+                <td className="px-4 py-2.5">
+                  {m.roomType === 'global' ? (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold text-tft-purple-bright bg-tft-purple-bright/10 border border-tft-purple-bright/30">global</span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold text-tft-cyan-bright bg-tft-cyan/10 border border-tft-cyan/30">match</span>
+                  )}
+                </td>
+                <td className="px-4 py-2.5 text-tft-text-dim max-w-[500px] truncate">{m.message}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {pages > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          <button
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="px-3 py-1.5 rounded text-[12px] disabled:opacity-30 text-tft-text-dim bg-tft-bg-card border border-tft-border"
+          >
+            ←
+          </button>
+          <span className="text-[12px] text-tft-text-muted font-ui">Page {page} / {pages}</span>
+          <button
+            onClick={() => setPage(p => Math.min(pages, p + 1))}
+            disabled={page === pages}
+            className="px-3 py-1.5 rounded text-[12px] disabled:opacity-30 text-tft-text-dim bg-tft-bg-card border border-tft-border"
+          >
+            →
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
