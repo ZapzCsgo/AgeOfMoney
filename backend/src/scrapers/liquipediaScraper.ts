@@ -266,7 +266,7 @@ const LP_USER_AGENT = 'AgeOfMoneyBot/1.0 (https://ageof.money; contact@ageof.mon
 async function fetchHtml(url: string, retries = 3): Promise<string | null> {
   // Respect the shared circuit breaker — if Liquipedia is blocking us,
   // don't even try (both the scorer and this scraper trip the same breaker).
-  const { isLpBlocked, getCircuitBreakerState, tripCircuitBreaker, resetCircuitBreaker } = require('../services/liquipediaLiveScorer');
+  const { isLpBlocked, getCircuitBreakerState, tripCircuitBreaker, resetCircuitBreaker, lpRouteUrl, lpProxyHeaders, lpProxyConfig } = require('../services/liquipediaLiveScorer');
   if (isLpBlocked()) {
     // Promoted from debug → info so the cause shows up when an upcoming-page
     // fetch fails (Problem 3 prelaunch fix 2026-05-02). Without this,
@@ -298,15 +298,17 @@ async function fetchHtml(url: string, retries = 3): Promise<string | null> {
   // request just extends the IP ban). Only retry on transient errors.
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      const res = await axios.get<string>(url, {
+      const res = await axios.get<string>(lpRouteUrl(url), {
         headers: {
           'User-Agent': LP_USER_AGENT,
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
           'Accept-Language': 'en-US,en;q=0.9',
           'Accept-Encoding': 'gzip, deflate, br',
+          ...lpProxyHeaders(),
         },
         decompress: true,
         timeout: 25000,
+        ...lpProxyConfig(),
       });
 
       if (typeof res.data === 'string' && (
@@ -361,7 +363,7 @@ async function fetchViaMediaWikiApi(url: string): Promise<string | null> {
   // Route through the CF Worker proxy when LP_WORKER_URL is set, so this
   // scrape uses the same egress IP as the live scorer. Lazy-imported to
   // dodge a circular module load at startup.
-  const { lpRouteUrl, lpProxyHeaders } = await import('../services/liquipediaLiveScorer');
+  const { lpRouteUrl, lpProxyHeaders, lpProxyConfig } = await import('../services/liquipediaLiveScorer');
 
   try {
     const res = await axios.get(lpRouteUrl(apiUrl), {
@@ -378,6 +380,7 @@ async function fetchViaMediaWikiApi(url: string): Promise<string | null> {
       },
       decompress: true,
       timeout: 30000,
+      ...lpProxyConfig(),
     });
 
     const html = res.data?.parse?.text?.['*'];

@@ -11,6 +11,7 @@
  */
 
 import axios from 'axios';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 import zlib from 'zlib';
 import { promisify } from 'util';
 import Bottleneck from 'bottleneck';
@@ -25,7 +26,32 @@ const gunzip = promisify(zlib.gunzip);
 // All AoE wikis share the same MediaWiki API at /{wiki}/api.php.
 const LP_API_FOR = (wikiPath: string) => `https://liquipedia.net/${wikiPath}/api.php`;
 const LP_API_KEY = process.env.LIQUIPEDIA_API_KEY;
+
+// ── Residential proxy (2Captcha) ────────────────────────────────────────────
+// Primary transport for actual scraping traffic (fetchWikitext, fetchRendered-
+// Html, and the other LP scrapers). e.g.
+//   http://USERNAME-zone-custom:PASSWORD@ap.proxy.2captcha.com:2334
+// A residential IP looks like a normal user, so it's far less likely to trip
+// Liquipedia's per-IP rate limiter than Railway's shared datacenter egress —
+// which sidesteps the whole "blocked → solve a captcha → unblock" cycle below
+// for the common case. Deliberately NOT applied to the auto-unblock flow
+// (attemptAutoUnblock/verifyLpAccess), which must keep checking/clearing
+// Railway's own IP status — that flow stays as a safety net if this proxy
+// itself ever gets flagged or its traffic runs out.
 const LP_PROXY_URL = process.env.LP_PROXY_URL; // e.g. http://user:pass@1.2.3.4:3128
+const lpProxyAgent = LP_PROXY_URL ? new HttpsProxyAgent(LP_PROXY_URL) : undefined;
+if (lpProxyAgent) {
+  logger.info('[LPScorer] Residential proxy mode active (LP_PROXY_URL) — routing scrape requests through it');
+}
+
+/**
+ * Axios config fragment that routes a request through LP_PROXY_URL when
+ * configured (httpsAgent + proxy:false so axios doesn't also try its own
+ * env-based proxy handling on top). Empty object — no-op — otherwise.
+ */
+export function lpProxyConfig(): Record<string, unknown> {
+  return lpProxyAgent ? { httpsAgent: lpProxyAgent, proxy: false } : {};
+}
 
 // ── Cloudflare Worker proxy (URL-rewrite mode) ──────────────────────────────
 // Distinct from LP_PROXY_URL (HTTP CONNECT proxy). When LP_WORKER_URL is set,
@@ -78,26 +104,6 @@ function buildHeaders(): Record<string, string> {
  */
 export function lpProxyHeaders(): Record<string, string> {
   return LP_WORKER_URL && LP_WORKER_AUTH ? { 'X-Proxy-Auth': LP_WORKER_AUTH } : {};
-}
-
-/**
- * Build axios proxy config from LP_PROXY_URL env var.
- * Supports http://user:pass@host:port and http://host:port formats.
- * When set, ALL Liquipedia requests route through this proxy so we're
- * not dependent on Railway's shared outbound IP.
- */
-function buildProxyConfig(): object | undefined {
-  if (!LP_PROXY_URL) return undefined;
-  try {
-    const u = new URL(LP_PROXY_URL);
-    const cfg: Record<string, unknown> = {
-      host: u.hostname,
-      port: parseInt(u.port, 10) || 3128,
-      protocol: u.protocol.replace(':', ''),
-    };
-    if (u.username) cfg.auth = { username: decodeURIComponent(u.username), password: decodeURIComponent(u.password) };
-    return { proxy: cfg };
-  } catch { return undefined; }
 }
 
 // Cache wikitext per page — serves all concurrent match checks from same page
@@ -570,6 +576,7 @@ async function fetchWikitext(wikiPath: string, page: string): Promise<string | n
       timeout: 15000,
       responseType: 'arraybuffer', // receive raw gzip bytes
       decompress: false,           // don't auto-decompress (we do it manually)
+      ...lpProxyConfig(),
     }));
 
     if (res.status === 429) {
@@ -624,6 +631,7 @@ async function fetchRenderedHtml(wikiPath: string, page: string): Promise<string
       timeout: 20000,
       responseType: 'arraybuffer',
       decompress: false,
+      ...lpProxyConfig(),
     }));
     if (res.status === 429) { tripCircuitBreaker(); return null; }
     let jsonStr: string;

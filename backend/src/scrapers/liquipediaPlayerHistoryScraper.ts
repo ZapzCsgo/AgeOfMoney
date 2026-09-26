@@ -183,7 +183,7 @@ async function fetchMatchesPage(slug: string, game: string): Promise<{ html: str
   const pageName = `${slug}/Matches`;
 
   // Route through the CF Worker proxy when LP_WORKER_URL is set.
-  const { lpRouteUrl, lpProxyHeaders } = await import('../services/liquipediaLiveScorer');
+  const { lpRouteUrl, lpProxyHeaders, lpProxyConfig } = await import('../services/liquipediaLiveScorer');
 
   try {
     const res = await axios.get(lpRouteUrl(`https://liquipedia.net/${wikiPrimary}/api.php`), {
@@ -191,6 +191,7 @@ async function fetchMatchesPage(slug: string, game: string): Promise<{ html: str
       headers: { 'User-Agent': 'AgeOfMoney/1.0 (contact@ageofmoney.com)', ...lpProxyHeaders() },
       timeout: 20000,
       decompress: true,
+      ...lpProxyConfig(),
     });
 
     const html = res.data?.parse?.text?.['*'] ?? '';
@@ -207,6 +208,7 @@ async function fetchMatchesPage(slug: string, game: string): Promise<{ html: str
         headers: { 'User-Agent': 'AgeOfMoney/1.0 (contact@ageofmoney.com)', ...lpProxyHeaders() },
         timeout: 20000,
         decompress: true,
+        ...lpProxyConfig(),
       });
 
       return { html: res2.data?.parse?.text?.['*'] ?? '', wiki: redirectWiki };
