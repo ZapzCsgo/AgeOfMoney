@@ -805,6 +805,7 @@ const t_fr = {
   redeem_wagered_pct:            '{done} / {required} ⚜ misés ({pct}%)',
   roulette_zone_lock_archers:    'Tu as misé sur Archers, impossible de combiner les deux zones ×2',
   roulette_zone_lock_knights:    'Tu as misé sur Chevaliers, impossible de combiner les deux zones ×2',
+  common_continue:               'CONTINUER →',
 } as const;
 
 const t_en: Record<keyof typeof t_fr, string> = {
@@ -1553,6 +1554,7 @@ const t_en: Record<keyof typeof t_fr, string> = {
   redeem_wagered_pct:            '{done} / {required} ⚜ wagered ({pct}%)',
   roulette_zone_lock_archers:    "You bet on Archers, can't combine the two 2× zones",
   roulette_zone_lock_knights:    "You bet on Knights, can't combine the two 2× zones",
+  common_continue:               'CONTINUE →',
   hero_badge:                    'AoE4 virtual betting platform',
   hero_title_line1:              'BET ON THE FUTURE',
   hero_title_line2:              'OF EMPIRES',
@@ -2326,6 +2328,7 @@ const t_es: Record<keyof typeof t_fr, string> = {
   redeem_wagered_pct:            '{done} / {required} ⚜ apostados ({pct}%)',
   roulette_zone_lock_archers:    'Apostaste en Arqueros, no se pueden combinar las dos zonas ×2',
   roulette_zone_lock_knights:    'Apostaste en Caballeros, no se pueden combinar las dos zonas ×2',
+  common_continue:               'CONTINUAR →',
   hero_badge:                    'Plataforma de apuestas virtuales AoE4',
   hero_title_line1:              'APUESTA POR EL FUTURO',
   hero_title_line2:              'DE LOS IMPERIOS',

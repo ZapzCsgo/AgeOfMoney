@@ -130,6 +130,7 @@ async function processTournament(tourn: Aoe4WorldTournament): Promise<void> {
 
   const tier = mapTier(t.tier);
   const liquipediaUrl = t.url ?? `https://liquipedia.net/ageofempires/${t.slug}`;
+  const endDate = t.end_date ? new Date(t.end_date) : null;
 
   // Upsert tournament
   const tournament = await prisma.tournament.upsert({
@@ -138,12 +139,14 @@ async function processTournament(tourn: Aoe4WorldTournament): Promise<void> {
       name: t.name,
       tier,
       isActive: true,
+      endDate,
     },
     create: {
       name: t.name,
       tier,
       liquipediaUrl,
       startDate: t.start_date ? new Date(t.start_date) : new Date(),
+      endDate,
       isActive: true,
     },
   });

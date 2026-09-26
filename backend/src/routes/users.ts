@@ -1,7 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { requireAuth } from '../middleware/auth';
 import { generateToken } from '../middleware/auth';
-import { require2FAForTrustedIp } from '../middleware/require2fa';
 import { prisma } from '../index';
 import { z } from 'zod';
 import { authenticator } from 'otplib';
@@ -11,12 +10,14 @@ import { recordLedger } from '../services/ledger';
 
 const router = Router();
 
-// GET /me - Current user profile. Gated par require2FAForTrustedIp :
-// si l'user a totpEnabled=true et que l'IP n'est pas dans trustedIps,
-// on renvoie TOTP_REQUIRED. Frontend catch l'erreur via axios interceptor
-// et affiche un modal demandant le code. Après succès, l'IP est ajoutée
-// à trustedIps et le user peut naviguer normalement.
-router.get('/me', requireAuth, require2FAForTrustedIp, async (req: Request, res: Response): Promise<void> => {
+// GET /me - Current user profile. Pas de gate 2FA ici : cette route est
+// aussi appelée côté serveur par le callback NextAuth (frontend/lib/auth.ts)
+// pour rafraîchir le solde à chaque check de session, depuis l'IP du
+// serveur Next.js — pas celle de l'utilisateur. Un gate IP ici déclenchait
+// donc le popup 2FA en continu, sans rapport avec une vraie connexion.
+// Le 2FA reste appliqué où ça compte : login Steam (à ajouter séparément
+// si besoin) et retrait (require2FAForSensitive sur /crypto/withdraw).
+router.get('/me', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user!.id },

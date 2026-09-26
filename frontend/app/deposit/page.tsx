@@ -647,11 +647,7 @@ export default function DepositPage() {
                   ? `${t('auth_signin_steam')} →`
                   : baseCoins < 1
                     ? t('deposit_select_crypto')
-                    : <>
-                        <ArrowDownToLine size={16} />
-                        {totalCoins.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        <span style={{ fontSize: '1.4em', lineHeight: 1, color: '#07060f' }}>⚜︎</span>
-                      </>
+                    : t('common_continue')
               }
             </button>
 

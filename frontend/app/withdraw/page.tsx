@@ -528,7 +528,7 @@ export default function WithdrawPage() {
             : 'bg-aoe-stone border border-aoe-border text-aoe-parchment-dim cursor-not-allowed opacity-50'
         )}
       >
-        CONTINUER →
+        {t('common_continue')}
       </button>
     </div>
   );
