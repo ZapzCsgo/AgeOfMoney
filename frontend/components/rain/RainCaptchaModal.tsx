@@ -12,6 +12,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { X, Droplets, Check } from 'lucide-react';
+import { useT } from '@/lib/i18n';
 
 function newChallenge() {
   // Keep the sum ≤ 18 so the answer stays a single digit or teen —
@@ -36,6 +37,7 @@ export function RainCaptchaModal({
   rainAmount: number;
   perUser: number;
 }) {
+  const { t } = useT();
   const [{ a, b }, setChallenge] = useState(newChallenge);
   const [answer, setAnswer] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -67,9 +69,9 @@ export function RainCaptchaModal({
 
   async function handleSubmit() {
     const n = parseInt(answer, 10);
-    if (!Number.isFinite(n)) { setError('Entre la réponse.'); return; }
+    if (!Number.isFinite(n)) { setError(t('rain_enter_answer')); return; }
     if (n !== a + b) {
-      setError('Incorrect. Nouveau calcul.');
+      setError(t('rain_wrong_new_calc'));
       setChallenge(newChallenge());
       setAnswer('');
       openedAt.current = Date.now();
@@ -91,28 +93,28 @@ export function RainCaptchaModal({
         style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.3)', boxShadow: '0 0 60px rgba(255,197,66,0.25)' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: '1px solid #1e1a30' }}>
+        <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: '1px solid rgba(255,197,66,0.2)' }}>
           <div className="flex items-center gap-2">
             <Droplets size={14} style={{ color: '#ffd97a' }} />
             <span className="font-bold text-[13px] tracking-widest uppercase" style={{ fontFamily: 'Cinzel, serif', color: '#ffd97a' }}>
-              Claim your share
+              {t('rain_claim_share')}
             </span>
           </div>
-          <button onClick={onClose} className="hover:opacity-60 transition-opacity" aria-label="fermer">
+          <button onClick={onClose} className="hover:opacity-60 transition-opacity" aria-label={t('rain_close')}>
             <X size={14} style={{ color: '#8981ab' }} />
           </button>
         </div>
 
         <div className="px-5 py-5 text-center">
           <p className="text-[12px] mb-1" style={{ color: '#9990b8' }}>
-            Rain pool · <strong style={{ color: '#ffd97a' }}>{rainAmount.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜</strong>
+            {t('rain_pool')} · <strong style={{ color: '#ffd97a' }}>{rainAmount.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜</strong>
           </p>
           <p className="text-[12px] mb-5" style={{ color: '#9990b8' }}>
-            Ta part si tu claim : <strong style={{ color: '#ffd97a' }}>{perUser} ⚜</strong>
+            {t('rain_your_share_if_claim')} <strong style={{ color: '#ffd97a' }}>{perUser} ⚜</strong>
           </p>
 
           <p className="text-[11px] mb-2" style={{ color: '#8981ab' }}>
-            Combien font
+            {t('rain_how_much_is')}
           </p>
           <p className="text-[36px] font-bold mb-4" style={{ fontFamily: 'Cinzel, serif', color: '#ffd97a' }}>
             {a} + {b} ?
@@ -141,7 +143,7 @@ export function RainCaptchaModal({
             style={{ background: 'linear-gradient(135deg, #f5c842 0%, #d4a017 100%)', color: '#1a1010', border: 'none' }}
           >
             <Check size={14} />
-            {busy ? 'Claim en cours…' : 'Claim'}
+            {busy ? t('rain_claiming') : t('rain_claim')}
           </button>
         </div>
       </div>

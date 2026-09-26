@@ -474,7 +474,7 @@ export default function AdminPage() {
     <div className="min-h-screen" style={{ background: '#07060f', color: '#e8e2f5' }}>
 
       {/* Header */}
-      <div style={{ background: '#0d0b1a', borderBottom: '1px solid #1e1a30' }} className="px-6 py-4">
+      <div style={{ background: '#0d0b1a', borderBottom: '1px solid rgba(255,197,66,0.2)' }} className="px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: '#be123c22', border: '1px solid #be123c55' }}>
@@ -515,7 +515,7 @@ export default function AdminPage() {
             from wrapping or collapsing. */}
         <div
           className="flex gap-1 mb-6 overflow-x-auto scrollbar-hide -mx-6 px-6 sm:mx-0 sm:px-0"
-          style={{ borderBottom: '1px solid #1e1a30' }}
+          style={{ borderBottom: '1px solid rgba(255,197,66,0.2)' }}
         >
           {tabs.map(t => (
             <button
@@ -532,7 +532,7 @@ export default function AdminPage() {
               {t.label}
               {t.count !== undefined && (
                 <span className="px-1.5 py-0.5 rounded text-[10px] font-bold"
-                  style={{ background: tab === t.id ? '#ffc54222' : '#1e1a30', color: tab === t.id ? '#ffc542' : '#8981ab' }}>
+                  style={{ background: tab === t.id ? '#ffc54222' : 'rgba(255,197,66,0.2)', color: tab === t.id ? '#ffc542' : '#8981ab' }}>
                   {t.count}
                 </span>
               )}
@@ -542,8 +542,8 @@ export default function AdminPage() {
 
         {/* ── MATCHES TAB ────────────────────────────────────────────────── */}
         {tab === 'matches' && (
-          <div className="rounded-lg overflow-hidden" style={{ border: '1px solid #1e1a30', background: '#0d0b1a' }}>
-            <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: '1px solid #1e1a30' }}>
+          <div className="rounded-lg overflow-hidden" style={{ border: '1px solid rgba(255,197,66,0.2)', background: '#0d0b1a' }}>
+            <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: '1px solid rgba(255,197,66,0.2)' }}>
               <Swords size={14} className="text-[#ffc542]" />
               <span className="text-[13px] font-semibold text-[#ffc542]">MATCHS ACTIFS</span>
               <span className="ml-auto text-[11px] text-[#8981ab]">{matches.length} match(s)</span>
@@ -551,7 +551,7 @@ export default function AdminPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-[12px]">
                 <thead>
-                  <tr style={{ borderBottom: '1px solid #1e1a30' }}>
+                  <tr style={{ borderBottom: '1px solid rgba(255,197,66,0.2)' }}>
                     {['Match', 'Tournoi', 'Format', 'Statut', 'Cotes', 'Paris', 'Date', 'Actions'].map(h => (
                       <th key={h} className="text-left px-4 py-2.5 text-[11px] text-[#8981ab] uppercase tracking-wider font-medium">{h}</th>
                     ))}
@@ -678,8 +678,8 @@ export default function AdminPage() {
 
         {/* ── FLAGGED TAB ───────────────────────────────────────────────── */}
         {tab === 'flagged' && (
-          <div className="rounded-lg overflow-hidden" style={{ border: '1px solid #1e1a30', background: '#0d0b1a' }}>
-            <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: '1px solid #1e1a30' }}>
+          <div className="rounded-lg overflow-hidden" style={{ border: '1px solid rgba(255,197,66,0.2)', background: '#0d0b1a' }}>
+            <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: '1px solid rgba(255,197,66,0.2)' }}>
               <Flag size={14} className="text-amber-400" />
               <span className="text-[13px] font-semibold text-amber-400">MATCHS FLAGGÉS</span>
               {flagged.length === 0 && <span className="ml-2 text-[11px] text-emerald-400 flex items-center gap-1"><CheckCircle size={11} />Tout est en ordre</span>}
@@ -688,7 +688,7 @@ export default function AdminPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-[12px]">
                   <thead>
-                    <tr style={{ borderBottom: '1px solid #1e1a30' }}>
+                    <tr style={{ borderBottom: '1px solid rgba(255,197,66,0.2)' }}>
                       {['Match', 'Tournoi', 'Format', 'Date', 'Paris', 'Action'].map(h => (
                         <th key={h} className="text-left px-4 py-2.5 text-[11px] text-[#8981ab] uppercase tracking-wider font-medium">{h}</th>
                       ))}
@@ -740,7 +740,7 @@ export default function AdminPage() {
             </div>
 
             {/* Quick fix: manually set tournament game (cascades to matches) */}
-            <div className="rounded-lg p-3" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
+            <div className="rounded-lg p-3" style={{ background: '#13111f', border: '1px solid rgba(255,197,66,0.2)' }}>
               <p className="text-[11px] text-[#8981ab] mb-2 uppercase tracking-wider">🔧 Forcer le jeu d&apos;un tournoi (override classification)</p>
               <form
                 className="flex items-center gap-2"
@@ -768,13 +768,13 @@ export default function AdminPage() {
                   name="tname"
                   placeholder="Nom du tournoi (ex: Brazilian Dynasty)"
                   className="flex-1 px-3 py-2 rounded text-[12px] outline-none text-[#e8e2f5] placeholder:text-[#3d3860]"
-                  style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}
+                  style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}
                 />
                 <select
                   name="tgame"
                   defaultValue=""
                   className="px-2 py-2 rounded text-[12px] outline-none text-[#e8e2f5]"
-                  style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}
+                  style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}
                   required
                 >
                   <option value="" disabled>Jeu…</option>
@@ -794,10 +794,10 @@ export default function AdminPage() {
               </form>
             </div>
 
-            <div className="rounded-lg overflow-hidden" style={{ border: '1px solid #1e1a30', background: '#0d0b1a' }}>
+            <div className="rounded-lg overflow-hidden" style={{ border: '1px solid rgba(255,197,66,0.2)', background: '#0d0b1a' }}>
               <table className="w-full text-[12px]">
                 <thead>
-                  <tr style={{ borderBottom: '1px solid #1e1a30' }}>
+                  <tr style={{ borderBottom: '1px solid rgba(255,197,66,0.2)' }}>
                     {['Joueur', 'Winrate', 'Pays', 'Records DB', 'Dernière MAJ', 'Action'].map(h => (
                       <th key={h} className="text-left px-4 py-2.5 text-[11px] text-[#8981ab] uppercase tracking-wider font-medium">{h}</th>
                     ))}
@@ -816,7 +816,7 @@ export default function AdminPage() {
                             <p className="font-semibold text-[#e8e2f5]">{p.name}</p>
                             {p.game && p.game !== 'AoE4' && (
                               <span className="text-[9px] px-1.5 py-0.5 rounded font-cinzel"
-                                style={{ background: '#1e1a30', border: '1px solid #2a2540', color: '#9990b8' }}>
+                                style={{ background: 'rgba(255,197,66,0.2)', border: '1px solid #2a2540', color: '#9990b8' }}>
                                 {p.game}
                               </span>
                             )}
@@ -840,7 +840,7 @@ export default function AdminPage() {
                           <span className="font-bold text-[13px]" style={{ color }}>
                             {records}/50
                           </span>
-                          <div className="w-16 h-1 rounded-full mt-1" style={{ background: '#1e1a30' }}>
+                          <div className="w-16 h-1 rounded-full mt-1" style={{ background: 'rgba(255,197,66,0.2)' }}>
                             <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, (records / 50) * 100)}%`, background: color }} />
                           </div>
                         </td>
@@ -893,7 +893,7 @@ export default function AdminPage() {
                               }}
                               disabled={seeding === p.id}
                               className="px-1 py-1 rounded text-[9px] font-medium outline-none disabled:opacity-40"
-                              style={{ background: '#13111f', border: '1px solid #1e1a30', color: '#8981ab' }}
+                              style={{ background: '#13111f', border: '1px solid rgba(255,197,66,0.2)', color: '#8981ab' }}
                               title="Force AI seed pour un jeu spécifique"
                             >
                               <option value="">jeu…</option>
@@ -924,16 +924,16 @@ export default function AdminPage() {
                   onChange={e => setUserSearch(e.target.value)}
                   placeholder="Rechercher un utilisateur…"
                   className="w-full pl-8 pr-3 py-2 rounded-lg text-[12px] text-[#e8e2f5] placeholder:text-[#3d3860] outline-none"
-                  style={{ background: '#13111f', border: '1px solid #1e1a30' }}
+                  style={{ background: '#13111f', border: '1px solid rgba(255,197,66,0.2)' }}
                 />
               </div>
               <span className="text-[12px] text-[#8981ab]">{usersTotal} utilisateurs</span>
             </div>
 
-            <div className="rounded-lg overflow-hidden" style={{ border: '1px solid #1e1a30', background: '#0d0b1a' }}>
+            <div className="rounded-lg overflow-hidden" style={{ border: '1px solid rgba(255,197,66,0.2)', background: '#0d0b1a' }}>
               <table className="w-full text-[12px]">
                 <thead>
-                  <tr style={{ borderBottom: '1px solid #1e1a30' }}>
+                  <tr style={{ borderBottom: '1px solid rgba(255,197,66,0.2)' }}>
                     {['Utilisateur', 'Coins', 'Rôles', 'Statut', 'Dernière activité', 'Actions'].map(h => (
                       <th key={h} className="text-left px-4 py-2.5 text-[11px] text-[#8981ab] uppercase tracking-wider font-medium">{h}</th>
                     ))}
@@ -1030,15 +1030,15 @@ export default function AdminPage() {
               <span className="text-[11px] text-[#8981ab]">· Winrate &gt; 75% ou profit net &gt; 20 000 ⚜</span>
             </div>
             {suspiciousUsers.length === 0 ? (
-              <div className="rounded-lg p-6 text-center" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+              <div className="rounded-lg p-6 text-center" style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}>
                 <CheckCircle size={24} className="text-emerald-400 mx-auto mb-2" />
                 <p className="text-[#8981ab] text-[13px]">Aucun utilisateur suspect détecté</p>
               </div>
             ) : (
-              <div className="rounded-lg overflow-hidden" style={{ border: '1px solid #1e1a30', background: '#0d0b1a' }}>
+              <div className="rounded-lg overflow-hidden" style={{ border: '1px solid rgba(255,197,66,0.2)', background: '#0d0b1a' }}>
                 <table className="w-full text-[12px]">
                   <thead>
-                    <tr style={{ borderBottom: '1px solid #1e1a30' }}>
+                    <tr style={{ borderBottom: '1px solid rgba(255,197,66,0.2)' }}>
                       {['Utilisateur', 'Paris', 'Winrate', 'Misé', 'Profit net', 'Solde', 'Statut', 'Actions'].map(h => (
                         <th key={h} className="text-left px-4 py-2.5 text-[11px] text-[#8981ab] uppercase tracking-wider font-medium">{h}</th>
                       ))}
@@ -1092,7 +1092,7 @@ export default function AdminPage() {
         {tab === 'transactions' && (
           <div className="space-y-3">
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1 p-0.5 rounded" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
+              <div className="flex items-center gap-1 p-0.5 rounded" style={{ background: '#13111f', border: '1px solid rgba(255,197,66,0.2)' }}>
                 {(['pending', 'all', 'deposit', 'withdrawal'] as const).map(f => (
                   <button key={f} onClick={() => loadTransactions(f)}
                     className={cn('px-3 py-1 rounded text-[11px] font-medium transition-colors',
@@ -1111,10 +1111,10 @@ export default function AdminPage() {
                 {syncingOxaPay ? 'Sync…' : '🔄 Sync OxaPay'}
               </button>
             </div>
-            <div className="rounded-lg overflow-hidden" style={{ border: '1px solid #1e1a30', background: '#0d0b1a' }}>
+            <div className="rounded-lg overflow-hidden" style={{ border: '1px solid rgba(255,197,66,0.2)', background: '#0d0b1a' }}>
               <table className="w-full text-[12px]">
                 <thead>
-                  <tr style={{ borderBottom: '1px solid #1e1a30' }}>
+                  <tr style={{ borderBottom: '1px solid rgba(255,197,66,0.2)' }}>
                     {['Utilisateur', 'Type', 'Montant USD', 'Coins', 'Statut', 'Date'].map(h => (
                       <th key={h} className="text-left px-4 py-2.5 text-[11px] text-[#8981ab] uppercase tracking-wider font-medium">{h}</th>
                     ))}
@@ -1165,7 +1165,7 @@ export default function AdminPage() {
         {tab === 'affiliates' && (
           <div className="space-y-3">
             <div className="flex items-center gap-3 flex-wrap">
-              <div className="flex items-center gap-1 p-0.5 rounded" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
+              <div className="flex items-center gap-1 p-0.5 rounded" style={{ background: '#13111f', border: '1px solid rgba(255,197,66,0.2)' }}>
                 {(['pending', 'suspicious', 'all'] as const).map(f => (
                   <button key={f} onClick={() => loadAffiliateReferrals(f)}
                     className={cn('px-3 py-1 rounded text-[11px] font-medium transition-colors',
@@ -1180,10 +1180,10 @@ export default function AdminPage() {
                 🚩 Flag automatique : parrain et filleul partagent une IP (possible double compte)
               </p>
             </div>
-            <div className="rounded-lg overflow-hidden" style={{ border: '1px solid #1e1a30', background: '#0d0b1a' }}>
+            <div className="rounded-lg overflow-hidden" style={{ border: '1px solid rgba(255,197,66,0.2)', background: '#0d0b1a' }}>
               <table className="w-full text-[12px]">
                 <thead>
-                  <tr style={{ borderBottom: '1px solid #1e1a30' }}>
+                  <tr style={{ borderBottom: '1px solid rgba(255,197,66,0.2)' }}>
                     {['Parrain', 'Filleul', 'Code', 'Déposé', 'Misé', 'Commission', 'Raison', 'Actions'].map(h => (
                       <th key={h} className="text-left px-3 py-2.5 text-[11px] text-[#8981ab] uppercase tracking-wider font-medium">{h}</th>
                     ))}
@@ -1261,12 +1261,12 @@ export default function AdminPage() {
       {(userDetail || userDetailLoading) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={() => { setUserDetail(null); }}>
           <div className="rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
-            style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }} onClick={e => e.stopPropagation()}>
+            style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }} onClick={e => e.stopPropagation()}>
             {userDetailLoading ? (
               <div className="p-12 text-center text-[#8981ab]">Chargement...</div>
             ) : userDetail && (
               <>
-                <div className="flex items-start justify-between gap-4 p-5" style={{ borderBottom: '1px solid #1e1a30' }}>
+                <div className="flex items-start justify-between gap-4 p-5" style={{ borderBottom: '1px solid rgba(255,197,66,0.2)' }}>
                   <div className="flex items-center gap-3">
                     {userDetail.user.avatar && <Image src={userDetail.user.avatar} alt="" width={48} height={48} unoptimized className="w-12 h-12 rounded-full" />}
                     <div>
@@ -1318,7 +1318,7 @@ export default function AdminPage() {
                       { label: 'Profit net', value: `${userDetail.stats.netProfit >= 0 ? '+' : ''}${new Intl.NumberFormat('fr-FR').format(userDetail.stats.netProfit)} ⚜`, color: userDetail.stats.netProfit >= 0 ? '#10b981' : '#ef4444' },
                       { label: 'Winrate', value: `${(userDetail.stats.winrate * 100).toFixed(0)}%`, color: userDetail.stats.winrate > 0.75 ? '#ef4444' : '#e8e2f5' },
                     ].map((s, i) => (
-                      <div key={i} className="rounded-lg p-3" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
+                      <div key={i} className="rounded-lg p-3" style={{ background: '#13111f', border: '1px solid rgba(255,197,66,0.2)' }}>
                         <p className="text-[9px] text-[#8981ab] uppercase tracking-wider">{s.label}</p>
                         <p className="font-bold text-[14px] mt-1" style={{ color: s.color }}>{s.value}</p>
                       </div>
@@ -1330,7 +1330,7 @@ export default function AdminPage() {
                       { label: 'Paris 7j', value: userDetail.stats.bets7d },
                       { label: 'Total paris', value: userDetail.stats.totalBets },
                     ].map((s, i) => (
-                      <div key={i} className="rounded-lg p-2 text-center" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
+                      <div key={i} className="rounded-lg p-2 text-center" style={{ background: '#13111f', border: '1px solid rgba(255,197,66,0.2)' }}>
                         <p className="text-[9px] text-[#8981ab] uppercase">{s.label}</p>
                         <p className="font-bold text-[13px] text-[#e8e2f5]">{s.value}</p>
                       </div>
@@ -1340,10 +1340,10 @@ export default function AdminPage() {
                   {/* Recent bets */}
                   <div>
                     <h3 className="text-[11px] font-bold text-[#8981ab] uppercase mb-2">Derniers paris ({userDetail.recentBets.length})</h3>
-                    <div className="rounded-lg overflow-hidden" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
+                    <div className="rounded-lg overflow-hidden" style={{ background: '#13111f', border: '1px solid rgba(255,197,66,0.2)' }}>
                       <table className="w-full text-[11px]">
                         <thead>
-                          <tr style={{ borderBottom: '1px solid #1e1a30' }}>
+                          <tr style={{ borderBottom: '1px solid rgba(255,197,66,0.2)' }}>
                             {['Match', 'Pick', 'Cote', 'Mise', 'Gain', 'Statut', 'Date'].map(h => (
                               <th key={h} className="text-left px-3 py-2 text-[10px] text-[#8981ab] uppercase">{h}</th>
                             ))}
@@ -1382,10 +1382,10 @@ export default function AdminPage() {
                   {userDetail.recentTransactions.length > 0 && (
                     <div>
                       <h3 className="text-[11px] font-bold text-[#8981ab] uppercase mb-2">Transactions ({userDetail.recentTransactions.length})</h3>
-                      <div className="rounded-lg overflow-hidden" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
+                      <div className="rounded-lg overflow-hidden" style={{ background: '#13111f', border: '1px solid rgba(255,197,66,0.2)' }}>
                         <table className="w-full text-[11px]">
                           <thead>
-                            <tr style={{ borderBottom: '1px solid #1e1a30' }}>
+                            <tr style={{ borderBottom: '1px solid rgba(255,197,66,0.2)' }}>
                               {['Type', 'Montant USD', 'Coins', 'Statut', 'Date'].map(h => (
                                 <th key={h} className="text-left px-3 py-2 text-[10px] text-[#8981ab] uppercase">{h}</th>
                               ))}
@@ -1414,7 +1414,7 @@ export default function AdminPage() {
                   )}
 
                   {/* Quick actions */}
-                  <div className="flex items-center gap-2 pt-2" style={{ borderTop: '1px solid #1e1a30' }}>
+                  <div className="flex items-center gap-2 pt-2" style={{ borderTop: '1px solid rgba(255,197,66,0.2)' }}>
                     <button onClick={() => { handleBan(userDetail.user.id, userDetail.user.isBanned); setUserDetail(null); }}
                       className={cn('px-3 py-1.5 rounded text-[11px] font-medium',
                         userDetail.user.isBanned ? 'bg-emerald-950 border border-emerald-800/40 text-emerald-400' : 'bg-red-950 border border-red-800/40 text-red-400'
@@ -1489,7 +1489,7 @@ export default function AdminPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4" onClick={() => setInspectData(null)}>
           <div
             className="rounded-xl w-full max-w-3xl overflow-hidden"
-            style={{ background: '#0d0b1a', border: '1px solid #1e1a30', maxHeight: '90vh', overflowY: 'auto' }}
+            style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)', maxHeight: '90vh', overflowY: 'auto' }}
             onClick={e => e.stopPropagation()}
           >
             {inspectLoading ? (
@@ -1510,7 +1510,7 @@ export default function AdminPage() {
                       <div className="flex items-center gap-2">
                         {bet.user.avatar
                           ? <Image src={bet.user.avatar} alt="" width={24} height={24} unoptimized className="w-6 h-6 rounded-full object-cover" />
-                          : <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold" style={{ background: '#1e1a30', color: '#ffc542' }}>{bet.user.username[0]?.toUpperCase()}</div>
+                          : <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold" style={{ background: 'rgba(255,197,66,0.2)', color: '#ffc542' }}>{bet.user.username[0]?.toUpperCase()}</div>
                         }
                         <span className="text-[12px] font-semibold text-[#e8e2f5]">{bet.user.username}</span>
                       </div>
@@ -1531,7 +1531,7 @@ export default function AdminPage() {
               return (
                 <div>
                   {/* Header */}
-                  <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid #1e1a30' }}>
+                  <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid rgba(255,197,66,0.2)' }}>
                     <div className="flex items-center gap-3">
                       <Eye size={15} className="text-[#38bdf8]" />
                       <div>
@@ -1554,23 +1554,23 @@ export default function AdminPage() {
                   <div className="p-5 space-y-5">
                     {/* Match stats */}
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="rounded-lg p-3" style={{ background: '#07060f', border: '1px solid #1e1a30' }}>
+                      <div className="rounded-lg p-3" style={{ background: '#07060f', border: '1px solid rgba(255,197,66,0.2)' }}>
                         <p className="text-[10px] text-[#8981ab] uppercase tracking-wider mb-2">Cotes</p>
                         <p className="text-[13px] font-mono font-bold text-[#ffc542]">{m.odds1.toFixed(2)} <span className="text-[#8981ab]">vs</span> {m.odds2.toFixed(2)}</p>
                       </div>
-                      <div className="rounded-lg p-3" style={{ background: '#07060f', border: '1px solid #1e1a30' }}>
+                      <div className="rounded-lg p-3" style={{ background: '#07060f', border: '1px solid rgba(255,197,66,0.2)' }}>
                         <p className="text-[10px] text-[#8981ab] uppercase tracking-wider mb-2">Score live</p>
                         <p className="text-[13px] font-mono font-bold text-[#e8e2f5]">{m.p1Score ?? 0} – {m.p2Score ?? 0}</p>
                       </div>
                     </div>
 
                     {/* Volume bar */}
-                    <div className="rounded-lg p-4" style={{ background: '#07060f', border: '1px solid #1e1a30' }}>
+                    <div className="rounded-lg p-4" style={{ background: '#07060f', border: '1px solid rgba(255,197,66,0.2)' }}>
                       <div className="flex justify-between text-[11px] mb-2">
                         <span className="text-amber-400 font-bold">{m.player1.name} — {stats.volume1.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜ ({stats.pct1}%)</span>
                         <span className="text-blue-400 font-bold">{stats.pct2}% ({stats.volume2.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜) — {m.player2.name}</span>
                       </div>
-                      <div className="h-2 rounded-full overflow-hidden" style={{ background: '#1e1a30' }}>
+                      <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,197,66,0.2)' }}>
                         <div className="h-full rounded-full" style={{ width: `${stats.pct1}%`, background: 'linear-gradient(90deg, #ffc542, #ffd97a)' }} />
                       </div>
                       <div className="flex justify-between text-[10px] mt-1.5 text-[#8981ab]">
@@ -1676,7 +1676,7 @@ export default function AdminPage() {
                   ['Statut DB', lpDebug.dbStatus],
                   ['Matchs LP trouvés', lpDebug.lpMatchesFound],
                 ] as [string, unknown][]).map(([label, value]) => value !== undefined && (
-                  <div key={label} className="rounded p-2" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
+                  <div key={label} className="rounded p-2" style={{ background: '#13111f', border: '1px solid rgba(255,197,66,0.2)' }}>
                     <div className="text-[#8981ab] text-[10px] uppercase tracking-wider">{label}</div>
                     <div className="text-[#e8e2f5] mt-0.5 font-mono">{String(value ?? '—')}</div>
                   </div>
@@ -1689,7 +1689,7 @@ export default function AdminPage() {
                   <div className="text-[11px] text-[#8981ab] uppercase tracking-wider mb-2">Tous les matchs sur la page LP</div>
                   <div className="space-y-1 max-h-48 overflow-y-auto">
                     {(lpDebug.allOpponentPairs as Array<{ opp1: string; opp2: string; score: string; bestof: number }>).map((pair, i) => (
-                      <div key={i} className="flex items-center justify-between rounded px-3 py-2 text-[12px]" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
+                      <div key={i} className="flex items-center justify-between rounded px-3 py-2 text-[12px]" style={{ background: '#13111f', border: '1px solid rgba(255,197,66,0.2)' }}>
                         <span className="text-[#e8e2f5]">{pair.opp1} <span className="text-[#8981ab]">vs</span> {pair.opp2}</span>
                         <span className="text-[#ffc542] font-mono">{pair.score} <span className="text-[#8981ab]">BO{pair.bestof}</span></span>
                       </div>
@@ -1729,7 +1729,7 @@ export default function AdminPage() {
                       onClick={() => setResultForm(f => ({ ...f, winnerId: p.id }))}
                       className="p-3 rounded-lg text-[13px] font-semibold transition-all"
                       style={{
-                        border: `1px solid ${resultForm.winnerId === p.id ? '#ffc542' : '#1e1a30'}`,
+                        border: `1px solid ${resultForm.winnerId === p.id ? '#ffc542' : 'rgba(255,197,66,0.2)'}`,
                         background: resultForm.winnerId === p.id ? '#ffc54220' : '#13111f',
                         color: resultForm.winnerId === p.id ? '#ffc542' : '#9990b8',
                       }}
@@ -1748,7 +1748,7 @@ export default function AdminPage() {
                   onChange={e => setResultForm(f => ({ ...f, score: e.target.value }))}
                   placeholder="2-1"
                   className="w-full px-3 py-2.5 rounded-lg text-[13px] outline-none text-[#e8e2f5]"
-                  style={{ background: '#13111f', border: '1px solid #1e1a30' }}
+                  style={{ background: '#13111f', border: '1px solid rgba(255,197,66,0.2)' }}
                 />
               </div>
             </div>
@@ -1757,7 +1757,7 @@ export default function AdminPage() {
               <button
                 onClick={() => { setResultModal(null); setResultForm({ winnerId: '', score: '' }); }}
                 className="flex-1 py-2.5 rounded-lg text-[13px] font-medium text-[#9990b8] transition-all hover:text-[#e8e2f5]"
-                style={{ background: '#13111f', border: '1px solid #1e1a30' }}
+                style={{ background: '#13111f', border: '1px solid rgba(255,197,66,0.2)' }}
               >
                 Annuler
               </button>
@@ -1788,7 +1788,7 @@ export default function AdminPage() {
                   className="py-2 rounded-lg text-[11px] font-bold transition-all"
                   style={{
                     background: muteDuration === min ? '#1e3a5f' : '#13111f',
-                    border: `1px solid ${muteDuration === min ? '#3b82f6' : '#1e1a30'}`,
+                    border: `1px solid ${muteDuration === min ? '#3b82f6' : 'rgba(255,197,66,0.2)'}`,
                     color: muteDuration === min ? '#60a5fa' : '#8981ab',
                   }}>
                   {min < 60 ? `${min} min` : min < 1440 ? `${min/60}h` : min === 1440 ? '24h' : '7j'}
@@ -1796,7 +1796,7 @@ export default function AdminPage() {
               ))}
             </div>
             <div className="flex gap-3">
-              <button onClick={() => setMuteModal(null)} className="flex-1 py-2 rounded-lg text-[12px] text-[#9990b8]" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>Annuler</button>
+              <button onClick={() => setMuteModal(null)} className="flex-1 py-2 rounded-lg text-[12px] text-[#9990b8]" style={{ background: '#13111f', border: '1px solid rgba(255,197,66,0.2)' }}>Annuler</button>
               <button onClick={handleMute} className="flex-1 py-2 rounded-lg text-[12px] font-bold" style={{ background: '#3b82f6', color: '#fff' }}>Muter</button>
             </div>
           </div>
@@ -1815,10 +1815,10 @@ export default function AdminPage() {
               onChange={e => setAdjustAmount(e.target.value)}
               placeholder="Montant (négatif pour débiter)"
               className="w-full px-3 py-2.5 rounded-lg text-[13px] outline-none text-[#e8e2f5] mb-4"
-              style={{ background: '#13111f', border: '1px solid #1e1a30' }}
+              style={{ background: '#13111f', border: '1px solid rgba(255,197,66,0.2)' }}
             />
             <div className="flex gap-3">
-              <button onClick={() => setAdjustModal(null)} className="flex-1 py-2 rounded-lg text-[12px] text-[#9990b8]" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>Annuler</button>
+              <button onClick={() => setAdjustModal(null)} className="flex-1 py-2 rounded-lg text-[12px] text-[#9990b8]" style={{ background: '#13111f', border: '1px solid rgba(255,197,66,0.2)' }}>Annuler</button>
               <button onClick={handleAdjustCoins} className="flex-1 py-2 rounded-lg text-[12px] font-bold" style={{ background: '#ffc542', color: '#07060f' }}>Confirmer</button>
             </div>
           </div>
@@ -1870,7 +1870,7 @@ function ScrapersPanel({ showMsg }: { showMsg: (type: 'success' | 'error', text:
         {scrapers.map(s => {
           const last = logs.find(l => l.source === s.id);
           return (
-            <div key={s.id} className="rounded-lg p-4" style={{ border: '1px solid #1e1a30', background: '#0d0b1a' }}>
+            <div key={s.id} className="rounded-lg p-4" style={{ border: '1px solid rgba(255,197,66,0.2)', background: '#0d0b1a' }}>
               <div className="flex items-start justify-between mb-2">
                 <div>
                   <p className="font-semibold text-[13px] text-[#e8e2f5]">{s.label}</p>
@@ -1887,7 +1887,7 @@ function ScrapersPanel({ showMsg }: { showMsg: (type: 'success' | 'error', text:
                 </button>
               </div>
               {last && (
-                <div className="flex items-center gap-2 text-[11px] mt-3 pt-3" style={{ borderTop: '1px solid #1e1a30' }}>
+                <div className="flex items-center gap-2 text-[11px] mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,197,66,0.2)' }}>
                   {last.status === 'success' ? <CheckCircle size={12} className="text-emerald-400" /> : <AlertTriangle size={12} className="text-amber-400" />}
                   <span className={last.status === 'success' ? 'text-emerald-400' : 'text-amber-400'}>
                     {last.matchesFound} matchs · {last.duration ? `${(last.duration / 1000).toFixed(1)}s` : '?'}
@@ -1899,8 +1899,8 @@ function ScrapersPanel({ showMsg }: { showMsg: (type: 'success' | 'error', text:
         })}
       </div>
 
-      <div className="rounded-lg overflow-hidden" style={{ border: '1px solid #1e1a30', background: '#0d0b1a' }}>
-        <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid #1e1a30' }}>
+      <div className="rounded-lg overflow-hidden" style={{ border: '1px solid rgba(255,197,66,0.2)', background: '#0d0b1a' }}>
+        <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid rgba(255,197,66,0.2)' }}>
           <span className="text-[13px] font-semibold text-[#ffc542]">JOURNAUX</span>
           <button onClick={fetchLogs} className="text-[#8981ab] hover:text-[#e8e2f5]">
             <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
@@ -1908,7 +1908,7 @@ function ScrapersPanel({ showMsg }: { showMsg: (type: 'success' | 'error', text:
         </div>
         <table className="w-full text-[12px]">
           <thead>
-            <tr style={{ borderBottom: '1px solid #1e1a30' }}>
+            <tr style={{ borderBottom: '1px solid rgba(255,197,66,0.2)' }}>
               {['Source', 'Statut', 'Matchs', 'Durée', 'Date', 'Erreur'].map(h => (
                 <th key={h} className="text-left px-4 py-2 text-[11px] text-[#8981ab] uppercase tracking-wider font-medium">{h}</th>
               ))}
@@ -1977,7 +1977,7 @@ function ChatHistoryPanel() {
     <div className="space-y-4">
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex rounded-lg overflow-hidden" style={{ border: '1px solid #1e1a30' }}>
+        <div className="flex rounded-lg overflow-hidden" style={{ border: '1px solid rgba(255,197,66,0.2)' }}>
           {(['global', 'match', ''] as const).map((r, i) => (
             <button
               key={i}
@@ -1991,7 +1991,7 @@ function ChatHistoryPanel() {
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-2 flex-1 max-w-xs px-3 py-2 rounded-lg text-[12px]" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+        <div className="flex items-center gap-2 flex-1 max-w-xs px-3 py-2 rounded-lg text-[12px]" style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}>
           <Search size={12} className="text-[#8981ab]" />
           <input
             className="bg-transparent outline-none text-[#e8e2f5] placeholder-[#8981ab] w-full"
@@ -2008,10 +2008,10 @@ function ChatHistoryPanel() {
       </div>
 
       {/* Table */}
-      <div className="rounded-lg overflow-hidden" style={{ border: '1px solid #1e1a30', background: '#0d0b1a' }}>
+      <div className="rounded-lg overflow-hidden" style={{ border: '1px solid rgba(255,197,66,0.2)', background: '#0d0b1a' }}>
         <table className="w-full text-[12px]">
           <thead>
-            <tr style={{ borderBottom: '1px solid #1e1a30' }}>
+            <tr style={{ borderBottom: '1px solid rgba(255,197,66,0.2)' }}>
               {['Date', 'Utilisateur', 'Room', 'Message'].map(h => (
                 <th key={h} className="text-left px-4 py-2.5 text-[11px] text-[#8981ab] uppercase tracking-wider font-medium">{h}</th>
               ))}
@@ -2052,7 +2052,7 @@ function ChatHistoryPanel() {
             onClick={() => setPage(p => Math.max(1, p - 1))}
             disabled={page === 1}
             className="px-3 py-1.5 rounded text-[12px] disabled:opacity-30 text-[#9990b8]"
-            style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}
+            style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}
           >
             ←
           </button>
@@ -2061,7 +2061,7 @@ function ChatHistoryPanel() {
             onClick={() => setPage(p => Math.min(pages, p + 1))}
             disabled={page === pages}
             className="px-3 py-1.5 rounded text-[12px] disabled:opacity-30 text-[#9990b8]"
-            style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}
+            style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}
           >
             →
           </button>

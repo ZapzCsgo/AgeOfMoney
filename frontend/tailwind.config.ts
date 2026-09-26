@@ -50,9 +50,11 @@ const config: Config = {
           'bg-elevated':'#141226',
           'bg-hover':  '#1a1830',
 
-          // Borders
-          border:      '#1e1a30',
-          'border-mid':'#2d2850',
+          // Borders — low-opacity gold frame instead of the near-invisible
+          // near-black tone, so every card/panel using border-aoe-border
+          // reads as a deliberate frame rather than flat/borderless.
+          border:      'rgba(255,197,66,0.18)',
+          'border-mid':'rgba(255,197,66,0.4)',
           'border-gold':'#7a5814',
 
           // Text

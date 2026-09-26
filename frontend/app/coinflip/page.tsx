@@ -403,7 +403,7 @@ export default function CoinFlipPage() {
 
         {/* Historique tab — full completed flips list */}
         {viewTab === 'history' && (
-          <div className="rounded-2xl p-5" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+          <div className="rounded-2xl p-5" style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}>
             <div className="flex items-center gap-2 mb-4">
               <Trophy size={16} style={{ color: '#8981ab' }} />
               <h2 className="text-[14px] font-bold tracking-wider uppercase" style={{ fontFamily: 'Cinzel, serif', color: '#e8e2f5' }}>
@@ -414,7 +414,7 @@ export default function CoinFlipPage() {
             {historyLoading ? (
               <div className="text-center py-8 text-[12px]" style={{ color: '#8981ab' }}>Chargement…</div>
             ) : historyGames.length === 0 ? (
-              <div className="text-center py-8 text-[12px]" style={{ color: '#8981ab' }}>Aucun flip terminé.</div>
+              <div className="text-center py-8 text-[12px]" style={{ color: '#8981ab' }}>{t('coinflip_no_completed')}</div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {historyGames.map((game) => {
@@ -429,7 +429,7 @@ export default function CoinFlipPage() {
                       className="flex items-center gap-3 px-3 py-3 rounded-lg text-[13px]"
                       style={{
                         background: 'linear-gradient(90deg, rgba(255,197,66,0.05) 0%, rgba(10,8,23,1) 45%)',
-                        border: '1px solid #1e1a30',
+                        border: '1px solid rgba(255,197,66,0.2)',
                       }}
                     >
                       {/* Mini coin with the winning side facing up */}
@@ -501,7 +501,7 @@ export default function CoinFlipPage() {
         {viewTab === 'live' && (<>
         <div
           className="rounded-2xl p-5 mb-6"
-          style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}
+          style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}
         >
           <div className="flex items-center gap-2 mb-4">
             <Plus size={16} style={{ color: '#ffd97a' }} />
@@ -530,7 +530,7 @@ export default function CoinFlipPage() {
                       ? 'rgba(255,197,66,0.12)'
                       : '#0d0b1a',
                   border: `1.5px solid ${
-                    selectedSide === 'crown' ? '#ffc542' : '#1e1a30'
+                    selectedSide === 'crown' ? '#ffc542' : 'rgba(255,197,66,0.2)'
                   }`,
                 }}
               >
@@ -558,7 +558,7 @@ export default function CoinFlipPage() {
                       ? 'rgba(138,138,154,0.1)'
                       : '#0d0b1a',
                   border: `1.5px solid ${
-                    selectedSide === 'shield' ? '#8a8a9a' : '#1e1a30'
+                    selectedSide === 'shield' ? '#8a8a9a' : 'rgba(255,197,66,0.2)'
                   }`,
                   boxShadow:
                     selectedSide === 'shield'
@@ -592,7 +592,7 @@ export default function CoinFlipPage() {
                     className="w-full px-3 py-2.5 rounded-lg text-[13px] outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     style={{
                       background: '#13111f',
-                      border: '1px solid #1e1a30',
+                      border: '1px solid rgba(255,197,66,0.2)',
                       color: '#e8e2f5',
                     }}
                   />
@@ -608,7 +608,7 @@ export default function CoinFlipPage() {
                     }
                     className="px-3 py-2 rounded-lg text-[11px] font-bold hover:opacity-80"
                     style={{
-                      background: '#1e1a30',
+                      background: 'rgba(255,197,66,0.2)',
                       color: '#9990b8',
                       border: '1px solid #2a2640',
                     }}
@@ -620,7 +620,7 @@ export default function CoinFlipPage() {
                   onClick={() => setBetAmount(String(userCoins))}
                   className="px-3 py-2 rounded-lg text-[11px] font-bold hover:opacity-80"
                   style={{
-                    background: '#1e1a30',
+                    background: 'rgba(255,197,66,0.2)',
                     color: '#9990b8',
                     border: '1px solid #2a2640',
                   }}
@@ -649,7 +649,7 @@ export default function CoinFlipPage() {
         {/* Open Flips Lobby */}
         <div
           className="rounded-2xl p-5 mb-6"
-          style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}
+          style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}
         >
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -664,7 +664,7 @@ export default function CoinFlipPage() {
             <Badge
               variant="outline"
               className="text-[10px]"
-              style={{ color: '#8981ab', borderColor: '#1e1a30' }}
+              style={{ color: '#8981ab', borderColor: 'rgba(255,197,66,0.2)' }}
             >
               {waitingGames.length} {t('coinflip_open')}
             </Badge>
@@ -673,7 +673,7 @@ export default function CoinFlipPage() {
           {waitingGames.length === 0 ? (
             <div
               className="text-center py-12 rounded-xl"
-              style={{ background: '#0a0817', border: '1px dashed #1e1a30' }}
+              style={{ background: '#0a0817', border: '1px dashed rgba(255,197,66,0.25)' }}
             >
               <Coins
                 size={40}
@@ -696,7 +696,7 @@ export default function CoinFlipPage() {
                   style={{
                     background: '#0a0817',
                     border: `1px solid ${
-                      isHighValue(game.amount) ? '#ffc54240' : '#1e1a30'
+                      isHighValue(game.amount) ? '#ffc54240' : 'rgba(255,197,66,0.2)'
                     }`,
                     animationDelay: `${idx * 0.05}s`,
                   }}
@@ -705,7 +705,7 @@ export default function CoinFlipPage() {
                   <div className="flex items-center gap-2.5">
                     <div
                       className="w-9 h-9 rounded-full overflow-hidden shrink-0"
-                      style={{ border: '2px solid #1e1a30' }}
+                      style={{ border: '2px solid rgba(255,197,66,0.2)' }}
                     >
                       {game.creator.avatar ? (
                         <img
@@ -716,7 +716,7 @@ export default function CoinFlipPage() {
                       ) : (
                         <div
                           className="w-full h-full flex items-center justify-center text-[11px] font-bold"
-                          style={{ background: '#1e1a30', color: '#8981ab' }}
+                          style={{ background: 'rgba(255,197,66,0.2)', color: '#8981ab' }}
                         >
                           {game.creator.username[0]?.toUpperCase()}
                         </div>
@@ -799,7 +799,7 @@ export default function CoinFlipPage() {
         {recentResults.length > 0 && (
           <div
             className="rounded-2xl p-5"
-            style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}
+            style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}
           >
             <div className="flex items-center gap-2 mb-4">
               <Clock size={16} style={{ color: '#8981ab' }} />
@@ -823,7 +823,7 @@ export default function CoinFlipPage() {
                       className="cf-result-in shrink-0 rounded-xl p-3 flex flex-col items-center gap-1.5"
                       style={{
                         background: '#0a0817',
-                        border: '1px solid #1e1a30',
+                        border: '1px solid rgba(255,197,66,0.2)',
                         minWidth: 120,
                         animationDelay: `${idx * 0.05}s`,
                       }}

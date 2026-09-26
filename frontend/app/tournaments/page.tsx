@@ -122,7 +122,7 @@ function TournamentCard({ tournament }: { tournament: Tournament & { _count?: { 
       className={cn("rounded-lg border overflow-hidden transition-colors relative", expanded && "lg:col-span-2")}
       style={{
         background: isFinished ? '#0a0918' : '#0d0b1a',
-        borderColor: isOngoing ? statusColor + '50' : isUpcoming ? '#1e1a30' : '#151325',
+        borderColor: isOngoing ? statusColor + '50' : isUpcoming ? 'rgba(255,197,66,0.2)' : '#151325',
         opacity: isFinished ? 0.7 : 1,
       }}
     >
@@ -160,7 +160,7 @@ function TournamentCard({ tournament }: { tournament: Tournament & { _count?: { 
                 {tournament.endDate && ` → ${formatDate(tournament.endDate)}`}
               </span>
               {matchCount > 0 && (
-                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded" style={{ background: '#1e1a30' }}>
+                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded" style={{ background: 'rgba(255,197,66,0.2)' }}>
                   <Zap size={8} />
                   {matchCount} matchs
                 </span>
@@ -174,17 +174,17 @@ function TournamentCard({ tournament }: { tournament: Tournament & { _count?: { 
               <span className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold text-emerald-400"
                 style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)' }}>
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                EN COURS
+                {t('matches_filter_live').toUpperCase()}
               </span>
             ) : isUpcoming ? (
               <span className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold text-[#60a5fa]"
                 style={{ background: 'rgba(96,165,250,0.08)', border: '1px solid rgba(96,165,250,0.2)' }}>
-                À VENIR
+                {t('matches_filter_upcoming').toUpperCase()}
               </span>
             ) : (
               <span className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold text-[#4a4570]"
                 style={{ background: 'rgba(74,69,112,0.08)', border: '1px solid rgba(74,69,112,0.15)' }}>
-                TERMINÉ
+                {t('matches_finished').toUpperCase()}
               </span>
             )}
 
@@ -318,7 +318,7 @@ export default function TournamentsPage() {
   return (
     <div className="min-h-full">
       {/* Header */}
-      <div className="border-b px-6 py-6" style={{ borderColor: '#1e1a30', background: 'linear-gradient(180deg, #0a0918 0%, #07060f 100%)' }}>
+      <div className="border-b px-6 py-6" style={{ borderColor: 'rgba(255,197,66,0.2)', background: 'linear-gradient(180deg, #0a0918 0%, #07060f 100%)' }}>
         <div className="relative">
           <div className="absolute top-[-24px] left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, #ffc542 40%, #ffd97a 50%, #ffc542 60%, transparent)' }} />
         </div>
@@ -441,7 +441,7 @@ export default function TournamentsPage() {
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-400">En cours</h2>
+                    <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-400">{t('tourn_active')}</h2>
                     <span className="text-[10px] text-[#4a4570]">({ongoing.length})</span>
                     <div className="flex-1 h-px ml-2" style={{ background: 'linear-gradient(90deg, rgba(16,185,129,0.3), transparent)' }} />
                   </div>
@@ -459,7 +459,7 @@ export default function TournamentsPage() {
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <span className="w-2 h-2 rounded-full bg-[#60a5fa]" />
-                    <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#60a5fa]">À venir</h2>
+                    <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#60a5fa]">{t('matches_filter_upcoming')}</h2>
                     <span className="text-[10px] text-[#4a4570]">({upcoming.length})</span>
                     <div className="flex-1 h-px ml-2" style={{ background: 'linear-gradient(90deg, rgba(96,165,250,0.3), transparent)' }} />
                   </div>
@@ -477,7 +477,7 @@ export default function TournamentsPage() {
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <span className="w-2 h-2 rounded-full bg-[#3d3860]" />
-                    <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#4a4570]">Terminés</h2>
+                    <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#4a4570]">{t('matches_filter_done')}</h2>
                     <span className="text-[10px] text-[#3d3860]">({finished.length})</span>
                     <div className="flex-1 h-px ml-2" style={{ background: 'linear-gradient(90deg, rgba(61,56,96,0.3), transparent)' }} />
                   </div>

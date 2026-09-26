@@ -14,6 +14,7 @@
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Trophy, X } from 'lucide-react';
+import { useT } from '@/lib/i18n';
 
 const NOTIFY_LEAD_MS = 8_000;
 
@@ -26,6 +27,7 @@ interface Alert {
 }
 
 export function JackpotCountdownAlert() {
+  const { t } = useT();
   const pathname = usePathname();
   const router = useRouter();
   const [alert, setAlert] = useState<Alert | null>(null);
@@ -109,12 +111,12 @@ export function JackpotCountdownAlert() {
               className="text-[13px] font-bold"
               style={{ fontFamily: 'Cinzel, serif', color: '#ffd97a' }}
             >
-              Jackpot se lance dans 8 s
+              {t('jackpot_alert_launching')}
             </div>
             <div className="text-[11px] mt-0.5" style={{ color: '#9990b8' }}>
-              Pot <span className="font-bold" style={{ color: '#e8e2f5' }}>{alert.potTotal.toLocaleString()} ⚜</span>
+              {t('jackpot_pot_label')} <span className="font-bold" style={{ color: '#e8e2f5' }}>{alert.potTotal.toLocaleString()} ⚜</span>
               {' · '}
-              {alert.participantCount} joueurs
+              {t('jackpot_alert_players', { n: alert.participantCount })}
             </div>
             <div className="mt-2 flex items-center gap-2">
               <button
@@ -128,14 +130,14 @@ export function JackpotCountdownAlert() {
                   color: '#1a1010',
                 }}
               >
-                Y aller
+                {t('jackpot_alert_go')}
               </button>
               <button
                 onClick={() => setAlert(null)}
                 className="px-3 py-1 rounded-full text-[11px] tracking-wider uppercase hover:opacity-60 transition-opacity"
                 style={{ color: '#8981ab', background: 'transparent' }}
               >
-                Ignorer
+                {t('jackpot_alert_dismiss')}
               </button>
             </div>
           </div>

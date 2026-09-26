@@ -154,7 +154,7 @@ export function EventsDashboard() {
       {/* Sticky filters */}
       <div
         className="sticky top-0 z-10 -mx-4 px-4 py-3 mb-5 backdrop-blur-md"
-        style={{ background: 'rgba(7,6,15,0.85)', borderBottom: '1px solid #1e1a30' }}
+        style={{ background: 'rgba(7,6,15,0.85)', borderBottom: '1px solid rgba(255,197,66,0.2)' }}
       >
         <FilterBar
           status={status} onStatus={setStatus}
@@ -197,7 +197,7 @@ export function EventsDashboard() {
           ))}
         </div>
       ) : visible.length === 0 ? (
-        <div className="rounded-2xl p-12 text-center" style={{ background: '#0e0d1a', border: '1px solid #1e1a30' }}>
+        <div className="rounded-2xl p-12 text-center" style={{ background: '#0e0d1a', border: '1px solid rgba(255,197,66,0.2)' }}>
           <Check size={24} className="mx-auto mb-3" style={{ color: '#10b981' }} />
           <p className="text-[14px]" style={{ color: '#c8c0e0' }}>
             🎯 Tout va bien — pas d&apos;opportunité détectée pour le moment.

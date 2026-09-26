@@ -164,7 +164,7 @@ export default function DepositPage() {
       const res = await apiClient.get(`/affiliate/validate/${encodeURIComponent(code)}`);
       const data = res.data;
       if (!data?.valid) {
-        setPromoError(data?.error || 'Code invalide');
+        setPromoError(data?.error || t('promo_code_invalid'));
         setPromoApplied(false);
         return;
       }
@@ -183,7 +183,7 @@ export default function DepositPage() {
       // so "Vous ne pouvez pas utiliser votre propre code" surfaces instead
       // of the generic "Erreur réseau".
       const body = (err as { response?: { data?: { error?: string } } })?.response?.data;
-      setPromoError(body?.error || 'Erreur réseau');
+      setPromoError(body?.error || t('common_network_error'));
       setPromoApplied(false);
     } finally {
       setPromoLoading(false);
@@ -275,25 +275,25 @@ export default function DepositPage() {
 
             {/* Coins amount */}
             <div className="rounded-xl p-5 text-center" style={{ background: 'rgba(255,197,66,0.07)', border: '1px solid rgba(255,197,66,0.2)' }}>
-              <p className="text-aoe-parchment-dim text-[10px] mb-1 tracking-wider uppercase">À créditer après paiement</p>
+              <p className="text-aoe-parchment-dim text-[10px] mb-1 tracking-wider uppercase">{t('deposit_to_credit')}</p>
               <p className="font-black text-4xl text-aoe-gold">{invoice.coins.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜</p>
-              <p className="text-aoe-parchment-dim text-xs mt-1">pour ${invoice.usdAmount.toFixed(2)}</p>
-              {bonusPct > 0 && <p className="text-aoe-gold text-[11px] mt-1">dont +{bonusPct}% bonus affilié</p>}
+              <p className="text-aoe-parchment-dim text-xs mt-1">{t('deposit_for_amount_prefix')} ${invoice.usdAmount.toFixed(2)}</p>
+              {bonusPct > 0 && <p className="text-aoe-gold text-[11px] mt-1">{t('deposit_affiliate_bonus_included', { pct: bonusPct })}</p>}
             </div>
 
             {/* Steps */}
             <div className="space-y-2">
               <div className="flex items-start gap-3">
                 <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold" style={{ background: 'rgba(255,197,66,0.15)', color: '#ffc542', border: '1px solid rgba(255,197,66,0.4)' }}>1</div>
-                <p className="text-aoe-parchment-dim text-[13px] leading-relaxed pt-0.5">Choisis ta crypto et envoie le paiement sur la page OxaPay.</p>
+                <p className="text-aoe-parchment-dim text-[13px] leading-relaxed pt-0.5">{t('deposit_step_crypto_send')}</p>
               </div>
               <div className="flex items-start gap-3">
                 <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold" style={{ background: 'rgba(255,197,66,0.15)', color: '#ffc542', border: '1px solid rgba(255,197,66,0.4)' }}>2</div>
-                <p className="text-aoe-parchment-dim text-[13px] leading-relaxed pt-0.5">Ton solde est crédité automatiquement après 1–3 confirmations réseau (1–15 min selon la crypto).</p>
+                <p className="text-aoe-parchment-dim text-[13px] leading-relaxed pt-0.5">{t('deposit_auto_credit_desc')}</p>
               </div>
               <div className="flex items-start gap-3">
                 <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold" style={{ background: 'rgba(255,197,66,0.15)', color: '#ffc542', border: '1px solid rgba(255,197,66,0.4)' }}>3</div>
-                <p className="text-aoe-parchment-dim text-[13px] leading-relaxed pt-0.5">Pas besoin de rester sur cette page tu recevras une notification.</p>
+                <p className="text-aoe-parchment-dim text-[13px] leading-relaxed pt-0.5">{t('deposit_step_notification')}</p>
               </div>
             </div>
 
@@ -310,19 +310,19 @@ export default function DepositPage() {
                 style={{ background: '#ffc542', color: '#07060f' }}
               >
                 {invoice.method === 'card'
-                  ? 'Aller sur MoonPay pour payer par carte ↗'
-                  : 'Aller sur OxaPay pour l\'adresse wallet ↗'}
+                  ? t('deposit_go_moonpay')
+                  : t('deposit_go_oxapay')}
               </a>
             )}
             {invoice.method === 'card' && (
               <p className="text-[11px] text-aoe-parchment-dim text-center -mt-1">
-                Tu veux aller directement sur OxaPay ? Reviens et choisis <span className="text-aoe-gold">Payer en crypto</span>.
+                {t('deposit_want_oxapay_directly')} <span className="text-aoe-gold">{t('deposit_method_crypto')}</span>.
               </p>
             )}
 
             {/* Back button */}
             <button onClick={() => setInvoice(null)} className="w-full py-2.5 rounded-xl text-sm text-aoe-parchment-dim hover:text-aoe-parchment border border-aoe-border hover:border-aoe-border-mid transition-colors">
-              ← Nouveau dépôt
+              {t('deposit_new')}
             </button>
           </div>
         </div>
@@ -358,7 +358,7 @@ export default function DepositPage() {
     <div className="max-w-2xl mx-auto px-4 pt-4 pb-28 md:pb-8">
 
       {/* Tabs */}
-      <div className="flex mb-4 border-b" style={{ borderColor: '#1e1a30' }}>
+      <div className="flex mb-4 border-b" style={{ borderColor: 'rgba(255,197,66,0.2)' }}>
         <div
           className="flex-1 flex items-center justify-center gap-2 py-3 font-bold text-[12px] tracking-wide uppercase cursor-default text-[#ffc542] relative"
         >
@@ -378,9 +378,6 @@ export default function DepositPage() {
       {/* Hero + exchange widget combined */}
       <div className="text-center mb-3">
         <h1 className="font-cinzel font-black text-2xl text-aoe-gold tracking-wider mb-1">{t('deposit_title')}</h1>
-        <p className="text-aoe-parchment-dim text-xs">
-          <span className="text-aoe-gold font-bold">$1 = 1.69 ⚜</span> <span className="text-aoe-parchment-dim">({t('deposit_credited_fast')})</span>
-        </p>
       </div>
 
       <div className="rounded-xl p-3 mb-4 flex items-center justify-between gap-3" style={{ background: 'linear-gradient(135deg, rgba(255,197,66,0.08), rgba(255,197,66,0.04))', border: '1px solid rgba(255,197,66,0.25)' }}>
@@ -431,7 +428,7 @@ export default function DepositPage() {
                 onChange={e => setCustomUsd(e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
                 placeholder="5.00"
                 className="w-full border rounded-xl pl-8 pr-4 py-3 text-aoe-parchment text-lg font-bold placeholder-aoe-parchment-muted/40 outline-none transition-colors"
-                style={{ background: 'rgba(255,255,255,0.04)', borderColor: customUsd ? '#ffc542' : '#1e1a30' }}
+                style={{ background: 'rgba(255,255,255,0.04)', borderColor: customUsd ? '#ffc542' : 'rgba(255,197,66,0.2)' }}
                 autoFocus
               />
             </div>
@@ -613,16 +610,16 @@ export default function DepositPage() {
                     </div>
                     <span className="text-aoe-gold text-sm font-bold truncate">{promoCode.toUpperCase()}</span>
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-aoe-gold/20 text-aoe-gold-bright border border-aoe-gold/40">
-                      +{promoBonusPct}% coins
+                      {t('deposit_bonus_applied', { pct: promoBonusPct })}
                     </span>
                   </div>
                   <span className="text-aoe-gold/60 text-[10px] shrink-0">
-                    verrouillé {daysLeftOnPromo}j
+                    {t('deposit_promo_locked', { days: daysLeftOnPromo })}
                   </span>
                 </div>
                 <p className="text-[10px] mt-1.5 text-aoe-gold/60">
-                  Tu recevras <span className="font-bold text-aoe-gold-bright">+{bonusCoins}⚜ bonus</span> sur ce dépôt.
-                  Code modifiable dans {daysLeftOnPromo} jour{daysLeftOnPromo > 1 ? 's' : ''}.
+                  {t('deposit_promo_you_will_receive')} <span className="font-bold text-aoe-gold-bright">+{bonusCoins}⚜</span> {t('deposit_promo_bonus_on_deposit')}
+                  {' '}{t('deposit_promo_code_editable_in', { days: daysLeftOnPromo, plural: daysLeftOnPromo > 1 ? 's' : '' })}
                 </p>
               </div>
             )}
@@ -638,7 +635,7 @@ export default function DepositPage() {
           )}
 
           {/* CTA — minimal solid button, no decoration */}
-          <div className="pt-2 border-t" style={{ borderColor: '#1e1a30' }}>
+          <div className="pt-2 border-t" style={{ borderColor: 'rgba(255,197,66,0.2)' }}>
             <button
               onClick={handleDeposit}
               disabled={loading}
@@ -654,7 +651,6 @@ export default function DepositPage() {
                         <ArrowDownToLine size={16} />
                         {totalCoins.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         <span style={{ fontSize: '1.4em', lineHeight: 1, color: '#07060f' }}>⚜︎</span>
-                        {t('deposit_for')} ${usdCost.toFixed(2)}
                       </>
               }
             </button>

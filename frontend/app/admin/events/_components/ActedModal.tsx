@@ -41,10 +41,10 @@ export function ActedModal({
     >
       <div
         className="w-full max-w-md rounded-2xl overflow-hidden"
-        style={{ background: '#0d0b1a', border: '1px solid #1e1a30', boxShadow: '0 0 60px rgba(255,197,66,0.15)' }}
+        style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)', boxShadow: '0 0 60px rgba(255,197,66,0.15)' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: '1px solid #1e1a30' }}>
+        <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: '1px solid rgba(255,197,66,0.2)' }}>
           <div className="flex items-center gap-2">
             <Check size={14} style={{ color: '#10b981' }} />
             <span className="font-bold text-[13px] tracking-widest uppercase" style={{ fontFamily: 'Cinzel, serif', color: '#e8e2f5' }}>

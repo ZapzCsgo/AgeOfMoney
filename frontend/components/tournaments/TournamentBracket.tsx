@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Match } from '@/types';
 import { cn } from '@/lib/utils';
-import { useT } from '@/lib/i18n';
+import { useT, TKey } from '@/lib/i18n';
 
 interface TournamentBracketProps {
   matches: Match[];
@@ -27,7 +27,7 @@ interface Round {
   matches: BracketMatch[];
 }
 
-function groupMatchesIntoRounds(matches: Match[]): Round[] {
+function groupMatchesIntoRounds(matches: Match[], t: (key: TKey, vars?: Record<string, string | number>) => string): Round[] {
   const completed = matches.filter((m) => m.status === 'COMPLETED');
   const live = matches.filter((m) => m.status === 'LIVE');
   const upcoming = matches.filter((m) => m.status === 'UPCOMING');
@@ -51,22 +51,22 @@ function groupMatchesIntoRounds(matches: Match[]): Round[] {
     const qf = completed.slice(0, 4).map(toBracketMatch);
     const sf = completed.slice(4, 6).concat(live.slice(0, 2)).map(toBracketMatch);
     const final = [...live.slice(2), ...upcoming.slice(0, 1)].slice(0, 1).map(toBracketMatch);
-    if (qf.length > 0) rounds.push({ name: 'Quarts de finale', matches: qf });
-    if (sf.length > 0) rounds.push({ name: 'Demi-finales', matches: sf });
-    if (final.length > 0) rounds.push({ name: 'Finale', matches: final });
+    if (qf.length > 0) rounds.push({ name: t('round_quarterfinals'), matches: qf });
+    if (sf.length > 0) rounds.push({ name: t('round_semifinals'), matches: sf });
+    if (final.length > 0) rounds.push({ name: t('round_final'), matches: final });
   } else if (total >= 4) {
     const sf = completed.slice(0, 2).concat(live.slice(0, 1)).map(toBracketMatch);
     const final = [...live.slice(1), ...upcoming.slice(0, 1)].slice(0, 1).map(toBracketMatch);
-    if (sf.length > 0) rounds.push({ name: 'Demi-finales', matches: sf });
-    if (final.length > 0) rounds.push({ name: 'Finale', matches: final });
+    if (sf.length > 0) rounds.push({ name: t('round_semifinals'), matches: sf });
+    if (final.length > 0) rounds.push({ name: t('round_final'), matches: final });
   } else {
     const allRound = matches.map(toBracketMatch);
-    if (allRound.length > 0) rounds.push({ name: 'Matchs', matches: allRound });
+    if (allRound.length > 0) rounds.push({ name: t('nav_matches'), matches: allRound });
   }
 
   // If no rounds from logic, just show all matches
   if (rounds.length === 0 && matches.length > 0) {
-    rounds.push({ name: 'Matchs', matches: matches.map(toBracketMatch) });
+    rounds.push({ name: t('nav_matches'), matches: matches.map(toBracketMatch) });
   }
 
   return rounds;
@@ -77,6 +77,7 @@ interface BracketMatchCardProps {
 }
 
 function BracketMatchCard({ match }: BracketMatchCardProps) {
+  const { t } = useT();
   const isCompleted = match.status === 'COMPLETED';
   const isLive = match.status === 'LIVE';
   const p1Won = match.winnerId === match.player1Id;
@@ -137,7 +138,7 @@ function BracketMatchCard({ match }: BracketMatchCardProps) {
       {isLive && (
         <div className="flex items-center gap-1.5 px-3 py-1 bg-red-900/20">
           <div className="live-dot" />
-          <span className="text-xs text-red-400 font-cinzel">EN DIRECT</span>
+          <span className="text-xs text-red-400 font-cinzel">{t('match_live')}</span>
         </div>
       )}
     </div>
@@ -152,7 +153,7 @@ function BracketMatchCard({ match }: BracketMatchCardProps) {
 
 export function TournamentBracket({ matches, tournamentName }: TournamentBracketProps) {
   const { t } = useT();
-  const rounds = groupMatchesIntoRounds(matches);
+  const rounds = groupMatchesIntoRounds(matches, t);
 
   if (rounds.length === 0) {
     return (
@@ -168,7 +169,7 @@ export function TournamentBracket({ matches, tournamentName }: TournamentBracket
         <svg width="16" height="16" viewBox="0 0 20 20" fill="#c9a227">
           <polygon points="10,2 12,7 18,7 13.5,11 15.5,17 10,13 4.5,17 6.5,11 2,7 8,7" />
         </svg>
-        <h3 className="font-cinzel font-bold text-sm text-aoe-gold tracking-wider">BRACKET — {tournamentName.toUpperCase()}</h3>
+        <h3 className="font-cinzel font-bold text-sm text-aoe-gold tracking-wider">{t('bracket_title', { name: tournamentName.toUpperCase() })}</h3>
       </div>
 
       <div className="flex gap-8 overflow-x-auto pb-2">

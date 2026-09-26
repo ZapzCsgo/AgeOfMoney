@@ -60,7 +60,7 @@ function MyMatchBets({ matchId, match, refreshKey }: { matchId: string; match: M
           const winsNeeded = Math.ceil(boNum / 2);
           const loserGames = bet.boNumber ?? 0;
           const pickedName = bet.selectedPlayer === 0
-            ? 'Draw'
+            ? t('bet_draw_label')
             : bet.selectedPlayer === 1 ? match.player1.name : match.player2.name;
           const scoreStr = isExact
             ? (bet.selectedPlayer === 1
@@ -77,10 +77,10 @@ function MyMatchBets({ matchId, match, refreshKey }: { matchId: string; match: M
             bet.status === 'REFUNDED' ? 'text-blue-400' :
             'text-aoe-parchment-dim';
           const statusLabel =
-            bet.status === 'WON'      ? '✓ Gagné' :
-            bet.status === 'LOST'     ? '✗ Perdu' :
-            bet.status === 'REFUNDED' ? '↩ Remboursé' :
-            '⏳ En attente';
+            bet.status === 'WON'      ? `✓ ${t('bet_status_won')}` :
+            bet.status === 'LOST'     ? `✗ ${t('bet_status_lost')}` :
+            bet.status === 'REFUNDED' ? `↩ ${t('common_refunded')}` :
+            `⏳ ${t('common_pending')}`;
 
           return (
             <div
@@ -103,7 +103,7 @@ function MyMatchBets({ matchId, match, refreshKey }: { matchId: string; match: M
                 <div className="flex items-center gap-1.5 min-w-0">
                   {isExact && (
                     <span className="px-1.5 py-0.5 rounded text-[9px] font-cinzel font-bold uppercase tracking-wider shrink-0" style={{ background: 'rgba(255,197,66,0.15)', color: '#ffc542', border: '1px solid rgba(255,197,66,0.3)' }}>
-                      Score
+                      {t('common_score_label')}
                     </span>
                   )}
                   <span className="font-cinzel font-bold text-xs text-aoe-parchment truncate">{betLabel}</span>
@@ -113,16 +113,16 @@ function MyMatchBets({ matchId, match, refreshKey }: { matchId: string; match: M
                 </span>
               </div>
               <div className="flex items-center justify-between text-[11px]">
-                <span className="text-aoe-parchment-muted">Mise</span>
+                <span className="text-aoe-parchment-muted">{t('bet_stake')}</span>
                 <span className="text-aoe-parchment font-semibold">{bet.amount.toFixed(2)} ⚜</span>
               </div>
               <div className="flex items-center justify-between text-[11px]">
-                <span className="text-aoe-parchment-muted">Cote</span>
+                <span className="text-aoe-parchment-muted">{t('bet_odds')}</span>
                 <span className="text-aoe-gold font-cinzel">× {bet.oddsAtBet.toFixed(2)}</span>
               </div>
               <div className="flex items-center justify-between text-[11px] border-t border-white/5 pt-1.5">
                 <span className="text-aoe-parchment-muted">
-                  {bet.status === 'WON' ? 'Gain reçu' : 'Gain potentiel'}
+                  {bet.status === 'WON' ? t('bet_gain_received') : t('bet_potential')}
                 </span>
                 <span className={cn('font-cinzel font-bold', bet.status === 'WON' ? 'text-emerald-400' : 'text-aoe-parchment')}>
                   {bet.status === 'WON' && bet.payout
@@ -217,6 +217,7 @@ function BoHistoryCard({ bo, p1Name, p2Name, p1Id }: {
 interface ExactScoreEntry { score: string; player: 0|1|2; loserGames: number; odds: number; }
 
 function ExactScoreBets({ match, onBetPlaced }: { match: Match; onBetPlaced: () => void }) {
+  const { t } = useT();
   const { data: session } = useSession();
   const [scores, setScores] = useState<ExactScoreEntry[]>([]);
   const [selected, setSelected] = useState<ExactScoreEntry | null>(null);
@@ -249,17 +250,17 @@ function ExactScoreBets({ match, onBetPlaced }: { match: Match; onBetPlaced: () 
       });
       const data = await res.json();
       if (res.status === 409 && data.code === 'ODDS_CHANGED') {
-        setMsg({ type: 'err', text: `Les cotes ont bougé (× ${data.currentOdds?.toFixed(2) ?? '?'}). Revalidez votre pari.` });
+        setMsg({ type: 'err', text: t('bet_odds_changed', { odds: data.currentOdds?.toFixed(2) ?? '?' }) });
         // Refresh the scores list so the next click uses the new odds.
         fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/v1/bets/exact-scores/${match.id}`)
           .then(r => r.json()).then(r => setScores(r.data ?? [])).catch(() => {});
         return;
       }
       if (!res.ok) { setMsg({ type: 'err', text: data.error ?? 'Erreur' }); return; }
-      setMsg({ type: 'ok', text: `Pari placé sur ${selected.score} à ×${selected.odds}` });
+      setMsg({ type: 'ok', text: t('bet_placed_success', { score: selected.score, odds: selected.odds }) });
       setSelected(null); setAmount('10');
       onBetPlaced();
-    } catch { setMsg({ type: 'err', text: 'Erreur réseau' }); }
+    } catch { setMsg({ type: 'err', text: t('common_network_error') }); }
     finally { setPlacing(false); }
   };
 
@@ -273,7 +274,7 @@ function ExactScoreBets({ match, onBetPlaced }: { match: Match; onBetPlaced: () 
     <div className="aoe-card p-4 space-y-3">
       <div className="flex items-center gap-2 mb-1">
         <Receipt size={14} className="text-aoe-gold" />
-        <h3 className="font-cinzel font-bold text-sm text-aoe-gold tracking-wider uppercase">Score Exact</h3>
+        <h3 className="font-cinzel font-bold text-sm text-aoe-gold tracking-wider uppercase">{t('match_exact_score_title')}</h3>
       </div>
       {/* Each tile redirects to Steam sign-in when the user isn't logged in.
           Without this, the tile visually highlighted as selected but the
@@ -291,9 +292,9 @@ function ExactScoreBets({ match, onBetPlaced }: { match: Match; onBetPlaced: () 
               <p className="text-[10px] font-cinzel text-aoe-parchment-muted text-center mb-2 truncate">{match.player1.name}</p>
               {p1Scores.map(s => (
                 <button key={s.score} onClick={() => onTileClick(s)}
-                  title={!session ? 'Sign in with Steam to bet on the exact score' : undefined}
+                  title={!session ? t('exact_score_signin_title') : undefined}
                   className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-[12px] font-cinzel font-bold transition-all ${selected?.score === s.score ? 'border-[#ffc542]' : 'border-aoe-border hover:border-aoe-border-gold'}`}
-                  style={{ background: selected?.score === s.score ? 'rgba(255,197,66,0.15)' : 'rgba(255,255,255,0.03)', border: `1px solid ${selected?.score === s.score ? '#ffc542' : '#1e1a30'}` }}>
+                  style={{ background: selected?.score === s.score ? 'rgba(255,197,66,0.15)' : 'rgba(255,255,255,0.03)', border: `1px solid ${selected?.score === s.score ? '#ffc542' : 'rgba(255,197,66,0.2)'}` }}>
                   <span className={selected?.score === s.score ? 'text-[#ffd97a]' : 'text-aoe-parchment'}>{s.score}</span>
                   <span className="text-aoe-gold">×{s.odds}</span>
                 </button>
@@ -302,12 +303,12 @@ function ExactScoreBets({ match, onBetPlaced }: { match: Match; onBetPlaced: () 
             {/* Draw scores (BO2) */}
             {hasDraw && (
               <div className="space-y-1.5">
-                <p className="text-[10px] font-cinzel text-aoe-parchment-muted text-center mb-2">Draw</p>
+                <p className="text-[10px] font-cinzel text-aoe-parchment-muted text-center mb-2">{t('bet_draw_label')}</p>
                 {drawScores.map(s => (
                   <button key={s.score} onClick={() => onTileClick(s)}
-                    title={!session ? 'Sign in with Steam to bet on the exact score' : undefined}
+                    title={!session ? t('exact_score_signin_title') : undefined}
                     className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-[12px] font-cinzel font-bold transition-all"
-                    style={{ background: selected?.score === s.score ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.03)', border: `1px solid ${selected?.score === s.score ? '#10b981' : '#1e1a30'}` }}>
+                    style={{ background: selected?.score === s.score ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.03)', border: `1px solid ${selected?.score === s.score ? '#10b981' : 'rgba(255,197,66,0.2)'}` }}>
                     <span className={selected?.score === s.score ? 'text-emerald-400' : 'text-aoe-parchment'}>{s.score}</span>
                     <span className="text-aoe-gold">×{s.odds}</span>
                   </button>
@@ -319,9 +320,9 @@ function ExactScoreBets({ match, onBetPlaced }: { match: Match; onBetPlaced: () 
               <p className="text-[10px] font-cinzel text-aoe-parchment-muted text-center mb-2 truncate">{match.player2.name}</p>
               {p2Scores.map(s => (
                 <button key={s.score} onClick={() => onTileClick(s)}
-                  title={!session ? 'Sign in with Steam to bet on the exact score' : undefined}
+                  title={!session ? t('exact_score_signin_title') : undefined}
                   className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-[12px] font-cinzel font-bold transition-all"
-                  style={{ background: selected?.score === s.score ? 'rgba(41,128,185,0.15)' : 'rgba(255,255,255,0.03)', border: `1px solid ${selected?.score === s.score ? '#2980b9' : '#1e1a30'}` }}>
+                  style={{ background: selected?.score === s.score ? 'rgba(41,128,185,0.15)' : 'rgba(255,255,255,0.03)', border: `1px solid ${selected?.score === s.score ? '#2980b9' : 'rgba(255,197,66,0.2)'}` }}>
                   <span className={selected?.score === s.score ? 'text-blue-300' : 'text-aoe-parchment'}>{s.score}</span>
                   <span className="text-aoe-gold">×{s.odds}</span>
                 </button>
@@ -332,23 +333,23 @@ function ExactScoreBets({ match, onBetPlaced }: { match: Match; onBetPlaced: () 
       })()}
       {!session && (
         <p className="text-center text-[10px] font-cinzel text-aoe-parchment-muted/70">
-          Sign in with Steam to place an exact-score bet.
+          {t('exact_score_signin_prompt')}
         </p>
       )}
 
       {selected && session && (
         <div className="pt-2 border-t border-aoe-border space-y-2">
-          <p className="text-[11px] text-aoe-parchment-muted font-cinzel">Score sélectionné : <span className="text-[#ffd97a] font-bold">{selected.score} ×{selected.odds}</span></p>
+          <p className="text-[11px] text-aoe-parchment-muted font-cinzel">{t('match_score_selected')} <span className="text-[#ffd97a] font-bold">{selected.score} ×{selected.odds}</span></p>
           <div className="flex gap-2">
             <input type="text" inputMode="decimal" value={amount}
               onChange={e => setAmount(e.target.value.replace(/[^\d.,]/g,'').replace(',', '.'))}
               className="flex-1 rounded px-3 py-2 text-sm font-cinzel text-aoe-parchment outline-none"
-              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid #1e1a30' }} />
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,197,66,0.2)' }} />
             <span className="flex items-center text-aoe-gold text-sm">⚜</span>
             <button onClick={handleBet} disabled={placing || !amount || parseCoinAmount(amount) < 10}
               className="px-4 py-2 rounded font-cinzel text-[12px] font-bold disabled:opacity-40 transition-opacity"
               style={{ background: 'linear-gradient(135deg, #b8881a, #ffc542)', color: '#07060f' }}>
-              {placing ? '…' : 'PARIER'}
+              {placing ? '…' : t('match_bet_button_short')}
             </button>
           </div>
           {amount && parseCoinAmount(amount) >= 10 && (() => {
@@ -357,8 +358,8 @@ function ExactScoreBets({ match, onBetPlaced }: { match: Match; onBetPlaced: () 
             const profit = round2(total - a);
             return (
               <div className="flex justify-between text-[10px] text-aoe-parchment-muted">
-                <span>Gain potentiel : <span className="text-emerald-400 font-bold">+{profit} ⚜</span></span>
-                <span>Total retour : <span className="text-[#ffd97a] font-bold">{total} ⚜</span></span>
+                <span>{t('bet_potential')} : <span className="text-emerald-400 font-bold">+{profit} ⚜</span></span>
+                <span>{t('match_total_return')} <span className="text-[#ffd97a] font-bold">{total} ⚜</span></span>
               </div>
             );
           })()}
@@ -728,8 +729,8 @@ export default function MatchPage() {
             )}
 
             {twitchChannel ? (
-              <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #1e1a30' }}>
-                <div className="flex items-center gap-2 px-4 py-2.5" style={{ background: '#0d0b1a', borderBottom: '1px solid #1e1a30' }}>
+              <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(255,197,66,0.2)' }}>
+                <div className="flex items-center gap-2 px-4 py-2.5" style={{ background: '#0d0b1a', borderBottom: '1px solid rgba(255,197,66,0.2)' }}>
                   <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                   <span className="text-[12px] font-bold uppercase tracking-widest" style={{ color: '#9146ff' }}>{t('matches_filter_live')} — Twitch</span>
                   <span className="text-[11px] ml-auto" style={{ color: '#8981ab' }}>{twitchChannel}</span>
@@ -743,7 +744,7 @@ export default function MatchPage() {
                 </div>
               </div>
             ) : (
-              <div className="rounded-xl flex flex-col items-center justify-center py-10 gap-3" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+              <div className="rounded-xl flex flex-col items-center justify-center py-10 gap-3" style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}>
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="#8981ab"><path d="M2.149 0L.537 4.119v16.836h5.731V24h3.224l3.045-3.045h4.657l6.269-6.269V0H2.149zm19.164 13.612l-3.582 3.582H13l-3.045 3.045v-3.045H4.537V2.149h16.776v11.463zm-3.582-7.343v6.262h-2.149V6.269h2.149zm-5.731 0v6.262H9.851V6.269H12z"/></svg>
                 <p className="text-[12px]" style={{ color: '#8981ab' }}>No Twitch stream configured</p>
               </div>

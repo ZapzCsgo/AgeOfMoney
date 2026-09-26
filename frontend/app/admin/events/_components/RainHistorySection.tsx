@@ -47,7 +47,7 @@ export function RainHistorySection({ ready }: { ready: boolean }) {
   return (
     <section
       className="rounded-2xl mt-8"
-      style={{ background: '#0e0d1a', border: '1px solid #1e1a30' }}
+      style={{ background: '#0e0d1a', border: '1px solid rgba(255,197,66,0.2)' }}
     >
       <button
         onClick={() => setOpen((v) => !v)}

@@ -110,7 +110,7 @@ export function MobileNav() {
     <>
       {/* Bottom strip */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden h-16 border-t"
-        style={{ background: '#07060f', borderColor: '#1e1a30' }}>
+        style={{ background: '#07060f', borderColor: 'rgba(255,197,66,0.2)' }}>
         <div className="flex items-center justify-around h-full px-1">
           {mainItems.map(({ href, icon: Icon, label }) => {
             const active = pathname === href;
@@ -169,7 +169,7 @@ export function MobileNav() {
             className="fixed left-0 right-0 bottom-16 z-[61] md:hidden flex flex-col rounded-t-2xl border-t shadow-2xl animate-slide-up"
             style={{
               background: '#0a0817',
-              borderColor: '#1e1a30',
+              borderColor: 'rgba(255,197,66,0.2)',
               maxHeight: 'calc(100vh - 64px - 56px)', // viewport - bottom nav - top navbar
               overflowY: 'auto',
             }}
@@ -179,7 +179,7 @@ export function MobileNav() {
           >
             {/* Drawer header */}
             <div className="sticky top-0 flex items-center justify-between px-4 py-3 border-b shrink-0"
-              style={{ background: '#0a0817', borderColor: '#1e1a30' }}>
+              style={{ background: '#0a0817', borderColor: 'rgba(255,197,66,0.2)' }}>
               <span className="font-cinzel text-[13px] font-bold tracking-widest text-[#ffc542] uppercase">
                 Menu
               </span>

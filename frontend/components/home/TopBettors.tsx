@@ -2,6 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Trophy } from 'lucide-react';
 import { LeaderboardEntry } from '@/types';
+import { useT } from '@/lib/i18n';
 
 interface TopBettorsProps {
   users: LeaderboardEntry[];
@@ -20,19 +21,20 @@ const rankIcons: Record<number, string> = {
 };
 
 export function TopBettors({ users }: TopBettorsProps) {
+  const { t } = useT();
   return (
     <div className="aoe-card-decorated p-4">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Trophy size={16} className="text-aoe-gold" />
-          <h3 className="font-cinzel font-bold text-sm text-aoe-gold tracking-wider">TOP PARIEURS</h3>
+          <h3 className="font-cinzel font-bold text-sm text-aoe-gold tracking-wider">{t('lb_top_bettors').toUpperCase()}</h3>
         </div>
         <Link
           href="/profile?tab=leaderboard"
           className="text-aoe-parchment-dim text-xs hover:text-aoe-gold transition-colors font-cinzel"
         >
-          Voir tout →
+          {t('topbettors_see_all')} →
         </Link>
       </div>
 
@@ -98,13 +100,13 @@ export function TopBettors({ users }: TopBettorsProps) {
 
       {/* Bottom link */}
       <div className="aoe-divider mt-3">
-        <span>classement</span>
+        <span>{t('topbettors_ranking')}</span>
       </div>
       <Link
         href="/profile?tab=leaderboard"
         className="block text-center text-xs text-aoe-parchment-dim hover:text-aoe-gold transition-colors py-1 font-cinzel"
       >
-        Voir le classement complet
+        {t('topbettors_see_full')}
       </Link>
     </div>
   );

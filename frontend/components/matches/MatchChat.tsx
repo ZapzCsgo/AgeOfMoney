@@ -49,13 +49,14 @@ function getLevelTier(level: number): string {
 }
 
 function LevelBadge({ level }: { level: number }) {
+  const { t } = useT();
   const tier = getLevelTier(level);
   const style = TIER_STYLES[tier];
   return (
     <span
       className="inline-flex items-center justify-center rounded px-1 py-px text-[9px] font-bold font-cinzel shrink-0"
       style={{ background: style.bg, color: style.text, border: `1px solid ${style.border}`, minWidth: 24 }}
-      title={`Niveau ${level} — ${tier}`}
+      title={t('chat_level_title', { level, tier })}
     >
       {level}
     </span>
@@ -83,8 +84,8 @@ export function MatchChat({ matchId }: MatchChatProps) {
     {
       id: 'sys-1',
       userId: 'system',
-      username: 'Système',
-      message: 'Bienvenue dans le chat du match !',
+      username: t('chat_system_username'),
+      message: t('chat_system_welcome'),
       isAdmin: true,
       timestamp: new Date().toISOString(),
     },
@@ -148,14 +149,14 @@ export function MatchChat({ matchId }: MatchChatProps) {
   };
 
   return (
-    <div className="flex flex-col rounded-xl overflow-hidden border" style={{ height: 400, background: '#0d0b1a', borderColor: '#1e1a30' }}>
+    <div className="flex flex-col rounded-xl overflow-hidden border" style={{ height: 400, background: '#0d0b1a', borderColor: 'rgba(255,197,66,0.2)' }}>
       {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-2.5 border-b" style={{ borderColor: '#1e1a30' }}>
+      <div className="flex items-center gap-2 px-3 py-2.5 border-b" style={{ borderColor: 'rgba(255,197,66,0.2)' }}>
         <MessageSquare size={14} className="text-aoe-gold" />
-        <span className="font-cinzel text-xs font-bold text-aoe-gold tracking-wider">CHAT DU MATCH</span>
+        <span className="font-cinzel text-xs font-bold text-aoe-gold tracking-wider">{t('match_chat_title')}</span>
         <div className="ml-auto flex items-center gap-1.5">
           <div className={cn('w-1.5 h-1.5 rounded-full', connected ? 'bg-emerald-400' : 'bg-gray-500')} />
-          <span className="text-aoe-parchment-muted text-[10px]">{connected ? 'En ligne' : 'Hors ligne'}</span>
+          <span className="text-aoe-parchment-muted text-[10px]">{connected ? t('chat_online') : t('chat_offline')}</span>
         </div>
       </div>
 
@@ -179,7 +180,7 @@ export function MatchChat({ matchId }: MatchChatProps) {
               {/* Avatar */}
               {msg.avatar ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={msg.avatar} alt={msg.username ?? ''} className="w-6 h-6 rounded-full shrink-0 object-cover border" style={{ borderColor: '#1e1a30' }} />
+                <img src={msg.avatar} alt={msg.username ?? ''} className="w-6 h-6 rounded-full shrink-0 object-cover border" style={{ borderColor: 'rgba(255,197,66,0.2)' }} />
               ) : (
                 <UserSilhouette size={24} className="shrink-0" />
               )}
@@ -227,7 +228,7 @@ export function MatchChat({ matchId }: MatchChatProps) {
       </div>
 
       {/* Input */}
-      <div className="border-t p-2" style={{ borderColor: '#1e1a30' }}>
+      <div className="border-t p-2" style={{ borderColor: 'rgba(255,197,66,0.2)' }}>
         {session ? (
           <div className="flex gap-2">
             <input
@@ -238,14 +239,14 @@ export function MatchChat({ matchId }: MatchChatProps) {
               onKeyDown={handleKeyDown}
               placeholder={t('chat_placeholder')}
               className="flex-1 rounded-lg px-3 py-2 text-xs text-aoe-parchment placeholder-aoe-parchment-muted/50 outline-none transition-colors"
-              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid #1e1a30' }}
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,197,66,0.2)' }}
               maxLength={200}
             />
             <button
               onClick={handleSend}
               disabled={!input.trim()}
               className="p-2 rounded-lg transition-all disabled:opacity-30"
-              style={{ background: input.trim() ? 'rgba(255,197,66,0.15)' : 'rgba(255,255,255,0.05)', border: '1px solid #1e1a30', color: '#ffc542' }}
+              style={{ background: input.trim() ? 'rgba(255,197,66,0.15)' : 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,197,66,0.2)', color: '#ffc542' }}
             >
               <Send size={14} />
             </button>

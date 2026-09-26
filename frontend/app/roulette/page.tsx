@@ -623,7 +623,7 @@ function RoulettePageImpl() {
             const last50 = history.slice(0, 50);
             const total = last50.length;
             return (
-              <div className="hidden sm:flex shrink-0 flex-col gap-1 rounded-xl p-2.5" style={{ background:'#0d0b1a', border:'1px solid #1e1a30', minWidth: 130 }}>
+              <div className="hidden sm:flex shrink-0 flex-col gap-1 rounded-xl p-2.5" style={{ background:'#0d0b1a', border:'1px solid rgba(255,197,66,0.2)', minWidth: 130 }}>
                 <span className="text-[9px] uppercase tracking-widest text-[#8981ab] mb-0.5">Stats</span>
                 {(['KNIGHTS','EMPEROR','ARCHERS'] as Zone[]).map(zone => {
                   const z = ZONES[zone];
@@ -633,7 +633,7 @@ function RoulettePageImpl() {
                   return (
                     <div key={zone} className="flex items-center gap-1.5">
                       <Icon size={11} style={{ color: z.color, flexShrink: 0 }} />
-                      <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background:'#1e1a30' }}>
+                      <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background:'rgba(255,197,66,0.2)' }}>
                         <div className="h-full rounded-full" style={{ width:`${pct}%`, background: z.color, opacity: 0.7 }} />
                       </div>
                       <span className="text-[10px] font-bold tabular-nums" style={{ color: z.color, minWidth: 16, textAlign:'right' }}>{count}</span>
@@ -646,10 +646,10 @@ function RoulettePageImpl() {
         </div>
 
         {/* Wheel card */}
-        <div className="rounded-2xl mb-3 sm:mb-5 overflow-hidden" style={{ background:'#0d0b1a', border:'1px solid #1e1a30' }}>
+        <div className="rounded-2xl mb-3 sm:mb-5 overflow-hidden" style={{ background:'#0d0b1a', border:'1px solid rgba(255,197,66,0.2)' }}>
 
           {/* Status bar */}
-          <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom:'1px solid #1e1a30' }}>
+          <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom:'1px solid rgba(255,197,66,0.2)' }}>
             <div />
             <div className="flex items-center gap-3">
               <button onClick={() => setShowFairness(true)}
@@ -921,7 +921,7 @@ function RoulettePageImpl() {
         </div>
 
         {/* Bet controls */}
-        <div className="rounded-xl p-4 mb-5" style={{ background:'#0d0b1a', border:'1px solid #1e1a30' }}>
+        <div className="rounded-xl p-4 mb-5" style={{ background:'#0d0b1a', border:'1px solid rgba(255,197,66,0.2)' }}>
           {msg && (
             <div className={cn('p-2.5 rounded-lg mb-3 text-[12px]',
               msg.type==='success'?'bg-emerald-950 border border-emerald-800/40 text-emerald-400':'bg-red-950 border border-red-800/40 text-red-400')}>
@@ -953,17 +953,17 @@ function RoulettePageImpl() {
               {([1,10,100] as number[]).map(v=>(
                 <button key={v} onClick={()=>setBetAmount(a=>String(round2(parseCoinAmount(a)+v)))}
                   className="shrink-0 px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-80 min-w-[44px]"
-                  style={{ background:'#1e1a30',color:'#9990b8',border:'1px solid #2a2640' }}>+{v}</button>
+                  style={{ background:'rgba(255,197,66,0.2)',color:'#9990b8',border:'1px solid #2a2640' }}>+{v}</button>
               ))}
               <button onClick={()=>setBetAmount(a=>String(Math.max(1,round2(parseCoinAmount(a)/2))))}
                 className="shrink-0 px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-80 min-w-[44px]"
-                style={{ background:'#1e1a30',color:'#9990b8',border:'1px solid #2a2640' }}>½</button>
+                style={{ background:'rgba(255,197,66,0.2)',color:'#9990b8',border:'1px solid #2a2640' }}>½</button>
               <button onClick={()=>setBetAmount(String(userCoins))}
                 className="shrink-0 px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-80 min-w-[44px]"
-                style={{ background:'#1e1a30',color:'#9990b8',border:'1px solid #2a2640' }}>MAX</button>
+                style={{ background:'rgba(255,197,66,0.2)',color:'#9990b8',border:'1px solid #2a2640' }}>MAX</button>
               <button onClick={()=>setBetAmount('')}
                 className="shrink-0 px-3 py-2 rounded-lg text-[12px] text-[#8981ab] hover:text-[#9990b8] min-w-[44px]"
-                style={{ background:'#13111f',border:'1px solid #1e1a30' }}>CLR</button>
+                style={{ background:'#13111f',border:'1px solid rgba(255,197,66,0.2)' }}>CLR</button>
             </div>
           </div>
           <button onClick={placeBet} disabled={!isBetting||!selectedZone||!betAmount}
@@ -991,7 +991,7 @@ function RoulettePageImpl() {
             const isLose = isResult && winZone !== zone && userBetThisZone;
             const isLocked = lockedZone === zone;
             const lockReason = isLocked
-              ? (zone === 'KNIGHTS' ? "You bet on Archers — can't combine the two 2× zones" : "You bet on Knights — can't combine the two 2× zones")
+              ? (zone === 'KNIGHTS' ? t('roulette_zone_lock_archers') : t('roulette_zone_lock_knights'))
               : '';
             return (
               <div key={zone}
@@ -1005,7 +1005,7 @@ function RoulettePageImpl() {
                 )}
                 style={{
                   background:'#0d0b1a',
-                  border:`1px solid ${isSelected||isWin ? z.color : '#1e1a30'}`,
+                  border:`1px solid ${isSelected||isWin ? z.color : 'rgba(255,197,66,0.2)'}`,
                   boxShadow: isWin ? `0 0 32px ${z.glow}` : isSelected ? `0 0 18px ${z.glow}` : 'none',
                   transform: isSelected&&!isResult ? 'translateY(-3px)' : 'none',
                   opacity: isLocked ? 0.45 : 1,
@@ -1058,7 +1058,7 @@ function RoulettePageImpl() {
         </div>
 
         {!round&&(
-          <div className="mt-6 text-center p-4 rounded-xl" style={{ background:'#0d0b1a',border:'1px solid #1e1a30' }}>
+          <div className="mt-6 text-center p-4 rounded-xl" style={{ background:'#0d0b1a',border:'1px solid rgba(255,197,66,0.2)' }}>
             <p className="text-[13px]" style={{ color:'#8981ab' }}>{t('common_loading')}</p>
           </div>
         )}
@@ -1070,11 +1070,11 @@ function RoulettePageImpl() {
           style={{ background:'rgba(7,6,15,0.88)', backdropFilter:'blur(6px)' }}
           onClick={() => setShowFairnessGuide(false)}>
           <div className="w-full max-w-2xl rounded-2xl overflow-hidden max-h-[85vh] flex flex-col"
-            style={{ background:'#0d0b1a', border:'1px solid #1e1a30', boxShadow:'0 0 60px rgba(255,197,66,0.12)' }}
+            style={{ background:'#0d0b1a', border:'1px solid rgba(255,197,66,0.2)', boxShadow:'0 0 60px rgba(255,197,66,0.12)' }}
             onClick={e => e.stopPropagation()}>
 
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 shrink-0" style={{ borderBottom:'1px solid #1e1a30' }}>
+            <div className="flex items-center justify-between px-6 py-4 shrink-0" style={{ borderBottom:'1px solid rgba(255,197,66,0.2)' }}>
               <div className="flex items-center gap-2">
                 <ShieldCheck size={16} style={{ color:'#34d399' }} />
                 <span className="font-bold text-[14px] tracking-widest" style={{ fontFamily:'Cinzel,serif', color:'#e8e2f5' }}>FAIRNESS</span>
@@ -1097,7 +1097,7 @@ function RoulettePageImpl() {
                 <p>{t('fair_seed_p2')}</p>
               </div>
 
-              <div style={{ height:1, background:'#1e1a30' }} />
+              <div style={{ height:1, background:'rgba(255,197,66,0.2)' }} />
 
               {/* Roulette section */}
               <div>
@@ -1119,7 +1119,7 @@ function RoulettePageImpl() {
                 </p>
               </div>
 
-              <div style={{ height:1, background:'#1e1a30' }} />
+              <div style={{ height:1, background:'rgba(255,197,66,0.2)' }} />
 
               {/* Random.org section */}
               <div>
@@ -1134,13 +1134,13 @@ function RoulettePageImpl() {
                 <p>{t('fair_random_p2')}</p>
               </div>
 
-              <div style={{ height:1, background:'#1e1a30' }} />
+              <div style={{ height:1, background:'rgba(255,197,66,0.2)' }} />
 
               <p style={{ color:'#6a6390' }}>{t('fair_contact')}</p>
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 shrink-0 flex justify-between items-center" style={{ borderTop:'1px solid #1e1a30' }}>
+            <div className="px-6 py-4 shrink-0 flex justify-between items-center" style={{ borderTop:'1px solid rgba(255,197,66,0.2)' }}>
               <button onClick={() => { setShowFairnessGuide(false); setShowFairness(true); }}
                 className="text-[11px] hover:opacity-80 transition-opacity" style={{ color:'#8981ab' }}>
                 ← {t('deposit_back')}
@@ -1161,11 +1161,11 @@ function RoulettePageImpl() {
           style={{ background:'rgba(7,6,15,0.85)', backdropFilter:'blur(6px)' }}
           onClick={() => setShowFairness(false)}>
           <div className="w-full max-w-lg rounded-2xl overflow-hidden"
-            style={{ background:'#0d0b1a', border:'1px solid #1e1a30', boxShadow:'0 0 60px rgba(255,197,66,0.15)' }}
+            style={{ background:'#0d0b1a', border:'1px solid rgba(255,197,66,0.2)', boxShadow:'0 0 60px rgba(255,197,66,0.15)' }}
             onClick={e => e.stopPropagation()}>
 
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom:'1px solid #1e1a30' }}>
+            <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom:'1px solid rgba(255,197,66,0.2)' }}>
               <div className="flex items-center gap-2">
                 <ShieldCheck size={16} style={{ color:'#34d399' }} />
                 <span className="font-bold text-[14px] tracking-widest" style={{ fontFamily:'Cinzel,serif', color:'#e8e2f5' }}>FAIRNESS</span>
@@ -1176,7 +1176,7 @@ function RoulettePageImpl() {
             </div>
 
             {/* Intro */}
-            <div className="px-6 py-4 text-[12px] leading-relaxed space-y-1" style={{ borderBottom:'1px solid #1e1a30' }}>
+            <div className="px-6 py-4 text-[12px] leading-relaxed space-y-1" style={{ borderBottom:'1px solid rgba(255,197,66,0.2)' }}>
               <p style={{ color:'#9990b8' }}>{t('fair_system')}</p>
               <p>
                 <span style={{ color:'#9990b8' }}>{t('fair_hash_before')} </span>
@@ -1246,13 +1246,13 @@ function RoulettePageImpl() {
             <div className="mx-6 mb-5 rounded-lg p-4" style={{ background:'#13111f', border:'1px solid #1a1730' }}>
               {fairnessRound?.source === 'random.org' ? (
                 <div className="space-y-2">
-                  <p className="text-[10px]" style={{ color:'#8981ab' }}>Vérifiez ce résultat sur random.org :</p>
+                  <p className="text-[10px]" style={{ color:'#8981ab' }}>{t('fair_verify_on_random_org')}</p>
                   <a href="https://api.random.org/signatures/form" target="_blank" rel="noopener noreferrer"
                     className="flex items-center gap-2 text-[11px] font-bold hover:opacity-80 transition-opacity"
                     style={{ color:'#34d399' }}>
                     <ShieldCheck size={12} /> api.random.org/signatures/form →
                   </a>
-                  <p className="text-[10px]" style={{ color:'#6a6390' }}>Collez la Signature et le Serial N° pour vérifier l&apos;authenticité.</p>
+                  <p className="text-[10px]" style={{ color:'#6a6390' }}>{t('fair_paste_signature_serial')}</p>
                 </div>
               ) : (
                 <div className="space-y-1">

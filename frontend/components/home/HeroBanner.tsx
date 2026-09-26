@@ -117,7 +117,7 @@ export function HeroBanner({ activeMatches, weeklyBets, activePlayers }: HeroBan
         <div className="inline-flex items-center gap-2 mb-6 px-4 py-1.5 rounded border border-aoe-border-gold bg-aoe-gold/10">
           <span className="w-1.5 h-1.5 rounded-full bg-aoe-gold animate-pulse" />
           <span className="font-cinzel text-xs tracking-widest text-aoe-gold uppercase">
-            Plateforme de paris virtuels AoE4
+            {t('hero_badge')}
           </span>
         </div>
 
@@ -133,9 +133,9 @@ export function HeroBanner({ activeMatches, weeklyBets, activePlayers }: HeroBan
             letterSpacing: '0.05em',
           }}
         >
-          PARIEZ SUR L&apos;AVENIR
+          {t('hero_title_line1')}
           <br />
-          DES EMPIRES
+          {t('hero_title_line2')}
         </h1>
 
         {/* Decorative divider */}

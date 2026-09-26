@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Users, Clock, Trophy, ShieldCheck, ExternalLink, Copy, Check, X } from 'lucide-react';
 import { parseCoinAmount } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 
 interface JackpotUser {
   id: string;
@@ -452,6 +453,7 @@ function JackpotWheel({
 }
 
 export default function JackpotPage() {
+  const { t } = useT();
   const { data: session } = useSession();
   const userId = (session?.user as { id?: string } | undefined)?.id;
 
@@ -623,7 +625,7 @@ export default function JackpotPage() {
         ? { ...prev, status: 'CANCELLED' }
         : prev
       );
-      showMsg('error', 'Round annulé — pas assez de participants, mises remboursées.');
+      showMsg('error', t('jackpot_round_cancelled'));
     });
 
     return () => {
@@ -808,16 +810,16 @@ export default function JackpotPage() {
               <div className="text-[12px]" style={{ color: '#9b94b8' }}>
                 <div className="flex items-center gap-1.5">
                   <Users size={13} />
-                  {round?.participantCount ?? 0} {round?.participantCount === 1 ? 'joueur' : 'joueurs'}
+                  {round?.participantCount ?? 0} {round?.participantCount === 1 ? t('jackpot_player_singular') : t('jackpot_player_plural')}
                 </div>
                 <div className="text-[10px] tracking-wider uppercase mt-0.5" style={{ color: '#8981ab' }}>
                   {round?.status === 'OPEN' && (round.participantCount < 2
-                    ? 'En attente d\u2019un 2ᵉ joueur…'
-                    : 'Ouvert aux paris'
+                    ? t('jackpot_waiting_2nd_player')
+                    : t('jackpot_open_for_bets')
                   )}
-                  {round?.status === 'CLOSING' && 'Timer en cours'}
-                  {isSpinning && <span style={{ color: '#ffd97a' }}>Tirage…</span>}
-                  {round?.status === 'COMPLETED' && <span style={{ color: '#4ade80' }}>Round terminé</span>}
+                  {round?.status === 'CLOSING' && t('jackpot_timer_running')}
+                  {isSpinning && <span style={{ color: '#ffd97a' }}>{t('jackpot_drawing')}</span>}
+                  {round?.status === 'COMPLETED' && <span style={{ color: '#4ade80' }}>{t('jackpot_round_completed')}</span>}
                 </div>
               </div>
             </div>
@@ -831,7 +833,7 @@ export default function JackpotPage() {
                   {myChance.toFixed(1)}%
                 </div>
                 <div className="text-[11px]" style={{ color: '#9b94b8' }}>
-                  {myAggregate.total.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜ misés
+                  {myAggregate.total.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜ {t('jackpot_wagered_suffix')}
                 </div>
               </div>
             )}
@@ -889,7 +891,7 @@ export default function JackpotPage() {
                 +{reveal.netPayout.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜
               </div>
               <div className="text-[11px]" style={{ color: '#9b94b8' }}>
-                chance {reveal.chance.toFixed(2)}% · tiré à {(reveal.winningTicket / 100).toFixed(2)}%
+                {t('jackpot_chance_drawn', { chance: reveal.chance.toFixed(2), ticket: (reveal.winningTicket / 100).toFixed(2) })}
               </div>
               <div className="text-[10px] mt-1" style={{ color: '#8981ab' }}>
                 RNG : {reveal.rngSource === 'random_org_signed' ? 'Random.org Signed API' : 'HMAC fallback'}
@@ -901,7 +903,7 @@ export default function JackpotPage() {
         {/* Bet input */}
         <div
           className="rounded-2xl p-6 mb-6"
-          style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}
+          style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}
         >
           <div className="text-[11px] tracking-wider uppercase mb-3" style={{ color: '#9b94b8' }}>
             Place your bet ({MIN_BET} – {MAX_BET} ⚜)
@@ -960,12 +962,12 @@ export default function JackpotPage() {
                 minWidth: 140,
               }}
             >
-              {placing ? '...' : session ? 'MISER' : 'SE CONNECTER'}
+              {placing ? '...' : session ? t('jackpot_bet_button') : t('jackpot_signin_button')}
             </Button>
           </div>
           {!canBet && isLive && (
             <div className="mt-2 text-[11px]" style={{ color: '#8981ab' }}>
-              Les paris sont fermés pour ce round.
+              {t('jackpot_bets_closed')}
             </div>
           )}
         </div>
@@ -973,7 +975,7 @@ export default function JackpotPage() {
         {/* Participants list — simplified (no individual bars, bar above is the source of truth) */}
         <div
           className="rounded-2xl p-6"
-          style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}
+          style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}
         >
           <div className="text-[11px] tracking-wider uppercase mb-3 flex items-center justify-between" style={{ color: '#9b94b8' }}>
             <span>Participants</span>
@@ -982,7 +984,7 @@ export default function JackpotPage() {
 
           {view.aggregates.length === 0 ? (
             <div className="text-center py-8 text-sm" style={{ color: '#8981ab' }}>
-              Personne n&apos;a encore misé. Soyez le premier !
+              {t('jackpot_be_first')}
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -1052,11 +1054,11 @@ export default function JackpotPage() {
           >
             <div
               className="w-full max-w-lg rounded-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
-              style={{ background: '#0d0b1a', border: '1px solid #1e1a30', boxShadow: '0 0 60px rgba(255,197,66,0.15)' }}
+              style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)', boxShadow: '0 0 60px rgba(255,197,66,0.15)' }}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid #1e1a30' }}>
+              <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid rgba(255,197,66,0.2)' }}>
                 <div className="flex items-center gap-2">
                   <ShieldCheck size={16} style={{ color: '#34d399' }} />
                   <span className="font-bold text-[14px] tracking-widest" style={{ fontFamily: 'Cinzel,serif', color: '#e8e2f5' }}>
@@ -1069,14 +1071,10 @@ export default function JackpotPage() {
               </div>
 
               {/* Intro */}
-              <div className="px-6 py-4 text-[12px] leading-relaxed space-y-2" style={{ borderBottom: '1px solid #1e1a30', color: '#9990b8' }}>
+              <div className="px-6 py-4 text-[12px] leading-relaxed space-y-2" style={{ borderBottom: '1px solid rgba(255,197,66,0.2)', color: '#9990b8' }}>
+                <p>{t('jackpot_fair_p1')}</p>
                 <p>
-                  À l&apos;ouverture du round, on publie <span style={{ color: '#34d399' }}>seedHash = SHA256(serverSeed)</span> —
-                  un engagement cryptographique pour que le serverSeed ne puisse pas être modifié ensuite.
-                </p>
-                <p>
-                  À la clôture, <span style={{ color: '#34d399' }}>Random.org</span> tire un nombre dans [0, 9999] (= %). Le résultat
-                  est signé RSA-SHA512 par leurs serveurs et la signature est vérifiable publiquement sur{' '}
+                  {t('jackpot_fair_p2_before')}{' '}
                   <a
                     href="https://api.random.org/signatures/form"
                     target="_blank"
@@ -1085,12 +1083,9 @@ export default function JackpotPage() {
                     style={{ color: '#34d399' }}
                   >
                     api.random.org/signatures/form
-                  </a>.
+                  </a>{t('jackpot_fair_p2_after')}
                 </p>
-                <p>
-                  Si Random.org est injoignable, on bascule sur un fallback <span style={{ color: '#34d399' }}>HMAC-SHA256(serverSeed, clientSeed + &quot;:&quot; + nonce)</span>{' '}
-                  — le serverSeed révélé à la fin permet à n&apos;importe qui de recalculer le tirage.
-                </p>
+                <p>{t('jackpot_fair_p3')}</p>
               </div>
 
               {/* Source badge */}
@@ -1108,10 +1103,10 @@ export default function JackpotPage() {
                 >
                   {fairnessRound.rngSource === 'random_org_signed' ? '✓ random.org Signed API'
                     : fairnessRound.rngSource === 'hmac_fallback' ? '✓ HMAC fallback'
-                    : 'tirage en attente'}
+                    : t('jackpot_draw_pending')}
                 </div>
                 <span className="text-[10px]" style={{ color: '#8981ab' }}>
-                  statut : {fairnessRound.status}
+                  {t('jackpot_status_label', { status: fairnessRound.status })}
                 </span>
               </div>
 
@@ -1158,7 +1153,7 @@ export default function JackpotPage() {
               {fairnessRound.rngSource === 'random_org_signed' && fairnessRound.randomSignature && (
                 <div className="mx-6 mb-5 rounded-lg p-4" style={{ background: '#13111f', border: '1px solid #1a1730' }}>
                   <p className="text-[10px] mb-2" style={{ color: '#8981ab' }}>
-                    Vérifiez ce résultat sur random.org :
+                    {t('fair_verify_on_random_org')}
                   </p>
                   <a
                     href="https://api.random.org/signatures/form"
@@ -1170,7 +1165,7 @@ export default function JackpotPage() {
                     <ShieldCheck size={12} /> api.random.org/signatures/form <ExternalLink size={10} />
                   </a>
                   <p className="text-[10px] mt-2" style={{ color: '#6a6390' }}>
-                    Collez la <b>Signature</b> et le <b>Random JSON</b> pour vérifier l&apos;authenticité.
+                    {t('jackpot_paste_signature_json')}
                   </p>
                 </div>
               )}
@@ -1188,7 +1183,7 @@ export default function JackpotPage() {
 
         {/* Historique tab — past settled rounds */}
         {viewTab === 'history' && (
-          <div className="rounded-2xl p-5" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+          <div className="rounded-2xl p-5" style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}>
             <div className="flex items-center gap-2 mb-4">
               <Trophy size={16} style={{ color: '#8981ab' }} />
               <h2 className="text-[14px] font-bold tracking-wider uppercase" style={{ fontFamily: 'Cinzel, serif', color: '#e8e2f5' }}>
@@ -1199,7 +1194,7 @@ export default function JackpotPage() {
             {historyLoading ? (
               <div className="text-center py-8 text-[12px]" style={{ color: '#8981ab' }}>Chargement…</div>
             ) : history.length === 0 ? (
-              <div className="text-center py-8 text-[12px]" style={{ color: '#8981ab' }}>Aucun round terminé pour l&apos;instant.</div>
+              <div className="text-center py-8 text-[12px]" style={{ color: '#8981ab' }}>{t('jackpot_no_completed_rounds')}</div>
             ) : (
               <div className="space-y-2">
                 {history.map((r) => {

@@ -172,7 +172,7 @@ export function RedeemCodesSection({ ready }: { ready: boolean }) {
       <button
         onClick={() => setOpen((o) => !o)}
         className="w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-colors"
-        style={{ background: '#0e0d1a', borderColor: '#1e1a30' }}
+        style={{ background: '#0e0d1a', borderColor: 'rgba(255,197,66,0.2)' }}
       >
         <div className="flex items-center gap-2">
           <Gift size={15} style={{ color: '#ffd97a' }} />
@@ -193,7 +193,7 @@ export function RedeemCodesSection({ ready }: { ready: boolean }) {
           {/* ── CREATE FORM ───────────────────────────────────── */}
           <div
             className="rounded-xl p-4"
-            style={{ background: '#0e0d1a', border: '1px solid #1e1a30' }}
+            style={{ background: '#0e0d1a', border: '1px solid rgba(255,197,66,0.2)' }}
           >
             <h3 className="text-[12px] font-bold mb-3 flex items-center gap-1.5 tracking-widest uppercase" style={{ color: '#ffd97a', fontFamily: 'Cinzel, serif' }}>
               <Plus size={12} /> Create code(s)
@@ -212,7 +212,7 @@ export function RedeemCodesSection({ ready }: { ready: boolean }) {
                   placeholder={parseInt(quantity, 10) > 1 ? 'PROMO' : 'LAUNCH50'}
                   maxLength={20}
                   className="w-full h-9 px-3 text-xs uppercase tracking-widest rounded font-mono"
-                  style={{ background: '#07060f', border: '1px solid #1e1a30', color: '#e8e2f5' }}
+                  style={{ background: '#07060f', border: '1px solid rgba(255,197,66,0.2)', color: '#e8e2f5' }}
                 />
               </div>
 
@@ -228,7 +228,7 @@ export function RedeemCodesSection({ ready }: { ready: boolean }) {
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   className="w-full h-9 px-3 text-xs rounded"
-                  style={{ background: '#07060f', border: '1px solid #1e1a30', color: '#e8e2f5' }}
+                  style={{ background: '#07060f', border: '1px solid rgba(255,197,66,0.2)', color: '#e8e2f5' }}
                 />
               </div>
 
@@ -245,7 +245,7 @@ export function RedeemCodesSection({ ready }: { ready: boolean }) {
                   onChange={(e) => setMaxUses(e.target.value)}
                   placeholder="∞"
                   className="w-full h-9 px-3 text-xs rounded"
-                  style={{ background: '#07060f', border: '1px solid #1e1a30', color: '#e8e2f5' }}
+                  style={{ background: '#07060f', border: '1px solid rgba(255,197,66,0.2)', color: '#e8e2f5' }}
                 />
               </div>
 
@@ -262,7 +262,7 @@ export function RedeemCodesSection({ ready }: { ready: boolean }) {
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
                   className="w-full h-9 px-3 text-xs rounded"
-                  style={{ background: '#07060f', border: '1px solid #1e1a30', color: '#e8e2f5' }}
+                  style={{ background: '#07060f', border: '1px solid rgba(255,197,66,0.2)', color: '#e8e2f5' }}
                 />
               </div>
 
@@ -276,7 +276,7 @@ export function RedeemCodesSection({ ready }: { ready: boolean }) {
                   value={expiresAt}
                   onChange={(e) => setExpiresAt(e.target.value)}
                   className="w-full h-9 px-3 text-xs rounded"
-                  style={{ background: '#07060f', border: '1px solid #1e1a30', color: '#e8e2f5' }}
+                  style={{ background: '#07060f', border: '1px solid rgba(255,197,66,0.2)', color: '#e8e2f5' }}
                 />
               </div>
 
@@ -293,7 +293,7 @@ export function RedeemCodesSection({ ready }: { ready: boolean }) {
                   value={wageringMultiplier}
                   onChange={(e) => setWageringMultiplier(e.target.value)}
                   className="w-full h-9 px-3 text-xs rounded"
-                  style={{ background: '#07060f', border: '1px solid #1e1a30', color: '#e8e2f5' }}
+                  style={{ background: '#07060f', border: '1px solid rgba(255,197,66,0.2)', color: '#e8e2f5' }}
                 />
               </div>
 
@@ -309,7 +309,7 @@ export function RedeemCodesSection({ ready }: { ready: boolean }) {
                   placeholder="Reddit launch, Discord giveaway, partner X, etc."
                   maxLength={500}
                   className="w-full h-9 px-3 text-xs rounded"
-                  style={{ background: '#07060f', border: '1px solid #1e1a30', color: '#e8e2f5' }}
+                  style={{ background: '#07060f', border: '1px solid rgba(255,197,66,0.2)', color: '#e8e2f5' }}
                 />
               </div>
             </div>
@@ -345,7 +345,7 @@ export function RedeemCodesSection({ ready }: { ready: boolean }) {
           {/* ── EXISTING CODES TABLE ───────────────────────────── */}
           <div
             className="rounded-xl p-4"
-            style={{ background: '#0e0d1a', border: '1px solid #1e1a30' }}
+            style={{ background: '#0e0d1a', border: '1px solid rgba(255,197,66,0.2)' }}
           >
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-[12px] font-bold tracking-widest uppercase" style={{ color: '#ffd97a', fontFamily: 'Cinzel, serif' }}>
@@ -388,7 +388,7 @@ export function RedeemCodesSection({ ready }: { ready: boolean }) {
               <div className="overflow-x-auto">
                 <table className="w-full text-[11px]">
                   <thead>
-                    <tr style={{ color: '#8981ab', borderBottom: '1px solid #1e1a30' }}>
+                    <tr style={{ color: '#8981ab', borderBottom: '1px solid rgba(255,197,66,0.2)' }}>
                       <th className="text-left py-2 font-normal uppercase tracking-widest">Code</th>
                       <th className="text-right py-2 font-normal uppercase tracking-widest">Amount</th>
                       <th className="text-right py-2 font-normal uppercase tracking-widest">Wagering</th>

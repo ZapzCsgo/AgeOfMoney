@@ -133,7 +133,7 @@ export function CoinFlipModal({
           className="w-full max-w-2xl rounded-2xl overflow-hidden relative"
           style={{
             background: '#0d0b1a',
-            border: '1px solid #1e1a30',
+            border: '1px solid rgba(255,197,66,0.2)',
             boxShadow: '0 0 80px rgba(255,197,66,0.1)',
           }}
           initial={{ scale: 0.9, y: 30 }}
@@ -143,7 +143,7 @@ export function CoinFlipModal({
           {/* Header — bouton fermer intégré en haut à droite de la card */}
           <div
             className="flex items-center justify-between px-4 py-4 relative"
-            style={{ borderBottom: '1px solid #1e1a30' }}
+            style={{ borderBottom: '1px solid rgba(255,197,66,0.2)' }}
           >
             <div className="w-8" />
             <h2
@@ -154,7 +154,7 @@ export function CoinFlipModal({
             </h2>
             <button
               onClick={onClose}
-              aria-label="Fermer"
+              aria-label={t('common_close')}
               className="w-8 h-8 rounded-full flex items-center justify-center text-[#9990b8] hover:text-[#e8e2f5] transition-all hover:bg-[#1e1a30]"
             >
               <X size={18} />
@@ -177,7 +177,7 @@ export function CoinFlipModal({
                         ? '#ffd97a'
                         : showResult && loser?.id === player1.id
                         ? '#3d3860'
-                        : '#1e1a30'
+                        : 'rgba(255,197,66,0.2)'
                     }`,
                     boxShadow:
                       showResult && winner?.id === player1.id
@@ -196,7 +196,7 @@ export function CoinFlipModal({
                   ) : (
                     <div
                       className="w-full h-full flex items-center justify-center text-xl font-bold"
-                      style={{ background: '#1e1a30', color: '#8981ab' }}
+                      style={{ background: 'rgba(255,197,66,0.2)', color: '#8981ab' }}
                     >
                       {player1.username[0]?.toUpperCase()}
                     </div>
@@ -284,7 +284,7 @@ export function CoinFlipModal({
                         ? '#ffd97a'
                         : showResult && loser?.id === player2.id
                         ? '#3d3860'
-                        : '#1e1a30'
+                        : 'rgba(255,197,66,0.2)'
                     }`,
                     boxShadow:
                       showResult && winner?.id === player2.id
@@ -303,7 +303,7 @@ export function CoinFlipModal({
                   ) : (
                     <div
                       className="w-full h-full flex items-center justify-center text-xl font-bold"
-                      style={{ background: '#1e1a30', color: '#8981ab' }}
+                      style={{ background: 'rgba(255,197,66,0.2)', color: '#8981ab' }}
                     >
                       {player2.username[0]?.toUpperCase()}
                     </div>
@@ -406,7 +406,7 @@ export function CoinFlipModal({
                         style={{
                           background: 'transparent',
                           color: '#8981ab',
-                          border: '1px solid #1e1a30',
+                          border: '1px solid rgba(255,197,66,0.2)',
                         }}
                       >
                         {t('common_close')}

@@ -65,7 +65,7 @@ export function MyBetsPanel() {
             width: 'min(360px, calc(100vw - 32px))',
             maxHeight: 440,
             background: '#0d0b1a',
-            border: '1px solid #1e1a30',
+            border: '1px solid rgba(255,197,66,0.2)',
             display: 'flex',
             flexDirection: 'column',
           }}
@@ -127,7 +127,7 @@ export function MyBetsPanel() {
                   const winsNeeded = Math.ceil(boNum / 2);
                   const loserGames = bet.boNumber ?? 0;
                   const pickedName = bet.selectedPlayer === 0
-                    ? 'Égalité'
+                    ? t('bet_draw_label')
                     : bet.selectedPlayer === 1 ? p1Name : p2Name;
                   const scoreStr = isExact
                     ? (bet.selectedPlayer === 1
@@ -147,7 +147,7 @@ export function MyBetsPanel() {
                         <div className="flex items-center gap-1.5">
                           {isExact && (
                             <span className="px-1 py-px rounded text-[8px] font-cinzel font-bold uppercase tracking-wider shrink-0" style={{ background: 'rgba(255,197,66,0.15)', color: '#ffc542', border: '1px solid rgba(255,197,66,0.3)' }}>
-                              Score
+                              {t('match_score')}
                             </span>
                           )}
                           <span className="font-cinzel font-bold text-[12px] text-[#e8e2f5] truncate">

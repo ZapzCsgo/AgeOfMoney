@@ -73,7 +73,7 @@ function Pill({ period, loading }: { period?: PnlPeriod; loading: boolean }) {
         background: '#0e0d1a',
         border: period && raw !== 0
           ? `1px solid ${raw > 0 ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`
-          : '1px solid #1e1a30',
+          : '1px solid rgba(255,197,66,0.2)',
       }}
     >
       <div className="flex items-center gap-1 text-[10px] tracking-[0.2em] uppercase" style={{ color: '#8981ab' }}>

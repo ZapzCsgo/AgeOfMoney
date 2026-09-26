@@ -107,7 +107,7 @@ export function AnomaliesSection({ ready }: { ready: boolean }) {
   return (
     <section
       className="rounded-2xl p-5 mt-8"
-      style={{ background: '#0e0d1a', border: '1px solid #1e1a30' }}
+      style={{ background: '#0e0d1a', border: '1px solid rgba(255,197,66,0.2)' }}
     >
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div className="flex items-center gap-2">

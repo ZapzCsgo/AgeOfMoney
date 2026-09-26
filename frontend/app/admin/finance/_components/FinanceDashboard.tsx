@@ -108,7 +108,7 @@ export function FinanceDashboard() {
         className="sticky top-0 z-10 -mx-4 px-4 py-3 mb-5 backdrop-blur-md"
         style={{
           background: 'rgba(7,6,15,0.85)',
-          borderBottom: '1px solid #1e1a30',
+          borderBottom: '1px solid rgba(255,197,66,0.2)',
         }}
       >
         <DateRangePicker

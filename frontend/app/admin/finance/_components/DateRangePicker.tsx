@@ -76,7 +76,7 @@ export function DateRangePicker({
         {open && (
           <div
             className="absolute left-0 mt-1 rounded-lg overflow-hidden z-20"
-            style={{ background: '#0d0b1a', border: '1px solid #1e1a30', minWidth: 160 }}
+            style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)', minWidth: 160 }}
           >
             {(Object.keys(RANGE_LABELS) as RangePreset[]).map((k) => (
               <button

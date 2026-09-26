@@ -117,7 +117,7 @@ function QuickBetBar({
   const odds = selectedPlayer === 0 ? (match.oddsDraw ?? 0) : selectedPlayer === 1 ? match.odds1 : match.odds2;
   // 2-decimal precision : matches the backend Decimal payout exactly.
   const potential = Math.round(amount * odds * 100) / 100;
-  const player = selectedPlayer === 0 ? { name: 'Draw' } : selectedPlayer === 1 ? match.player1 : match.player2;
+  const player = selectedPlayer === 0 ? { name: t('bet_draw_label') } : selectedPlayer === 1 ? match.player1 : match.player2;
 
   const handleBet = async () => {
     if (!session) return;
@@ -151,7 +151,7 @@ function QuickBetBar({
       <div className="animate-slide-down border-t border-aoe-border/50 bg-black/30 px-4 py-3 flex items-center justify-between">
         <p className="text-red-400/80 text-xs font-cinzel tracking-wider flex items-center gap-1.5">
           <Lock size={11} />
-          {match.status === 'LIVE' ? 'Bets are closed — match is live' : t('bet_closed')}
+          {match.status === 'LIVE' ? t('bet_closed_match_live') : t('bet_closed')}
         </p>
         <button onClick={onClose} className="text-aoe-parchment-muted hover:text-aoe-parchment text-xs">✕</button>
       </div>
@@ -428,7 +428,7 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
               <div className={cn('font-cinzel font-black text-xl leading-none', p1Won ? 'text-[#ffc542]' : 'text-[#4a4570]')}>
                 {match.p1Score ?? 0}
               </div>
-              <div className="text-[#3a3560] text-[8px] font-cinzel tracking-widest">FIN</div>
+              <div className="text-[#3a3560] text-[8px] font-cinzel tracking-widest">{t('common_end_abbr')}</div>
               <div className={cn('font-cinzel font-black text-xl leading-none', p2Won ? 'text-[#ffc542]' : 'text-[#4a4570]')}>
                 {match.p2Score ?? 0}
               </div>
@@ -466,7 +466,7 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
               className={cn('px-3 py-1.5 rounded-lg text-center transition-all duration-200 border', selected === 0 ? 'border-[#ffc542] bg-[#ffc542]/10' : 'border-[#1e1a30] bg-[#0d0b1a]/50 hover:border-[#3d3860]')}
             >
               <div className="font-cinzel font-bold text-sm text-[#ffc542] leading-none">{match.oddsDraw.toFixed(2)}</div>
-              <div className="text-[8px] text-[#8981ab] mt-0.5 uppercase tracking-widest">Draw</div>
+              <div className="text-[8px] text-[#8981ab] mt-0.5 uppercase tracking-widest">{t('bet_draw_label')}</div>
             </button>
           )}
         </div>
@@ -550,7 +550,7 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
       {!isCompleted && (
         <div
           className="flex justify-end px-4 py-2 border-t"
-          style={{ borderColor: '#1e1a30', background: 'rgba(0,0,0,0.2)' }}
+          style={{ borderColor: 'rgba(255,197,66,0.2)', background: 'rgba(0,0,0,0.2)' }}
           onClick={(e) => e.stopPropagation()}
         >
           <Link
@@ -710,7 +710,7 @@ function Hero({ liveCount, totalBets, matchCount }: { liveCount: number; totalBe
         <div className="flex items-center gap-0 flex-wrap justify-center">
           <div
             className="flex items-center gap-2 px-5 py-2.5 font-cinzel tracking-wide text-xs"
-            style={{ borderRight: '1px solid #1e1a30' }}
+            style={{ borderRight: '1px solid rgba(255,197,66,0.2)' }}
           >
             <Zap size={12} className="text-aoe-crimson-bright" />
             <span className="text-aoe-crimson-bright font-bold">{liveCount}</span>
@@ -718,7 +718,7 @@ function Hero({ liveCount, totalBets, matchCount }: { liveCount: number; totalBe
           </div>
           <div
             className="flex items-center gap-2 px-5 py-2.5 font-cinzel tracking-wide text-xs"
-            style={{ borderRight: '1px solid #1e1a30' }}
+            style={{ borderRight: '1px solid rgba(255,197,66,0.2)' }}
           >
             <TrendingUp size={12} className="text-aoe-gold" />
             <span className="text-aoe-gold font-bold">{new Intl.NumberFormat('fr-FR').format(totalBets)}</span>

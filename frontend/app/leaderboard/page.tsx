@@ -10,7 +10,51 @@ import { LeaderboardEntry } from '@/types';
 import { computeLevel, levelTier } from '@/lib/level';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/i18n';
-import { EmptyState } from '@/components/ui/empty-state';
+import { PodiumHero } from '@/components/leaderboard/PodiumHero';
+
+/** Faint heraldic ornament behind the header — pure decoration, very low
+ * opacity so it never competes with the title/podium above it. */
+function HeaderOrnament() {
+  return (
+    <svg
+      viewBox="0 0 400 120"
+      className="pointer-events-none absolute left-1/2 top-0 -translate-x-1/2 w-[420px] max-w-[140%] h-auto"
+      style={{ opacity: 0.05 }}
+      aria-hidden
+    >
+      <path d="M200 10 C170 30 150 55 150 85 C150 100 165 112 200 112 C235 112 250 100 250 85 C250 55 230 30 200 10Z" fill="none" stroke="#ffc542" strokeWidth="1.5" />
+      {[...Array(5)].map((_, i) => (
+        <g key={`l-${i}`}>
+          <ellipse cx={130 - i * 18} cy={40 + i * 14} rx="14" ry="7" fill="none" stroke="#ffc542" strokeWidth="1.2" transform={`rotate(${-20 - i * 6} ${130 - i * 18} ${40 + i * 14})`} />
+        </g>
+      ))}
+      {[...Array(5)].map((_, i) => (
+        <g key={`r-${i}`}>
+          <ellipse cx={270 + i * 18} cy={40 + i * 14} rx="14" ry="7" fill="none" stroke="#ffc542" strokeWidth="1.2" transform={`rotate(${20 + i * 6} ${270 + i * 18} ${40 + i * 14})`} />
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+/** Small illustrated empty state (trophy + banner) — same title/description
+ * copy as before, richer visual than a single lucide icon. */
+function EmptyLeaderboardIllustration({ title }: { title: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center text-center py-20">
+      <svg width="72" height="72" viewBox="0 0 48 48" fill="none" className="mb-5">
+        <path d="M10 30 L4 44 L14 40 Z" fill="#ffc542" opacity="0.35" />
+        <path d="M38 30 L44 44 L34 40 Z" fill="#ffc542" opacity="0.35" />
+        <path d="M16 8h16v9a8 8 0 0 1-16 0V8z" stroke="#ffc542" strokeWidth="2" />
+        <path d="M16 10h-4a4 4 0 0 0 0 8h2.5" stroke="#ffc542" strokeWidth="2" />
+        <path d="M32 10h4a4 4 0 0 1 0 8h-2.5" stroke="#ffc542" strokeWidth="2" />
+        <rect x="21" y="25" width="6" height="6" fill="#ffc542" />
+        <rect x="15" y="31" width="18" height="4" rx="1" fill="#ffc542" />
+      </svg>
+      <p className="text-base font-semibold text-aoe-parchment tracking-tight">{title}</p>
+    </div>
+  );
+}
 
 function avatarColor(name: string): string {
   const colors = ['#7c3aed','#0891b2','#b45309','#047857','#be185d','#1d4ed8'];
@@ -47,7 +91,7 @@ function RankBadge({ rank }: { rank: number }) {
     </div>
   );
   return (
-    <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-[12px] font-bold tabular-nums" style={{ background: '#13111f', border: '1px solid #1e1a30', color: '#8981ab' }}>
+    <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-[12px] font-bold tabular-nums" style={{ background: '#13111f', border: '1px solid rgba(255,197,66,0.2)', color: '#8981ab' }}>
       {rank}
     </div>
   );
@@ -75,15 +119,16 @@ export default function LeaderboardPage() {
       <div className="max-w-2xl mx-auto">
 
         {/* Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-4 text-[11px] font-medium uppercase tracking-widest"
+        <div className="relative text-center mb-8">
+          <HeaderOrnament />
+          <div className="relative inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-4 text-[11px] font-medium uppercase tracking-widest"
             style={{ background: '#ffc54215', border: '1px solid #ffc54230', color: '#ffc542' }}>
             <Trophy size={11} /> {t('lb_title')}
           </div>
-          <h1 className="text-[28px] font-bold mb-1" style={{ color: '#e8e2f5', fontFamily: 'Cinzel, serif' }}>
+          <h1 className="relative text-[28px] font-bold mb-1" style={{ color: '#e8e2f5', fontFamily: 'Cinzel, serif' }}>
             {t('lb_top_bettors')}
           </h1>
-          <p className="text-[13px]" style={{ color: '#8981ab' }}>
+          <p className="relative text-[13px]" style={{ color: '#8981ab' }}>
             {t('lb_sorted_by')}
           </p>
         </div>
@@ -97,19 +142,21 @@ export default function LeaderboardPage() {
           </div>
         )}
 
-        {/* Table */}
-        <div className="rounded-2xl overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+        {/* Podium — top 3 */}
+        {!loading && entries.length > 0 && (
+          <PodiumHero entries={entries} myId={session?.user?.id} />
+        )}
+
+        {/* Table — rank 4 and below */}
+        <div className="rounded-2xl overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}>
           {loading ? (
             <div className="py-16 text-center text-[13px]" style={{ color: '#8981ab' }}>{t('common_loading')}</div>
           ) : entries.length === 0 ? (
-            <EmptyState
-              icon={Trophy}
-              title={t('lb_empty')}
-            />
+            <EmptyLeaderboardIllustration title={t('lb_empty')} />
           ) : (
             <div>
-              {entries.map((entry, i) => {
-                const rank = i + 1;
+              {entries.slice(3).map((entry, i) => {
+                const rank = i + 4;
                 const level = computeLevel(entry.totalWagered);
                 const tier  = levelTier(level);
                 const color = tierColor(tier);
@@ -120,8 +167,8 @@ export default function LeaderboardPage() {
                   <div
                     key={entry.id}
                     className={cn(
-                      'flex items-center gap-4 px-5 py-4 transition-colors',
-                      isMe ? 'bg-[#ffc542]/5' : 'hover:bg-[#13111f]'
+                      'flex items-center gap-4 px-5 py-4 transition-all border-l-2',
+                      isMe ? 'bg-[#ffc542]/5 border-l-[#ffc542]' : 'border-l-transparent hover:bg-[#13111f] hover:border-l-[#ffc542]/60 hover:-translate-y-px'
                     )}
                     style={{ borderBottom: '1px solid #1e1a3022' }}
                   >

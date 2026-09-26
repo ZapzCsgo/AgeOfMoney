@@ -5,6 +5,7 @@ import { Match } from '@/types';
 import { formatCountdown, getTierBadgeClass } from '@/lib/utils';
 import { useEffect, useRef, useState } from 'react';
 import { Swords, Crown } from 'lucide-react';
+import { useT } from '@/lib/i18n';
 
 interface MatchCardProps {
   match: Match;
@@ -29,6 +30,7 @@ function useOddsFlash(value: number): FlashDir {
 }
 
 export function MatchCard({ match }: MatchCardProps) {
+  const { t } = useT();
   const [countdown, setCountdown] = useState('');
   const isLive      = match.status === 'LIVE';
   const isCompleted = match.status === 'COMPLETED';
@@ -90,7 +92,7 @@ export function MatchCard({ match }: MatchCardProps) {
                   {new Date(match.updatedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
                 </span>
                 <span className="text-[10px] text-[#8981ab] font-semibold tracking-wider uppercase border border-[#2a2540] rounded px-1.5 py-0.5">
-                  Terminé
+                  {t('matches_finished')}
                 </span>
               </div>
             ) : (

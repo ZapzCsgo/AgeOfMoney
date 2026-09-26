@@ -11,6 +11,7 @@ import { apiClient } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import type { Match, Tournament } from '@/types';
 import { JsonLd } from '@/components/JsonLd';
+import { useT } from '@/lib/i18n';
 
 interface TournamentDetail extends Tournament {
   twitchChannel?: string | null;
@@ -21,12 +22,12 @@ interface TournamentDetail extends Tournament {
 function PlayerMini({ name, avatarUrl, size = 28 }: { name: string; avatarUrl?: string | null; size?: number }) {
   const initial = name?.[0]?.toUpperCase() ?? '?';
   return (
-    <div className="relative rounded-full overflow-hidden shrink-0" style={{ width: size, height: size, border: '1px solid #1e1a30' }}>
+    <div className="relative rounded-full overflow-hidden shrink-0" style={{ width: size, height: size, border: '1px solid rgba(255,197,66,0.2)' }}>
       {avatarUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />
       ) : (
-        <div className="w-full h-full flex items-center justify-center text-[11px] font-bold" style={{ background: '#1e1a30', color: '#8981ab' }}>
+        <div className="w-full h-full flex items-center justify-center text-[11px] font-bold" style={{ background: 'rgba(255,197,66,0.2)', color: '#8981ab' }}>
           {initial}
         </div>
       )}
@@ -35,6 +36,7 @@ function PlayerMini({ name, avatarUrl, size = 28 }: { name: string; avatarUrl?: 
 }
 
 function MatchRow({ match }: { match: Match }) {
+  const { t } = useT();
   const isLive = match.status === 'LIVE';
   const isCompleted = match.status === 'COMPLETED';
   const p1Won = isCompleted && match.winnerId === match.player1.id;
@@ -45,7 +47,7 @@ function MatchRow({ match }: { match: Match }) {
     <Link
       href={`/matches/${match.id}`}
       className="flex items-center gap-3 px-4 py-3 rounded-lg border transition-all hover:border-[#ffc542]/30"
-      style={{ background: '#0d0b1a', borderColor: '#1e1a30' }}
+      style={{ background: '#0d0b1a', borderColor: 'rgba(255,197,66,0.2)' }}
     >
       {/* P1 */}
       <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
@@ -78,7 +80,7 @@ function MatchRow({ match }: { match: Match }) {
         ) : isLive ? (
           <div className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-bold" style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171' }}>
             <span className="w-1 h-1 rounded-full bg-red-400 animate-pulse" />
-            LIVE
+            {t('matches_filter_live').toUpperCase()}
           </div>
         ) : (
           <span className="text-[#3d3860] font-cinzel text-[11px] tracking-[0.15em] font-bold">VS</span>
@@ -90,7 +92,7 @@ function MatchRow({ match }: { match: Match }) {
           </div>
         )}
         {isCompleted && (
-          <span className="text-[8px] font-bold text-[#4a4570] tracking-wider mt-0.5">FIN</span>
+          <span className="text-[8px] font-bold text-[#4a4570] tracking-wider mt-0.5">{t('common_end_abbr')}</span>
         )}
       </div>
 
@@ -126,6 +128,7 @@ function MatchRow({ match }: { match: Match }) {
 }
 
 export default function TournamentDetailPage() {
+  const { t } = useT();
   const params = useParams();
   const router = useRouter();
   const id = typeof params.id === 'string' ? params.id : Array.isArray(params.id) ? params.id[0] : '';
@@ -177,14 +180,14 @@ export default function TournamentDetailPage() {
   if (notFound || !tournament) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4" style={{ background: '#07060f' }}>
-        <div className="text-center p-8 rounded-xl max-w-md" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+        <div className="text-center p-8 rounded-xl max-w-md" style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}>
           <Trophy size={40} className="text-[#3d3860] mx-auto mb-3" />
-          <h2 className="font-cinzel font-bold text-lg text-[#ffc542] mb-2">Tournoi introuvable</h2>
-          <p className="text-[13px] text-[#8981ab] mb-5">Ce tournoi n'existe pas ou a été supprimé.</p>
+          <h2 className="font-cinzel font-bold text-lg text-[#ffc542] mb-2">{t('tournament_not_found_title')}</h2>
+          <p className="text-[13px] text-[#8981ab] mb-5">{t('tournament_not_found_desc')}</p>
           <Link href="/tournaments" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-semibold"
             style={{ background: 'linear-gradient(135deg, #b8881a, #ffc542)', color: '#07060f' }}>
             <ArrowLeft size={14} />
-            Voir tous les tournois
+            {t('tournament_view_all')}
           </Link>
         </div>
       </div>
@@ -245,11 +248,11 @@ export default function TournamentDetailPage() {
         className="inline-flex items-center gap-2 text-[12px] text-[#8981ab] hover:text-[#e8e2f5] transition-colors"
       >
         <ArrowLeft size={14} />
-        Retour
+        {t('deposit_back')}
       </button>
 
       {/* Header */}
-      <div className="rounded-xl p-6 space-y-4" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+      <div className="rounded-xl p-6 space-y-4" style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}>
         <div className="flex items-start gap-4">
           {tournament.logoUrl ? (
             <div className="rounded-lg overflow-hidden shrink-0" style={{ width: 64, height: 64, background: '#07060f' }}>
@@ -272,7 +275,7 @@ export default function TournamentDetailPage() {
               {tournament.isActive && (
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider"
                   style={{ background: 'rgba(16,185,129,0.12)', color: '#10b981', border: '1px solid rgba(16,185,129,0.3)' }}>
-                  Actif
+                  {t('common_active')}
                 </span>
               )}
             </div>
@@ -283,7 +286,7 @@ export default function TournamentDetailPage() {
         </div>
 
         {/* Meta row */}
-        <div className="flex flex-wrap gap-4 pt-4 border-t text-[12px]" style={{ borderColor: '#1e1a30' }}>
+        <div className="flex flex-wrap gap-4 pt-4 border-t text-[12px]" style={{ borderColor: 'rgba(255,197,66,0.2)' }}>
           <div className="flex items-center gap-1.5 text-[#9990b8]">
             <Calendar size={13} className="text-[#8981ab]" />
             <span>
@@ -293,7 +296,7 @@ export default function TournamentDetailPage() {
           </div>
           <div className="flex items-center gap-1.5 text-[#9990b8]">
             <Users size={13} className="text-[#8981ab]" />
-            <span>{tournament.participantCount} participant{tournament.participantCount > 1 ? 's' : ''}</span>
+            <span>{t('common_participant_count', { n: tournament.participantCount, plural: tournament.participantCount > 1 ? 's' : '' })}</span>
           </div>
           {tournament.prizePool && (
             <div className="flex items-center gap-1.5 text-[#ffc542] font-semibold">
@@ -334,9 +337,9 @@ export default function TournamentDetailPage() {
         <section className="space-y-2">
           <h2 className="font-cinzel font-bold text-sm text-[#ffc542] tracking-wider uppercase flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
-            En direct
+            {t('tournament_live_now')}
             <span className="text-[10px] text-[#8981ab] font-normal normal-case tracking-normal">
-              {live.length} match{live.length > 1 ? 's' : ''}
+              {t('common_match_count', { n: live.length, plural: live.length > 1 ? 's' : '' })}
             </span>
           </h2>
           <div className="space-y-2">
@@ -350,9 +353,9 @@ export default function TournamentDetailPage() {
         <section className="space-y-2">
           <h2 className="font-cinzel font-bold text-sm text-[#ffc542] tracking-wider uppercase flex items-center gap-2">
             <Calendar size={14} />
-            À venir
+            {t('matches_filter_upcoming')}
             <span className="text-[10px] text-[#8981ab] font-normal normal-case tracking-normal">
-              {upcoming.length} match{upcoming.length > 1 ? 's' : ''}
+              {t('common_match_count', { n: upcoming.length, plural: upcoming.length > 1 ? 's' : '' })}
             </span>
           </h2>
           <div className="space-y-2">
@@ -366,9 +369,9 @@ export default function TournamentDetailPage() {
         <section className="space-y-2">
           <h2 className="font-cinzel font-bold text-sm text-[#ffc542] tracking-wider uppercase flex items-center gap-2">
             <Trophy size={14} />
-            Terminés
+            {t('matches_filter_done')}
             <span className="text-[10px] text-[#8981ab] font-normal normal-case tracking-normal">
-              {completed.length} match{completed.length > 1 ? 's' : ''}
+              {t('common_match_count', { n: completed.length, plural: completed.length > 1 ? 's' : '' })}
             </span>
           </h2>
           <div className="space-y-2">
@@ -379,10 +382,10 @@ export default function TournamentDetailPage() {
 
       {/* Empty state */}
       {live.length === 0 && upcoming.length === 0 && completed.length === 0 && (
-        <div className="text-center py-12 rounded-xl" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+        <div className="text-center py-12 rounded-xl" style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}>
           <Trophy size={32} className="text-[#3d3860] mx-auto mb-2" />
-          <p className="text-[13px] text-[#8981ab]">Aucun match programmé pour ce tournoi pour l'instant.</p>
-          <p className="text-[11px] text-[#4a4570] mt-1">Reviens bientôt !</p>
+          <p className="text-[13px] text-[#8981ab]">{t('tournament_no_matches')}</p>
+          <p className="text-[11px] text-[#4a4570] mt-1">{t('tournament_come_back_soon')}</p>
         </div>
       )}
     </div>

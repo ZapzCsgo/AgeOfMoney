@@ -2,165 +2,10 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { X, Shield, ChevronDown } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { useT, LANGUAGES } from '@/lib/i18n';
-
-const PRIVACY_SECTIONS = [
-  {
-    title: 'Collecte des informations',
-    content: `AgeOfMoney accorde une grande importance à votre vie privée et s'efforce de ne collecter que les informations nécessaires pour vous offrir une expérience utilisateur optimale. Lors de l'utilisation d'AgeOfMoney, les utilisateurs peuvent fournir des informations permettant de les identifier personnellement, notamment leur nom, leur adresse email et leurs informations de facturation (« Informations Personnelles »). Veuillez noter que nous ne stockons pas les informations de carte bancaire pour des raisons de sécurité.
-
-De plus, lorsqu'un utilisateur visite AgeOfMoney, certaines informations sont automatiquement enregistrées, notamment l'adresse IP et le type de navigateur. Pour améliorer votre expérience, AgeOfMoney utilise des cookies — de petits fichiers texte stockés sur votre appareil. En utilisant AgeOfMoney, vous consentez à l'utilisation des cookies telle que décrite dans cette politique.`,
-  },
-  {
-    title: 'Utilisation des informations',
-    content: `Nous utilisons vos Informations Personnelles pour :
-
-• Fournir et améliorer AgeOfMoney et ses services.
-• Gérer votre compte et garantir la conformité à nos Conditions d'Utilisation.
-• Mieux comprendre vos besoins et développer des fonctionnalités adaptées.
-• Répondre à vos demandes et traiter vos transactions.
-• Personnaliser votre expérience sur la plateforme.`,
-  },
-  {
-    title: 'Divulgation à des tiers',
-    content: `AgeOfMoney peut faire appel à des sociétés tierces pour faciliter ses services (support technique, analyse de données, traitement des paiements). Ces prestataires ont accès à vos données uniquement dans la limite nécessaire à l'exécution de leurs tâches. Nous sélectionnons soigneusement nos partenaires qui respectent des normes strictes de protection des données.`,
-  },
-  {
-    title: 'Divulgation légale',
-    content: `AgeOfMoney peut être tenu de coopérer avec les autorités compétentes et de divulguer certaines Informations Personnelles afin de prévenir, enquêter ou traiter toute activité illégale ou contraire à nos Conditions d'Utilisation. Toute divulgation ne sera effectuée que lorsqu'elle sera jugée nécessaire et appropriée.`,
-  },
-  {
-    title: 'Modification et suppression de vos informations',
-    content: `Il est de votre responsabilité de maintenir vos Informations Personnelles à jour. Si vous souhaitez faire supprimer vos données, vous pouvez en faire la demande à notre équipe support. Nous procéderons à la suppression dans un délai d'un an suivant votre demande.`,
-  },
-  {
-    title: 'Sécurité',
-    content: `La protection de vos Informations Personnelles est une priorité absolue pour AgeOfMoney. Nous utilisons des réseaux sécurisés et des technologies de chiffrement avancées pour la transmission des données sensibles. Vos informations sont stockées sur des serveurs sécurisés, accessibles uniquement au personnel autorisé.`,
-  },
-];
-
-function PrivacyModal({ onClose }: { onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
-      onClick={onClose}>
-      <div
-        className="relative w-full max-w-2xl max-h-[85vh] flex flex-col rounded-2xl overflow-hidden"
-        style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}
-        onClick={e => e.stopPropagation()}>
-
-        {/* Header */}
-        <div className="flex items-center gap-3 px-6 py-4 shrink-0" style={{ borderBottom: '1px solid #1e1a30', background: '#09080f' }}>
-          <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: '#ffc54220', border: '1px solid #ffc54240' }}>
-            <Shield size={15} style={{ color: '#ffc542' }} />
-          </div>
-          <div className="flex-1">
-            <h2 className="text-[15px] font-bold" style={{ color: '#e8e2f5', fontFamily: 'Cinzel, serif' }}>
-              Politique de Confidentialité
-            </h2>
-            <p className="text-[10px]" style={{ color: '#8981ab' }}>AgeOfMoney — Dernière mise à jour : 2026</p>
-          </div>
-          <button onClick={onClose}
-            className="w-7 h-7 rounded-full flex items-center justify-center transition-colors hover:bg-[#1e1a30]">
-            <X size={14} style={{ color: '#8981ab' }} />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
-          <p className="text-[13px] leading-relaxed" style={{ color: '#9990b8' }}>
-            Bienvenue sur AgeOfMoney. Nous accordons la plus grande importance à la confidentialité et à la sécurité de vos informations personnelles. Cette Politique de Confidentialité est conçue pour vous aider à comprendre quelles informations nous collectons et comment nous les gérons.
-          </p>
-
-          {PRIVACY_SECTIONS.map(section => (
-            <div key={section.title}>
-              <h3 className="text-[13px] font-bold mb-2" style={{ color: '#ffc542' }}>{section.title}</h3>
-              <p className="text-[12px] leading-relaxed whitespace-pre-line" style={{ color: '#9990b8' }}>{section.content}</p>
-            </div>
-          ))}
-
-          <div className="rounded-xl p-4" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
-            <p className="text-[11px] leading-relaxed" style={{ color: '#8981ab' }}>
-              Pour toute question, contactez-nous à{' '}
-              <a href="mailto:support@ageofmoney.gg" className="hover:opacity-80 transition-opacity" style={{ color: '#ffc542' }}>
-                support@ageofmoney.gg
-              </a>
-            </p>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="px-6 py-4 shrink-0 flex justify-end" style={{ borderTop: '1px solid #1e1a30', background: '#09080f' }}>
-          <button onClick={onClose}
-            className="px-5 py-2 rounded-lg text-[12px] font-bold transition-all hover:opacity-90"
-            style={{ background: '#ffc542', color: '#07060f' }}>
-            J&apos;ai compris
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const TOS_SECTIONS = [
-  { title: '1. Acceptation des Conditions', content: 'En accedant ou en utilisant les Services, l\'Utilisateur accepte d\'etre lie par cet Accord. L\'Utilisateur certifie qu\'il a au moins 18 ans.' },
-  { title: '2. Monnaie Virtuelle', content: 'Tous les credits en jeu (coins ⚜) n\'ont aucune valeur monetaire reelle. Les coins sont destines au divertissement uniquement. Partage de compte, transfert de compte et multi-compte sont strictement interdits.' },
-  { title: '3. Achats et Depots', content: 'Les achats sont definitifs et ne peuvent etre rembourses. Depots/retraits crypto sont definitifs. AgeOfMoney n\'est pas responsable des transferts sur mauvais reseau. Taux : 1 USD = 1.69 coins ⚜ / 1.69 ⚜ = 0.99 USD.' },
-  { title: '4. Programme d\'Affiliation', content: 'Les retraits du programme d\'affiliation sont bases sur les commissions de parrainage uniquement. AgeOfMoney se reserve le droit de modifier ou desactiver le programme.' },
-  { title: '5. Jeux et Paris', content: 'Les cotes sont calculees automatiquement. Les paris ferment au debut du match. Forfait = remboursement. Egalite (BO pairs) = paris draw gagnent. La roulette utilise un systeme Provably Fair.' },
-  { title: '6. Jeu Responsable', content: 'Options d\'auto-exclusion disponibles. Politique stricte 18+. Mesures anti-abus en place.' },
-  { title: '7. Absence de Garanties', content: 'Le site est fourni "tel quel". AgeOfMoney ne garantit pas un fonctionnement ininterrompu ou exempt d\'erreurs.' },
-  { title: '8. Non-affiliation', content: 'AgeOfMoney n\'est pas affilie a Xbox Game Studios, Microsoft, Steam ou Valve Corporation.' },
-  { title: '9. Limitation de Responsabilite', content: 'L\'utilisation est a vos propres risques. AgeOfMoney n\'est pas responsable des dommages indirects, fonds perdus ou comptes pirates.' },
-  { title: '10. Code de Conduite', content: 'Interdit : activites illegales, harcelement, bots/scrapers, multi-compte, vente de compte. Violation = suspension/resiliation.' },
-  { title: '11. Confidentialite', content: 'AgeOfMoney collecte les informations necessaires au fonctionnement. Jamais de vente de donnees. Voir Politique de Confidentialite pour details.' },
-  { title: '12. Modifications', content: 'AgeOfMoney se reserve le droit de modifier ces Conditions a tout moment. L\'utilisation continue apres modification vaut acceptation.' },
-];
-
-function TermsModal({ onClose }: { onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
-      onClick={onClose}>
-      <div
-        className="relative w-full max-w-2xl max-h-[85vh] flex flex-col rounded-2xl overflow-hidden"
-        style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}
-        onClick={e => e.stopPropagation()}>
-        <div className="flex items-center gap-3 px-6 py-4 shrink-0" style={{ borderBottom: '1px solid #1e1a30', background: '#09080f' }}>
-          <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: '#ffc54220', border: '1px solid #ffc54240' }}>
-            <Shield size={15} style={{ color: '#ffc542' }} />
-          </div>
-          <div className="flex-1">
-            <h2 className="text-[15px] font-bold" style={{ color: '#e8e2f5', fontFamily: 'Cinzel, serif' }}>
-              Conditions d&apos;Utilisation
-            </h2>
-            <p className="text-[10px]" style={{ color: '#8981ab' }}>AgeOfMoney — ageof.money — Avril 2026</p>
-          </div>
-          <button onClick={onClose} className="w-7 h-7 rounded-full flex items-center justify-center transition-colors hover:bg-[#1e1a30]">
-            <X size={14} style={{ color: '#8981ab' }} />
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-          {TOS_SECTIONS.map(s => (
-            <div key={s.title}>
-              <h3 className="text-[13px] font-bold mb-1.5" style={{ color: '#ffc542' }}>{s.title}</h3>
-              <p className="text-[12px] leading-relaxed whitespace-pre-line" style={{ color: '#9990b8' }}>{s.content}</p>
-            </div>
-          ))}
-          <div className="rounded-xl p-4" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
-            <p className="text-[11px] leading-relaxed" style={{ color: '#8981ab' }}>
-              Pour toute question, contactez-nous a{' '}
-              <a href="mailto:support@ageofmoney.gg" className="hover:opacity-80 transition-opacity" style={{ color: '#ffc542' }}>support@ageofmoney.gg</a>
-            </p>
-          </div>
-        </div>
-        <div className="px-6 py-4 shrink-0 flex justify-end" style={{ borderTop: '1px solid #1e1a30', background: '#09080f' }}>
-          <button onClick={onClose} className="px-5 py-2 rounded-lg text-[12px] font-bold transition-all hover:opacity-90"
-            style={{ background: '#ffc542', color: '#07060f' }}>J&apos;ai compris</button>
-        </div>
-      </div>
-    </div>
-  );
-}
+import { PrivacyModal } from '@/components/legal/PrivacyModal';
+import { TermsModal } from '@/components/legal/TermsModal';
 
 export function Footer() {
   const [privacyOpen, setPrivacyOpen] = useState(false);
@@ -183,7 +28,7 @@ export function Footer() {
 
   return (
     <>
-      <footer style={{ background: '#09080f', borderTop: '1px solid #1e1a30' }}>
+      <footer style={{ background: '#09080f', borderTop: '1px solid rgba(255,197,66,0.2)' }}>
         {/* Main section */}
         <div className="max-w-6xl mx-auto px-6 py-12">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
@@ -204,10 +49,10 @@ export function Footer() {
               </Link>
 
               <p className="text-[12px] leading-relaxed" style={{ color: '#8981ab' }}>
-                © 2026 AgeOfMoney | Tous droits réservés.
+                {t('footer_copyright')}
               </p>
               <p className="text-[11px] leading-relaxed" style={{ color: '#6a6390' }}>
-                AgeOfMoney est opéré avec des coins virtuels uniquement. <strong style={{ color: '#ffc542' }}>18+ only.</strong> Non affilié à Xbox Game Studios.
+                {t('footer_disclaimer_before')}<strong style={{ color: '#ffc542' }}>{t('footer_disclaimer_bold')}</strong>{t('footer_disclaimer_after')}
               </p>
 
               <div className="flex items-center gap-3 pt-1">
@@ -275,7 +120,7 @@ export function Footer() {
         </div>
 
         {/* Bottom bar */}
-        <div style={{ borderTop: '1px solid #1e1a30' }}>
+        <div style={{ borderTop: '1px solid rgba(255,197,66,0.2)' }}>
           <div className="max-w-6xl mx-auto px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex flex-col sm:flex-row gap-6">
               <div>
@@ -283,7 +128,7 @@ export function Footer() {
                 <Link href="/support"
                   className="text-[12px] font-semibold hover:opacity-80 transition-opacity"
                   style={{ color: '#9990b8' }}>
-                  Ouvrir un ticket ↗
+                  {t('support_open_ticket')} ↗
                 </Link>
               </div>
               <div>
@@ -300,7 +145,7 @@ export function Footer() {
               <button
                 onClick={() => setLangOpen(!langOpen)}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors"
-                style={{ background: '#13111f', border: '1px solid #1e1a30' }}
+                style={{ background: '#13111f', border: '1px solid rgba(255,197,66,0.2)' }}
               >
                 <span className="text-[12px]">{currentLang.flag}</span>
                 <span className="text-[12px]" style={{ color: '#9990b8' }}>{currentLang.label}</span>
@@ -311,7 +156,7 @@ export function Footer() {
                   <div className="fixed inset-0 z-10" onClick={() => setLangOpen(false)} />
                   <div
                     className="absolute right-0 bottom-full mb-1.5 w-36 z-20 py-1 rounded-md shadow-xl"
-                    style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}
+                    style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}
                   >
                     {LANGUAGES.map(l => (
                       <button

@@ -102,7 +102,7 @@ export function RainLaunchModal({
         style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.3)', boxShadow: '0 0 60px rgba(255,197,66,0.25)' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: '1px solid #1e1a30' }}>
+        <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: '1px solid rgba(255,197,66,0.2)' }}>
           <div className="flex items-center gap-2">
             <Droplets size={14} style={{ color: '#ffd97a' }} />
             <span className="font-bold text-[13px] tracking-widest uppercase" style={{ fontFamily: 'Cinzel, serif', color: '#ffd97a' }}>

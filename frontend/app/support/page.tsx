@@ -52,7 +52,7 @@ export default function SupportPage() {
       }
       setSubmitted(true);
     } catch {
-      setError('Erreur réseau. Veuillez réessayer.');
+      setError(t('common_network_error'));
     } finally {
       setLoading(false);
     }
@@ -61,7 +61,7 @@ export default function SupportPage() {
   if (submitted) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4" style={{ background: '#07060f' }}>
-        <div className="max-w-md w-full rounded-2xl p-8 text-center" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+        <div className="max-w-md w-full rounded-2xl p-8 text-center" style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}>
           <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: '#16a34a22', border: '1px solid #16a34a44' }}>
             <CheckCircle size={28} style={{ color: '#22c55e' }} />
           </div>
@@ -102,7 +102,7 @@ export default function SupportPage() {
         {/* Form card */}
         <form onSubmit={handleSubmit}
           className="rounded-2xl p-6 space-y-5"
-          style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+          style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}>
 
           {/* Email */}
           <div>
@@ -112,13 +112,13 @@ export default function SupportPage() {
             <input
               type="email"
               required
-              placeholder="votre@email.com"
+              placeholder={t('placeholder_email')}
               value={form.email}
               onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
               className="w-full h-10 rounded-lg px-4 text-[13px] outline-none transition-all"
               style={{
                 background: '#13111f',
-                border: '1px solid #1e1a30',
+                border: '1px solid rgba(255,197,66,0.2)',
                 color: '#e8e2f5',
               }}
             />
@@ -137,7 +137,7 @@ export default function SupportPage() {
                 className="w-full h-10 rounded-lg px-4 pr-9 text-[13px] outline-none appearance-none transition-all"
                 style={{
                   background: '#13111f',
-                  border: '1px solid #1e1a30',
+                  border: '1px solid rgba(255,197,66,0.2)',
                   color: form.subject ? '#e8e2f5' : '#3d3860',
                 }}>
                 <option value="" disabled>{t('support_subject_placeholder')}</option>
@@ -164,7 +164,7 @@ export default function SupportPage() {
               className="w-full rounded-lg px-4 py-3 text-[13px] outline-none resize-none transition-all"
               style={{
                 background: '#13111f',
-                border: '1px solid #1e1a30',
+                border: '1px solid rgba(255,197,66,0.2)',
                 color: '#e8e2f5',
               }}
             />
@@ -195,7 +195,7 @@ export default function SupportPage() {
 
         {/* Info card */}
         <div className="mt-6">
-          <div className="rounded-xl p-4 text-center" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+          <div className="rounded-xl p-4 text-center" style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}>
             <div className="text-[20px] mb-1">⏱</div>
             <p className="text-[11px] font-semibold mb-0.5" style={{ color: '#e8e2f5' }}>{t('support_response_time')}</p>
             <p className="text-[10px]" style={{ color: '#8981ab' }}>{t('support_response_desc')}</p>

@@ -250,7 +250,7 @@ export function WalletModal({ onClose }: Props) {
               {t('deposit_address')} {invoice.crypto}
             </p>
             <div className="flex items-center gap-2 p-3 rounded-lg border"
-                 style={{ background: '#07060f', borderColor: '#1e1a30' }}>
+                 style={{ background: '#07060f', borderColor: 'rgba(255,197,66,0.2)' }}>
               <code className="text-aoe-parchment text-xs flex-1 break-all font-mono">
                 {invoice.address}
               </code>
@@ -264,7 +264,7 @@ export function WalletModal({ onClose }: Props) {
               {t('wallet_exact_amount')}
             </p>
             <div className="flex items-center gap-2 p-3 rounded-lg border"
-                 style={{ background: '#07060f', borderColor: '#1e1a30' }}>
+                 style={{ background: '#07060f', borderColor: 'rgba(255,197,66,0.2)' }}>
               <code className="text-aoe-gold font-bold font-mono flex-1">
                 {invoice.cryptoAmount} {invoice.crypto}
               </code>
@@ -295,7 +295,7 @@ export function WalletModal({ onClose }: Props) {
   return (
     <ModalShell onClose={onClose}>
       {/* Header */}
-      <div className="px-5 pt-5 pb-4 border-b" style={{ borderColor: '#1e1a30' }}>
+      <div className="px-5 pt-5 pb-4 border-b" style={{ borderColor: 'rgba(255,197,66,0.2)' }}>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <svg width="16" height="14" viewBox="0 0 32 28" fill="none">
@@ -526,7 +526,7 @@ export function WalletModal({ onClose }: Props) {
         </button>
 
         {/* Affiliate code */}
-        <div className="pt-1 border-t" style={{ borderColor: '#1e1a30' }}>
+        <div className="pt-1 border-t" style={{ borderColor: 'rgba(255,197,66,0.2)' }}>
           <div className="flex items-center justify-between mb-2">
             <p className="text-[10px] font-cinzel tracking-widest text-aoe-parchment-dim uppercase">
               {t('wallet_aff_code')}

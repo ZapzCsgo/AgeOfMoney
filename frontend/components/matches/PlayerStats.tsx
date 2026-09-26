@@ -73,7 +73,7 @@ export function PlayerStats({ player1, player2, recentForm1 = [], recentForm2 = 
           <div className="text-aoe-parchment-dim text-xs mt-1">{player1.name}</div>
         </div>
         <div className="text-center">
-          <div className="text-aoe-parchment-muted text-sm font-cinzel">{h2h!.total} matchs</div>
+          <div className="text-aoe-parchment-muted text-sm font-cinzel">{t('h2h_total_matches', { n: h2h!.total })}</div>
         </div>
         <div className="flex-1 text-center">
           <div className="font-cinzel font-black text-3xl text-aoe-parchment">{h2h!.player2Wins}</div>

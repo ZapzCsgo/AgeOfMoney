@@ -235,11 +235,11 @@ export function ChatPanel() {
       // Decimal-aware : accept "1.2" / "1,2" via parseCoinAmount.
       const amt = parseCoinAmount(tipAmount);
       await apiClient.post(`/users/${userMenu.userId}/tip`, { amount: amt });
-      setTipMsg(`✓ ${amt.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜ envoyés à ${userMenu.username}`);
+      setTipMsg(t('chat_tip_sent', { amount: amt.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }), username: userMenu.username }));
       setTipAmount('');
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: string } } };
-      setTipMsg(err?.response?.data?.error ?? 'Erreur');
+      setTipMsg(err?.response?.data?.error ?? t('chat_error'));
     } finally { setTipping(false); }
   }, [userMenu, tipAmount]);
 
@@ -262,7 +262,7 @@ export function ChatPanel() {
     const onChatMuted = (d: { until: string }) => setMutedUntil(new Date(d.until));
     const onChatUnmuted = () => setMutedUntil(null);
     const onChatSystem = (d: { message: string }) =>
-      setMessages(prev => [...prev, { id: `sys_${Date.now()}`, userId: 'system', username: 'Système', avatar: null, coins: 0, level: 0, tier: 'bronze', isAdmin: false, isMod: false, isPartner: false, message: d.message, timestamp: new Date().toISOString() }]);
+      setMessages(prev => [...prev, { id: `sys_${Date.now()}`, userId: 'system', username: t('chat_system_username'), avatar: null, coins: 0, level: 0, tier: 'bronze', isAdmin: false, isMod: false, isPartner: false, message: d.message, timestamp: new Date().toISOString() }]);
 
     s.on('connect',     onConnect);
     s.on('disconnect',  onDisconnect);
@@ -323,12 +323,12 @@ export function ChatPanel() {
   return (
     <aside
       className="flex flex-col shrink-0"
-      style={{ width: 280, minWidth: 280, background: '#0a0817', borderLeft: '1px solid #1e1a30' }}
+      style={{ width: 280, minWidth: 280, background: '#0a0817', borderLeft: '1px solid rgba(255,197,66,0.2)' }}
     >
       {/* Header */}
       <div
         className="flex items-center justify-between px-4 py-2.5 border-b"
-        style={{ background: '#07060f', borderColor: '#1e1a30' }}
+        style={{ background: '#07060f', borderColor: 'rgba(255,197,66,0.2)' }}
       >
         <div className="flex items-center gap-2">
           {/* Site name like BLITZ */}
@@ -336,7 +336,7 @@ export function ChatPanel() {
             AoM
           </span>
           <span className="text-[#3d3860] text-[11px]">/</span>
-          <span className="text-[#c8c0e0] text-[11px] font-medium">Chat</span>
+          <span className="text-[#c8c0e0] text-[11px] font-medium">{t('chat_label')}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className={cn('w-1.5 h-1.5 rounded-full', connected ? 'bg-emerald-400' : 'bg-[#3d3860]')} />
@@ -377,21 +377,21 @@ export function ChatPanel() {
       </div>
 
       {/* Input area */}
-      <div className="border-t" style={{ borderColor: '#1e1a30', background: '#07060f' }}>
+      <div className="border-t" style={{ borderColor: 'rgba(255,197,66,0.2)', background: '#07060f' }}>
         {session ? (
           <>
             {mutedUntil && mutedUntil > new Date() ? (
               <div className="px-3 py-3 text-center">
                 <VolumeX size={14} className="mx-auto mb-1" style={{ color: '#f87171' }} />
                 <p className="text-[11px] text-red-400">
-                  Muté jusqu'à {mutedUntil.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                  {t('chat_muted_until', { time: mutedUntil.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) })}
                 </p>
               </div>
             ) : (
               <>
                 <div className="px-3 py-2">
                   <div className="flex items-center gap-2 rounded-lg px-3 h-9"
-                    style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
+                    style={{ background: '#13111f', border: '1px solid rgba(255,197,66,0.2)' }}>
                     <input
                       ref={inputRef}
                       value={input}
@@ -422,7 +422,7 @@ export function ChatPanel() {
                         ? 'text-[#ffc542] border-[#ffc542]/40 bg-[#ffc542]/10'
                         : 'text-[#9990b8] border-[#2d2850] bg-[#0d0b1a] hover:text-[#ffc542] hover:border-[#ffc542]/30 hover:bg-[#ffc542]/5'
                     )}
-                    title="Emojis"
+                    title={t('chat_emojis_title')}
                   >
                     <Smile size={17} />
                   </button>
@@ -430,7 +430,7 @@ export function ChatPanel() {
                   {showEmojis && (
                     <div
                       className="absolute bottom-full left-0 mb-1 rounded-xl overflow-hidden shadow-2xl"
-                      style={{ width: 260, background: '#0d0b1a', border: '1px solid #1e1a30', zIndex: 200 }}
+                      style={{ width: 260, background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)', zIndex: 200 }}
                     >
                       {/* Custom image emojis */}
                       {CUSTOM_EMOJIS.length > 0 && (
@@ -449,7 +449,7 @@ export function ChatPanel() {
                         </div>
                       )}
                       {CUSTOM_EMOJIS.length === 0 && (
-                        <div className="px-3 py-4 text-center text-[10px] text-[#4a4570]">Aucun emoji disponible</div>
+                        <div className="px-3 py-4 text-center text-[10px] text-[#4a4570]">{t('chat_no_emojis')}</div>
                       )}
                     </div>
                   )}
@@ -473,11 +473,11 @@ export function ChatPanel() {
         <div
           ref={menuRef}
           className="fixed z-[400] rounded-xl shadow-2xl overflow-hidden"
-          style={{ left: Math.min(userMenu.x, window.innerWidth - 200), top: Math.min(userMenu.y, window.innerHeight - 250), width: 188, background: '#0d0b1a', border: '1px solid #1e1a30' }}
+          style={{ left: Math.min(userMenu.x, window.innerWidth - 200), top: Math.min(userMenu.y, window.innerHeight - 250), width: 188, background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}
         >
           {/* User header */}
-          <div className="flex items-center gap-2 px-3 py-2.5 border-b" style={{ borderColor: '#1e1a30' }}>
-            <div className="w-7 h-7 rounded-full overflow-hidden shrink-0" style={{ background: '#1e1a30' }}>
+          <div className="flex items-center gap-2 px-3 py-2.5 border-b" style={{ borderColor: 'rgba(255,197,66,0.2)' }}>
+            <div className="w-7 h-7 rounded-full overflow-hidden shrink-0" style={{ background: 'rgba(255,197,66,0.2)' }}>
               {userMenu.avatar && <img src={userMenu.avatar} alt={userMenu.username} className="w-full h-full object-cover" />}
             </div>
             <span className="text-[12px] font-bold text-[#e8e2f5] truncate">{userMenu.username}</span>
@@ -489,15 +489,15 @@ export function ChatPanel() {
             className="flex items-center gap-2.5 px-3 py-2 text-[12px] text-[#c8c0e0] hover:bg-[#13111f] transition-colors"
             onClick={() => setUserMenu(null)}
           >
-            <User size={13} className="text-[#8981ab]" /> Voir le profil
+            <User size={13} className="text-[#8981ab]" /> {t('chat_view_profile')}
           </a>
 
           {/* Tip */}
           {session && (
-            <div className="px-3 py-2 border-t" style={{ borderColor: '#1e1a30' }}>
+            <div className="px-3 py-2 border-t" style={{ borderColor: 'rgba(255,197,66,0.2)' }}>
               <div className="flex items-center gap-1.5 mb-1.5">
                 <span className="text-[11px] text-[#ffc542]">⚜</span>
-                <span className="text-[11px] text-[#c8c0e0]">Envoyer des coins</span>
+                <span className="text-[11px] text-[#c8c0e0]">{t('chat_send_coins')}</span>
               </div>
               <div className="flex gap-1.5">
                 <input
@@ -506,7 +506,7 @@ export function ChatPanel() {
                   onChange={e => setTipAmount(e.target.value)}
                   placeholder="10"
                   className="flex-1 w-0 rounded px-2 py-1 text-[11px] text-[#e8e2f5] outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  style={{ background: '#13111f', border: '1px solid #1e1a30' }}
+                  style={{ background: '#13111f', border: '1px solid rgba(255,197,66,0.2)' }}
                 />
                 <button
                   onClick={handleTip}
@@ -514,7 +514,7 @@ export function ChatPanel() {
                   className="px-2 py-1 rounded text-[11px] font-bold disabled:opacity-40 transition-opacity"
                   style={{ background: '#ffc542', color: '#07060f' }}
                 >
-                  {tipping ? '…' : 'Tip'}
+                  {tipping ? '…' : t('chat_tip_button')}
                 </button>
               </div>
               {tipMsg && <p className={cn('text-[10px] mt-1', tipMsg.startsWith('✓') ? 'text-green-400' : 'text-red-400')}>{tipMsg}</p>}
@@ -526,9 +526,9 @@ export function ChatPanel() {
             <button
               onClick={() => { setMuteTarget({ userId: userMenu.userId, username: userMenu.username }); setUserMenu(null); }}
               className="flex w-full items-center gap-2.5 px-3 py-2 text-[12px] text-red-400 hover:bg-[#13111f] transition-colors border-t"
-              style={{ borderColor: '#1e1a30' }}
+              style={{ borderColor: 'rgba(255,197,66,0.2)' }}
             >
-              <VolumeX size={13} /> Muter
+              <VolumeX size={13} /> {t('chat_mute')}
             </button>
           )}
         </div>
@@ -540,16 +540,16 @@ export function ChatPanel() {
           <div className="rounded-xl p-5 w-64" style={{ background: '#0d0b1a', border: '1px solid #3b82f640' }}
             onClick={e => e.stopPropagation()}>
             <h3 className="font-bold text-[13px] mb-1 flex items-center gap-2" style={{ color: '#60a5fa' }}>
-              <VolumeX size={14} /> Muter {muteTarget.username}
+              <VolumeX size={14} /> {t('chat_mute_user', { username: muteTarget.username })}
             </h3>
-            <p className="text-[11px] mb-3" style={{ color: '#8981ab' }}>Durée du mute</p>
+            <p className="text-[11px] mb-3" style={{ color: '#8981ab' }}>{t('chat_mute_duration')}</p>
             <div className="grid grid-cols-3 gap-1.5 mb-4">
               {[5, 15, 60, 360, 1440, 10080].map(min => (
                 <button key={min} onClick={() => setMuteDuration(min)}
                   className="py-1.5 rounded text-[10px] font-bold transition-all"
                   style={{
                     background: muteDuration === min ? '#1e3a5f' : '#13111f',
-                    border: `1px solid ${muteDuration === min ? '#3b82f6' : '#1e1a30'}`,
+                    border: `1px solid ${muteDuration === min ? '#3b82f6' : 'rgba(255,197,66,0.2)'}`,
                     color: muteDuration === min ? '#60a5fa' : '#8981ab',
                   }}>
                   {min < 60 ? `${min}m` : min < 1440 ? `${min/60}h` : min === 1440 ? '24h' : '7j'}
@@ -557,12 +557,12 @@ export function ChatPanel() {
               ))}
             </div>
             <div className="flex gap-2">
-              <button onClick={() => setMuteTarget(null)} className="flex-1 py-2 rounded text-[11px]" style={{ background: '#13111f', border: '1px solid #1e1a30', color: '#8981ab' }}>{t('common_close')}</button>
+              <button onClick={() => setMuteTarget(null)} className="flex-1 py-2 rounded text-[11px]" style={{ background: '#13111f', border: '1px solid rgba(255,197,66,0.2)', color: '#8981ab' }}>{t('common_close')}</button>
               <button onClick={() => {
                 getSocket().emit('muteUser', { userId: muteTarget.userId, durationMinutes: muteDuration });
                 setMuteTarget(null);
               }} className="flex-1 py-2 rounded text-[11px] font-bold" style={{ background: '#3b82f6', color: '#fff' }}>
-                Muter
+                {t('chat_mute')}
               </button>
             </div>
           </div>

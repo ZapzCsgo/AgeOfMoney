@@ -1,9 +1,11 @@
 'use client';
 
 import { useNotifications } from '@/contexts/NotificationsContext';
+import { useT } from '@/lib/i18n';
 
 export function BetNotifications() {
   const { notifications, dismiss } = useNotifications();
+  const { t } = useT();
 
   // Only show recent unread bet-result toasts (last 5, within 7s)
   const toasts = notifications
@@ -38,7 +40,7 @@ export function BetNotifications() {
               <p className={`font-bold text-sm ${
                 refunded ? 'text-[#ffc542]' : n.won ? 'text-[#4ade80]' : 'text-[#f87171]'
               }`}>
-                {refunded ? 'Pari remboursé' : n.won ? 'Pari gagné !' : 'Pari perdu'}
+                {refunded ? t('notif_bet_refunded') : n.won ? t('notif_bet_won') : t('notif_bet_lost')}
               </p>
               {refunded && n.reason && (
                 <p className="text-[#9988bb] text-xs mt-0.5">{n.reason}</p>
@@ -47,15 +49,15 @@ export function BetNotifications() {
                 <p className="text-[#9988bb] text-xs truncate">{n.tournamentName}</p>
               )}
               <p className="text-xs mt-1">
-                Mise sur <span className="text-[#ffd97a] font-semibold">{n.playerBetOn ?? '—'}</span>
+                {t('notif_bet_on')} <span className="text-[#ffd97a] font-semibold">{n.playerBetOn ?? '—'}</span>
               </p>
               <div className="mt-1.5 flex items-center gap-2">
-                <span className="text-[#9988bb] text-xs">Mise : {n.amount.toFixed(2)} ⚜</span>
+                <span className="text-[#9988bb] text-xs">{t('notif_stake_label')} : {n.amount.toFixed(2)} ⚜</span>
                 {(n.won || refunded) && (
                   <>
                     <span className="text-[#9988bb]">→</span>
                     <span className={`font-bold text-xs ${refunded ? 'text-[#ffc542]' : 'text-[#ffd97a]'}`}>
-                      +{n.payout.toFixed(2)} ⚜ {refunded ? '(remboursé)' : ''}
+                      +{n.payout.toFixed(2)} ⚜ {refunded ? t('notif_refunded_suffix') : ''}
                     </span>
                   </>
                 )}

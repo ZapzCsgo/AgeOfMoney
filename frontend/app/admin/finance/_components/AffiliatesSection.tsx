@@ -70,7 +70,7 @@ function MiniKpi({
   return (
     <div
       className="flex-1 min-w-[140px] rounded-xl p-3"
-      style={{ background: '#0e0d1a', border: '1px solid #1e1a30' }}
+      style={{ background: '#0e0d1a', border: '1px solid rgba(255,197,66,0.2)' }}
     >
       <div className="flex items-center gap-2 text-[10px] tracking-[0.2em] uppercase" style={{ color: '#8981ab' }}>
         <Icon size={11} />
@@ -150,7 +150,7 @@ export function AffiliatesSection({
   return (
     <section
       className="rounded-2xl p-5 mt-8"
-      style={{ background: '#0e0d1a', border: '1px solid #1e1a30' }}
+      style={{ background: '#0e0d1a', border: '1px solid rgba(255,197,66,0.2)' }}
     >
       <div className="flex items-center justify-between mb-4">
         <h2

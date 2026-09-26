@@ -127,7 +127,7 @@ export default function AffiliatePage() {
       return;
     }
     if (!/^[A-Za-z0-9]{4,16}$/.test(trimmed)) {
-      setCreateErr('4 à 16 caractères alphanumériques');
+      setCreateErr(t('affiliate_code_format_err'));
       return;
     }
     setCreating(true);
@@ -136,7 +136,7 @@ export default function AffiliatePage() {
       setAff(res.data.data);
       await fetchAff();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Erreur lors de la création du code';
+      const msg = e instanceof Error ? e.message : t('affiliate_create_err');
       setCreateErr(msg);
     } finally {
       setCreating(false);
@@ -147,7 +147,7 @@ export default function AffiliatePage() {
     setChangeErr(null);
     const trimmed = newCodeInput.trim();
     if (!/^[A-Za-z0-9]{4,16}$/.test(trimmed)) {
-      setChangeErr('4 à 16 caractères alphanumériques');
+      setChangeErr(t('affiliate_code_format_err'));
       return;
     }
     setChanging(true);
@@ -168,7 +168,7 @@ export default function AffiliatePage() {
     setClaiming(true);
     try {
       const res = await apiClient.post('/affiliate/claim', {});
-      setClaimMsg({ type: 'ok', text: `+${res.data.claimed.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}⚜ crédités` });
+      setClaimMsg({ type: 'ok', text: t('affiliate_claimed_credited', { amount: res.data.claimed.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) }) });
       fetchAff();
     } catch (e) {
       setClaimMsg({ type: 'err', text: e instanceof Error ? e.message : 'Erreur' });
@@ -222,7 +222,7 @@ export default function AffiliatePage() {
       <div className="max-w-5xl mx-auto px-4 py-8 space-y-5">
 
         {/* ── Hero ── */}
-        <div className="relative rounded-2xl overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+        <div className="relative rounded-2xl overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}>
           <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 80% 50%, rgba(255,197,66,0.1) 0%, transparent 70%)' }} />
           <div className="absolute right-0 top-0 bottom-0 w-64 opacity-10"
             style={{ background: 'repeating-linear-gradient(45deg, #ffc542 0px, #ffc542 1px, transparent 0px, transparent 50%)' }} />
@@ -231,21 +231,19 @@ export default function AffiliatePage() {
             <div className="flex items-start gap-2 mb-3">
               <span className="text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-widest"
                 style={{ background: '#ffc54222', color: '#ffc542', border: '1px solid #ffc54255' }}>
-                Programme affiliés
+                {t('affiliate_program_badge')}
               </span>
               <span className="text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-widest"
                 style={{ background: '#22c55e22', color: '#22c55e', border: '1px solid #22c55e55' }}>
-                Exclusivité lancement
+                {t('affiliate_launch_exclusive')}
               </span>
             </div>
             <h1 className="text-2xl md:text-3xl font-black leading-tight mb-3"
               style={{ fontFamily: 'Cinzel,serif', color: '#e8e2f5' }}>
-              Gagne <span style={{ color: '#ffc542' }}>jusqu&apos;à 35%</span> des pertes<br />
-              de chaque joueur que tu ramènes
+              {t('affiliate_hero_title_pre')} <span style={{ color: '#ffc542' }}>{t('affiliate_hero_title_pct')}</span> {t('affiliate_hero_title_post')}
             </h1>
             <p className="text-[13px] leading-relaxed mb-5 max-w-xl" style={{ color: '#8a82a8' }}>
-              Le meilleur deal affilié de l&apos;esport AoE. 25% de base, 30% à 10 filleuls, 35% à 50.
-              Pas de plafond, pas de limite de temps. Tant que ton filleul joue, tu gagnes.
+              {t('affiliate_hero_desc')}
             </p>
 
             {!session ? (
@@ -258,7 +256,7 @@ export default function AffiliatePage() {
                   boxShadow: '0 4px 20px rgba(255,197,66,0.35)',
                 }}>
                 <Rocket size={16} />
-                Connecte-toi avec Steam pour créer ton code en 1 clic
+                {t('affiliate_signin_cta')}
                 <svg className="transition-transform group-hover:translate-x-0.5" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
                   <path d="M5 12h14M13 6l6 6-6 6"/>
                 </svg>
@@ -354,7 +352,7 @@ export default function AffiliatePage() {
         </div>
 
         {/* ── Tabs ── */}
-        <div className="flex items-center gap-1 p-1 rounded-xl w-fit" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+        <div className="flex items-center gap-1 p-1 rounded-xl w-fit" style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}>
           {(session
             ? [['dashboard', t('aff_tab_dashboard')], ['tiers', t('aff_tab_tiers')]]
             : [['tiers', t('aff_tab_tiers')]]
@@ -377,7 +375,7 @@ export default function AffiliatePage() {
               <>
                 {/* Chart + Stats */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                  <div className="lg:col-span-2 rounded-xl p-5" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+                  <div className="lg:col-span-2 rounded-xl p-5" style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}>
                     <div className="flex items-center justify-between mb-1">
                       <p className="text-[11px] uppercase tracking-widest" style={{ color: '#8981ab' }}>{t('aff_commissions_earned')}</p>
                       <span className="text-[10px] px-2 py-0.5 rounded" style={{ background: '#1a1630', color: '#8981ab' }}>{t('aff_7_days')}</span>
@@ -391,7 +389,7 @@ export default function AffiliatePage() {
                   </div>
 
                   <div className="space-y-3">
-                    <div className="rounded-xl p-4" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+                    <div className="rounded-xl p-4" style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}>
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-2">
                           <Coins size={14} style={{ color: '#ffc542' }} />
@@ -413,7 +411,7 @@ export default function AffiliatePage() {
                       )}
                     </div>
 
-                    <div className="rounded-xl p-4" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+                    <div className="rounded-xl p-4" style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}>
                       <div className="flex items-center gap-2 mb-1">
                         <TrendingUp size={14} style={{ color: '#8981ab' }} />
                         <span className="text-[18px] font-bold" style={{ color: '#e8e2f5' }}>
@@ -423,7 +421,7 @@ export default function AffiliatePage() {
                       <p className="text-[11px]" style={{ color: '#8981ab' }}>{t('aff_total_earned')}</p>
                     </div>
 
-                    <div className="rounded-xl p-4" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+                    <div className="rounded-xl p-4" style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}>
                       <div className="flex items-center gap-2 mb-1">
                         <Users size={14} style={{ color: '#8981ab' }} />
                         <span className="text-[18px] font-bold" style={{ color: '#e8e2f5' }}>
@@ -433,7 +431,7 @@ export default function AffiliatePage() {
                       <p className="text-[11px]" style={{ color: '#8981ab' }}>{t('aff_total_referrals')}</p>
                     </div>
 
-                    <div className="rounded-xl p-4" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+                    <div className="rounded-xl p-4" style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}>
                       <div className="flex items-center gap-2 mb-1">
                         <UserCheck size={14} style={{ color: '#8981ab' }} />
                         <span className="text-[18px] font-bold" style={{ color: '#e8e2f5' }}>
@@ -446,8 +444,8 @@ export default function AffiliatePage() {
                 </div>
 
                 {/* Referrals table */}
-                <div className="rounded-xl overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
-                  <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: '1px solid #1e1a30' }}>
+                <div className="rounded-xl overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}>
+                  <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: '1px solid rgba(255,197,66,0.2)' }}>
                     <h3 className="text-[12px] font-bold uppercase tracking-wider" style={{ color: '#e8e2f5' }}>{t('aff_referrals')}</h3>
                     <div className="flex items-center gap-1">
                       {(['all', 'active'] as const).map(f => (
@@ -524,7 +522,7 @@ export default function AffiliatePage() {
                   { n: '02', titleKey: 'aff_step_2_title' as const, descKey: 'aff_step_2_desc' as const },
                   { n: '03', titleKey: 'aff_step_3_title' as const, descKey: 'aff_step_3_desc' as const },
                 ].map(step => (
-                  <div key={step.n} className="p-5 rounded-xl" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+                  <div key={step.n} className="p-5 rounded-xl" style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}>
                     <span className="text-[32px] font-black" style={{ color: '#1a1630', fontFamily: 'Cinzel,serif' }}>{step.n}</span>
                     <h3 className="font-bold text-[14px] mt-1 mb-2" style={{ color: '#e8e2f5' }}>{t(step.titleKey)}</h3>
                     <p className="text-[12px]" style={{ color: '#8a82a8' }}>{t(step.descKey)}</p>
@@ -548,7 +546,7 @@ export default function AffiliatePage() {
                   className="rounded-xl p-5"
                   style={{
                     background: '#0d0b1a',
-                    border: `1px solid ${isCurrent ? tier.color : '#1e1a30'}`,
+                    border: `1px solid ${isCurrent ? tier.color : 'rgba(255,197,66,0.2)'}`,
                     boxShadow: isCurrent ? `0 0 20px ${tier.color}22` : 'none',
                   }}>
                   <div className="flex items-center justify-between">

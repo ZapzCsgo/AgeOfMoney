@@ -76,10 +76,10 @@ export function OddsDisplay({ match }: OddsDisplayProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="live-dot" />
-          <h3 className="font-cinzel font-bold text-sm text-aoe-gold tracking-wider">COTES EN DIRECT</h3>
+          <h3 className="font-cinzel font-bold text-sm text-aoe-gold tracking-wider">{t('odds_live_title')}</h3>
         </div>
         <span className="text-aoe-parchment-muted text-xs">
-          MAJ {formatRelativeTime(lastUpdate)}
+          {t('odds_updated_prefix')} {formatRelativeTime(lastUpdate)}
         </span>
       </div>
 
@@ -95,7 +95,7 @@ export function OddsDisplay({ match }: OddsDisplayProps) {
               </span>
             )}
           </div>
-          <p className="text-aoe-parchment-muted text-[10px] mt-1">{vol1}% des mises</p>
+          <p className="text-aoe-parchment-muted text-[10px] mt-1">{t('odds_pct_of_bets', { pct: vol1 })}</p>
         </div>
 
         <div className="flex items-center text-aoe-parchment-muted font-cinzel text-sm">VS</div>
@@ -110,7 +110,7 @@ export function OddsDisplay({ match }: OddsDisplayProps) {
               </span>
             )}
           </div>
-          <p className="text-aoe-parchment-muted text-[10px] mt-1">{vol2}% des mises</p>
+          <p className="text-aoe-parchment-muted text-[10px] mt-1">{t('odds_pct_of_bets', { pct: vol2 })}</p>
         </div>
       </div>
 
@@ -153,7 +153,7 @@ export function OddsDisplay({ match }: OddsDisplayProps) {
         <div>
           <div className="flex justify-between text-[10px] text-aoe-parchment-muted mb-1">
             <span>{match.player1.name}: {vol1}%</span>
-            <span>{new Intl.NumberFormat('fr-FR').format(totalVolume)} ⚜ total</span>
+            <span>{new Intl.NumberFormat('fr-FR').format(totalVolume)} ⚜ {t('odds_total_suffix')}</span>
             <span>{match.player2.name}: {vol2}%</span>
           </div>
           <div className="flex h-2 rounded-full overflow-hidden">

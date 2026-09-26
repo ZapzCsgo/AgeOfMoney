@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useT } from '@/lib/i18n';
 import { cn, formatCoins } from '@/lib/utils';
-import { ArrowUpFromLine, ArrowDownToLine, Check, AlertTriangle, Wallet, Info } from 'lucide-react';
+import { ArrowUpFromLine, ArrowDownToLine, Check, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { apiClient, setAuthToken } from '@/lib/api';
 
@@ -266,7 +266,7 @@ export default function WithdrawPage() {
               onChange={(e) => { setTwoFaCode(e.target.value.replace(/\D/g, '')); setTwoFaError(''); }}
               placeholder="000000"
               className="w-full rounded-lg px-4 py-3.5 text-center text-2xl tracking-[0.5em] font-mono text-[#e8e2f5] placeholder-[#3d3860] outline-none"
-              style={{ background: '#07060f', border: `1px solid ${twoFaError ? '#ef4444' : '#1e1a30'}` }}
+              style={{ background: '#07060f', border: `1px solid ${twoFaError ? '#ef4444' : 'rgba(255,197,66,0.2)'}` }}
               autoFocus
             />
             {twoFaError && (
@@ -379,7 +379,7 @@ export default function WithdrawPage() {
     <div className="max-w-2xl mx-auto px-4 pt-8 pb-28 md:pb-8">
 
       {/* Tabs — same underlined style as the deposit page */}
-      <div className="flex mb-8 border-b" style={{ borderColor: '#1e1a30' }}>
+      <div className="flex mb-8 border-b" style={{ borderColor: 'rgba(255,197,66,0.2)' }}>
         <Link
           href="/deposit"
           className="flex-1 flex items-center justify-center gap-2 py-3 font-bold text-[12px] tracking-wide uppercase text-[#8981ab] hover:text-[#e8e2f5] transition-colors"
@@ -394,27 +394,8 @@ export default function WithdrawPage() {
         </div>
       </div>
 
-      {/* Page title — drop the "(Processing...)" parenthesis that was reusing
-          the common loading label as a "processing delay" hint. The phrase
-          read literally as "Processing..." in every language and looked like
-          the page was loading. The 1,69 ⚜ = $0,99 rate is enough on its own. */}
       <div className="text-center mb-8">
         <h1 className="font-cinzel font-black text-3xl text-aoe-gold tracking-wider mb-2">{t('withdraw_title')}</h1>
-        <p className="text-aoe-parchment-dim text-sm">
-          <span className="text-aoe-gold font-bold">1,69 ⚜ = $0,99</span>
-        </p>
-      </div>
-
-      {/* Balance info */}
-      <div className="rounded-xl p-4 mb-6 flex items-center justify-between" style={{ background: 'linear-gradient(135deg, rgba(255,197,66,0.08), rgba(255,197,66,0.04))', border: '1px solid rgba(255,197,66,0.25)' }}>
-        <div className="flex items-center gap-2">
-          <Wallet size={16} className="text-aoe-gold" />
-          <span className="text-aoe-parchment-dim text-sm ">{t('deposit_balance')}</span>
-        </div>
-        <div className="text-right">
-          <div className="text-aoe-gold font-bold text-lg ">{formatCoins(userCoins)}</div>
-          <div className="text-aoe-parchment-dim text-xs">≈ ${((userCoins / COINS_PER_USD) * PAYOUT_RATE).toFixed(2)}</div>
-        </div>
       </div>
 
 
@@ -435,7 +416,7 @@ export default function WithdrawPage() {
             min={minCoins}
             max={userCoins}
             className="w-full border rounded-xl px-4 py-4 text-aoe-parchment text-xl font-bold placeholder-aoe-parchment-muted/40 outline-none transition-colors pr-16 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            style={{ background: 'rgba(255,255,255,0.04)', borderColor: coins > 0 ? '#ffc542' : '#1e1a30' }}
+            style={{ background: 'rgba(255,255,255,0.04)', borderColor: coins > 0 ? '#ffc542' : 'rgba(255,197,66,0.2)' }}
           />
           <span className="absolute right-4 top-1/2 -translate-y-1/2 text-aoe-gold text-xl font-bold">⚜</span>
         </div>
@@ -533,16 +514,6 @@ export default function WithdrawPage() {
           placeholder={crypto.id === 'usdt' ? 'T...' : `${t('withdraw_address')} ${crypto.symbol}...`}
           className="w-full bg-aoe-stone/50 border border-aoe-border rounded-lg px-4 py-3 text-aoe-parchment placeholder-aoe-parchment-muted outline-none focus:border-aoe-border-gold transition-colors font-mono text-sm"
         />
-        {crypto.id === 'usdt' && (
-          <p className="text-aoe-parchment-dim text-[11px] mt-2 flex items-center gap-1.5">
-            <span className="text-[#26A17B]">●</span>
-            <span>Réseau : <span className="font-bold text-aoe-parchment">Tron (TRC-20)</span> — adresse qui commence par <span className="font-mono text-aoe-gold">T</span>, 34 caractères. ERC-20 / BEP-20 / autres réseaux ne sont PAS supportés.</span>
-          </p>
-        )}
-        <p className="text-aoe-parchment-dim text-xs mt-2 flex items-center gap-1">
-          <AlertTriangle size={11} className="text-yellow-500" />
-          {t('withdraw_warning')}
-        </p>
       </div>
 
       {/* Submit */}

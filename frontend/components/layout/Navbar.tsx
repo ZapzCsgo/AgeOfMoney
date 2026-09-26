@@ -211,7 +211,7 @@ export function Navbar() {
                 <button
                   onClick={() => { setNotifOpen(o => !o); if (!notifOpen) markAllRead(); }}
                   className="relative w-9 h-9 flex items-center justify-center rounded border border-aoe-border bg-aoe-stone/30 hover:border-aoe-border-gold transition-colors"
-                  title="Notifications"
+                  title={t('notif_title')}
                 >
                   <Bell size={15} className="text-aoe-parchment-dim" />
                   {unreadCount > 0 && (
@@ -226,18 +226,18 @@ export function Navbar() {
                       // ≥ sm. Caps at viewport-height-minus-bottom-nav so it
                       // never disappears under the MobileNav strip.
                       className="fixed left-2 right-2 top-[60px] sm:absolute sm:left-auto sm:top-full sm:right-0 sm:mt-2 sm:w-80 rounded-xl overflow-hidden shadow-2xl z-50 sm:z-20 max-h-[calc(100vh-72px-64px)] overflow-y-auto"
-                      style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}
+                      style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}
                     >
                       <div className="flex items-center justify-between px-4 py-3 border-b border-[#1e1a30]">
-                        <span className="font-cinzel text-[13px] text-[#ffc542] font-bold">Notifications</span>
+                        <span className="font-cinzel text-[13px] text-[#ffc542] font-bold">{t('notif_title')}</span>
                         {notifications.length > 0 && (
-                          <span className="text-[11px] text-[#8981ab]">{notifications.length} au total</span>
+                          <span className="text-[11px] text-[#8981ab]">{t('notif_total', { n: notifications.length })}</span>
                         )}
                       </div>
 
                       {notifications.length === 0 ? (
                         <div className="py-8 text-center text-[13px] text-[#8981ab]">
-                          Aucune notification
+                          {t('notif_empty')}
                         </div>
                       ) : (
                         <div className="max-h-[360px] overflow-y-auto divide-y divide-[#1a1830]">
@@ -248,7 +248,7 @@ export function Navbar() {
                               // with status='REFUNDED' (legacy: refunded=true).
                               const isRefund = n.status === 'REFUNDED' || n.refunded === true;
                               const icon  = isRefund ? '↩️' : n.won ? '🏆' : '💀';
-                              const title = isRefund ? 'Pari remboursé' : n.won ? 'Pari gagné !' : 'Pari perdu';
+                              const title = isRefund ? t('notif_bet_refunded') : n.won ? t('notif_bet_won') : t('notif_bet_lost');
                               const color = isRefund
                                 ? 'text-[#9dcbff]'
                                 : n.won ? 'text-[#4ade80]' : 'text-[#f87171]';
@@ -261,7 +261,7 @@ export function Navbar() {
                                       <p className="text-[11px] text-[#8981ab] truncate">{n.tournamentName}</p>
                                     )}
                                     <p className="text-[12px] text-[#9988bb] mt-0.5">
-                                      {n.playerBetOn} · Mise {Number(n.amount).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜
+                                      {n.playerBetOn} · {t('notif_stake_label')} {Number(n.amount).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜
                                       {n.won && !isRefund && <span className="text-[#ffd97a] font-bold"> → +{Number(n.payout).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜</span>}
                                       {isRefund && <span className="text-[#9dcbff] font-bold"> → +{Number(n.amount).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜</span>}
                                     </p>
@@ -275,8 +275,8 @@ export function Navbar() {
                             // system notifications: tip, deposit, withdrawal
                             const icon = n.type === 'tip' ? '🎁' : n.type === 'deposit' ? '💰' : '💸';
                             const title = n.type === 'tip'
-                              ? `Tip reçu de ${n.from ?? '?'}`
-                              : n.type === 'deposit' ? 'Dépôt confirmé' : 'Retrait traité';
+                              ? t('notif_tip_received', { from: n.from ?? '?' })
+                              : n.type === 'deposit' ? t('notif_deposit_confirmed') : t('notif_withdrawal_processed');
                             const color = n.type === 'withdrawal' ? 'text-[#f87171]' : 'text-[#4ade80]';
                             return (
                               <div key={n.id} className={`px-4 py-3 flex items-start gap-3 ${n.read ? 'opacity-60' : ''}`}>

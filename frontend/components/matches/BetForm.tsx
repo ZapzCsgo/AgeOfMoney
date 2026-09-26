@@ -81,7 +81,7 @@ export function BetForm({ match, onBetPlaced, initialPlayer = null }: BetFormPro
       const axiosErr = err as { response?: { status?: number; data?: { code?: string; currentOdds?: number; expectedOdds?: number } } };
       if (axiosErr.response?.status === 409 && axiosErr.response.data?.code === 'ODDS_CHANGED') {
         const cur = axiosErr.response.data.currentOdds;
-        setError(`Les cotes ont bougé (× ${cur?.toFixed(2) ?? '?'}). Revalidez votre pari.`);
+        setError(t('bet_odds_changed', { odds: cur?.toFixed(2) ?? '?' }));
       } else {
         setError(err instanceof Error ? err.message : t('bet_err_generic'));
       }
@@ -178,7 +178,7 @@ export function BetForm({ match, onBetPlaced, initialPlayer = null }: BetFormPro
             {isVoidOnDraw && (
               <div className="mt-2 text-[11px] text-[#9990b8] flex items-center gap-1.5">
                 <span className="text-[#ffc542]">ⓘ</span>
-                <span>Match nul (1-1) = paris remboursés automatiquement.</span>
+                <span>{t('bet_draw_refund_note')}</span>
               </div>
             )}
           </div>

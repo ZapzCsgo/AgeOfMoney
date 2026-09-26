@@ -19,6 +19,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Droplets, X, Check } from 'lucide-react';
 import { apiClient, setAuthToken } from '@/lib/api';
 import { RainCaptchaModal } from './RainCaptchaModal';
+import { useT } from '@/lib/i18n';
 
 interface RainPublic {
   id: string;
@@ -36,6 +37,7 @@ interface RainPublic {
 }
 
 export function RainWidget() {
+  const { t } = useT();
   const { data: session, status: sessionStatus } = useSession();
   const [rain, setRain] = useState<RainPublic | null>(null);
   const [claimed, setClaimed] = useState(false);
@@ -135,7 +137,7 @@ export function RainWidget() {
       const err = e as { response?: { data?: { error?: string; reason?: string } }; message?: string };
       const reason = err.response?.data?.reason;
       // Common reasons surface as FR messages in the widget
-      const msg = err.response?.data?.error ?? err.message ?? 'Claim échoué';
+      const msg = err.response?.data?.error ?? err.message ?? t('rain_claim_failed');
       setError(msg);
       if (reason === 'ALREADY_CLAIMED') { setClaimed(true); setCaptchaOpen(false); }
       else if (reason === 'RAIN_EXPIRED' || reason === 'RAIN_FULL') { setCaptchaOpen(false); }
@@ -192,16 +194,16 @@ export function RainWidget() {
               </div>
               <div className="flex-1 min-w-0 text-[11px]" style={{ color: '#e5e5e5' }}>
                 <div className="font-bold tracking-wider uppercase" style={{ fontFamily: 'Cinzel, serif', color: '#ffd97a' }}>
-                  {ended ? 'Rain ended' : 'Rain in progress'}
+                  {ended ? t('rain_ended') : t('rain_in_progress')}
                 </div>
                 <div style={{ color: '#9990b8' }}>
-                  <strong style={{ color: '#e5e5e5' }}>{rain.amount.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜</strong> up for grabs
+                  <strong style={{ color: '#e5e5e5' }}>{rain.amount.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜</strong> {t('rain_up_for_grabs')}
                 </div>
               </div>
               {canDismiss && (
                 <button
                   onClick={() => setDismissed(true)}
-                  aria-label="fermer la bannière"
+                  aria-label={t('rain_close_banner')}
                   className="shrink-0 p-1 rounded hover:opacity-80 transition-opacity"
                   style={{ color: '#8981ab' }}
                 >
@@ -216,7 +218,7 @@ export function RainWidget() {
               {!ended && (
                 <> · <strong style={{ color: secondsLeft <= 10 ? '#f87171' : '#ffd97a' }}>{mm}:{ss}</strong></>
               )}
-              {' · '}<strong style={{ color: '#c8c0e0' }}>{perUserToShow} ⚜</strong> each
+              {' · '}<strong style={{ color: '#c8c0e0' }}>{perUserToShow} ⚜</strong> {t('rain_each')}
             </div>
 
             {error && (
@@ -232,7 +234,7 @@ export function RainWidget() {
                 style={{ background: 'linear-gradient(135deg, #f5c842 0%, #d4a017 100%)', color: '#1a1010', border: 'none' }}
               >
                 <Droplets size={11} />
-                Claim your share
+                {t('rain_claim_share')}
               </button>
             )}
             {claimed && coinsReceived != null && (
@@ -250,7 +252,7 @@ export function RainWidget() {
                 style={{ background: 'rgba(16,185,129,0.12)', color: '#10b981', border: '1px solid rgba(16,185,129,0.35)' }}
               >
                 <Check size={11} />
-                Claimé
+                {t('rain_claimed')}
               </span>
             )}
           </div>

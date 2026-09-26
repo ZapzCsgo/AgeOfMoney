@@ -22,6 +22,7 @@ import { Gift, RefreshCw, Check, Lock, X } from 'lucide-react';
 import { signInWithSteam } from '@/lib/authHelpers';
 import { apiClient } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 
 interface RedemptionRow {
   id: string;
@@ -34,6 +35,7 @@ interface RedemptionRow {
 }
 
 export function RedeemPopover() {
+  const { t } = useT();
   const { data: session } = useSession();
   const [open, setOpen] = useState(false);
   const [code, setCode] = useState('');
@@ -83,27 +85,27 @@ export function RedeemPopover() {
   const handleRedeem = useCallback(async () => {
     if (!session) { signInWithSteam(); return; }
     const c = code.trim().toUpperCase();
-    if (!c) { setMsg({ ok: false, text: 'Enter a code' }); return; }
+    if (!c) { setMsg({ ok: false, text: t('redeem_enter_code') }); return; }
     setBusy(true); setMsg(null);
     try {
       const res = await apiClient.post('/redeem', { code: c });
       const data = res.data;
       if (data.ok === false) {
-        setMsg({ ok: false, text: data.message ?? 'Code rejected' });
+        setMsg({ ok: false, text: data.message ?? t('redeem_code_rejected') });
       } else {
         setMsg({
           ok: true,
-          text: `+${data.amount} ⚜ locked. Wager ${data.wageringRequired} ⚜ to unlock.`,
+          text: t('redeem_success', { amount: data.amount, required: data.wageringRequired }),
         });
         setCode('');
         if (historyOpen) loadHistory();
       }
     } catch (e) {
-      setMsg({ ok: false, text: e instanceof Error ? e.message : 'Network error' });
+      setMsg({ ok: false, text: e instanceof Error ? e.message : t('common_network_error') });
     } finally {
       setBusy(false);
     }
-  }, [session, code, historyOpen, loadHistory]);
+  }, [session, code, historyOpen, loadHistory, t]);
 
   const toggleHistory = useCallback(() => {
     const next = !historyOpen;
@@ -121,8 +123,8 @@ export function RedeemPopover() {
       <button
         onClick={() => setOpen((o) => !o)}
         className="relative w-9 h-9 flex items-center justify-center rounded border border-aoe-border bg-aoe-stone/30 hover:border-aoe-border-gold transition-colors"
-        title="Redeem code"
-        aria-label="Redeem promo code"
+        title={t('redeem_button_title')}
+        aria-label={t('redeem_aria_label')}
       >
         <Gift size={15} className="text-aoe-parchment-dim" />
       </button>
@@ -134,17 +136,17 @@ export function RedeemPopover() {
             // just below the 56px-tall fixed navbar). Desktop unchanged :
             // 320px panel anchored to the trigger's right edge.
             className="fixed left-2 right-2 top-[60px] sm:absolute sm:left-auto sm:top-full sm:right-0 sm:mt-2 sm:w-80 rounded-xl overflow-hidden shadow-2xl z-50 sm:z-20 max-h-[calc(100vh-72px-64px)] overflow-y-auto"
-            style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}
+            style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}
           >
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-[#1e1a30]">
               <span className="font-cinzel text-[13px] text-[#ffc542] font-bold flex items-center gap-1.5">
-                <Gift size={12} /> Redeem code
+                <Gift size={12} /> {t('redeem_header_title')}
               </span>
               <button
                 onClick={closePanel}
                 className="text-[#8981ab] hover:text-aoe-parchment p-0.5"
-                aria-label="Close"
+                aria-label={t('common_close')}
               >
                 <X size={13} />
               </button>
@@ -172,7 +174,7 @@ export function RedeemPopover() {
                   )}
                   style={{ background: 'linear-gradient(135deg, #b8881a, #ffc542)', color: '#07060f' }}
                 >
-                  {busy ? <RefreshCw size={11} className="animate-spin" /> : 'Redeem'}
+                  {busy ? <RefreshCw size={11} className="animate-spin" /> : t('common_validate')}
                 </button>
               </div>
 
@@ -187,7 +189,7 @@ export function RedeemPopover() {
                 </p>
               ) : (
                 <p className="text-[11px] text-[#8981ab] leading-snug">
-                  Bonus coins are locked until you wager them through. Withdraw is blocked on locked coins.
+                  {t('redeem_hint')}
                 </p>
               )}
 
@@ -195,15 +197,15 @@ export function RedeemPopover() {
                 onClick={toggleHistory}
                 className="text-[11px] text-[#9988bb] hover:text-aoe-gold font-cinzel tracking-wide transition-colors"
               >
-                {historyOpen ? '− Hide history' : '+ Show history'}
+                {historyOpen ? t('redeem_hide_history') : t('redeem_show_history')}
               </button>
 
               {historyOpen && (
                 <div className="space-y-1.5 max-h-[280px] overflow-y-auto">
                   {history === null ? (
-                    <p className="text-[11px] text-[#8981ab]">Loading…</p>
+                    <p className="text-[11px] text-[#8981ab]">{t('common_loading')}</p>
                   ) : history.length === 0 ? (
-                    <p className="text-[11px] text-[#8981ab]">No codes redeemed yet.</p>
+                    <p className="text-[11px] text-[#8981ab]">{t('redeem_none_yet')}</p>
                   ) : (
                     history.map((r) => {
                       const done = parseFloat(r.wageringDone);
@@ -213,7 +215,7 @@ export function RedeemPopover() {
                         <div
                           key={r.id}
                           className="rounded-md p-2 border"
-                          style={{ background: '#07060f', borderColor: '#1e1a30' }}
+                          style={{ background: '#07060f', borderColor: 'rgba(255,197,66,0.2)' }}
                         >
                           <div className="flex items-center justify-between text-[11px] mb-1">
                             <span className="font-cinzel font-bold text-aoe-parchment">{r.code}</span>
@@ -221,14 +223,14 @@ export function RedeemPopover() {
                           </div>
                           {r.unlocked ? (
                             <div className="text-[10px] text-aoe-emerald-bright flex items-center gap-1">
-                              <Check size={10} /> Unlocked — added to spendable
+                              <Check size={10} /> {t('redeem_unlocked')}
                             </div>
                           ) : (
                             <>
                               <div className="text-[10px] text-[#9988bb] flex items-center gap-1 mb-1">
-                                <Lock size={9} /> {done.toFixed(0)} / {required.toFixed(0)} ⚜ wagered ({pct}%)
+                                <Lock size={9} /> {t('redeem_wagered_pct', { done: done.toFixed(0), required: required.toFixed(0), pct })}
                               </div>
-                              <div className="h-1 rounded-full overflow-hidden" style={{ background: '#1e1a30' }}>
+                              <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,197,66,0.2)' }}>
                                 <div
                                   className="h-full transition-all"
                                   style={{

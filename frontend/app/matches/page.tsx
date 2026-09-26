@@ -147,7 +147,7 @@ function MatchRow({ match }: { match: Match }) {
                   <span className={p2Won ? 'text-[#ffd97a]' : 'text-[#3d3860]'}>{match.resultScore.split('-')[1]}</span>
                 </p>
               )}
-              <span className="text-[8px] font-bold text-[#4a4570] tracking-wider">FIN</span>
+              <span className="text-[8px] font-bold text-[#4a4570] tracking-wider">{t('common_end_abbr')}</span>
               {/* Finished-at date : short locale-aware ("24 avr.") so users
                   can tell how old the result is at a glance. */}
               <span className="text-[8px] text-[#3d3860] tabular-nums whitespace-nowrap" title={new Date(match.updatedAt).toLocaleString()}>
@@ -417,15 +417,15 @@ export default function MatchesPage() {
         )}
 
         {loading ? (
-          <div className="rounded-xl overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+          <div className="rounded-xl overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}>
             {[1, 2, 3].map(i => <MatchSkeleton key={i} />)}
           </div>
         ) : groups.length > 0 ? (
           <div className="space-y-4">
             {groups.map(g => (
-              <div key={g.id} className="rounded-xl overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+              <div key={g.id} className="rounded-xl overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}>
                 {/* Tournament header — minimal */}
-                <div className="flex items-center gap-3 px-5 py-3 border-b" style={{ borderColor: '#1e1a30', background: 'rgba(0,0,0,0.2)' }}>
+                <div className="flex items-center gap-3 px-5 py-3 border-b" style={{ borderColor: 'rgba(255,197,66,0.2)', background: 'rgba(0,0,0,0.2)' }}>
                   <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: TIER_COLORS[g.tier] ?? '#8981ab' }} />
                   <span className="text-[11px] font-cinzel font-semibold truncate" style={{ color: TIER_COLORS[g.tier] ?? '#8981ab' }}>{g.name}</span>
                   {(() => {

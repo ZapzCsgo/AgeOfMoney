@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Shield, X } from 'lucide-react';
 import { subscribeTotpChallenge, resolveTotpCode, rejectTotpCode } from '@/lib/totpChallenge';
+import { useT } from '@/lib/i18n';
 
 /**
  * Global 2FA challenge modal, monté une fois dans le layout. S'affiche
@@ -13,6 +14,7 @@ import { subscribeTotpChallenge, resolveTotpCode, rejectTotpCode } from '@/lib/t
  * autofocus uniquement quand le modal s'ouvre effectivement.
  */
 export function TotpChallengeModal() {
+  const { t } = useT();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState<'unknown_ip' | 'sensitive_action' | undefined>();
   const [invalidAttempt, setInvalidAttempt] = useState(false);
@@ -46,11 +48,11 @@ export function TotpChallengeModal() {
     >
       <div
         className="w-full max-w-sm rounded-2xl overflow-hidden relative"
-        style={{ background: '#0d0b1a', border: '1px solid #1e1a30', boxShadow: '0 0 60px rgba(255,197,66,0.12)' }}
+        style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)', boxShadow: '0 0 60px rgba(255,197,66,0.12)' }}
       >
         <button
           onClick={cancel}
-          aria-label="Annuler"
+          aria-label={t('sec_cancel')}
           className="absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center text-[#9990b8] hover:text-[#e8e2f5] hover:bg-[#1e1a30] transition-all"
         >
           <X size={16} />
@@ -61,12 +63,12 @@ export function TotpChallengeModal() {
             <Shield size={20} className="text-[#ffc542]" />
           </div>
           <h2 className="font-bold text-lg text-[#ffc542] mb-1" style={{ fontFamily: 'Cinzel, serif' }}>
-            Vérification 2FA
+            {t('sec_2fa_modal_title')}
           </h2>
           <p className="text-[12px] text-[#9990b8] leading-relaxed max-w-[280px]">
             {reason === 'sensitive_action'
-              ? 'Cette action est sensible. Entre ton code à 6 chiffres de ton app d\'authentification.'
-              : 'Nouvelle connexion détectée. Entre ton code à 6 chiffres pour confirmer que c\'est bien toi.'}
+              ? t('sec_2fa_reason_sensitive')
+              : t('sec_2fa_reason_new_login')}
           </p>
 
           <input
@@ -81,11 +83,11 @@ export function TotpChallengeModal() {
             className="mt-5 w-full rounded-lg px-4 py-3 text-center text-2xl tracking-[0.5em] font-mono text-[#e8e2f5] placeholder-[#3d3860] outline-none"
             style={{
               background: '#07060f',
-              border: `1px solid ${invalidAttempt ? '#ef4444' : '#1e1a30'}`,
+              border: `1px solid ${invalidAttempt ? '#ef4444' : 'rgba(255,197,66,0.2)'}`,
             }}
           />
           {invalidAttempt && (
-            <p className="text-[11px] text-red-400 mt-2">Code incorrect, réessaye.</p>
+            <p className="text-[11px] text-red-400 mt-2">{t('sec_2fa_wrong_code')}</p>
           )}
 
           <div className="flex gap-2 mt-5 w-full">
@@ -93,7 +95,7 @@ export function TotpChallengeModal() {
               onClick={cancel}
               className="flex-1 py-2.5 rounded-lg text-[13px] font-semibold text-[#8981ab] hover:text-[#c8c0e0] border border-[#1e1a30] transition-colors"
             >
-              Annuler
+              {t('sec_cancel')}
             </button>
             <button
               onClick={submit}
@@ -104,7 +106,7 @@ export function TotpChallengeModal() {
                 color: '#07060f',
               }}
             >
-              Valider
+              {t('common_validate')}
             </button>
           </div>
         </div>

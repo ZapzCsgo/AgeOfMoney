@@ -190,7 +190,7 @@ export function BetHistory({ bets, total, onPageChange, onStatusFilter, loading 
                 disabled={currentPage === 0}
                 className="px-3 py-1.5 rounded border border-aoe-border text-aoe-parchment-dim text-xs font-cinzel hover:border-aoe-border-gold hover:text-aoe-parchment disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
-                ← Préc.
+                {t('pagination_prev')}
               </button>
               {[...Array(Math.min(totalPages, 7))].map((_, i) => {
                 const page = i;
@@ -214,7 +214,7 @@ export function BetHistory({ bets, total, onPageChange, onStatusFilter, loading 
                 disabled={currentPage >= totalPages - 1}
                 className="px-3 py-1.5 rounded border border-aoe-border text-aoe-parchment-dim text-xs font-cinzel hover:border-aoe-border-gold hover:text-aoe-parchment disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
-                Suiv. →
+                {t('pagination_next')}
               </button>
             </div>
           )}

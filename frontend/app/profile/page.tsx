@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, type ReactNode } from 'react';
 import { useSession } from 'next-auth/react';
 import { signInWithSteam } from '@/lib/authHelpers';
 import { useSearchParams } from 'next/navigation';
@@ -61,40 +61,83 @@ function levelColor(level: number): string {
   return '#78716c';
 }
 
-function StatPeriodCard({ title, won, played, count }: { title: string; won: number; played: number; count: number }) {
+function StatIconBox({ children }: { children: ReactNode }) {
+  return (
+    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+      style={{ background: '#13111f', border: '1px solid rgba(255,197,66,0.25)' }}>
+      {children}
+    </div>
+  );
+}
+
+function StatPeriodCard({ title, won, played, count, highlight }: { title: string; won: number; played: number; count: number; highlight?: boolean }) {
   const { t } = useT();
   const profit = won - played;
+  const isEmpty = won === 0 && played === 0 && count === 0;
   return (
-    <div className="rounded-xl p-4 flex flex-col gap-4" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
-      <p className="text-[12px] text-[#8981ab] font-medium">{title}</p>
-      <div className="space-y-3">
-        <div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-[#ffc542]">⚜</span>
-            <span className={cn('text-[18px] font-bold', profit >= 0 ? 'text-[#ffc542]' : 'text-red-400')}>
+    <div
+      className={cn(
+        'rounded-xl p-4 flex flex-col gap-3 transition-all border hover:-translate-y-0.5',
+        highlight
+          ? 'border-[rgba(255,197,66,0.45)] hover:border-[rgba(255,197,66,0.65)]'
+          : 'border-[rgba(255,197,66,0.2)] hover:border-[rgba(255,197,66,0.4)]'
+      )}
+      style={{
+        background: highlight ? 'linear-gradient(135deg, rgba(255,197,66,0.08), #0d0b1a 65%)' : '#0d0b1a',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+      }}
+    >
+      <div>
+        <p className="text-[12px] text-[#9990b8] font-medium">{title}</p>
+        <div className="h-px mt-2" style={{ background: 'linear-gradient(90deg, rgba(255,197,66,0.3), transparent)' }} />
+      </div>
+      <div className="space-y-2.5">
+        <div className="flex items-center gap-2.5">
+          <StatIconBox><span className="text-[#ffc542] text-[13px]">⚜</span></StatIconBox>
+          <div>
+            <span className={cn('text-[16px] font-bold tabular-nums', isEmpty ? 'text-[#5a5480]' : profit >= 0 ? 'text-[#ffc542]' : 'text-red-400')}>
               {new Intl.NumberFormat('fr-FR').format(won)}
             </span>
+            <p className="text-[10px] text-[#8981ab] leading-tight">{t('profile_total_won')}</p>
           </div>
-          <p className="text-[11px] text-[#8981ab] mt-0.5">{t('profile_total_won')}</p>
         </div>
-        <div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-[#8981ab]">⚜</span>
-            <span className="text-[18px] font-bold text-[#c8c0e0]">
+        <div className="flex items-center gap-2.5">
+          <StatIconBox><span className="text-[#ffc542] text-[13px]">⚜</span></StatIconBox>
+          <div>
+            <span className={cn('text-[16px] font-bold tabular-nums', isEmpty ? 'text-[#5a5480]' : 'text-[#c8c0e0]')}>
               {new Intl.NumberFormat('fr-FR').format(played)}
             </span>
+            <p className="text-[10px] text-[#8981ab] leading-tight">{t('profile_total_wagered')}</p>
           </div>
-          <p className="text-[11px] text-[#8981ab] mt-0.5">{t('profile_total_wagered')}</p>
         </div>
-        <div>
-          <div className="flex items-center gap-1.5">
-            <Swords size={12} className="text-[#8981ab]" />
-            <span className="text-[18px] font-bold text-[#c8c0e0]">{count}</span>
+        <div className="flex items-center gap-2.5">
+          <StatIconBox><Swords size={13} className="text-[#ffc542]" /></StatIconBox>
+          <div>
+            <span className={cn('text-[16px] font-bold tabular-nums', isEmpty ? 'text-[#5a5480]' : 'text-[#c8c0e0]')}>{count}</span>
+            <p className="text-[10px] text-[#8981ab] leading-tight">{t('profile_total_bets')}</p>
           </div>
-          <p className="text-[11px] text-[#8981ab] mt-0.5">{t('profile_total_bets')}</p>
         </div>
       </div>
     </div>
+  );
+}
+
+/** Thin L-shaped corner ornament — decorative only, used on the main profile card. */
+function CornerOrnament({ position }: { position: 'tl' | 'tr' | 'bl' | 'br' }) {
+  const rotation = { tl: 0, tr: 90, bl: 270, br: 180 }[position];
+  const pos = {
+    tl: 'top-0 left-0', tr: 'top-0 right-0',
+    bl: 'bottom-0 left-0', br: 'bottom-0 right-0',
+  }[position];
+  return (
+    <svg
+      width="22" height="22" viewBox="0 0 22 22"
+      className={cn('absolute pointer-events-none', pos)}
+      style={{ transform: `rotate(${rotation}deg)` }}
+      aria-hidden
+    >
+      <path d="M1 21V5a4 4 0 0 1 4-4h16" fill="none" stroke="#ffc542" strokeOpacity="0.5" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
   );
 }
 
@@ -131,8 +174,8 @@ function SettingsTab({ session, initialBio, onBioSaved }: { session: { user: { n
   };
 
   return (
-    <div className="rounded-xl overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
-      <div className="px-6 py-4 border-b" style={{ borderColor: '#1e1a30', background: 'rgba(0,0,0,0.2)' }}>
+    <div className="rounded-xl overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)' }}>
+      <div className="px-6 py-4 border-b" style={{ borderColor: 'rgba(255,197,66,0.2)', background: 'rgba(0,0,0,0.2)' }}>
         <h3 className="text-[13px] font-bold text-[#c8c0e0] uppercase tracking-widest font-cinzel">{t('settings_general')}</h3>
       </div>
       <div className="p-6 space-y-6">
@@ -143,7 +186,7 @@ function SettingsTab({ session, initialBio, onBioSaved }: { session: { user: { n
           <div className="relative">
             <input readOnly value={username}
               className="w-full px-4 py-3 rounded-lg text-[13px] text-[#c8c0e0] outline-none cursor-not-allowed"
-              style={{ background: '#13111f', border: '1px solid #1e1a30' }} />
+              style={{ background: '#13111f', border: '1px solid rgba(255,197,66,0.2)' }} />
             <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
               <span className="text-[11px] text-[#8981ab]">{username.length}/32</span>
               <span className="text-[10px] text-[#8981ab] bg-[#1e1a30] px-2 py-0.5 rounded">Steam</span>
@@ -156,9 +199,9 @@ function SettingsTab({ session, initialBio, onBioSaved }: { session: { user: { n
           <label className="block text-[11px] font-semibold text-[#9990b8] uppercase tracking-widest mb-2">{t('settings_email')}</label>
           <div className="relative">
             <input type="email" value={settEmail} onChange={e => setSettEmail(e.target.value)}
-              placeholder="votre@email.com"
+              placeholder={t('placeholder_email')}
               className="w-full px-4 py-3 rounded-lg text-[13px] outline-none transition-colors placeholder-[#3d3860]"
-              style={{ background: '#13111f', border: `1px solid ${settEmail ? '#22c55e44' : '#1e1a30'}`, color: '#c8c0e0' }} />
+              style={{ background: '#13111f', border: `1px solid ${settEmail ? '#22c55e44' : 'rgba(255,197,66,0.2)'}`, color: '#c8c0e0' }} />
             {settEmail && <CheckCircle2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500" />}
           </div>
           <p className="text-[11px] text-[#8981ab] mt-1.5">
@@ -172,7 +215,7 @@ function SettingsTab({ session, initialBio, onBioSaved }: { session: { user: { n
           <div className="relative">
             <input readOnly value={(session.user as { id?: string }).id ?? ''}
               className="w-full px-4 py-3 rounded-lg text-[13px] text-[#8981ab] outline-none cursor-default font-mono"
-              style={{ background: '#13111f', border: '1px solid #1e1a30' }} />
+              style={{ background: '#13111f', border: '1px solid rgba(255,197,66,0.2)' }} />
             <button onClick={handleCopyId}
               className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors hover:text-[#ffc542]"
               style={{ color: copied ? '#22c55e' : '#8981ab' }}
@@ -189,7 +232,7 @@ function SettingsTab({ session, initialBio, onBioSaved }: { session: { user: { n
             <textarea value={settBio} onChange={e => setSettBio(e.target.value.slice(0, 200))}
               placeholder={t('settings_bio_placeholder')} rows={4}
               className="w-full px-4 py-3 rounded-lg text-[13px] text-[#c8c0e0] outline-none resize-none transition-colors placeholder-[#3d3860]"
-              style={{ background: '#13111f', border: '1px solid #1e1a30' }} />
+              style={{ background: '#13111f', border: '1px solid rgba(255,197,66,0.2)' }} />
             <span className="absolute bottom-3 right-3 text-[10px] text-[#8981ab]">{settBio.length}/200</span>
           </div>
         </div>
@@ -253,7 +296,7 @@ function SecurityTab({ session }: { session: { user: { accessToken: string; id?:
         setShowSetup(true);
       } catch (err: unknown) {
         const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
-        setVerifyError(msg || 'Erreur lors de la configuration 2FA');
+        setVerifyError(msg || t('sec_2fa_setup_error'));
       } finally {
         setLoadingSetup(false);
       }
@@ -331,13 +374,13 @@ function SecurityTab({ session }: { session: { user: { accessToken: string; id?:
   return (
     <div className="space-y-4">
       {/* Two-Factor */}
-      <div className="rounded-xl overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
-        <div className="px-6 py-4 border-b" style={{ borderColor: '#1e1a30', background: 'rgba(0,0,0,0.2)' }}>
+      <div className="rounded-xl overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)' }}>
+        <div className="px-6 py-4 border-b" style={{ borderColor: 'rgba(255,197,66,0.2)', background: 'rgba(0,0,0,0.2)' }}>
           <h3 className="text-[11px] font-bold text-[#8981ab] uppercase tracking-widest font-cinzel">{t('sec_twofactor')}</h3>
         </div>
 
         {/* Toggle row */}
-        <div className="px-6 py-4 flex items-center justify-between gap-4" style={showSetup ? { borderBottom: '1px solid #1e1a30' } : {}}>
+        <div className="px-6 py-4 flex items-center justify-between gap-4" style={showSetup ? { borderBottom: '1px solid rgba(255,197,66,0.2)' } : {}}>
           <div>
             <p className="text-[13px] font-semibold text-[#c8c0e0]">{t('sec_2fa_title')}</p>
             <p className="text-[11px] text-[#8981ab] mt-0.5">
@@ -359,7 +402,7 @@ function SecurityTab({ session }: { session: { user: { accessToken: string; id?:
 
         {/* Disable confirmation */}
         {showDisable && (
-          <div className="px-6 py-5 space-y-3" style={{ borderTop: '1px solid #1e1a30' }}>
+          <div className="px-6 py-5 space-y-3" style={{ borderTop: '1px solid rgba(255,197,66,0.2)' }}>
             <p className="text-[12px] text-[#9990b8]">{t('sec_disable_prompt')}</p>
             <input
               type="text" inputMode="numeric" maxLength={6}
@@ -367,7 +410,7 @@ function SecurityTab({ session }: { session: { user: { accessToken: string; id?:
               onChange={(e) => { setDisableCode(e.target.value.replace(/\D/g, '')); setDisableError(''); }}
               placeholder="000000"
               className="w-full rounded-lg px-4 py-3 text-center text-xl tracking-[0.4em] font-mono text-[#e8e2f5] placeholder-[#3d3860] outline-none"
-              style={{ background: '#07060f', border: `1px solid ${disableError ? '#ef4444' : '#1e1a30'}` }}
+              style={{ background: '#07060f', border: `1px solid ${disableError ? '#ef4444' : 'rgba(255,197,66,0.2)'}` }}
             />
             {disableError && <p className="text-red-400 text-[11px]">{disableError}</p>}
             <div className="flex gap-2">
@@ -390,7 +433,7 @@ function SecurityTab({ session }: { session: { user: { accessToken: string; id?:
             {/* QR code */}
             <div
               className="rounded-lg flex flex-col items-center justify-center py-6 gap-3"
-              style={{ background: '#07060f', border: '1px solid #1e1a30' }}
+              style={{ background: '#07060f', border: '1px solid rgba(255,197,66,0.2)' }}
             >
               {qrDataUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -433,9 +476,9 @@ function SecurityTab({ session }: { session: { user: { accessToken: string; id?:
                 maxLength={6}
                 value={verifyCode}
                 onChange={(e) => { setVerifyCode(e.target.value.replace(/\D/g, '')); setVerifyError(''); }}
-                placeholder="Enter the authentication code from the app..."
+                placeholder={t('sec_verify_code_placeholder')}
                 className="w-full rounded-lg px-4 py-3 text-[13px] text-[#c8c0e0] placeholder-[#3d3860] outline-none transition-colors"
-                style={{ background: '#07060f', border: `1px solid ${verifyError ? '#ef4444' : '#1e1a30'}` }}
+                style={{ background: '#07060f', border: `1px solid ${verifyError ? '#ef4444' : 'rgba(255,197,66,0.2)'}` }}
               />
               {verifyError && (
                 <p className="text-[11px] text-red-400 mt-1">{verifyError}</p>
@@ -457,8 +500,8 @@ function SecurityTab({ session }: { session: { user: { accessToken: string; id?:
       </div>
 
       {/* Sessions */}
-      <div className="rounded-xl overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
-        <div className="px-6 py-4 border-b" style={{ borderColor: '#1e1a30', background: 'rgba(0,0,0,0.2)' }}>
+      <div className="rounded-xl overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)' }}>
+        <div className="px-6 py-4 border-b" style={{ borderColor: 'rgba(255,197,66,0.2)', background: 'rgba(0,0,0,0.2)' }}>
           <h3 className="text-[11px] font-bold text-[#8981ab] uppercase tracking-widest font-cinzel">{t('sec_sessions')}</h3>
         </div>
 
@@ -603,7 +646,7 @@ export default function ProfilePage() {
   if (!session) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#07060f' }}>
-        <div className="text-center p-8 rounded-xl" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+        <div className="text-center p-8 rounded-xl" style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}>
           <h2 className="font-bold text-lg text-[#ffc542] mb-2" style={{ fontFamily: 'Cinzel, serif' }}>{t('auth_required')}</h2>
           <p className="text-[#8981ab] text-sm mb-5">{t('auth_required_desc')}</p>
           {/* Bouton Steam bleu (même style que /deposit) — plus cohérent
@@ -632,7 +675,7 @@ export default function ProfilePage() {
     );
     if (!publicProfile) return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#07060f' }}>
-        <div className="text-center p-8 rounded-xl" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+        <div className="text-center p-8 rounded-xl" style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}>
           <div className="text-3xl mb-3">⚔</div>
           <h2 className="font-bold text-lg text-[#ffc542] mb-2" style={{ fontFamily: 'Cinzel, serif' }}>{t('profile_user_not_found')}</h2>
           <Link href="/profile" className="text-[#8981ab] text-sm hover:text-[#ffc542]">{t('profile_back_to_profile')}</Link>
@@ -646,7 +689,7 @@ export default function ProfilePage() {
       <div className="min-h-screen" style={{ background: '#07060f' }}>
         <div className="max-w-2xl mx-auto px-3 sm:px-4 py-6 sm:py-10 space-y-4">
           <Link href="/profile" className="text-[11px] text-[#8981ab] hover:text-[#ffc542] transition-colors">{t('profile_back_to_profile')}</Link>
-          <div className="rounded-xl p-6 relative overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+          <div className="rounded-xl p-6 relative overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}>
             <div className="absolute inset-0 opacity-10" style={{ background: `radial-gradient(ellipse at top right, ${pubColor}, transparent 60%)` }} />
             <div className="relative flex items-center gap-5">
               <div className="relative shrink-0">
@@ -667,15 +710,15 @@ export default function ProfilePage() {
               <div className="flex-1 min-w-0">
                 <h1 className="text-2xl font-bold text-[#e8e2f5] truncate" style={{ fontFamily: 'Cinzel, serif' }}>{publicProfile.username}</h1>
                 <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                  {publicProfile.isAdmin && <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: '#be123c33', color: '#f87171', border: '1px solid #be123c55' }}>ADMIN</span>}
-                  {publicProfile.isMod && <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: '#1e3a5f', color: '#60a5fa', border: '1px solid #3b82f640' }}>MOD</span>}
-                  {publicProfile.isPartner && <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: 'rgba(255,197,66,0.1)', color: '#ffc542', border: '1px solid rgba(255,197,66,0.3)' }}>PARTENAIRE</span>}
+                  {publicProfile.isAdmin && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(190,18,60,0.2)', color: '#ff6b6b', border: '1px solid rgba(190,18,60,0.45)' }}>ADMIN</span>}
+                  {publicProfile.isMod && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: '#1e3a5f', color: '#60a5fa', border: '1px solid #3b82f640' }}>MOD</span>}
+                  {publicProfile.isPartner && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,197,66,0.1)', color: '#ffc542', border: '1px solid rgba(255,197,66,0.3)' }}>{t('badge_partner')}</span>}
                   {!publicProfile.isAdmin && !publicProfile.isMod && !publicProfile.isPartner && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: 'rgba(255,197,66,0.1)', color: '#ffc542', border: '1px solid rgba(255,197,66,0.3)' }}>MEMBRE</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,197,66,0.1)', color: '#ffc542', border: '1px solid rgba(255,197,66,0.3)' }}>{t('badge_member')}</span>
                   )}
                 </div>
                 <p className="text-[13px] mt-2 italic" style={{ color: publicProfile.bio ? '#9990b8' : '#3d3860' }}>
-                  {publicProfile.bio ? `"${publicProfile.bio}"` : 'Aucune bio renseignée'}
+                  {publicProfile.bio ? `"${publicProfile.bio}"` : t('profile_no_bio')}
                 </p>
               </div>
             </div>
@@ -685,7 +728,7 @@ export default function ProfilePage() {
                 <span className="text-[12px] font-semibold" style={{ color: pubColor }}>Niveau {pubLvl.level}</span>
                 <span className="text-[11px] text-[#8981ab]">{pubLvl.pct.toFixed(1)}%</span>
               </div>
-              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: '#1e1a30' }}>
+              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,197,66,0.2)' }}>
                 <div className="h-full rounded-full transition-all" style={{ width: `${pubLvl.pct}%`, background: pubColor }} />
               </div>
             </div>
@@ -694,12 +737,12 @@ export default function ProfilePage() {
           {publicProfile.stats && (() => {
             const fmt = (n: number) => new Intl.NumberFormat('fr-FR').format(n);
             const periods = [
-              { label: '7 derniers jours', s: publicProfile.stats.d7 },
-              { label: '30 derniers jours', s: publicProfile.stats.d30 },
-              { label: 'Total', s: publicProfile.stats.total },
+              { label: t('profile_last_7d'), s: publicProfile.stats.d7 },
+              { label: t('profile_last_30d'), s: publicProfile.stats.d30 },
+              { label: t('common_total'), s: publicProfile.stats.total },
             ];
             return periods.map(({ label, s }) => (
-              <div key={label} className="rounded-xl p-4" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+              <div key={label} className="rounded-xl p-4" style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}>
                 <p className="text-[11px] text-[#8981ab] font-medium mb-3">{label}</p>
                 <div className="grid grid-cols-3 gap-2 sm:gap-3">
                   <div>
@@ -707,27 +750,27 @@ export default function ProfilePage() {
                       <span className="text-[#ffc542] text-xs">⚜</span>
                       <span className="text-[14px] sm:text-[16px] font-bold text-[#ffc542]">{fmt(s.won)}</span>
                     </div>
-                    <p className="text-[10px] text-[#8981ab] mt-0.5">Total gagné</p>
+                    <p className="text-[10px] text-[#8981ab] mt-0.5">{t('profile_total_won')}</p>
                   </div>
                   <div>
                     <div className="flex items-center gap-1">
                       <span className="text-[#8981ab] text-xs">⚜</span>
                       <span className="text-[16px] font-bold text-[#c8c0e0]">{fmt(s.wagered)}</span>
                     </div>
-                    <p className="text-[10px] text-[#8981ab] mt-0.5">Total misé</p>
+                    <p className="text-[10px] text-[#8981ab] mt-0.5">{t('profile_total_wagered')}</p>
                   </div>
                   <div>
                     <div className="flex items-center gap-1">
                       <Swords size={12} className="text-[#8981ab]" />
                       <span className="text-[16px] font-bold text-[#c8c0e0]">{s.count}</span>
                     </div>
-                    <p className="text-[10px] text-[#8981ab] mt-0.5">Paris</p>
+                    <p className="text-[10px] text-[#8981ab] mt-0.5">{t('profile_total_bets')}</p>
                   </div>
                 </div>
               </div>
             ));
           })()}
-          <p className="text-[11px] text-[#3d3860] text-center">Membre depuis le {pubJoined}</p>
+          <p className="text-[11px] text-[#3d3860] text-center">{t('profile_member_since')} {pubJoined}</p>
         </div>
       </div>
     );
@@ -762,15 +805,23 @@ export default function ProfilePage() {
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-4">
 
         {/* ── Profile header card ────────────────────────────────────────── */}
-        <div className="rounded-xl p-5 relative overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+        <div className="rounded-xl p-5 relative overflow-hidden border" style={{ background: '#0d0b1a', borderColor: 'rgba(255,197,66,0.25)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)' }}>
           {/* Subtle gradient background */}
           <div className="absolute inset-0 opacity-10" style={{ background: `radial-gradient(ellipse at top right, ${color}, transparent 60%)` }} />
+          {/* Diagonal gold light sweep, right side — purely decorative */}
+          <div className="absolute inset-0 pointer-events-none" style={{
+            background: 'linear-gradient(115deg, transparent 55%, rgba(255,197,66,0.06) 65%, transparent 78%)',
+          }} />
+          <CornerOrnament position="tl" />
+          <CornerOrnament position="tr" />
+          <CornerOrnament position="bl" />
+          <CornerOrnament position="br" />
 
           <div className="relative flex flex-col sm:flex-row items-start justify-between gap-4">
             {/* Left: avatar + info */}
             <div className="flex items-center gap-4">
               <div className="relative shrink-0">
-                <div className="w-20 h-20 rounded-full overflow-hidden" style={{ border: `2px solid ${color}66` }}>
+                <div className="w-20 h-20 rounded-full overflow-hidden" style={{ border: '2px solid rgba(255,197,66,0.55)', boxShadow: '0 0 18px rgba(255,197,66,0.3)' }}>
                   {session.user.image ? (
                     <Image src={session.user.image} alt="Avatar" width={80} height={80} className="w-full h-full object-cover" />
                   ) : (
@@ -779,9 +830,9 @@ export default function ProfilePage() {
                     </div>
                   )}
                 </div>
-                {/* Level badge on avatar */}
+                {/* Level badge on avatar — always gold, dark text */}
                 <div className="absolute -bottom-1 -right-1 text-[10px] font-bold px-1.5 rounded-full"
-                  style={{ background: color, color: '#07060f', lineHeight: '18px' }}>
+                  style={{ background: '#ffc542', color: '#07060f', lineHeight: '18px' }}>
                   {lvl.level}
                 </div>
               </div>
@@ -792,9 +843,9 @@ export default function ProfilePage() {
                 </h1>
                 <div className="mt-1.5">
                   {session.user.isAdmin ? (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: '#be123c33', color: '#f87171', border: '1px solid #be123c55' }}>ADMIN</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(190,18,60,0.2)', color: '#ff6b6b', border: '1px solid rgba(190,18,60,0.45)' }}>ADMIN</span>
                   ) : (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: 'rgba(255,197,66,0.1)', color: '#ffc542', border: '1px solid rgba(255,197,66,0.3)' }}>MEMBRE</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,197,66,0.1)', color: '#ffc542', border: '1px solid rgba(255,197,66,0.3)' }}>{t('badge_member')}</span>
                   )}
                 </div>
                 {profileBio && (
@@ -805,25 +856,26 @@ export default function ProfilePage() {
 
             {/* Right: joined date */}
             <div className="text-right shrink-0">
-              <p className="text-[12px] text-[#8981ab]">{t('profile_member_since')} {joinedAt}</p>
+              <p className="text-[12px] text-[#9990b8]">{t('profile_member_since')} {joinedAt}</p>
             </div>
           </div>
 
-          {/* XP bar */}
+          {/* XP bar — always gold, subtle shimmer on the filled part */}
           <div className="relative mt-5">
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[12px] font-semibold" style={{ color }}>
+              <span className="text-[12px] font-semibold text-[#ffc542]">
                 {t('profile_level')} {lvl.level}
               </span>
-              <span className="text-[11px] text-[#8981ab]">{lvl.pct.toFixed(1)}%</span>
+              <span className="text-[11px] text-[#9990b8]">{lvl.pct.toFixed(1)}%</span>
             </div>
-            <div className="h-2 rounded-full overflow-hidden" style={{ background: '#1a1630' }}>
+            <div className="h-2 rounded-full overflow-hidden" style={{ background: '#13111f', border: '1px solid rgba(255,197,66,0.15)' }}>
               <div
-                className="h-full rounded-full transition-all duration-700"
+                className="h-full rounded-full transition-all duration-700 animate-shimmer"
                 style={{
                   width: `${lvl.pct}%`,
-                  background: `linear-gradient(90deg, ${color}88, ${color})`,
-                  boxShadow: `0 0 8px ${color}66`,
+                  backgroundImage: 'linear-gradient(90deg, #b8881a, #ffc542 40%, #ffd97a 50%, #ffc542 60%, #b8881a)',
+                  backgroundSize: '200% auto',
+                  boxShadow: '0 0 8px rgba(255,197,66,0.5)',
                 }}
               />
             </div>
@@ -836,14 +888,15 @@ export default function ProfilePage() {
             strip clean. */}
         <div
           className="flex items-center gap-1 p-1 rounded-xl overflow-x-auto scrollbar-hide -mx-1 px-1 sm:mx-0"
-          style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}
+          style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}
         >
           {TAB_IDS.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                'shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-medium transition-all whitespace-nowrap',
+                'relative shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-medium transition-all whitespace-nowrap',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc542]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0d0b1a]',
                 activeTab === tab.id
                   ? 'text-[#ffc542]'
                   : 'text-[#8981ab] hover:text-[#c8c0e0]'
@@ -852,6 +905,9 @@ export default function ProfilePage() {
             >
               <tab.icon size={13} />
               {t(tab.key)}
+              {activeTab === tab.id && (
+                <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 h-0.5 w-5 rounded-t bg-[#ffc542]" />
+              )}
             </button>
           ))}
         </div>
@@ -874,10 +930,11 @@ export default function ProfilePage() {
                 count={sumCount(bets30d, rou30d)}
               />
               <StatPeriodCard
-                title="Total"
+                title={t('common_total')}
                 won={s?.totalPayout ?? 0}
                 played={s?.totalWagered ?? 0}
                 count={s?.totalBets ?? betsTotal}
+                highlight
               />
             </div>
 
@@ -887,7 +944,7 @@ export default function ProfilePage() {
         {/* ── History tab ───────────────────────────────────────────────────── */}
         {activeTab === 'history' && (() => {
           const ZONE_COLORS: Record<string, string> = { KNIGHTS: '#94a3b8', EMPEROR: '#ffd97a', ARCHERS: '#fb923c' };
-          const ZONE_LABELS: Record<string, string> = { KNIGHTS: 'Chevaliers', EMPEROR: 'Emperor', ARCHERS: 'Archers' };
+          const ZONE_LABELS: Record<string, string> = { KNIGHTS: t('roulette_knights'), EMPEROR: t('roulette_emperor'), ARCHERS: t('roulette_archers') };
 
           // Merge & sort all bets
           type MergedItem = { type: 'match'; bet: Bet; ts: number } | { type: 'roulette'; bet: RouletteBetHistory; ts: number };
@@ -898,22 +955,22 @@ export default function ProfilePage() {
           const totalCount = filtered.length;
 
           return (
-            <div className="rounded-xl overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
+            <div className="rounded-xl overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)' }}>
               {/* Header + filters */}
-              <div className="px-4 py-3 border-b flex items-center justify-between gap-3 flex-wrap" style={{ borderColor: '#1e1a30' }}>
+              <div className="px-4 py-3 border-b flex items-center justify-between gap-3 flex-wrap" style={{ borderColor: 'rgba(255,197,66,0.2)' }}>
                 <span className="text-[13px] font-semibold text-[#c8c0e0]">{t('profile_tab_history')}</span>
                 <div className="flex items-center gap-2">
                   {(['all', 'match', 'roulette'] as const).map(f => (
                     <button key={f} onClick={() => setHistoryFilter(f)}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all"
                       style={{
-                        background: historyFilter === f ? '#1e1a30' : 'transparent',
+                        background: historyFilter === f ? 'rgba(255,197,66,0.2)' : 'transparent',
                         color: historyFilter === f ? '#e8e2f5' : '#8981ab',
                         border: `1px solid ${historyFilter === f ? '#2a2640' : 'transparent'}`,
                       }}>
-                      {f === 'all' && <><Swords size={11} /> Tout</>}
-                      {f === 'match' && <><Swords size={11} /> Match</>}
-                      {f === 'roulette' && <><Dices size={11} /> Roulette</>}
+                      {f === 'all' && <><Swords size={11} /> {t('profile_history_filter_all')}</>}
+                      {f === 'match' && <><Swords size={11} /> {t('profile_history_filter_match')}</>}
+                      {f === 'roulette' && <><Dices size={11} /> {t('profile_history_filter_roulette')}</>}
                     </button>
                   ))}
                 </div>
