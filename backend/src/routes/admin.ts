@@ -300,10 +300,10 @@ router.get('/scrapers/logs', async (req: Request, res: Response): Promise<void> 
 // POST /scrapers/run - Manually trigger a scraper
 router.post('/scrapers/run', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { source } = req.body as { source: 'tournaments' | 'aoe4world' | 'enrich' | 'liquipedia' | 'liquipedia-tft' };
+    const { source } = req.body as { source: 'tournaments' | 'aoe4world' | 'enrich' | 'liquipedia' };
 
-    if (!['tournaments', 'aoe4world', 'enrich', 'liquipedia', 'liquipedia-tft'].includes(source)) {
-      res.status(400).json({ error: 'Invalid source. Must be "tournaments", "aoe4world", "enrich", "liquipedia", or "liquipedia-tft"' });
+    if (!['tournaments', 'aoe4world', 'enrich', 'liquipedia'].includes(source)) {
+      res.status(400).json({ error: 'Invalid source. Must be "tournaments", "aoe4world", "enrich", or "liquipedia"' });
       return;
     }
 
@@ -378,9 +378,6 @@ router.post('/scrapers/run', async (req: Request, res: Response): Promise<void> 
       syncAoeEventCalendar()
         .then(() => scrapeUpcomingMatches())
         .catch((err: Error) => logger.error('Manual Liquipedia scrape error:', err));
-    } else if (source === 'liquipedia-tft') {
-      const { scrapeTftTournaments } = await import('../scrapers/liquipediaTftScraper');
-      scrapeTftTournaments().catch((err: Error) => logger.error('Manual Liquipedia TFT scrape error:', err));
     } else {
       const { updateAllPlayerStats } = await import('../scrapers/aoe4worldScraper');
       updateAllPlayerStats().catch((err: Error) => logger.error('Manual aoe4world update error:', err));

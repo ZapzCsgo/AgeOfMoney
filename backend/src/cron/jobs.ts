@@ -4,10 +4,6 @@ import { enrichAllUpcomingMatches } from '../scrapers/aoe4worldScraper';
 import { scrapeAoe4WorldTournaments } from '../scrapers/aoe4worldTournamentScraper';
 import { scrapeUpcomingMatches } from '../scrapers/liquipediaScraper';
 import { syncAoeEventCalendar } from '../scrapers/aoeEventCalendarScraper';
-import { scrapeTftTournaments, refreshLiveStandings as refreshLpTftStandings } from '../scrapers/liquipediaTftScraper';
-import { pollAllLiveTftTournaments } from '../scrapers/competeTftScraper';
-import { recomputeAllOpenTftOdds } from '../services/tftOddsEngine';
-import { settleAllReadyTftTournaments } from '../services/tftSettlement';
 import { distributePayout, refundBets } from '../services/betService';
 import { detectAll as scanEventOpportunities, detectRainOpportunityAndPersist } from '../services/eventOpportunityService';
 import { sweepExpiredRains } from '../services/rainService';
@@ -121,84 +117,6 @@ export function initCronJobs(): void {
       await distributePayouts();
     } catch (err) {
       logger.error('[CRON] distributePayouts failed:', err);
-    }
-  });
-
-  // ── TFT — every 15 minutes : full tournament scrape + odds recalc ────────
-  // Cadence tightened from 30 → 15 min on 2026-05-30 because the 24h
-  // detail cache (Tournament.lastDetailFetchedAt) means each cycle only
-  // hits LP for new + live tournaments (~5-10 calls), not the full 75.
-  // The two ticks are offset away from AoE's */15 by 4 minutes so the
-  // shared LP circuit breaker doesn't get pummelled by both at once.
-  cron.schedule('4,19,34,49 * * * *', async () => {
-    try {
-      const { tournaments } = await scrapeTftTournaments();
-      if (tournaments > 0) {
-        // Only recompute odds once new tournaments / participants land —
-        // each recalc costs ~22 Riot calls per participant, no point
-        // burning the quota when nothing changed.
-        await recomputeAllOpenTftOdds();
-      }
-    } catch (err) {
-      logger.error('[CRON] TFT scrape + odds failed:', err);
-    }
-  });
-
-  // ── TFT — immediate scrape on boot ────────────────────────────────────────
-  // Without this, a backend restart leaves the home page empty for up to
-  // 15 minutes (worst case). Triggered with a 15s delay so the rest of
-  // the boot (DB connection, socket server, etc.) finishes first.
-  setTimeout(async () => {
-    try {
-      logger.info('[CRON] Boot-time TFT scrape starting');
-      const { tournaments } = await scrapeTftTournaments();
-      if (tournaments > 0) await recomputeAllOpenTftOdds();
-    } catch (err) {
-      logger.error('[CRON] Boot-time TFT scrape failed:', err);
-    }
-  }, 15_000);
-
-  // ── TFT — every 30 seconds : poll CompeteTFT for live standings ─────────
-  // Runs only when there's at least one tournament with bracketStarted=true.
-  // Cheap when there's nothing to do (one DB query, no fetch).
-  cron.schedule('*/30 * * * * *', async () => {
-    try {
-      await pollAllLiveTftTournaments();
-    } catch (err) {
-      logger.error('[CRON] TFT live poll failed:', err);
-    }
-  });
-
-  // ── TFT — every 5 minutes : Liquipedia fallback for live standings ──────
-  // Only updates tournaments where CompeteTFT isn't available (no
-  // competeTftUrl) or hasn't synced in >5 min. LP is community-edited so
-  // it's lazier but covers tournaments CompeteTFT doesn't host.
-  cron.schedule('*/5 * * * *', async () => {
-    try {
-      const stale = await prisma.tournament.findMany({
-        where: {
-          game: 'TFT',
-          bracketStarted: true,
-          OR: [
-            { competeTftUrl: null },
-            { lastLiveSync: { lt: new Date(Date.now() - 5 * 60_000) } },
-          ],
-        },
-        select: { id: true },
-        take: 5,
-      });
-      for (const t of stale) await refreshLpTftStandings(t.id);
-    } catch (err) {
-      logger.error('[CRON] TFT LP-fallback standings failed:', err);
-    }
-  });
-
-  // ── TFT — every 10 minutes : settle finished tournaments ────────────────
-  cron.schedule('*/10 * * * *', async () => {
-    try {
-      await settleAllReadyTftTournaments();
-    } catch (err) {
-      logger.error('[CRON] TFT settlement failed:', err);
     }
   });
 

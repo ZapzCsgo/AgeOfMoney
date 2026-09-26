@@ -43,9 +43,6 @@ export type LedgerType =
   // payout reads that historically wrote under that label — new code uses
   // 'bet_won' for clarity).
   | 'bet_placed' | 'bet_won' | 'bet_refund' | 'bet_payout'
-  // TFT tournament-winner bets — kept distinct so analytics can split
-  // revenue per game without joining on the bet table.
-  | 'tft_bet_placed' | 'tft_bet_won' | 'tft_bet_refund'
   // coinflip
   | 'coinflip_stake' | 'coinflip_win' | 'coinflip_refund'
   // jackpot
