@@ -258,7 +258,7 @@ export default function DepositPage() {
     // to ageof.money and 404.
     const paymentUrl = invoice.paymentUrl ?? (invoice.address?.startsWith('http') ? invoice.address : '');
     return (
-      <div className="max-w-lg mx-auto px-4 py-12">
+      <div className="max-w-lg mx-auto px-4 pt-12 pb-28 md:pb-12">
         <div className="rounded-2xl border overflow-hidden" style={{ background: '#0d0b1a', borderColor: '#2d2850' }}>
           <div className="h-px" style={{ background: 'linear-gradient(90deg,transparent,#ffc542 30%,#ffd97a 50%,#ffc542 70%,transparent)' }} />
           <div className="p-7 space-y-5">
@@ -268,31 +268,31 @@ export default function DepositPage() {
                 <Clock size={22} className="text-aoe-gold" />
               </div>
               <div className="flex-1">
-                <h2 className="font-cinzel font-bold text-lg text-aoe-parchment">{t('deposit_payment_pending')}</h2>
+                <h2 className="font-bold text-lg text-aoe-parchment">{t('deposit_payment_pending')}</h2>
                 <p className="text-aoe-parchment-dim text-xs mt-0.5">{t('deposit_complete_payment_oxapay')}</p>
               </div>
             </div>
 
             {/* Coins amount */}
             <div className="rounded-xl p-5 text-center" style={{ background: 'rgba(255,197,66,0.07)', border: '1px solid rgba(255,197,66,0.2)' }}>
-              <p className="text-aoe-parchment-dim text-[10px] mb-1 font-cinzel tracking-wider uppercase">À créditer après paiement</p>
-              <p className="font-cinzel font-black text-4xl text-aoe-gold">{invoice.coins.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜</p>
-              <p className="text-aoe-parchment-muted text-xs mt-1">pour ${invoice.usdAmount.toFixed(2)}</p>
-              {bonusPct > 0 && <p className="text-emerald-400 text-[11px] mt-1">dont +{bonusPct}% bonus affilié</p>}
+              <p className="text-aoe-parchment-dim text-[10px] mb-1 tracking-wider uppercase">À créditer après paiement</p>
+              <p className="font-black text-4xl text-aoe-gold">{invoice.coins.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜</p>
+              <p className="text-aoe-parchment-dim text-xs mt-1">pour ${invoice.usdAmount.toFixed(2)}</p>
+              {bonusPct > 0 && <p className="text-aoe-gold text-[11px] mt-1">dont +{bonusPct}% bonus affilié</p>}
             </div>
 
             {/* Steps */}
             <div className="space-y-2">
               <div className="flex items-start gap-3">
-                <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold font-cinzel" style={{ background: 'rgba(255,197,66,0.15)', color: '#ffc542', border: '1px solid rgba(255,197,66,0.4)' }}>1</div>
+                <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold" style={{ background: 'rgba(255,197,66,0.15)', color: '#ffc542', border: '1px solid rgba(255,197,66,0.4)' }}>1</div>
                 <p className="text-aoe-parchment-dim text-[13px] leading-relaxed pt-0.5">Choisis ta crypto et envoie le paiement sur la page OxaPay.</p>
               </div>
               <div className="flex items-start gap-3">
-                <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold font-cinzel" style={{ background: 'rgba(255,197,66,0.15)', color: '#ffc542', border: '1px solid rgba(255,197,66,0.4)' }}>2</div>
+                <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold" style={{ background: 'rgba(255,197,66,0.15)', color: '#ffc542', border: '1px solid rgba(255,197,66,0.4)' }}>2</div>
                 <p className="text-aoe-parchment-dim text-[13px] leading-relaxed pt-0.5">Ton solde est crédité automatiquement après 1–3 confirmations réseau (1–15 min selon la crypto).</p>
               </div>
               <div className="flex items-start gap-3">
-                <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold font-cinzel" style={{ background: 'rgba(255,197,66,0.15)', color: '#ffc542', border: '1px solid rgba(255,197,66,0.4)' }}>3</div>
+                <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold" style={{ background: 'rgba(255,197,66,0.15)', color: '#ffc542', border: '1px solid rgba(255,197,66,0.4)' }}>3</div>
                 <p className="text-aoe-parchment-dim text-[13px] leading-relaxed pt-0.5">Pas besoin de rester sur cette page tu recevras une notification.</p>
               </div>
             </div>
@@ -306,7 +306,7 @@ export default function DepositPage() {
                 href={paymentUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-cinzel font-bold transition-colors"
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-colors"
                 style={{ background: '#ffc542', color: '#07060f' }}
               >
                 {invoice.method === 'card'
@@ -321,7 +321,7 @@ export default function DepositPage() {
             )}
 
             {/* Back button */}
-            <button onClick={() => setInvoice(null)} className="w-full py-2.5 rounded-xl text-sm font-cinzel text-aoe-parchment-dim hover:text-aoe-parchment border border-aoe-border hover:border-aoe-border-mid transition-colors">
+            <button onClick={() => setInvoice(null)} className="w-full py-2.5 rounded-xl text-sm text-aoe-parchment-dim hover:text-aoe-parchment border border-aoe-border hover:border-aoe-border-mid transition-colors">
               ← Nouveau dépôt
             </button>
           </div>
@@ -339,7 +339,7 @@ export default function DepositPage() {
           <div className="w-14 h-14 rounded-full mx-auto mb-5 flex items-center justify-center" style={{ background: 'rgba(255,197,66,0.1)', border: '1px solid rgba(255,197,66,0.3)' }}>
             <ArrowDownToLine size={24} className="text-aoe-gold" />
           </div>
-          <h2 className="font-cinzel font-bold text-xl text-aoe-gold mb-8 tracking-wider">{t('auth_required').toUpperCase()}</h2>
+          <h2 className="font-bold text-xl text-aoe-gold mb-8 tracking-wider">{t('auth_required').toUpperCase()}</h2>
           <button
             onClick={() => handleSteamLogin('/deposit')}
             className="w-full flex items-center justify-center gap-3 py-4 rounded-xl font-bold text-base transition-all hover:brightness-110 active:scale-[0.99]"
@@ -355,12 +355,12 @@ export default function DepositPage() {
 
   // ── Main ─────────────────────────────────────────────────────────────────────
   return (
-    <div className="max-w-2xl mx-auto px-4 py-4">
+    <div className="max-w-2xl mx-auto px-4 pt-4 pb-28 md:pb-8">
 
       {/* Tabs */}
       <div className="flex mb-4 border-b" style={{ borderColor: '#1e1a30' }}>
         <div
-          className="flex-1 flex items-center justify-center gap-2 py-3 font-cinzel font-bold text-[12px] tracking-[0.18em] uppercase cursor-default text-[#ffc542] relative"
+          className="flex-1 flex items-center justify-center gap-2 py-3 font-bold text-[12px] tracking-wide uppercase cursor-default text-[#ffc542] relative"
         >
           <ArrowDownToLine size={13} />
           {t('deposit_tab')}
@@ -368,7 +368,7 @@ export default function DepositPage() {
         </div>
         <Link
           href="/withdraw"
-          className="flex-1 flex items-center justify-center gap-2 py-3 font-cinzel font-bold text-[12px] tracking-[0.18em] uppercase text-[#8981ab] hover:text-[#e8e2f5] transition-colors"
+          className="flex-1 flex items-center justify-center gap-2 py-3 font-bold text-[12px] tracking-wide uppercase text-[#8981ab] hover:text-[#e8e2f5] transition-colors"
         >
           <ArrowUpFromLine size={13} />
           {t('withdraw_tab')}
@@ -378,38 +378,38 @@ export default function DepositPage() {
       {/* Hero + exchange widget combined */}
       <div className="text-center mb-3">
         <h1 className="font-cinzel font-black text-2xl text-aoe-gold tracking-wider mb-1">{t('deposit_title')}</h1>
-        <p className="text-aoe-parchment-muted text-xs">
-          <span className="text-aoe-gold font-bold">$1 = 1.69 ⚜</span> <span className="text-aoe-parchment-muted">({t('deposit_credited_fast')})</span>
+        <p className="text-aoe-parchment-dim text-xs">
+          <span className="text-aoe-gold font-bold">$1 = 1.69 ⚜</span> <span className="text-aoe-parchment-dim">({t('deposit_credited_fast')})</span>
         </p>
       </div>
 
       <div className="rounded-xl p-3 mb-4 flex items-center justify-between gap-3" style={{ background: 'linear-gradient(135deg, rgba(255,197,66,0.08), rgba(255,197,66,0.04))', border: '1px solid rgba(255,197,66,0.25)' }}>
         <div className="text-center flex-1">
-          <p className="text-aoe-parchment-muted text-[10px] font-cinzel tracking-wider uppercase mb-1">{t('deposit_amount_coins')}</p>
-          <p className="font-cinzel font-black text-2xl text-aoe-gold">
+          <p className="text-aoe-parchment-dim text-[10px] tracking-wider uppercase mb-1">{t('deposit_amount_coins')}</p>
+          <p className="font-black text-2xl text-aoe-gold">
             {totalCoins > 0 ? `${totalCoins.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ⚜` : '— ⚜'}
           </p>
           {bonusCoins > 0 && (
-            <p className="text-emerald-400 text-[10px] mt-0.5">dont +{bonusCoins.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ⚜ offerts</p>
+            <p className="text-aoe-gold text-[10px] mt-0.5">dont +{bonusCoins.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ⚜ offerts</p>
           )}
         </div>
-        <div className="text-aoe-parchment-muted text-xl font-light">=</div>
+        <div className="text-aoe-parchment-dim text-2xl font-bold">=</div>
         <div className="text-center flex-1">
-          <p className="text-aoe-parchment-muted text-[10px] font-cinzel tracking-wider uppercase mb-1">{t('withdraw_usd')}</p>
-          <p className="font-cinzel font-black text-2xl text-aoe-parchment">
+          <p className="text-aoe-parchment-dim text-[10px] tracking-wider uppercase mb-1">{t('withdraw_usd')}</p>
+          <p className="font-black text-2xl text-aoe-parchment">
             {usdCost > 0 ? `$${usdCost.toFixed(2)}` : '$0.00'}
           </p>
-          <p className="text-aoe-parchment-muted text-[10px] mt-0.5">
+          <p className="text-aoe-parchment-dim text-[10px] mt-0.5">
             {eurCost > 0 ? `≈ €${eurCost.toFixed(2)}` : ''}
           </p>
         </div>
         {promoApplied && (
           <>
-            <div className="text-aoe-parchment-muted text-xl font-light">+</div>
-            <div className="text-center flex-1 rounded-lg p-2" style={{ background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.25)' }}>
-              <p className="text-emerald-400 text-[10px] font-cinzel tracking-wider uppercase mb-1">{t('roulette_bet')}</p>
-              <p className="font-cinzel font-black text-xl text-emerald-400">+{bonusPct}%</p>
-              <p className="text-emerald-400/60 text-[9px] mt-0.5">{promoCode.toUpperCase()}</p>
+            <div className="text-aoe-parchment-dim text-2xl font-bold">+</div>
+            <div className="text-center flex-1 rounded-lg p-2" style={{ background: 'rgba(255,197,66,0.1)', border: '1px solid rgba(255,197,66,0.25)' }}>
+              <p className="text-aoe-gold text-[10px] tracking-wider uppercase mb-1">{t('roulette_bet')}</p>
+              <p className="font-black text-xl text-aoe-gold">+{bonusPct}%</p>
+              <p className="text-aoe-gold/60 text-[9px] mt-0.5">{promoCode.toUpperCase()}</p>
             </div>
           </>
         )}
@@ -422,7 +422,7 @@ export default function DepositPage() {
 
           {/* USD AMOUNT INPUT */}
           <div>
-            <p className="text-[10px] font-cinzel tracking-widest text-aoe-parchment-dim uppercase mb-2">{t('deposit_usd_amount')}</p>
+            <p className="text-[10px] tracking-wide text-aoe-parchment-dim uppercase mb-2">{t('deposit_usd_amount')}</p>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-aoe-gold text-xl font-bold">$</span>
               <input
@@ -430,7 +430,7 @@ export default function DepositPage() {
                 value={customUsd}
                 onChange={e => setCustomUsd(e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
                 placeholder="5.00"
-                className="w-full border rounded-xl pl-8 pr-4 py-3 text-aoe-parchment text-lg font-cinzel font-bold placeholder-aoe-parchment-muted/40 outline-none transition-colors"
+                className="w-full border rounded-xl pl-8 pr-4 py-3 text-aoe-parchment text-lg font-bold placeholder-aoe-parchment-muted/40 outline-none transition-colors"
                 style={{ background: 'rgba(255,255,255,0.04)', borderColor: customUsd ? '#ffc542' : '#1e1a30' }}
                 autoFocus
               />
@@ -444,20 +444,25 @@ export default function DepositPage() {
 
           {/* PAYMENT METHOD */}
           <div>
-            <p className="text-[10px] font-cinzel tracking-widest text-aoe-parchment-dim uppercase mb-2">{t('deposit_payment_method')}</p>
+            <p className="text-[10px] tracking-wide text-aoe-parchment-dim uppercase mb-2">{t('deposit_payment_method')}</p>
 
             <div className="space-y-2">
               {/* Option 1 — Crypto via OxaPay */}
               <button
                 type="button"
                 onClick={() => setPaymentMethod('crypto')}
-                className="relative overflow-hidden rounded-xl w-full text-left transition-all"
+                className={cn(
+                  'relative overflow-hidden rounded-xl w-full text-left transition-all border',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc542]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0d0b1a]',
+                  paymentMethod === 'crypto'
+                    ? 'border-[#ffc542]'
+                    : 'border-[#1e1a30] bg-white/[0.02] hover:border-[#3d3860] hover:bg-white/[0.04]'
+                )}
                 style={{
                   background: paymentMethod === 'crypto'
                     ? 'linear-gradient(135deg, #14122a 0%, #0a0816 100%)'
-                    : 'rgba(255,255,255,0.02)',
-                  border: `1px solid ${paymentMethod === 'crypto' ? '#ffc542' : '#1e1a30'}`,
-                  boxShadow: paymentMethod === 'crypto' ? '0 0 18px rgba(255,197,66,0.12)' : 'none',
+                    : undefined,
+                  boxShadow: paymentMethod === 'crypto' ? '0 0 18px rgba(255,197,66,0.12)' : undefined,
                 }}
               >
                 {paymentMethod === 'crypto' && (
@@ -466,24 +471,22 @@ export default function DepositPage() {
 
                 <div className="p-4 flex items-center gap-4">
                   <div
-                    className="shrink-0 w-12 h-12 rounded-full overflow-hidden flex items-center justify-center"
+                    className="shrink-0 w-11 h-11 rounded-xl overflow-hidden flex items-center justify-center p-2"
                     style={{
-                      background: '#fff',
-                      boxShadow: paymentMethod === 'crypto'
-                        ? '0 4px 16px rgba(255,197,66,0.35), 0 0 0 2px rgba(255,197,66,0.5)'
-                        : '0 0 0 1px rgba(255,255,255,0.1)',
+                      background: '#12101e',
+                      border: `1px solid ${paymentMethod === 'crypto' ? 'rgba(255,197,66,0.5)' : 'rgba(255,197,66,0.2)'}`,
                     }}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/oxapay.jpg" alt="OxaPay" className="w-full h-full object-cover" />
+                    <img src="/oxapay.jpg" alt="OxaPay" className="w-full h-full object-contain rounded-md" />
                   </div>
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline gap-2 mb-0.5">
-                      <span className="font-cinzel font-bold text-[15px] text-aoe-parchment">{t('deposit_method_crypto')}</span>
-                      <span className="text-[9px] font-bold tracking-[0.2em] uppercase text-aoe-parchment-muted">{t('deposit_method_crypto_via')}</span>
+                      <span className="font-medium text-[15px] text-aoe-parchment">{t('deposit_method_crypto')}</span>
+                      <span className="text-[10px] font-medium text-aoe-parchment-dim">{t('deposit_method_crypto_via')}</span>
                     </div>
-                    <p className="text-[11px] text-aoe-parchment-muted">{t('deposit_method_crypto_desc')}</p>
+                    <p className="text-[11px] text-aoe-parchment-dim">{t('deposit_method_crypto_desc')}</p>
                   </div>
 
                   <div className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center" style={{
@@ -494,13 +497,13 @@ export default function DepositPage() {
                   </div>
                 </div>
 
-                <div className="px-4 pb-3 pt-2 border-t flex items-center gap-1.5" style={{ borderColor: 'rgba(30,26,48,0.8)', background: 'rgba(0,0,0,0.15)' }}>
+                <div className="px-4 pb-3 pt-2 border-t flex flex-wrap items-center gap-2" style={{ borderColor: 'rgba(30,26,48,0.8)', background: 'rgba(0,0,0,0.15)' }}>
                   {CRYPTOS.map(c => (
                     <div key={c.id} title={`${c.name} (${c.network})`} className="transition-transform hover:scale-110">
-                      <CryptoLogo id={c.id} size={18} />
+                      <CryptoLogo id={c.id} size={20} />
                     </div>
                   ))}
-                  <span className="text-[10px] text-aoe-parchment-muted ml-auto font-cinzel tracking-wide">{t('deposit_more_cryptos')}</span>
+                  <span className="text-[10px] text-aoe-parchment-dim ml-auto">{t('deposit_more_cryptos')}</span>
                 </div>
               </button>
 
@@ -508,13 +511,18 @@ export default function DepositPage() {
               <button
                 type="button"
                 onClick={() => setPaymentMethod('card')}
-                className="relative overflow-hidden rounded-xl w-full text-left transition-all"
+                className={cn(
+                  'relative overflow-hidden rounded-xl w-full text-left transition-all border',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc542]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0d0b1a]',
+                  paymentMethod === 'card'
+                    ? 'border-[#ffc542]'
+                    : 'border-[#1e1a30] bg-white/[0.02] hover:border-[#3d3860] hover:bg-white/[0.04]'
+                )}
                 style={{
                   background: paymentMethod === 'card'
                     ? 'linear-gradient(135deg, #14122a 0%, #0a0816 100%)'
-                    : 'rgba(255,255,255,0.02)',
-                  border: `1px solid ${paymentMethod === 'card' ? '#ffc542' : '#1e1a30'}`,
-                  boxShadow: paymentMethod === 'card' ? '0 0 18px rgba(255,197,66,0.12)' : 'none',
+                    : undefined,
+                  boxShadow: paymentMethod === 'card' ? '0 0 18px rgba(255,197,66,0.12)' : undefined,
                 }}
               >
                 {paymentMethod === 'card' && (
@@ -523,24 +531,21 @@ export default function DepositPage() {
 
                 <div className="p-4 flex items-center gap-4">
                   <div
-                    className="shrink-0 w-12 h-12 rounded-full flex items-center justify-center p-2"
+                    className="shrink-0 w-11 h-11 rounded-xl flex items-center justify-center"
                     style={{
-                      background: '#fff',
-                      boxShadow: paymentMethod === 'card'
-                        ? '0 4px 16px rgba(255,197,66,0.35), 0 0 0 2px rgba(255,197,66,0.5)'
-                        : '0 0 0 1px rgba(255,255,255,0.1)',
+                      background: '#12101e',
+                      border: `1px solid ${paymentMethod === 'card' ? 'rgba(255,197,66,0.5)' : 'rgba(255,197,66,0.2)'}`,
                     }}
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/debit-card.png" alt="Carte bancaire" className="w-full h-full object-contain" />
+                    <CreditCard size={20} className="text-aoe-gold" strokeWidth={1.75} />
                   </div>
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline gap-2 mb-0.5">
-                      <span className="font-cinzel font-bold text-[15px] text-aoe-parchment">{t('deposit_method_card')}</span>
-                      <span className="text-[9px] font-bold tracking-[0.2em] uppercase text-aoe-parchment-muted">{t('deposit_method_card_via')}</span>
+                      <span className="font-medium text-[15px] text-aoe-parchment">{t('deposit_method_card')}</span>
+                      <span className="text-[10px] font-medium text-aoe-parchment-dim">{t('deposit_method_card_via')}</span>
                     </div>
-                    <p className="text-[11px] text-aoe-parchment-muted">{t('deposit_method_card_desc')}</p>
+                    <p className="text-[11px] text-aoe-parchment-dim">{t('deposit_method_card_desc')}</p>
                   </div>
 
                   <div className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center" style={{
@@ -552,7 +557,7 @@ export default function DepositPage() {
                 </div>
 
                 {paymentMethod === 'card' && (
-                  <div className="px-4 pb-3 pt-2 border-t text-[10px] text-aoe-parchment-muted leading-relaxed space-y-1" style={{ borderColor: 'rgba(30,26,48,0.8)', background: 'rgba(0,0,0,0.15)' }}>
+                  <div className="px-4 pb-3 pt-2 border-t text-[10px] text-aoe-parchment-dim leading-relaxed space-y-1" style={{ borderColor: 'rgba(30,26,48,0.8)', background: 'rgba(0,0,0,0.15)' }}>
                     <div className="flex gap-2">
                       <span className="text-[#ffc542] font-bold">1.</span>
                       <span>{t('deposit_moonpay_step_1').replace('{amount}', `$${usdCost > 0 ? usdCost.toFixed(2) : '5.00'}`)}</span>
@@ -571,12 +576,12 @@ export default function DepositPage() {
           <div>
             <div className="flex items-center gap-2 mb-2 flex-wrap">
               <Gift size={12} className="text-aoe-parchment-dim" />
-              <p className="text-[10px] font-cinzel tracking-widest text-aoe-parchment-dim uppercase">
-                {t('deposit_affiliate_code')} <span className="text-aoe-parchment-muted normal-case font-sans tracking-normal">{t('deposit_affiliate_optional')}</span>
+              <p className="text-[10px] tracking-wide text-aoe-parchment-dim uppercase">
+                {t('deposit_affiliate_code')} <span className="text-aoe-parchment-dim normal-case font-sans tracking-normal">{t('deposit_affiliate_optional')}</span>
               </p>
               {!promoApplied && (
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold normal-case"
-                  style={{ background: 'rgba(52,211,153,0.12)', color: '#34d399', border: '1px solid rgba(52,211,153,0.35)' }}>
+                  style={{ background: 'rgba(255,197,66,0.12)', color: '#ffc542', border: '1px solid rgba(255,197,66,0.35)' }}>
                   {t('deposit_bonus_5pct')}
                 </span>
               )}
@@ -587,36 +592,36 @@ export default function DepositPage() {
                   type="text" value={promoCode}
                   onChange={e => { setPromoCode(e.target.value); setPromoApplied(false); setPromoError(''); }}
                   placeholder={t('chat_promo_placeholder')}
-                  className="flex-1 bg-aoe-stone/50 border border-aoe-border rounded-sm px-4 py-2.5 text-aoe-parchment placeholder-aoe-parchment-muted outline-none focus:border-aoe-border-gold transition-colors uppercase tracking-widest font-cinzel text-sm h-10"
+                  className="flex-1 bg-aoe-stone/50 border border-aoe-border rounded-xl px-4 text-aoe-parchment placeholder-aoe-parchment-muted outline-none focus:border-aoe-border-gold transition-colors text-sm h-10"
                   maxLength={20}
                   onKeyDown={e => { if (e.key === 'Enter') applyPromo(); }}
                 />
                 <button
                   onClick={applyPromo}
                   disabled={promoLoading}
-                  className="px-5 h-10 rounded-sm text-[11px] font-cinzel font-black tracking-[0.15em] uppercase shrink-0 transition-colors border-2 border-[#ffc542] bg-transparent text-[#ffc542] hover:bg-[#ffc542]/15 disabled:opacity-50"
+                  className="px-5 h-10 rounded-xl text-[11px] font-black tracking-wide uppercase shrink-0 transition-colors border-2 border-[#ffc542] bg-transparent text-[#ffc542] hover:bg-[#ffc542]/15 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc542]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0d0b1a]"
                 >
                   {promoLoading ? '...' : t('deposit_promo_apply')}
                 </button>
               </div>
             ) : (
-              <div className="p-3 rounded-xl" style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.25)' }}>
+              <div className="p-3 rounded-xl" style={{ background: 'rgba(255,197,66,0.08)', border: '1px solid rgba(255,197,66,0.25)' }}>
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
-                      <Check size={11} className="text-emerald-400" />
+                    <div className="w-5 h-5 rounded-full bg-aoe-gold/20 flex items-center justify-center shrink-0">
+                      <Check size={11} className="text-aoe-gold" />
                     </div>
-                    <span className="text-emerald-400 text-sm font-cinzel font-bold truncate">{promoCode.toUpperCase()}</span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                    <span className="text-aoe-gold text-sm font-bold truncate">{promoCode.toUpperCase()}</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-aoe-gold/20 text-aoe-gold-bright border border-aoe-gold/40">
                       +{promoBonusPct}% coins
                     </span>
                   </div>
-                  <span className="text-emerald-400/60 text-[10px] shrink-0">
+                  <span className="text-aoe-gold/60 text-[10px] shrink-0">
                     verrouillé {daysLeftOnPromo}j
                   </span>
                 </div>
-                <p className="text-[10px] mt-1.5 text-emerald-400/60">
-                  Tu recevras <span className="font-bold text-emerald-300">+{bonusCoins}⚜ bonus</span> sur ce dépôt.
+                <p className="text-[10px] mt-1.5 text-aoe-gold/60">
+                  Tu recevras <span className="font-bold text-aoe-gold-bright">+{bonusCoins}⚜ bonus</span> sur ce dépôt.
                   Code modifiable dans {daysLeftOnPromo} jour{daysLeftOnPromo > 1 ? 's' : ''}.
                 </p>
               </div>

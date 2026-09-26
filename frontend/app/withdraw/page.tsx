@@ -168,8 +168,8 @@ export default function WithdrawPage() {
           <div className="w-14 h-14 rounded-full mx-auto mb-5 flex items-center justify-center" style={{ background: 'rgba(255,197,66,0.1)', border: '1px solid rgba(255,197,66,0.3)' }}>
             <ArrowUpFromLine size={24} className="text-aoe-gold" />
           </div>
-          <h2 className="font-cinzel font-bold text-xl text-aoe-gold mb-2 tracking-wider">{t('auth_required').toUpperCase()}</h2>
-          <p className="text-aoe-parchment-muted text-sm mb-8 leading-relaxed">
+          <h2 className="font-bold text-xl text-aoe-gold mb-2 tracking-wider">{t('auth_required').toUpperCase()}</h2>
+          <p className="text-aoe-parchment-dim text-sm mb-8 leading-relaxed">
             {t('auth_signin_steam')}
           </p>
           <button
@@ -201,33 +201,33 @@ export default function WithdrawPage() {
           <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center mx-auto mb-4">
             <Check size={32} className="text-emerald-400" />
           </div>
-          <h2 className="font-cinzel text-xl font-bold text-emerald-400 mb-2">{t('withdraw_success')}</h2>
-          <p className="text-aoe-parchment-muted text-sm mb-4">
+          <h2 className="text-xl font-bold text-emerald-400 mb-2">{t('withdraw_success')}</h2>
+          <p className="text-aoe-parchment-dim text-sm mb-4">
             {t('withdraw_processing')}
           </p>
           {txId && (
-            <div className="bg-aoe-stone/50 border border-aoe-border rounded p-3 mb-6 text-xs text-aoe-parchment-muted font-mono break-all">
+            <div className="bg-aoe-stone/50 border border-aoe-border rounded-lg p-3 mb-6 text-xs text-aoe-parchment-dim font-mono break-all">
               ID: {txId}
             </div>
           )}
-          <div className="bg-aoe-stone/30 border border-aoe-border rounded p-4 mb-6 text-left space-y-2">
+          <div className="bg-aoe-stone/30 border border-aoe-border rounded-lg p-4 mb-6 text-left space-y-2">
             <div className="flex justify-between text-sm">
-              <span className="text-aoe-parchment-muted">{t('withdraw_amount')}</span>
+              <span className="text-aoe-parchment-dim">{t('withdraw_amount')}</span>
               <span className="text-aoe-gold font-bold">{formatCoins(coins)}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-aoe-parchment-muted">{t('withdraw_crypto')}</span>
+              <span className="text-aoe-parchment-dim">{t('withdraw_crypto')}</span>
               <span className="text-aoe-parchment font-bold">{crypto.symbol}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-aoe-parchment-muted">{t('withdraw_usd')}</span>
+              <span className="text-aoe-parchment-dim">{t('withdraw_usd')}</span>
               <span className="text-aoe-parchment">${usdValue.toFixed(2)}</span>
             </div>
           </div>
-          <p className="text-aoe-parchment-muted text-xs mb-6">
+          <p className="text-aoe-parchment-dim text-xs mb-6">
             {t('common_processing')}
           </p>
-          <Link href="/" className="aoe-btn-gold w-full py-3 font-cinzel font-bold tracking-wider flex items-center justify-center">
+          <Link href="/" className="aoe-btn-gold w-full py-3 font-bold tracking-wider flex items-center justify-center">
             {t('withdraw_back_home')}
           </Link>
         </div>
@@ -247,15 +247,15 @@ export default function WithdrawPage() {
                 <rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>
               </svg>
             </div>
-            <h2 className="font-cinzel text-xl font-bold text-aoe-gold tracking-wider">{t('withdraw_2fa_title')}</h2>
-            <p className="text-aoe-parchment-muted text-sm text-center mt-1">
+            <h2 className="text-xl font-bold text-aoe-gold tracking-wider">{t('withdraw_2fa_title')}</h2>
+            <p className="text-aoe-parchment-dim text-sm text-center mt-1">
               {t('withdraw_2fa_desc')}
             </p>
           </div>
 
           {/* Code input */}
           <div className="mb-4">
-            <label className="block text-[12px] font-semibold text-[#c8c0e0] mb-2 font-cinzel uppercase tracking-wider">
+            <label className="block text-[12px] font-semibold text-[#c8c0e0] mb-2 uppercase tracking-wider">
               {t('withdraw_2fa_code')}
             </label>
             <input
@@ -275,7 +275,7 @@ export default function WithdrawPage() {
           </div>
 
           {error && (
-            <div className="bg-red-500/10 border border-red-500/30 rounded p-3 mb-4 text-red-400 text-sm">
+            <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mb-4 text-red-400 text-sm">
               {error}
             </div>
           )}
@@ -283,7 +283,7 @@ export default function WithdrawPage() {
           <div className="flex gap-3">
             <button
               onClick={() => { setStep('confirm'); setTwoFaCode(''); setTwoFaError(''); }}
-              className="flex-1 py-3 border border-aoe-border rounded text-aoe-parchment-muted hover:border-aoe-border-gold hover:text-aoe-parchment transition-all font-cinzel text-sm"
+              className="flex-1 py-3 border border-aoe-border rounded-lg text-aoe-parchment-dim hover:border-aoe-border-gold hover:text-aoe-parchment transition-all text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc542]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0d0b1a]"
               disabled={loading}
             >
               {t('deposit_back')}
@@ -303,7 +303,7 @@ export default function WithdrawPage() {
                 }
               }}
               disabled={loading}
-              className="flex-1 py-3 bg-aoe-gold/90 hover:bg-aoe-gold text-aoe-dark font-cinzel font-bold rounded transition-all disabled:opacity-60 text-sm"
+              className="flex-1 py-3 bg-aoe-gold/90 hover:bg-aoe-gold text-aoe-dark font-bold rounded-lg transition-all disabled:opacity-60 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc542]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0d0b1a]"
             >
               {loading ? t('common_verifying') : t('withdraw_verify')}
             </button>
@@ -317,31 +317,31 @@ export default function WithdrawPage() {
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
         <div className="aoe-card p-8 max-w-md w-full">
-          <h2 className="font-cinzel text-xl font-bold text-aoe-gold mb-6 text-center">{t('withdraw_confirm_title')}</h2>
+          <h2 className="text-xl font-bold text-aoe-gold mb-6 text-center">{t('withdraw_confirm_title')}</h2>
 
           <div className="space-y-3 mb-6">
             <div className="flex justify-between items-center py-3 border-b border-aoe-border">
-              <span className="text-aoe-parchment-muted text-sm">{t('withdraw_amount')}</span>
+              <span className="text-aoe-parchment-dim text-sm">{t('withdraw_amount')}</span>
               <span className="text-aoe-gold font-bold text-lg">{formatCoins(coins)}</span>
             </div>
             <div className="flex justify-between items-center py-3 border-b border-aoe-border">
-              <span className="text-aoe-parchment-muted text-sm">{t('withdraw_usd')}</span>
+              <span className="text-aoe-parchment-dim text-sm">{t('withdraw_usd')}</span>
               <span className="text-aoe-parchment font-semibold">${usdValue.toFixed(2)}</span>
             </div>
             <div className="flex justify-between items-center py-3 border-b border-aoe-border">
-              <span className="text-aoe-parchment-muted text-sm">{t('withdraw_crypto')}</span>
+              <span className="text-aoe-parchment-dim text-sm">{t('withdraw_crypto')}</span>
               <div className="flex items-center gap-2">
                 <CryptoLogo id={selectedCrypto} size={20} />
                 <span className="text-aoe-parchment font-semibold">{crypto.symbol}</span>
               </div>
             </div>
             <div className="py-3">
-              <span className="text-aoe-parchment-muted text-sm block mb-1">{t('withdraw_address')}</span>
+              <span className="text-aoe-parchment-dim text-sm block mb-1">{t('withdraw_address')}</span>
               <span className="text-aoe-parchment text-xs font-mono break-all">{walletAddress}</span>
             </div>
           </div>
 
-          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded p-3 mb-6 flex gap-2">
+          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 mb-6 flex gap-2">
             <AlertTriangle size={16} className="text-yellow-500 flex-shrink-0 mt-0.5" />
             <p className="text-yellow-500/80 text-xs">
               {t('withdraw_warning')}
@@ -349,7 +349,7 @@ export default function WithdrawPage() {
           </div>
 
           {error && (
-            <div className="bg-red-500/10 border border-red-500/30 rounded p-3 mb-4 text-red-400 text-sm">
+            <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mb-4 text-red-400 text-sm">
               {error}
             </div>
           )}
@@ -357,7 +357,7 @@ export default function WithdrawPage() {
           <div className="flex gap-3">
             <button
               onClick={() => { setStep('form'); setError(''); }}
-              className="flex-1 py-3 border border-aoe-border rounded text-aoe-parchment-muted hover:border-aoe-border-gold hover:text-aoe-parchment transition-all font-cinzel text-sm"
+              className="flex-1 py-3 border border-aoe-border rounded-lg text-aoe-parchment-dim hover:border-aoe-border-gold hover:text-aoe-parchment transition-all text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc542]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0d0b1a]"
               disabled={loading}
             >
               {t('deposit_back')}
@@ -365,7 +365,7 @@ export default function WithdrawPage() {
             <button
               onClick={() => { if (totpEnabled) { setStep('2fa'); } else { handleSubmit(); } }}
               disabled={loading}
-              className="flex-1 py-3 bg-aoe-gold/90 hover:bg-aoe-gold text-aoe-dark font-cinzel font-bold rounded transition-all disabled:opacity-60 text-sm"
+              className="flex-1 py-3 bg-aoe-gold/90 hover:bg-aoe-gold text-aoe-dark font-bold rounded-lg transition-all disabled:opacity-60 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc542]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0d0b1a]"
             >
               {loading ? t('common_processing') : t('deposit_confirm')}
             </button>
@@ -376,18 +376,18 @@ export default function WithdrawPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8">
+    <div className="max-w-2xl mx-auto px-4 pt-8 pb-28 md:pb-8">
 
       {/* Tabs — same underlined style as the deposit page */}
       <div className="flex mb-8 border-b" style={{ borderColor: '#1e1a30' }}>
         <Link
           href="/deposit"
-          className="flex-1 flex items-center justify-center gap-2 py-3 font-cinzel font-bold text-[12px] tracking-[0.18em] uppercase text-[#8981ab] hover:text-[#e8e2f5] transition-colors"
+          className="flex-1 flex items-center justify-center gap-2 py-3 font-bold text-[12px] tracking-wide uppercase text-[#8981ab] hover:text-[#e8e2f5] transition-colors"
         >
           <ArrowDownToLine size={13} />
           {t('deposit_tab')}
         </Link>
-        <div className="flex-1 flex items-center justify-center gap-2 py-3 font-cinzel font-bold text-[12px] tracking-[0.18em] uppercase cursor-default text-[#ffc542] relative">
+        <div className="flex-1 flex items-center justify-center gap-2 py-3 font-bold text-[12px] tracking-wide uppercase cursor-default text-[#ffc542] relative">
           <ArrowUpFromLine size={13} />
           {t('withdraw_tab')}
           <span className="absolute left-0 right-0 -bottom-px h-[2px] bg-[#ffc542]" />
@@ -400,7 +400,7 @@ export default function WithdrawPage() {
           the page was loading. The 1,69 ⚜ = $0,99 rate is enough on its own. */}
       <div className="text-center mb-8">
         <h1 className="font-cinzel font-black text-3xl text-aoe-gold tracking-wider mb-2">{t('withdraw_title')}</h1>
-        <p className="text-aoe-parchment-muted text-sm">
+        <p className="text-aoe-parchment-dim text-sm">
           <span className="text-aoe-gold font-bold">1,69 ⚜ = $0,99</span>
         </p>
       </div>
@@ -409,11 +409,11 @@ export default function WithdrawPage() {
       <div className="rounded-xl p-4 mb-6 flex items-center justify-between" style={{ background: 'linear-gradient(135deg, rgba(255,197,66,0.08), rgba(255,197,66,0.04))', border: '1px solid rgba(255,197,66,0.25)' }}>
         <div className="flex items-center gap-2">
           <Wallet size={16} className="text-aoe-gold" />
-          <span className="text-aoe-parchment-muted text-sm font-cinzel">{t('deposit_balance')}</span>
+          <span className="text-aoe-parchment-dim text-sm ">{t('deposit_balance')}</span>
         </div>
         <div className="text-right">
-          <div className="text-aoe-gold font-bold text-lg font-cinzel">{formatCoins(userCoins)}</div>
-          <div className="text-aoe-parchment-muted text-xs">≈ ${((userCoins / COINS_PER_USD) * PAYOUT_RATE).toFixed(2)}</div>
+          <div className="text-aoe-gold font-bold text-lg ">{formatCoins(userCoins)}</div>
+          <div className="text-aoe-parchment-dim text-xs">≈ ${((userCoins / COINS_PER_USD) * PAYOUT_RATE).toFixed(2)}</div>
         </div>
       </div>
 
@@ -421,8 +421,8 @@ export default function WithdrawPage() {
       {/* Step 1 — Amount */}
       <div className="aoe-card p-5 mb-4">
         <div className="flex items-center gap-2 mb-4">
-          <div className="w-6 h-6 rounded-full bg-aoe-gold/20 border border-aoe-border-gold flex items-center justify-center text-aoe-gold text-xs font-bold font-cinzel">1</div>
-          <span className="font-cinzel text-sm font-bold text-aoe-gold tracking-wider">{t('withdraw_amount').toUpperCase()}</span>
+          <div className="w-6 h-6 rounded-full bg-aoe-gold/20 border border-aoe-border-gold flex items-center justify-center text-aoe-gold text-xs font-bold">1</div>
+          <span className="text-sm font-bold text-aoe-gold tracking-wider">{t('withdraw_amount').toUpperCase()}</span>
         </div>
 
         {/* Custom amount */}
@@ -434,13 +434,13 @@ export default function WithdrawPage() {
             placeholder="777"
             min={minCoins}
             max={userCoins}
-            className="w-full border rounded-xl px-4 py-4 text-aoe-parchment text-xl font-cinzel font-bold placeholder-aoe-parchment-muted/40 outline-none transition-colors pr-16 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            className="w-full border rounded-xl px-4 py-4 text-aoe-parchment text-xl font-bold placeholder-aoe-parchment-muted/40 outline-none transition-colors pr-16 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             style={{ background: 'rgba(255,255,255,0.04)', borderColor: coins > 0 ? '#ffc542' : '#1e1a30' }}
           />
           <span className="absolute right-4 top-1/2 -translate-y-1/2 text-aoe-gold text-xl font-bold">⚜</span>
         </div>
         {coins > 0 && (
-          <p className="text-aoe-parchment-muted text-xs mt-2 text-right">
+          <p className="text-aoe-parchment-dim text-xs mt-2 text-right">
             = <span className="text-aoe-parchment font-semibold">${usdValue.toFixed(2)}</span>
             <span className="mx-1 opacity-40">·</span>
             <span className="opacity-70">≈ €{eurValue.toFixed(2)}</span>
@@ -449,18 +449,18 @@ export default function WithdrawPage() {
 
         {/* Value display */}
         {coins > 0 && (
-          <div className="mt-3 p-3 bg-aoe-stone/30 border border-aoe-border/50 rounded grid grid-cols-3 gap-2 text-center">
+          <div className="mt-3 p-3 bg-aoe-stone/30 border border-aoe-border/50 rounded-lg grid grid-cols-3 gap-2 text-center">
             <div>
               <div className="text-aoe-gold font-bold text-sm">{formatCoins(coins)}</div>
-              <div className="text-aoe-parchment-muted text-[10px]">Coins</div>
+              <div className="text-aoe-parchment-dim text-[10px]">Coins</div>
             </div>
             <div>
               <div className="text-aoe-parchment font-bold text-sm">${usdValue.toFixed(2)}</div>
-              <div className="text-aoe-parchment-muted text-[10px]">USD</div>
+              <div className="text-aoe-parchment-dim text-[10px]">USD</div>
             </div>
             <div>
               <div className="text-aoe-parchment font-bold text-sm">€{eurValue.toFixed(2)}</div>
-              <div className="text-aoe-parchment-muted text-[10px]">EUR</div>
+              <div className="text-aoe-parchment-dim text-[10px]">EUR</div>
             </div>
           </div>
         )}
@@ -483,8 +483,8 @@ export default function WithdrawPage() {
       {/* Step 2 — Crypto selection */}
       <div className="aoe-card p-5 mb-4">
         <div className="flex items-center gap-2 mb-4">
-          <div className="w-6 h-6 rounded-full bg-aoe-gold/20 border border-aoe-border-gold flex items-center justify-center text-aoe-gold text-xs font-bold font-cinzel">2</div>
-          <span className="font-cinzel text-sm font-bold text-aoe-gold tracking-wider">{t('withdraw_crypto').toUpperCase()}</span>
+          <div className="w-6 h-6 rounded-full bg-aoe-gold/20 border border-aoe-border-gold flex items-center justify-center text-aoe-gold text-xs font-bold">2</div>
+          <span className="text-sm font-bold text-aoe-gold tracking-wider">{t('withdraw_crypto').toUpperCase()}</span>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -493,7 +493,8 @@ export default function WithdrawPage() {
               key={crypto.id}
               onClick={() => setSelectedCrypto(crypto.id)}
               className={cn(
-                'relative py-3 px-2 rounded border transition-all flex flex-col items-center gap-1.5',
+                'relative py-3 px-2 rounded-lg border transition-all flex flex-col items-center gap-1.5',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc542]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0d0b1a]',
                 selectedCrypto === crypto.id
                   ? 'border-aoe-border-gold bg-aoe-gold/10'
                   : 'border-aoe-border bg-aoe-stone/50 hover:border-aoe-border-gold/50'
@@ -506,7 +507,7 @@ export default function WithdrawPage() {
               )}
               <CryptoLogo id={crypto.id} size={28} />
               <span className="text-[11px] font-bold text-aoe-parchment">{crypto.symbol}</span>
-              <span className="text-[9px] text-aoe-parchment-muted">min ${crypto.minUsd}</span>
+              <span className="text-[9px] text-aoe-parchment-dim">min ${crypto.minUsd}</span>
             </button>
           ))}
         </div>
@@ -515,8 +516,8 @@ export default function WithdrawPage() {
       {/* Step 3 — Wallet address */}
       <div className="aoe-card p-5 mb-6">
         <div className="flex items-center gap-2 mb-4 flex-wrap">
-          <div className="w-6 h-6 rounded-full bg-aoe-gold/20 border border-aoe-border-gold flex items-center justify-center text-aoe-gold text-xs font-bold font-cinzel">3</div>
-          <span className="font-cinzel text-sm font-bold text-aoe-gold tracking-wider">{t('withdraw_address').toUpperCase()} {crypto.symbol}</span>
+          <div className="w-6 h-6 rounded-full bg-aoe-gold/20 border border-aoe-border-gold flex items-center justify-center text-aoe-gold text-xs font-bold">3</div>
+          <span className="text-sm font-bold text-aoe-gold tracking-wider">{t('withdraw_address').toUpperCase()} {crypto.symbol}</span>
           {crypto.id === 'usdt' && (
             <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider"
               style={{ background: 'rgba(38,161,123,0.15)', color: '#26A17B', border: '1px solid rgba(38,161,123,0.4)' }}>
@@ -530,15 +531,15 @@ export default function WithdrawPage() {
           value={walletAddress}
           onChange={e => setWalletAddress(e.target.value)}
           placeholder={crypto.id === 'usdt' ? 'T...' : `${t('withdraw_address')} ${crypto.symbol}...`}
-          className="w-full bg-aoe-stone/50 border border-aoe-border rounded px-4 py-3 text-aoe-parchment placeholder-aoe-parchment-muted outline-none focus:border-aoe-border-gold transition-colors font-mono text-sm"
+          className="w-full bg-aoe-stone/50 border border-aoe-border rounded-lg px-4 py-3 text-aoe-parchment placeholder-aoe-parchment-muted outline-none focus:border-aoe-border-gold transition-colors font-mono text-sm"
         />
         {crypto.id === 'usdt' && (
-          <p className="text-aoe-parchment-muted text-[11px] mt-2 flex items-center gap-1.5">
+          <p className="text-aoe-parchment-dim text-[11px] mt-2 flex items-center gap-1.5">
             <span className="text-[#26A17B]">●</span>
             <span>Réseau : <span className="font-bold text-aoe-parchment">Tron (TRC-20)</span> — adresse qui commence par <span className="font-mono text-aoe-gold">T</span>, 34 caractères. ERC-20 / BEP-20 / autres réseaux ne sont PAS supportés.</span>
           </p>
         )}
-        <p className="text-aoe-parchment-muted text-xs mt-2 flex items-center gap-1">
+        <p className="text-aoe-parchment-dim text-xs mt-2 flex items-center gap-1">
           <AlertTriangle size={11} className="text-yellow-500" />
           {t('withdraw_warning')}
         </p>
@@ -549,10 +550,11 @@ export default function WithdrawPage() {
         onClick={() => setStep('confirm')}
         disabled={!isValid}
         className={cn(
-          'w-full py-4 rounded font-cinzel font-bold tracking-widest text-sm transition-all',
+          'w-full py-4 rounded-lg font-bold tracking-wide text-sm transition-all',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc542]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0d0b1a]',
           isValid
             ? 'bg-aoe-gold/90 hover:bg-aoe-gold text-aoe-dark cursor-pointer'
-            : 'bg-aoe-stone border border-aoe-border text-aoe-parchment-muted cursor-not-allowed opacity-50'
+            : 'bg-aoe-stone border border-aoe-border text-aoe-parchment-dim cursor-not-allowed opacity-50'
         )}
       >
         CONTINUER →

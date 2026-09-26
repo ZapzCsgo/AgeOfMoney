@@ -193,7 +193,7 @@ export function Navbar() {
                   : 'text-aoe-parchment-dim hover:text-aoe-gold'
               )}
             >
-              <PlusCircle size={13} />
+              <Wallet size={13} />
               {t('nav_deposit')}
             </Link>
           )}
