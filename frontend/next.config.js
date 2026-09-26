@@ -73,6 +73,7 @@ const nextConfig = {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
     NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL,
   },
+  // no-op touch (2026-09-26) — forces a fresh Railway build after the TFT removal
 };
 
 module.exports = nextConfig;
