@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Globe } from 'lucide-react';
 import { useT, LANGUAGES } from '@/lib/i18n';
 import { PrivacyModal } from '@/components/legal/PrivacyModal';
 import { TermsModal } from '@/components/legal/TermsModal';
@@ -144,12 +144,13 @@ export function Footer() {
             <div className="relative sm:mr-40">
               <button
                 onClick={() => setLangOpen(!langOpen)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors"
-                style={{ background: '#13111f', border: '1px solid rgba(255,197,66,0.2)' }}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-lg transition-colors hover:bg-[#1a1730] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc542]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#09080f]"
+                style={{ background: '#13111f', border: '1px solid rgba(255,197,66,0.45)' }}
               >
-                <span className="text-[12px]">{currentLang.flag}</span>
-                <span className="text-[12px]" style={{ color: '#9990b8' }}>{currentLang.label}</span>
-                <ChevronDown width={12} height={12} style={{ color: '#8981ab' }} />
+                <Globe size={13} style={{ color: '#ffc542' }} />
+                <span className="text-[13px]">{currentLang.flag}</span>
+                <span className="text-[13px] font-semibold" style={{ color: '#e8e2f5' }}>{currentLang.label}</span>
+                <ChevronDown width={13} height={13} style={{ color: '#ffc542' }} />
               </button>
               {langOpen && (
                 <>
