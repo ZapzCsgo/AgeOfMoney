@@ -12,27 +12,45 @@ import { cn } from '@/lib/utils';
 import { useT } from '@/lib/i18n';
 import { PodiumHero } from '@/components/leaderboard/PodiumHero';
 
-/** Faint heraldic ornament behind the header — pure decoration, very low
- * opacity so it never competes with the title/podium above it. */
+/** A single laurel leaf — pointed lens shape with a center vein, tip at the
+ * local +x axis. Placed and rotated by the caller along the branch curve. */
+function LaurelLeaf({ x, y, angle, scale }: { x: number; y: number; angle: number; scale: number }) {
+  return (
+    <g transform={`translate(${x} ${y}) rotate(${angle}) scale(${scale})`}>
+      <path d="M0,0 C4,-5 12,-5 18,0 C12,5 4,5 0,0 Z" fill="#ffc542" fillOpacity="0.12" stroke="#ffc542" strokeWidth="1" />
+      <line x1="1.5" y1="0" x2="16.5" y2="0" stroke="#ffc542" strokeWidth="0.6" strokeOpacity="0.6" />
+    </g>
+  );
+}
+
+// Hand-placed leaf positions along a branch curving up and outward from the
+// base, tapering in size toward the tip. Angle is the direction (in SVG's
+// y-down convention) each leaf's tip points, following the branch tangent —
+// roughly outward-and-up at the base, curling in toward vertical at the tip.
+const RIGHT_LEAVES = [
+  { x: 18, y: 6,   angle: -45, scale: 1.0  },
+  { x: 30, y: -6,  angle: -50, scale: 0.92 },
+  { x: 40, y: -20, angle: -60, scale: 0.84 },
+  { x: 47, y: -36, angle: -73, scale: 0.76 },
+  { x: 50, y: -53, angle: -88, scale: 0.68 },
+  { x: 48, y: -69, angle: -97, scale: 0.6  },
+];
+const LEFT_LEAVES = RIGHT_LEAVES.map(l => ({ x: -l.x, y: l.y, angle: 180 - l.angle, scale: l.scale }));
+
+/** Faint laurel wreath behind the header — two symmetric branches, low
+ * opacity, sitting behind the title/subtitle rather than the badge above. */
 function HeaderOrnament() {
   return (
     <svg
-      viewBox="0 0 400 120"
-      className="pointer-events-none absolute left-1/2 top-0 -translate-x-1/2 w-[420px] max-w-[140%] h-auto"
-      style={{ opacity: 0.05 }}
+      viewBox="0 0 400 160"
+      className="pointer-events-none absolute left-1/2 top-2 -translate-x-1/2 w-[420px] max-w-[140%] h-auto"
+      style={{ opacity: 0.07 }}
       aria-hidden
     >
-      <path d="M200 10 C170 30 150 55 150 85 C150 100 165 112 200 112 C235 112 250 100 250 85 C250 55 230 30 200 10Z" fill="none" stroke="#ffc542" strokeWidth="1.5" />
-      {[...Array(5)].map((_, i) => (
-        <g key={`l-${i}`}>
-          <ellipse cx={130 - i * 18} cy={40 + i * 14} rx="14" ry="7" fill="none" stroke="#ffc542" strokeWidth="1.2" transform={`rotate(${-20 - i * 6} ${130 - i * 18} ${40 + i * 14})`} />
-        </g>
-      ))}
-      {[...Array(5)].map((_, i) => (
-        <g key={`r-${i}`}>
-          <ellipse cx={270 + i * 18} cy={40 + i * 14} rx="14" ry="7" fill="none" stroke="#ffc542" strokeWidth="1.2" transform={`rotate(${20 + i * 6} ${270 + i * 18} ${40 + i * 14})`} />
-        </g>
-      ))}
+      <g transform="translate(200 148)">
+        {LEFT_LEAVES.map((l, i) => <LaurelLeaf key={`l-${i}`} {...l} />)}
+        {RIGHT_LEAVES.map((l, i) => <LaurelLeaf key={`r-${i}`} {...l} />)}
+      </g>
     </svg>
   );
 }
@@ -125,7 +143,7 @@ export default function LeaderboardPage() {
             style={{ background: '#ffc54215', border: '1px solid #ffc54230', color: '#ffc542' }}>
             <Trophy size={11} /> {t('lb_title')}
           </div>
-          <h1 className="relative text-[28px] font-bold mb-1" style={{ color: '#e8e2f5', fontFamily: 'Cinzel, serif' }}>
+          <h1 className="relative text-[28px] font-bold font-cinzel mb-1" style={{ color: '#e8e2f5' }}>
             {t('lb_top_bettors')}
           </h1>
           <p className="relative text-[13px]" style={{ color: '#8981ab' }}>
