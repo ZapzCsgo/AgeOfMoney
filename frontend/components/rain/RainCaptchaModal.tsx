@@ -99,7 +99,7 @@ export function RainCaptchaModal({
             </span>
           </div>
           <button onClick={onClose} className="hover:opacity-60 transition-opacity" aria-label="fermer">
-            <X size={14} style={{ color: '#6b6488' }} />
+            <X size={14} style={{ color: '#8981ab' }} />
           </button>
         </div>
 
@@ -111,7 +111,7 @@ export function RainCaptchaModal({
             Ta part si tu claim : <strong style={{ color: '#ffd97a' }}>{perUser} ⚜</strong>
           </p>
 
-          <p className="text-[11px] mb-2" style={{ color: '#6b6488' }}>
+          <p className="text-[11px] mb-2" style={{ color: '#8981ab' }}>
             Combien font
           </p>
           <p className="text-[36px] font-bold mb-4" style={{ fontFamily: 'Cinzel, serif', color: '#ffd97a' }}>

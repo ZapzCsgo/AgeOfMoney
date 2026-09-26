@@ -93,7 +93,7 @@ function KpiCard({ label, value, suffix, tooltip, delta, sparkline, loading, com
       style={{ background: '#0e0d1a', border: '1px solid #1e1a30' }}
     >
       <div>
-        <div className="flex items-center gap-1 text-[10px] tracking-[0.2em] uppercase" style={{ color: '#6b6488' }}>
+        <div className="flex items-center gap-1 text-[10px] tracking-[0.2em] uppercase" style={{ color: '#8981ab' }}>
           {label}
           <InfoTooltip content={tooltip} />
         </div>
@@ -106,7 +106,7 @@ function KpiCard({ label, value, suffix, tooltip, delta, sparkline, loading, com
               <span className="text-[22px] font-bold leading-none" style={{ color: accent, fontFamily: 'Cinzel, serif' }}>
                 {value}
               </span>
-              {suffix && <span className="text-[11px]" style={{ color: '#6b6488' }}>{suffix}</span>}
+              {suffix && <span className="text-[11px]" style={{ color: '#8981ab' }}>{suffix}</span>}
             </>
           )}
         </div>

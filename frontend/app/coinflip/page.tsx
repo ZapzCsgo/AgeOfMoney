@@ -125,7 +125,7 @@ function CancelOrWait({ gameId, createdAt, onCancel }: { gameId: string; created
   const sec = Math.floor((remaining % 60000) / 1000);
 
   return (
-    <div className="w-full py-2 rounded-lg text-[11px] text-center" style={{ color: '#4a4468' }}>
+    <div className="w-full py-2 rounded-lg text-[11px] text-center" style={{ color: '#6a6390' }}>
       <Clock size={10} className="inline mr-1 -mt-px" />
       You can cancel in {min}:{sec.toString().padStart(2, '0')}
     </div>
@@ -355,7 +355,7 @@ export default function CoinFlipPage() {
               COINFLIP
             </h1>
           </div>
-          <p className="text-[11px] tracking-widest uppercase" style={{ color: '#6b6488' }}>
+          <p className="text-[11px] tracking-widest uppercase" style={{ color: '#8981ab' }}>
             {t('coinflip_subtitle')}
           </p>
           {/* Tab switcher : En direct / Historique */}
@@ -365,7 +365,7 @@ export default function CoinFlipPage() {
               className="px-4 py-1.5 rounded-lg text-[11px] font-bold tracking-wider uppercase transition-all"
               style={{
                 background: viewTab === 'live' ? 'rgba(255,197,66,0.15)' : 'transparent',
-                color: viewTab === 'live' ? '#ffd97a' : '#6b6488',
+                color: viewTab === 'live' ? '#ffd97a' : '#8981ab',
                 border: viewTab === 'live' ? '1px solid rgba(255,197,66,0.3)' : '1px solid transparent',
               }}
             >
@@ -377,7 +377,7 @@ export default function CoinFlipPage() {
               className="px-4 py-1.5 rounded-lg text-[11px] font-bold tracking-wider uppercase transition-all"
               style={{
                 background: viewTab === 'history' ? 'rgba(255,197,66,0.15)' : 'transparent',
-                color: viewTab === 'history' ? '#ffd97a' : '#6b6488',
+                color: viewTab === 'history' ? '#ffd97a' : '#8981ab',
                 border: viewTab === 'history' ? '1px solid rgba(255,197,66,0.3)' : '1px solid transparent',
               }}
             >
@@ -405,16 +405,16 @@ export default function CoinFlipPage() {
         {viewTab === 'history' && (
           <div className="rounded-2xl p-5" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
             <div className="flex items-center gap-2 mb-4">
-              <Trophy size={16} style={{ color: '#6b6488' }} />
+              <Trophy size={16} style={{ color: '#8981ab' }} />
               <h2 className="text-[14px] font-bold tracking-wider uppercase" style={{ fontFamily: 'Cinzel, serif', color: '#e8e2f5' }}>
                 Historique des coinflips
               </h2>
-              <span className="ml-auto text-[11px]" style={{ color: '#6b6488' }}>{historyGames.length} flips</span>
+              <span className="ml-auto text-[11px]" style={{ color: '#8981ab' }}>{historyGames.length} flips</span>
             </div>
             {historyLoading ? (
-              <div className="text-center py-8 text-[12px]" style={{ color: '#6b6488' }}>Chargement…</div>
+              <div className="text-center py-8 text-[12px]" style={{ color: '#8981ab' }}>Chargement…</div>
             ) : historyGames.length === 0 ? (
-              <div className="text-center py-8 text-[12px]" style={{ color: '#6b6488' }}>Aucun flip terminé.</div>
+              <div className="text-center py-8 text-[12px]" style={{ color: '#8981ab' }}>Aucun flip terminé.</div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {historyGames.map((game) => {
@@ -466,7 +466,7 @@ export default function CoinFlipPage() {
                             +{winAmount.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜
                           </span>
                         </div>
-                        <div className="text-[11px] truncate mt-0.5" style={{ color: '#6b6488' }}>
+                        <div className="text-[11px] truncate mt-0.5" style={{ color: '#8981ab' }}>
                           vs <span style={{ color: '#8a8299' }}>{loserName}</span>
                           <span className="mx-1.5" style={{ color: '#3a3560' }}>·</span>
                           mise {game.amount.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜
@@ -538,7 +538,7 @@ export default function CoinFlipPage() {
                 <span
                   className="text-[11px] font-bold uppercase"
                   style={{
-                    color: selectedSide === 'crown' ? '#ffd97a' : '#6b6488',
+                    color: selectedSide === 'crown' ? '#ffd97a' : '#8981ab',
                   }}
                 >
                   Archers
@@ -570,7 +570,7 @@ export default function CoinFlipPage() {
                 <span
                   className="text-[11px] font-bold uppercase"
                   style={{
-                    color: selectedSide === 'shield' ? '#c0c0c0' : '#6b6488',
+                    color: selectedSide === 'shield' ? '#c0c0c0' : '#8981ab',
                   }}
                 >
                   Swords
@@ -664,7 +664,7 @@ export default function CoinFlipPage() {
             <Badge
               variant="outline"
               className="text-[10px]"
-              style={{ color: '#6b6488', borderColor: '#1e1a30' }}
+              style={{ color: '#8981ab', borderColor: '#1e1a30' }}
             >
               {waitingGames.length} {t('coinflip_open')}
             </Badge>
@@ -716,7 +716,7 @@ export default function CoinFlipPage() {
                       ) : (
                         <div
                           className="w-full h-full flex items-center justify-center text-[11px] font-bold"
-                          style={{ background: '#1e1a30', color: '#6b6488' }}
+                          style={{ background: '#1e1a30', color: '#8981ab' }}
                         >
                           {game.creator.username[0]?.toUpperCase()}
                         </div>
@@ -802,7 +802,7 @@ export default function CoinFlipPage() {
             style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}
           >
             <div className="flex items-center gap-2 mb-4">
-              <Clock size={16} style={{ color: '#6b6488' }} />
+              <Clock size={16} style={{ color: '#8981ab' }} />
               <h2
                 className="text-[14px] font-bold tracking-wider uppercase"
                 style={{ fontFamily: 'Cinzel, serif', color: '#e8e2f5' }}
@@ -851,7 +851,7 @@ export default function CoinFlipPage() {
                       </p>
                       <p
                         className="text-[10px] truncate max-w-[100px]"
-                        style={{ color: '#6b6488' }}
+                        style={{ color: '#8981ab' }}
                       >
                         {winnerName}
                       </p>

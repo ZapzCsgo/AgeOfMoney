@@ -26,7 +26,7 @@ function PlayerMini({ name, avatarUrl, size = 28 }: { name: string; avatarUrl?: 
         // eslint-disable-next-line @next/next/no-img-element
         <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />
       ) : (
-        <div className="w-full h-full flex items-center justify-center text-[11px] font-bold" style={{ background: '#1e1a30', color: '#6b6488' }}>
+        <div className="w-full h-full flex items-center justify-center text-[11px] font-bold" style={{ background: '#1e1a30', color: '#8981ab' }}>
           {initial}
         </div>
       )}
@@ -52,7 +52,7 @@ function MatchRow({ match }: { match: Match }) {
         <div className="min-w-0 text-right">
           <p className={cn(
             'font-cinzel font-bold truncate text-[12px]',
-            p1Won ? 'text-[#ffd97a]' : p2Won ? 'text-[#6b6488]' : 'text-[#e8e2f5]'
+            p1Won ? 'text-[#ffd97a]' : p2Won ? 'text-[#8981ab]' : 'text-[#e8e2f5]'
           )}>
             {match.player1.name}
           </p>
@@ -84,7 +84,7 @@ function MatchRow({ match }: { match: Match }) {
           <span className="text-[#3d3860] font-cinzel text-[11px] tracking-[0.15em] font-bold">VS</span>
         )}
         {!isLive && !isCompleted && when && (
-          <div className="flex items-center gap-1 mt-0.5 text-[9px] text-[#6b6488]">
+          <div className="flex items-center gap-1 mt-0.5 text-[9px] text-[#8981ab]">
             <Clock size={8} />
             <span>{when.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} {when.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
@@ -107,7 +107,7 @@ function MatchRow({ match }: { match: Match }) {
         <div className="min-w-0 flex-1">
           <p className={cn(
             'font-cinzel font-bold truncate text-[12px]',
-            p2Won ? 'text-[#ffd97a]' : p1Won ? 'text-[#6b6488]' : 'text-[#e8e2f5]'
+            p2Won ? 'text-[#ffd97a]' : p1Won ? 'text-[#8981ab]' : 'text-[#e8e2f5]'
           )}>
             {match.player2.name}
           </p>
@@ -161,7 +161,7 @@ export default function TournamentDetailPage() {
       S: 'text-[#ffc542] bg-[#ffc54215] border-[#ffc54240]',
       A: 'text-[#a78bfa] bg-[#a78bfa15] border-[#a78bfa40]',
       B: 'text-[#60a5fa] bg-[#60a5fa15] border-[#60a5fa40]',
-      C: 'text-[#6b6488] bg-[#6b648815] border-[#6b648840]',
+      C: 'text-[#8981ab] bg-[#8981ab15] border-[#8981ab40]',
     };
     return styles[t] ?? styles.C;
   }, [tournament?.tier]);
@@ -180,7 +180,7 @@ export default function TournamentDetailPage() {
         <div className="text-center p-8 rounded-xl max-w-md" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
           <Trophy size={40} className="text-[#3d3860] mx-auto mb-3" />
           <h2 className="font-cinzel font-bold text-lg text-[#ffc542] mb-2">Tournoi introuvable</h2>
-          <p className="text-[13px] text-[#6b6488] mb-5">Ce tournoi n'existe pas ou a été supprimé.</p>
+          <p className="text-[13px] text-[#8981ab] mb-5">Ce tournoi n'existe pas ou a été supprimé.</p>
           <Link href="/tournaments" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-semibold"
             style={{ background: 'linear-gradient(135deg, #b8881a, #ffc542)', color: '#07060f' }}>
             <ArrowLeft size={14} />
@@ -242,7 +242,7 @@ export default function TournamentDetailPage() {
       {/* Back link */}
       <button
         onClick={() => router.back()}
-        className="inline-flex items-center gap-2 text-[12px] text-[#6b6488] hover:text-[#e8e2f5] transition-colors"
+        className="inline-flex items-center gap-2 text-[12px] text-[#8981ab] hover:text-[#e8e2f5] transition-colors"
       >
         <ArrowLeft size={14} />
         Retour
@@ -285,14 +285,14 @@ export default function TournamentDetailPage() {
         {/* Meta row */}
         <div className="flex flex-wrap gap-4 pt-4 border-t text-[12px]" style={{ borderColor: '#1e1a30' }}>
           <div className="flex items-center gap-1.5 text-[#9990b8]">
-            <Calendar size={13} className="text-[#6b6488]" />
+            <Calendar size={13} className="text-[#8981ab]" />
             <span>
               {startDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
               {endDate && ` → ${endDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}`}
             </span>
           </div>
           <div className="flex items-center gap-1.5 text-[#9990b8]">
-            <Users size={13} className="text-[#6b6488]" />
+            <Users size={13} className="text-[#8981ab]" />
             <span>{tournament.participantCount} participant{tournament.participantCount > 1 ? 's' : ''}</span>
           </div>
           {tournament.prizePool && (
@@ -320,7 +320,7 @@ export default function TournamentDetailPage() {
             <a
               href={tournament.liquipediaUrl}
               target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-[#6b6488] hover:text-[#9990b8] transition-colors ml-auto"
+              className="flex items-center gap-1.5 text-[#8981ab] hover:text-[#9990b8] transition-colors ml-auto"
             >
               <ExternalLink size={13} />
               <span>Liquipedia</span>
@@ -335,7 +335,7 @@ export default function TournamentDetailPage() {
           <h2 className="font-cinzel font-bold text-sm text-[#ffc542] tracking-wider uppercase flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
             En direct
-            <span className="text-[10px] text-[#6b6488] font-normal normal-case tracking-normal">
+            <span className="text-[10px] text-[#8981ab] font-normal normal-case tracking-normal">
               {live.length} match{live.length > 1 ? 's' : ''}
             </span>
           </h2>
@@ -351,7 +351,7 @@ export default function TournamentDetailPage() {
           <h2 className="font-cinzel font-bold text-sm text-[#ffc542] tracking-wider uppercase flex items-center gap-2">
             <Calendar size={14} />
             À venir
-            <span className="text-[10px] text-[#6b6488] font-normal normal-case tracking-normal">
+            <span className="text-[10px] text-[#8981ab] font-normal normal-case tracking-normal">
               {upcoming.length} match{upcoming.length > 1 ? 's' : ''}
             </span>
           </h2>
@@ -367,7 +367,7 @@ export default function TournamentDetailPage() {
           <h2 className="font-cinzel font-bold text-sm text-[#ffc542] tracking-wider uppercase flex items-center gap-2">
             <Trophy size={14} />
             Terminés
-            <span className="text-[10px] text-[#6b6488] font-normal normal-case tracking-normal">
+            <span className="text-[10px] text-[#8981ab] font-normal normal-case tracking-normal">
               {completed.length} match{completed.length > 1 ? 's' : ''}
             </span>
           </h2>
@@ -381,7 +381,7 @@ export default function TournamentDetailPage() {
       {live.length === 0 && upcoming.length === 0 && completed.length === 0 && (
         <div className="text-center py-12 rounded-xl" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
           <Trophy size={32} className="text-[#3d3860] mx-auto mb-2" />
-          <p className="text-[13px] text-[#6b6488]">Aucun match programmé pour ce tournoi pour l'instant.</p>
+          <p className="text-[13px] text-[#8981ab]">Aucun match programmé pour ce tournoi pour l'instant.</p>
           <p className="text-[11px] text-[#4a4570] mt-1">Reviens bientôt !</p>
         </div>
       )}

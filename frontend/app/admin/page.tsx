@@ -484,10 +484,10 @@ export default function AdminPage() {
               <h1 className="font-bold text-[15px] text-[#e8e2f5]" style={{ fontFamily: 'Cinzel, serif' }}>
                 ADMINISTRATION
               </h1>
-              <p className="text-[11px] text-[#6b6488]">AgeOfMoney — Panel Admin</p>
+              <p className="text-[11px] text-[#8981ab]">AgeOfMoney — Panel Admin</p>
             </div>
           </div>
-          <button onClick={loadAll} className="flex items-center gap-2 text-[#6b6488] hover:text-[#e8e2f5] transition-colors text-[12px]">
+          <button onClick={loadAll} className="flex items-center gap-2 text-[#8981ab] hover:text-[#e8e2f5] transition-colors text-[12px]">
             <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
             Rafraîchir
           </button>
@@ -525,14 +525,14 @@ export default function AdminPage() {
                 'shrink-0 flex items-center gap-2 px-4 py-2.5 text-[12px] font-medium transition-all border-b-2 -mb-px whitespace-nowrap',
                 tab === t.id
                   ? 'border-[#ffc542] text-[#ffc542]'
-                  : 'border-transparent text-[#6b6488] hover:text-[#c8c0e0]'
+                  : 'border-transparent text-[#8981ab] hover:text-[#c8c0e0]'
               )}
             >
               <t.icon size={13} />
               {t.label}
               {t.count !== undefined && (
                 <span className="px-1.5 py-0.5 rounded text-[10px] font-bold"
-                  style={{ background: tab === t.id ? '#ffc54222' : '#1e1a30', color: tab === t.id ? '#ffc542' : '#6b6488' }}>
+                  style={{ background: tab === t.id ? '#ffc54222' : '#1e1a30', color: tab === t.id ? '#ffc542' : '#8981ab' }}>
                   {t.count}
                 </span>
               )}
@@ -546,14 +546,14 @@ export default function AdminPage() {
             <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: '1px solid #1e1a30' }}>
               <Swords size={14} className="text-[#ffc542]" />
               <span className="text-[13px] font-semibold text-[#ffc542]">MATCHS ACTIFS</span>
-              <span className="ml-auto text-[11px] text-[#6b6488]">{matches.length} match(s)</span>
+              <span className="ml-auto text-[11px] text-[#8981ab]">{matches.length} match(s)</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-[12px]">
                 <thead>
                   <tr style={{ borderBottom: '1px solid #1e1a30' }}>
                     {['Match', 'Tournoi', 'Format', 'Statut', 'Cotes', 'Paris', 'Date', 'Actions'].map(h => (
-                      <th key={h} className="text-left px-4 py-2.5 text-[11px] text-[#6b6488] uppercase tracking-wider font-medium">{h}</th>
+                      <th key={h} className="text-left px-4 py-2.5 text-[11px] text-[#8981ab] uppercase tracking-wider font-medium">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -562,7 +562,7 @@ export default function AdminPage() {
                     <tr key={m.id} className="hover:bg-[#13111f] transition-colors" style={{ borderBottom: '1px solid #1e1a3022' }}>
                       <td className="px-4 py-3">
                         <p className="font-semibold text-[#e8e2f5]">{m.player1.name}</p>
-                        <p className="text-[#6b6488] text-[11px]">vs {m.player2.name}</p>
+                        <p className="text-[#8981ab] text-[11px]">vs {m.player2.name}</p>
                       </td>
                       <td className="px-4 py-3 text-[#9990b8]">{m.tournament?.name ?? ''}</td>
                       <td className="px-4 py-3">
@@ -582,7 +582,7 @@ export default function AdminPage() {
                         {m.odds1?.toFixed(2)} / {m.odds2?.toFixed(2)}
                       </td>
                       <td className="px-4 py-3 text-[#9990b8]">{m._count?.bets ?? 0}</td>
-                      <td className="px-4 py-3 text-[#6b6488] whitespace-nowrap">
+                      <td className="px-4 py-3 text-[#8981ab] whitespace-nowrap">
                         {formatDateTime(m.scheduledAt)}
                       </td>
                       <td className="px-4 py-3">
@@ -668,7 +668,7 @@ export default function AdminPage() {
                     </tr>
                   ))}
                   {matches.length === 0 && (
-                    <tr><td colSpan={8} className="px-4 py-10 text-center text-[#6b6488]">Aucun match actif</td></tr>
+                    <tr><td colSpan={8} className="px-4 py-10 text-center text-[#8981ab]">Aucun match actif</td></tr>
                   )}
                 </tbody>
               </table>
@@ -690,7 +690,7 @@ export default function AdminPage() {
                   <thead>
                     <tr style={{ borderBottom: '1px solid #1e1a30' }}>
                       {['Match', 'Tournoi', 'Format', 'Date', 'Paris', 'Action'].map(h => (
-                        <th key={h} className="text-left px-4 py-2.5 text-[11px] text-[#6b6488] uppercase tracking-wider font-medium">{h}</th>
+                        <th key={h} className="text-left px-4 py-2.5 text-[11px] text-[#8981ab] uppercase tracking-wider font-medium">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -700,7 +700,7 @@ export default function AdminPage() {
                         <td className="px-4 py-3 font-semibold text-[#e8e2f5]">{m.player1.name} vs {m.player2.name}</td>
                         <td className="px-4 py-3 text-[#9990b8]">{m.tournament?.name ?? ''}</td>
                         <td className="px-4 py-3 text-[#ffc542] font-bold text-[11px]">{m.format}</td>
-                        <td className="px-4 py-3 text-[#6b6488]">{formatDateTime(m.scheduledAt)}</td>
+                        <td className="px-4 py-3 text-[#8981ab]">{formatDateTime(m.scheduledAt)}</td>
                         <td className="px-4 py-3 text-[#9990b8]">{(m as AdminMatch)._count?.bets ?? 0}</td>
                         <td className="px-4 py-3">
                           <button
@@ -718,7 +718,7 @@ export default function AdminPage() {
                 </table>
               </div>
             ) : (
-              <div className="py-12 text-center text-[#6b6488] text-[13px]">Aucun match flaggé</div>
+              <div className="py-12 text-center text-[#8981ab] text-[13px]">Aucun match flaggé</div>
             )}
           </div>
         )}
@@ -727,7 +727,7 @@ export default function AdminPage() {
         {tab === 'players' && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <p className="text-[12px] text-[#6b6488]">{players.length} joueurs — historique mis à jour automatiquement via aoe4world + Claude AI</p>
+              <p className="text-[12px] text-[#8981ab]">{players.length} joueurs — historique mis à jour automatiquement via aoe4world + Claude AI</p>
               <button
                 onClick={handleSeedAll}
                 disabled={seeding === 'all'}
@@ -741,7 +741,7 @@ export default function AdminPage() {
 
             {/* Quick fix: manually set tournament game (cascades to matches) */}
             <div className="rounded-lg p-3" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
-              <p className="text-[11px] text-[#6b6488] mb-2 uppercase tracking-wider">🔧 Forcer le jeu d&apos;un tournoi (override classification)</p>
+              <p className="text-[11px] text-[#8981ab] mb-2 uppercase tracking-wider">🔧 Forcer le jeu d&apos;un tournoi (override classification)</p>
               <form
                 className="flex items-center gap-2"
                 onSubmit={async (e) => {
@@ -799,14 +799,14 @@ export default function AdminPage() {
                 <thead>
                   <tr style={{ borderBottom: '1px solid #1e1a30' }}>
                     {['Joueur', 'Winrate', 'Pays', 'Records DB', 'Dernière MAJ', 'Action'].map(h => (
-                      <th key={h} className="text-left px-4 py-2.5 text-[11px] text-[#6b6488] uppercase tracking-wider font-medium">{h}</th>
+                      <th key={h} className="text-left px-4 py-2.5 text-[11px] text-[#8981ab] uppercase tracking-wider font-medium">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {players.map(p => {
                     const records = p._count.matchHistory;
-                    const color = records >= 50 ? '#10b981' : records >= 20 ? '#ffc542' : records > 0 ? '#f87171' : '#6b6488';
+                    const color = records >= 50 ? '#10b981' : records >= 20 ? '#ffc542' : records > 0 ? '#f87171' : '#8981ab';
                     const enrichedGames = p.aiEnrichedGames ?? [];
                     const aiDone = enrichedGames.length > 0;
                     return (
@@ -828,7 +828,7 @@ export default function AdminPage() {
                               </span>
                             )}
                           </div>
-                          <p className="text-[10px] text-[#6b6488]">{p.aoe4worldId ?? 'no aoe4world ID'}</p>
+                          <p className="text-[10px] text-[#8981ab]">{p.aoe4worldId ?? 'no aoe4world ID'}</p>
                         </td>
                         <td className="px-4 py-3">
                           <span className={cn('font-bold', (p.winrate ?? 0) >= 0.55 ? 'text-emerald-400' : (p.winrate ?? 0) >= 0.45 ? 'text-[#ffc542]' : 'text-red-400')}>
@@ -844,7 +844,7 @@ export default function AdminPage() {
                             <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, (records / 50) * 100)}%`, background: color }} />
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-[#6b6488] text-[11px]">
+                        <td className="px-4 py-3 text-[#8981ab] text-[11px]">
                           {new Date(p.lastUpdatedAt).toLocaleDateString('fr-FR')}
                         </td>
                         <td className="px-4 py-3">
@@ -893,7 +893,7 @@ export default function AdminPage() {
                               }}
                               disabled={seeding === p.id}
                               className="px-1 py-1 rounded text-[9px] font-medium outline-none disabled:opacity-40"
-                              style={{ background: '#13111f', border: '1px solid #1e1a30', color: '#6b6488' }}
+                              style={{ background: '#13111f', border: '1px solid #1e1a30', color: '#8981ab' }}
                               title="Force AI seed pour un jeu spécifique"
                             >
                               <option value="">jeu…</option>
@@ -918,7 +918,7 @@ export default function AdminPage() {
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               <div className="relative flex-1 max-w-xs">
-                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6b6488]" />
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8981ab]" />
                 <input
                   value={userSearch}
                   onChange={e => setUserSearch(e.target.value)}
@@ -927,7 +927,7 @@ export default function AdminPage() {
                   style={{ background: '#13111f', border: '1px solid #1e1a30' }}
                 />
               </div>
-              <span className="text-[12px] text-[#6b6488]">{usersTotal} utilisateurs</span>
+              <span className="text-[12px] text-[#8981ab]">{usersTotal} utilisateurs</span>
             </div>
 
             <div className="rounded-lg overflow-hidden" style={{ border: '1px solid #1e1a30', background: '#0d0b1a' }}>
@@ -935,7 +935,7 @@ export default function AdminPage() {
                 <thead>
                   <tr style={{ borderBottom: '1px solid #1e1a30' }}>
                     {['Utilisateur', 'Coins', 'Rôles', 'Statut', 'Dernière activité', 'Actions'].map(h => (
-                      <th key={h} className="text-left px-4 py-2.5 text-[11px] text-[#6b6488] uppercase tracking-wider font-medium">{h}</th>
+                      <th key={h} className="text-left px-4 py-2.5 text-[11px] text-[#8981ab] uppercase tracking-wider font-medium">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -947,7 +947,7 @@ export default function AdminPage() {
                           {u.avatar && <Image src={u.avatar} alt="" width={28} height={28} unoptimized className="w-7 h-7 rounded-full" />}
                           <div>
                             <p className="font-semibold text-[#e8e2f5] hover:text-[#ffc542] transition-colors">{u.username}</p>
-                            <p className="text-[10px] text-[#6b6488] capitalize">{u.provider}</p>
+                            <p className="text-[10px] text-[#8981ab] capitalize">{u.provider}</p>
                           </div>
                         </button>
                       </td>
@@ -959,7 +959,7 @@ export default function AdminPage() {
                           {u.isAdmin && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-950 border border-red-800/40 text-red-400">ADMIN</span>}
                           {(u as User & { isMod?: boolean }).isMod && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold" style={{ background: '#1e3a5f', border: '1px solid #3b82f640', color: '#60a5fa' }}>MOD</span>}
                           {(u as User & { isPartner?: boolean }).isPartner && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold" style={{ background: '#2d1b4e', border: '1px solid #a855f740', color: '#c084fc' }}>PARTNER</span>}
-                          {!u.isAdmin && !(u as User & { isMod?: boolean }).isMod && !(u as User & { isPartner?: boolean }).isPartner && <span className="text-[#6b6488] text-[11px]">Joueur</span>}
+                          {!u.isAdmin && !(u as User & { isMod?: boolean }).isMod && !(u as User & { isPartner?: boolean }).isPartner && <span className="text-[#8981ab] text-[11px]">Joueur</span>}
                         </div>
                       </td>
                       <td className="px-4 py-3">
@@ -969,7 +969,7 @@ export default function AdminPage() {
                           {u.isBanned ? 'Banni' : 'Actif'}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-[#6b6488] whitespace-nowrap">
+                      <td className="px-4 py-3 text-[#8981ab] whitespace-nowrap">
                         {u.lastActiveAt ? formatDateTime(u.lastActiveAt) : ''}
                       </td>
                       <td className="px-4 py-3">
@@ -996,19 +996,19 @@ export default function AdminPage() {
                           {/* Mod toggle */}
                           <button onClick={() => handleSetRole(u.id, 'isMod', !!(u as User & { isMod?: boolean }).isMod)}
                             className="p-1.5 rounded transition-all" title={`${(u as User & { isMod?: boolean }).isMod ? 'Retirer' : 'Donner'} Mod`}
-                            style={{ background: (u as User & { isMod?: boolean }).isMod ? '#1e3a5f' : '#13111f', border: `1px solid ${(u as User & { isMod?: boolean }).isMod ? '#3b82f6' : '#2a2640'}`, color: (u as User & { isMod?: boolean }).isMod ? '#60a5fa' : '#4a4468' }}>
+                            style={{ background: (u as User & { isMod?: boolean }).isMod ? '#1e3a5f' : '#13111f', border: `1px solid ${(u as User & { isMod?: boolean }).isMod ? '#3b82f6' : '#2a2640'}`, color: (u as User & { isMod?: boolean }).isMod ? '#60a5fa' : '#6a6390' }}>
                             <ShieldCheck size={11} />
                           </button>
                           {/* Partner toggle */}
                           <button onClick={() => handleSetRole(u.id, 'isPartner', !!(u as User & { isPartner?: boolean }).isPartner)}
                             className="p-1.5 rounded transition-all" title={`${(u as User & { isPartner?: boolean }).isPartner ? 'Retirer' : 'Donner'} Partner`}
-                            style={{ background: (u as User & { isPartner?: boolean }).isPartner ? '#2d1b4e' : '#13111f', border: `1px solid ${(u as User & { isPartner?: boolean }).isPartner ? '#a855f7' : '#2a2640'}`, color: (u as User & { isPartner?: boolean }).isPartner ? '#c084fc' : '#4a4468' }}>
+                            style={{ background: (u as User & { isPartner?: boolean }).isPartner ? '#2d1b4e' : '#13111f', border: `1px solid ${(u as User & { isPartner?: boolean }).isPartner ? '#a855f7' : '#2a2640'}`, color: (u as User & { isPartner?: boolean }).isPartner ? '#c084fc' : '#6a6390' }}>
                             <Star size={11} />
                           </button>
                           {/* Mute */}
                           <button onClick={() => setMuteModal({ userId: u.id, username: u.username })}
                             className="p-1.5 rounded transition-all" title="Muter"
-                            style={{ background: '#13111f', border: '1px solid #2a2640', color: '#6b6488' }}>
+                            style={{ background: '#13111f', border: '1px solid #2a2640', color: '#8981ab' }}>
                             <VolumeX size={11} />
                           </button>
                         </div>
@@ -1027,12 +1027,12 @@ export default function AdminPage() {
             <div className="flex items-center gap-3">
               <AlertTriangle size={16} className="text-red-400" />
               <h2 className="font-bold text-[14px] text-[#e8e2f5]">Utilisateurs à risque</h2>
-              <span className="text-[11px] text-[#6b6488]">· Winrate &gt; 75% ou profit net &gt; 20 000 ⚜</span>
+              <span className="text-[11px] text-[#8981ab]">· Winrate &gt; 75% ou profit net &gt; 20 000 ⚜</span>
             </div>
             {suspiciousUsers.length === 0 ? (
               <div className="rounded-lg p-6 text-center" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
                 <CheckCircle size={24} className="text-emerald-400 mx-auto mb-2" />
-                <p className="text-[#6b6488] text-[13px]">Aucun utilisateur suspect détecté</p>
+                <p className="text-[#8981ab] text-[13px]">Aucun utilisateur suspect détecté</p>
               </div>
             ) : (
               <div className="rounded-lg overflow-hidden" style={{ border: '1px solid #1e1a30', background: '#0d0b1a' }}>
@@ -1040,7 +1040,7 @@ export default function AdminPage() {
                   <thead>
                     <tr style={{ borderBottom: '1px solid #1e1a30' }}>
                       {['Utilisateur', 'Paris', 'Winrate', 'Misé', 'Profit net', 'Solde', 'Statut', 'Actions'].map(h => (
-                        <th key={h} className="text-left px-4 py-2.5 text-[11px] text-[#6b6488] uppercase tracking-wider font-medium">{h}</th>
+                        <th key={h} className="text-left px-4 py-2.5 text-[11px] text-[#8981ab] uppercase tracking-wider font-medium">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -1059,9 +1059,9 @@ export default function AdminPage() {
                             {(u.winrate * 100).toFixed(0)}%
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-[#6b6488]">{new Intl.NumberFormat('fr-FR').format(u.totalWagered)} ⚜</td>
+                        <td className="px-4 py-3 text-[#8981ab]">{new Intl.NumberFormat('fr-FR').format(u.totalWagered)} ⚜</td>
                         <td className="px-4 py-3">
-                          <span className={cn('font-bold', u.netProfit > 50000 ? 'text-red-400' : u.netProfit > 0 ? 'text-emerald-400' : 'text-[#6b6488]')}>
+                          <span className={cn('font-bold', u.netProfit > 50000 ? 'text-red-400' : u.netProfit > 0 ? 'text-emerald-400' : 'text-[#8981ab]')}>
                             {u.netProfit > 0 ? '+' : ''}{new Intl.NumberFormat('fr-FR').format(u.netProfit)} ⚜
                           </span>
                         </td>
@@ -1102,7 +1102,7 @@ export default function AdminPage() {
                   </button>
                 ))}
               </div>
-              <span className="text-[12px] text-[#6b6488]">{adminTransactions.length} transaction(s)</span>
+              <span className="text-[12px] text-[#8981ab]">{adminTransactions.length} transaction(s)</span>
               <button
                 onClick={handleSyncOxaPay}
                 disabled={syncingOxaPay}
@@ -1116,13 +1116,13 @@ export default function AdminPage() {
                 <thead>
                   <tr style={{ borderBottom: '1px solid #1e1a30' }}>
                     {['Utilisateur', 'Type', 'Montant USD', 'Coins', 'Statut', 'Date'].map(h => (
-                      <th key={h} className="text-left px-4 py-2.5 text-[11px] text-[#6b6488] uppercase tracking-wider font-medium">{h}</th>
+                      <th key={h} className="text-left px-4 py-2.5 text-[11px] text-[#8981ab] uppercase tracking-wider font-medium">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {adminTransactions.length === 0 ? (
-                    <tr><td colSpan={6} className="text-center text-[#6b6488] py-8">Aucune transaction</td></tr>
+                    <tr><td colSpan={6} className="text-center text-[#8981ab] py-8">Aucune transaction</td></tr>
                   ) : adminTransactions.map(tx => (
                     <tr key={tx.id} className="hover:bg-[#13111f]" style={{ borderBottom: '1px solid #1e1a3022' }}>
                       <td className="px-4 py-3">
@@ -1152,7 +1152,7 @@ export default function AdminPage() {
                           {tx.status}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-[#6b6488] whitespace-nowrap">{formatDateTime(tx.createdAt)}</td>
+                      <td className="px-4 py-3 text-[#8981ab] whitespace-nowrap">{formatDateTime(tx.createdAt)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1175,8 +1175,8 @@ export default function AdminPage() {
                   </button>
                 ))}
               </div>
-              <span className="text-[12px] text-[#6b6488]">{suspiciousReferrals.length} parrainage(s)</span>
-              <p className="text-[10px] text-[#4a4468] flex-1">
+              <span className="text-[12px] text-[#8981ab]">{suspiciousReferrals.length} parrainage(s)</span>
+              <p className="text-[10px] text-[#6a6390] flex-1">
                 🚩 Flag automatique : parrain et filleul partagent une IP (possible double compte)
               </p>
             </div>
@@ -1185,13 +1185,13 @@ export default function AdminPage() {
                 <thead>
                   <tr style={{ borderBottom: '1px solid #1e1a30' }}>
                     {['Parrain', 'Filleul', 'Code', 'Déposé', 'Misé', 'Commission', 'Raison', 'Actions'].map(h => (
-                      <th key={h} className="text-left px-3 py-2.5 text-[11px] text-[#6b6488] uppercase tracking-wider font-medium">{h}</th>
+                      <th key={h} className="text-left px-3 py-2.5 text-[11px] text-[#8981ab] uppercase tracking-wider font-medium">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {suspiciousReferrals.length === 0 ? (
-                    <tr><td colSpan={8} className="text-center text-[#6b6488] py-8">Aucun parrainage suspect 👌</td></tr>
+                    <tr><td colSpan={8} className="text-center text-[#8981ab] py-8">Aucun parrainage suspect 👌</td></tr>
                   ) : suspiciousReferrals.map(r => (
                     <tr key={r.id} className="hover:bg-[#13111f]" style={{ borderBottom: '1px solid #1e1a3022' }}>
                       <td className="px-3 py-3">
@@ -1263,7 +1263,7 @@ export default function AdminPage() {
           <div className="rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
             style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }} onClick={e => e.stopPropagation()}>
             {userDetailLoading ? (
-              <div className="p-12 text-center text-[#6b6488]">Chargement...</div>
+              <div className="p-12 text-center text-[#8981ab]">Chargement...</div>
             ) : userDetail && (
               <>
                 <div className="flex items-start justify-between gap-4 p-5" style={{ borderBottom: '1px solid #1e1a30' }}>
@@ -1278,13 +1278,13 @@ export default function AdminPage() {
                         {userDetail.user.isBanned && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-950 border border-red-800/40 text-red-400">BANNI</span>}
                         {userDetail.user.totpEnabled && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-950 border border-emerald-800/40 text-emerald-400">2FA</span>}
                       </div>
-                      <p className="text-[11px] text-[#6b6488]">
+                      <p className="text-[11px] text-[#8981ab]">
                         {userDetail.user.email ?? '—'} · {userDetail.user.provider} · Membre depuis {formatDateTime(userDetail.user.createdAt)}
                       </p>
-                      {userDetail.user.steamId && <p className="text-[10px] text-[#4a4468] font-mono">Steam: {userDetail.user.steamId}</p>}
+                      {userDetail.user.steamId && <p className="text-[10px] text-[#6a6390] font-mono">Steam: {userDetail.user.steamId}</p>}
                     </div>
                   </div>
-                  <button onClick={() => setUserDetail(null)} className="text-[#6b6488] hover:text-[#e8e2f5]">
+                  <button onClick={() => setUserDetail(null)} className="text-[#8981ab] hover:text-[#e8e2f5]">
                     <XIcon size={18} />
                   </button>
                 </div>
@@ -1319,7 +1319,7 @@ export default function AdminPage() {
                       { label: 'Winrate', value: `${(userDetail.stats.winrate * 100).toFixed(0)}%`, color: userDetail.stats.winrate > 0.75 ? '#ef4444' : '#e8e2f5' },
                     ].map((s, i) => (
                       <div key={i} className="rounded-lg p-3" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
-                        <p className="text-[9px] text-[#6b6488] uppercase tracking-wider">{s.label}</p>
+                        <p className="text-[9px] text-[#8981ab] uppercase tracking-wider">{s.label}</p>
                         <p className="font-bold text-[14px] mt-1" style={{ color: s.color }}>{s.value}</p>
                       </div>
                     ))}
@@ -1331,7 +1331,7 @@ export default function AdminPage() {
                       { label: 'Total paris', value: userDetail.stats.totalBets },
                     ].map((s, i) => (
                       <div key={i} className="rounded-lg p-2 text-center" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
-                        <p className="text-[9px] text-[#6b6488] uppercase">{s.label}</p>
+                        <p className="text-[9px] text-[#8981ab] uppercase">{s.label}</p>
                         <p className="font-bold text-[13px] text-[#e8e2f5]">{s.value}</p>
                       </div>
                     ))}
@@ -1339,13 +1339,13 @@ export default function AdminPage() {
 
                   {/* Recent bets */}
                   <div>
-                    <h3 className="text-[11px] font-bold text-[#6b6488] uppercase mb-2">Derniers paris ({userDetail.recentBets.length})</h3>
+                    <h3 className="text-[11px] font-bold text-[#8981ab] uppercase mb-2">Derniers paris ({userDetail.recentBets.length})</h3>
                     <div className="rounded-lg overflow-hidden" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
                       <table className="w-full text-[11px]">
                         <thead>
                           <tr style={{ borderBottom: '1px solid #1e1a30' }}>
                             {['Match', 'Pick', 'Cote', 'Mise', 'Gain', 'Statut', 'Date'].map(h => (
-                              <th key={h} className="text-left px-3 py-2 text-[10px] text-[#6b6488] uppercase">{h}</th>
+                              <th key={h} className="text-left px-3 py-2 text-[10px] text-[#8981ab] uppercase">{h}</th>
                             ))}
                           </tr>
                         </thead>
@@ -1358,7 +1358,7 @@ export default function AdminPage() {
                                 <td className="px-3 py-2 text-[#9990b8]">{pick}</td>
                                 <td className="px-3 py-2 text-[#9990b8]">{b.oddsAtBet.toFixed(2)}</td>
                                 <td className="px-3 py-2 text-[#ffc542]">{b.amount} ⚜</td>
-                                <td className="px-3 py-2" style={{ color: b.status === 'WON' ? '#10b981' : b.status === 'LOST' ? '#ef4444' : '#6b6488' }}>
+                                <td className="px-3 py-2" style={{ color: b.status === 'WON' ? '#10b981' : b.status === 'LOST' ? '#ef4444' : '#8981ab' }}>
                                   {b.payout ? `+${b.payout}` : '—'}
                                 </td>
                                 <td className="px-3 py-2">
@@ -1366,10 +1366,10 @@ export default function AdminPage() {
                                     b.status === 'WON' ? 'text-emerald-400 bg-emerald-950/50' :
                                     b.status === 'LOST' ? 'text-red-400 bg-red-950/50' :
                                     b.status === 'REFUNDED' ? 'text-blue-400 bg-blue-950/50' :
-                                    'text-[#6b6488] bg-[#1e1a30]'
+                                    'text-[#8981ab] bg-[#1e1a30]'
                                   )}>{b.status}</span>
                                 </td>
-                                <td className="px-3 py-2 text-[#6b6488] whitespace-nowrap">{formatDateTime(b.createdAt)}</td>
+                                <td className="px-3 py-2 text-[#8981ab] whitespace-nowrap">{formatDateTime(b.createdAt)}</td>
                               </tr>
                             );
                           })}
@@ -1381,13 +1381,13 @@ export default function AdminPage() {
                   {/* Recent transactions */}
                   {userDetail.recentTransactions.length > 0 && (
                     <div>
-                      <h3 className="text-[11px] font-bold text-[#6b6488] uppercase mb-2">Transactions ({userDetail.recentTransactions.length})</h3>
+                      <h3 className="text-[11px] font-bold text-[#8981ab] uppercase mb-2">Transactions ({userDetail.recentTransactions.length})</h3>
                       <div className="rounded-lg overflow-hidden" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
                         <table className="w-full text-[11px]">
                           <thead>
                             <tr style={{ borderBottom: '1px solid #1e1a30' }}>
                               {['Type', 'Montant USD', 'Coins', 'Statut', 'Date'].map(h => (
-                                <th key={h} className="text-left px-3 py-2 text-[10px] text-[#6b6488] uppercase">{h}</th>
+                                <th key={h} className="text-left px-3 py-2 text-[10px] text-[#8981ab] uppercase">{h}</th>
                               ))}
                             </tr>
                           </thead>
@@ -1404,7 +1404,7 @@ export default function AdminPage() {
                                     'text-red-400 bg-red-950/50'
                                   )}>{tx.status}</span>
                                 </td>
-                                <td className="px-3 py-2 text-[#6b6488] whitespace-nowrap">{formatDateTime(tx.createdAt)}</td>
+                                <td className="px-3 py-2 text-[#8981ab] whitespace-nowrap">{formatDateTime(tx.createdAt)}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -1442,7 +1442,7 @@ export default function AdminPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={() => setScoreModal(null)}>
           <div className="rounded-xl p-6 max-w-sm w-full" style={{ background: '#0d0b1a', border: '1px solid #10b98140' }} onClick={e => e.stopPropagation()}>
             <h3 className="font-bold text-[15px] mb-1" style={{ fontFamily: 'Cinzel, serif', color: '#10b981' }}>Score BO en direct</h3>
-            <p className="text-[12px] text-[#6b6488] mb-5">{scoreModal.player1Name} vs {scoreModal.player2Name}</p>
+            <p className="text-[12px] text-[#8981ab] mb-5">{scoreModal.player1Name} vs {scoreModal.player2Name}</p>
 
             <div className="flex items-center gap-4 mb-6">
               <div className="flex-1">
@@ -1455,7 +1455,7 @@ export default function AdminPage() {
                   style={{ background: '#07060f', borderColor: '#ffc54240', color: '#ffd97a' }}
                 />
               </div>
-              <span className="text-[#6b6488] font-cinzel text-xl mt-5">—</span>
+              <span className="text-[#8981ab] font-cinzel text-xl mt-5">—</span>
               <div className="flex-1">
                 <label className="text-[10px] text-blue-400 uppercase tracking-wider font-cinzel block mb-1.5">{scoreModal.player2Name}</label>
                 <input
@@ -1469,7 +1469,7 @@ export default function AdminPage() {
             </div>
 
             <div className="flex gap-3">
-              <button onClick={() => setScoreModal(null)} className="flex-1 py-2 rounded-lg text-[12px] text-[#6b6488] border border-[#1e1a30] hover:border-[#2d2850] font-cinzel transition-colors">
+              <button onClick={() => setScoreModal(null)} className="flex-1 py-2 rounded-lg text-[12px] text-[#8981ab] border border-[#1e1a30] hover:border-[#2d2850] font-cinzel transition-colors">
                 Annuler
               </button>
               <button
@@ -1498,11 +1498,11 @@ export default function AdminPage() {
               </div>
             ) : inspectData ? (() => {
               const { match: m, betsPlayer1, betsPlayer2, stats } = inspectData;
-              const statusColor = m.status === 'LIVE' ? '#10b981' : m.status === 'COMPLETED' ? '#6b6488' : '#ffc542';
+              const statusColor = m.status === 'LIVE' ? '#10b981' : m.status === 'COMPLETED' ? '#8981ab' : '#ffc542';
 
               const BetRow = ({ bet, playerName }: { bet: InspectBet; playerName: string }) => {
                 const statusColors: Record<string, string> = {
-                  WON: '#10b981', LOST: '#ef4444', REFUNDED: '#38bdf8', PENDING: '#9990b8', CANCELLED: '#6b6488',
+                  WON: '#10b981', LOST: '#ef4444', REFUNDED: '#38bdf8', PENDING: '#9990b8', CANCELLED: '#8981ab',
                 };
                 return (
                   <tr className="hover:bg-[#13111f] transition-colors" style={{ borderBottom: '1px solid #1e1a3022' }}>
@@ -1519,11 +1519,11 @@ export default function AdminPage() {
                     <td className="px-3 py-2.5 text-[11px] text-[#9990b8] font-mono">×{bet.oddsAtBet.toFixed(2)}</td>
                     <td className="px-3 py-2.5 text-[11px] font-mono text-[#9990b8]">{(bet.amount * bet.oddsAtBet).toFixed(2)} ⚜</td>
                     <td className="px-3 py-2.5">
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: `${statusColors[bet.status] ?? '#6b6488'}18`, color: statusColors[bet.status] ?? '#6b6488', border: `1px solid ${statusColors[bet.status] ?? '#6b6488'}40` }}>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: `${statusColors[bet.status] ?? '#8981ab'}18`, color: statusColors[bet.status] ?? '#8981ab', border: `1px solid ${statusColors[bet.status] ?? '#8981ab'}40` }}>
                         {bet.status}
                       </span>
                     </td>
-                    <td className="px-3 py-2.5 text-[11px] text-[#6b6488]">{bet.user.coins.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜</td>
+                    <td className="px-3 py-2.5 text-[11px] text-[#8981ab]">{bet.user.coins.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜</td>
                   </tr>
                 );
               };
@@ -1536,16 +1536,16 @@ export default function AdminPage() {
                       <Eye size={15} className="text-[#38bdf8]" />
                       <div>
                         <h3 className="font-bold text-[14px] text-[#e8e2f5]" style={{ fontFamily: 'Cinzel, serif' }}>
-                          {m.player1.name} <span className="text-[#6b6488]">vs</span> {m.player2.name}
+                          {m.player1.name} <span className="text-[#8981ab]">vs</span> {m.player2.name}
                         </h3>
-                        <p className="text-[11px] text-[#6b6488]">{m.tournament?.name} · {m.format}</p>
+                        <p className="text-[11px] text-[#8981ab]">{m.tournament?.name} · {m.format}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="text-[11px] font-bold px-2 py-1 rounded" style={{ background: `${statusColor}18`, color: statusColor, border: `1px solid ${statusColor}40` }}>
                         {m.status}
                       </span>
-                      <button onClick={() => setInspectData(null)} className="text-[#6b6488] hover:text-[#e8e2f5] transition-colors">
+                      <button onClick={() => setInspectData(null)} className="text-[#8981ab] hover:text-[#e8e2f5] transition-colors">
                         <XIcon size={16} />
                       </button>
                     </div>
@@ -1555,11 +1555,11 @@ export default function AdminPage() {
                     {/* Match stats */}
                     <div className="grid grid-cols-2 gap-3">
                       <div className="rounded-lg p-3" style={{ background: '#07060f', border: '1px solid #1e1a30' }}>
-                        <p className="text-[10px] text-[#6b6488] uppercase tracking-wider mb-2">Cotes</p>
-                        <p className="text-[13px] font-mono font-bold text-[#ffc542]">{m.odds1.toFixed(2)} <span className="text-[#6b6488]">vs</span> {m.odds2.toFixed(2)}</p>
+                        <p className="text-[10px] text-[#8981ab] uppercase tracking-wider mb-2">Cotes</p>
+                        <p className="text-[13px] font-mono font-bold text-[#ffc542]">{m.odds1.toFixed(2)} <span className="text-[#8981ab]">vs</span> {m.odds2.toFixed(2)}</p>
                       </div>
                       <div className="rounded-lg p-3" style={{ background: '#07060f', border: '1px solid #1e1a30' }}>
-                        <p className="text-[10px] text-[#6b6488] uppercase tracking-wider mb-2">Score live</p>
+                        <p className="text-[10px] text-[#8981ab] uppercase tracking-wider mb-2">Score live</p>
                         <p className="text-[13px] font-mono font-bold text-[#e8e2f5]">{m.p1Score ?? 0} – {m.p2Score ?? 0}</p>
                       </div>
                     </div>
@@ -1573,7 +1573,7 @@ export default function AdminPage() {
                       <div className="h-2 rounded-full overflow-hidden" style={{ background: '#1e1a30' }}>
                         <div className="h-full rounded-full" style={{ width: `${stats.pct1}%`, background: 'linear-gradient(90deg, #ffc542, #ffd97a)' }} />
                       </div>
-                      <div className="flex justify-between text-[10px] mt-1.5 text-[#6b6488]">
+                      <div className="flex justify-between text-[10px] mt-1.5 text-[#8981ab]">
                         <span>{stats.count1} pari(s)</span>
                         <span>Total : {stats.total.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜</span>
                         <span>{stats.count2} pari(s)</span>
@@ -1587,18 +1587,18 @@ export default function AdminPage() {
                         <div className="px-3 py-2 flex items-center gap-2" style={{ background: 'rgba(255,197,66,0.08)', borderBottom: '1px solid rgba(255,197,66,0.15)' }}>
                           <TrendingUp size={11} className="text-amber-400" />
                           <span className="text-[11px] font-bold text-amber-400 font-cinzel truncate">{m.player1.name}</span>
-                          <span className="ml-auto text-[10px] text-[#6b6488]">{stats.count1}</span>
+                          <span className="ml-auto text-[10px] text-[#8981ab]">{stats.count1}</span>
                         </div>
                         {betsPlayer1.length > 0 ? (
                           <table className="w-full text-[11px]">
                             <thead>
                               <tr style={{ borderBottom: '1px solid #1e1a3044' }}>
-                                <th className="text-left px-3 py-1.5 text-[10px] text-[#6b6488] font-medium">Joueur</th>
-                                <th className="text-left px-3 py-1.5 text-[10px] text-[#6b6488] font-medium">Mise</th>
-                                <th className="text-left px-3 py-1.5 text-[10px] text-[#6b6488] font-medium">Cote</th>
-                                <th className="text-left px-3 py-1.5 text-[10px] text-[#6b6488] font-medium">Retour</th>
-                                <th className="text-left px-3 py-1.5 text-[10px] text-[#6b6488] font-medium">Statut</th>
-                                <th className="text-left px-3 py-1.5 text-[10px] text-[#6b6488] font-medium">Solde</th>
+                                <th className="text-left px-3 py-1.5 text-[10px] text-[#8981ab] font-medium">Joueur</th>
+                                <th className="text-left px-3 py-1.5 text-[10px] text-[#8981ab] font-medium">Mise</th>
+                                <th className="text-left px-3 py-1.5 text-[10px] text-[#8981ab] font-medium">Cote</th>
+                                <th className="text-left px-3 py-1.5 text-[10px] text-[#8981ab] font-medium">Retour</th>
+                                <th className="text-left px-3 py-1.5 text-[10px] text-[#8981ab] font-medium">Statut</th>
+                                <th className="text-left px-3 py-1.5 text-[10px] text-[#8981ab] font-medium">Solde</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -1606,7 +1606,7 @@ export default function AdminPage() {
                             </tbody>
                           </table>
                         ) : (
-                          <p className="text-center py-6 text-[11px] text-[#6b6488]">Aucun pari</p>
+                          <p className="text-center py-6 text-[11px] text-[#8981ab]">Aucun pari</p>
                         )}
                       </div>
 
@@ -1615,18 +1615,18 @@ export default function AdminPage() {
                         <div className="px-3 py-2 flex items-center gap-2" style={{ background: 'rgba(56,189,248,0.08)', borderBottom: '1px solid rgba(56,189,248,0.15)' }}>
                           <TrendingUp size={11} className="text-blue-400" />
                           <span className="text-[11px] font-bold text-blue-400 font-cinzel truncate">{m.player2.name}</span>
-                          <span className="ml-auto text-[10px] text-[#6b6488]">{stats.count2}</span>
+                          <span className="ml-auto text-[10px] text-[#8981ab]">{stats.count2}</span>
                         </div>
                         {betsPlayer2.length > 0 ? (
                           <table className="w-full text-[11px]">
                             <thead>
                               <tr style={{ borderBottom: '1px solid #1e1a3044' }}>
-                                <th className="text-left px-3 py-1.5 text-[10px] text-[#6b6488] font-medium">Joueur</th>
-                                <th className="text-left px-3 py-1.5 text-[10px] text-[#6b6488] font-medium">Mise</th>
-                                <th className="text-left px-3 py-1.5 text-[10px] text-[#6b6488] font-medium">Cote</th>
-                                <th className="text-left px-3 py-1.5 text-[10px] text-[#6b6488] font-medium">Retour</th>
-                                <th className="text-left px-3 py-1.5 text-[10px] text-[#6b6488] font-medium">Statut</th>
-                                <th className="text-left px-3 py-1.5 text-[10px] text-[#6b6488] font-medium">Solde</th>
+                                <th className="text-left px-3 py-1.5 text-[10px] text-[#8981ab] font-medium">Joueur</th>
+                                <th className="text-left px-3 py-1.5 text-[10px] text-[#8981ab] font-medium">Mise</th>
+                                <th className="text-left px-3 py-1.5 text-[10px] text-[#8981ab] font-medium">Cote</th>
+                                <th className="text-left px-3 py-1.5 text-[10px] text-[#8981ab] font-medium">Retour</th>
+                                <th className="text-left px-3 py-1.5 text-[10px] text-[#8981ab] font-medium">Statut</th>
+                                <th className="text-left px-3 py-1.5 text-[10px] text-[#8981ab] font-medium">Solde</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -1634,7 +1634,7 @@ export default function AdminPage() {
                             </tbody>
                           </table>
                         ) : (
-                          <p className="text-center py-6 text-[11px] text-[#6b6488]">Aucun pari</p>
+                          <p className="text-center py-6 text-[11px] text-[#8981ab]">Aucun pari</p>
                         )}
                       </div>
                     </div>
@@ -1656,7 +1656,7 @@ export default function AdminPage() {
           >
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e1a30]">
               <h3 className="font-bold text-[14px] text-[#a78bfa]" style={{ fontFamily: 'Cinzel, serif' }}>LP Debug</h3>
-              <button onClick={() => setLpDebug(null)} className="text-[#6b6488] hover:text-white text-xl">×</button>
+              <button onClick={() => setLpDebug(null)} className="text-[#8981ab] hover:text-white text-xl">×</button>
             </div>
             <div className="p-5 space-y-3">
               {/* Diagnosis banner */}
@@ -1677,7 +1677,7 @@ export default function AdminPage() {
                   ['Matchs LP trouvés', lpDebug.lpMatchesFound],
                 ] as [string, unknown][]).map(([label, value]) => value !== undefined && (
                   <div key={label} className="rounded p-2" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
-                    <div className="text-[#6b6488] text-[10px] uppercase tracking-wider">{label}</div>
+                    <div className="text-[#8981ab] text-[10px] uppercase tracking-wider">{label}</div>
                     <div className="text-[#e8e2f5] mt-0.5 font-mono">{String(value ?? '—')}</div>
                   </div>
                 ))}
@@ -1686,12 +1686,12 @@ export default function AdminPage() {
               {/* All opponent pairs */}
               {Array.isArray(lpDebug.allOpponentPairs) && lpDebug.allOpponentPairs.length > 0 && (
                 <div>
-                  <div className="text-[11px] text-[#6b6488] uppercase tracking-wider mb-2">Tous les matchs sur la page LP</div>
+                  <div className="text-[11px] text-[#8981ab] uppercase tracking-wider mb-2">Tous les matchs sur la page LP</div>
                   <div className="space-y-1 max-h-48 overflow-y-auto">
                     {(lpDebug.allOpponentPairs as Array<{ opp1: string; opp2: string; score: string; bestof: number }>).map((pair, i) => (
                       <div key={i} className="flex items-center justify-between rounded px-3 py-2 text-[12px]" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
-                        <span className="text-[#e8e2f5]">{pair.opp1} <span className="text-[#6b6488]">vs</span> {pair.opp2}</span>
-                        <span className="text-[#ffc542] font-mono">{pair.score} <span className="text-[#6b6488]">BO{pair.bestof}</span></span>
+                        <span className="text-[#e8e2f5]">{pair.opp1} <span className="text-[#8981ab]">vs</span> {pair.opp2}</span>
+                        <span className="text-[#ffc542] font-mono">{pair.score} <span className="text-[#8981ab]">BO{pair.bestof}</span></span>
                       </div>
                     ))}
                   </div>
@@ -1701,7 +1701,7 @@ export default function AdminPage() {
               {/* Matched block detail */}
               {Boolean(lpDebug.matchedBlock) && (
                 <div>
-                  <div className="text-[11px] text-[#6b6488] uppercase tracking-wider mb-2">Bloc matché</div>
+                  <div className="text-[11px] text-[#8981ab] uppercase tracking-wider mb-2">Bloc matché</div>
                   <pre className="text-[11px] text-[#a78bfa] rounded p-3 overflow-x-auto" style={{ background: '#13111f', border: '1px solid #7c3aed30' }}>
                     {JSON.stringify(lpDebug.matchedBlock, null, 2)}
                   </pre>
@@ -1717,11 +1717,11 @@ export default function AdminPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="rounded-xl p-6 max-w-md w-full" style={{ background: '#0d0b1a', border: '1px solid #ffc54240' }}>
             <h3 className="font-bold text-[16px] text-[#ffc542] mb-1" style={{ fontFamily: 'Cinzel, serif' }}>Définir le résultat</h3>
-            <p className="text-[12px] text-[#6b6488] mb-5">{resultModal.player1Name} vs {resultModal.player2Name}</p>
+            <p className="text-[12px] text-[#8981ab] mb-5">{resultModal.player1Name} vs {resultModal.player2Name}</p>
 
             <div className="space-y-4">
               <div>
-                <label className="text-[11px] text-[#6b6488] uppercase tracking-wider mb-2 block">Gagnant</label>
+                <label className="text-[11px] text-[#8981ab] uppercase tracking-wider mb-2 block">Gagnant</label>
                 <div className="grid grid-cols-2 gap-2">
                   {[{ id: resultModal.player1Id, name: resultModal.player1Name }, { id: resultModal.player2Id, name: resultModal.player2Name }].map(p => (
                     <button
@@ -1741,7 +1741,7 @@ export default function AdminPage() {
               </div>
 
               <div>
-                <label className="text-[11px] text-[#6b6488] uppercase tracking-wider mb-2 block">Score (ex: 2-1)</label>
+                <label className="text-[11px] text-[#8981ab] uppercase tracking-wider mb-2 block">Score (ex: 2-1)</label>
                 <input
                   type="text"
                   value={resultForm.score}
@@ -1781,7 +1781,7 @@ export default function AdminPage() {
             <h3 className="font-bold text-[15px] mb-1 flex items-center gap-2" style={{ color: '#60a5fa' }}>
               <VolumeX size={16} /> Muter {muteModal.username}
             </h3>
-            <p className="text-[12px] text-[#6b6488] mb-4">Sélectionne la durée du mute</p>
+            <p className="text-[12px] text-[#8981ab] mb-4">Sélectionne la durée du mute</p>
             <div className="grid grid-cols-3 gap-2 mb-4">
               {[5, 15, 60, 360, 1440, 10080].map(min => (
                 <button key={min} onClick={() => setMuteDuration(min)}
@@ -1789,7 +1789,7 @@ export default function AdminPage() {
                   style={{
                     background: muteDuration === min ? '#1e3a5f' : '#13111f',
                     border: `1px solid ${muteDuration === min ? '#3b82f6' : '#1e1a30'}`,
-                    color: muteDuration === min ? '#60a5fa' : '#6b6488',
+                    color: muteDuration === min ? '#60a5fa' : '#8981ab',
                   }}>
                   {min < 60 ? `${min} min` : min < 1440 ? `${min/60}h` : min === 1440 ? '24h' : '7j'}
                 </button>
@@ -1808,7 +1808,7 @@ export default function AdminPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="rounded-xl p-6 max-w-sm w-full" style={{ background: '#0d0b1a', border: '1px solid #ffc54240' }}>
             <h3 className="font-bold text-[15px] text-[#ffc542] mb-1">Ajuster les coins</h3>
-            <p className="text-[12px] text-[#6b6488] mb-4">{adjustModal.username}</p>
+            <p className="text-[12px] text-[#8981ab] mb-4">{adjustModal.username}</p>
             <input
               type="number"
               value={adjustAmount}
@@ -1874,7 +1874,7 @@ function ScrapersPanel({ showMsg }: { showMsg: (type: 'success' | 'error', text:
               <div className="flex items-start justify-between mb-2">
                 <div>
                   <p className="font-semibold text-[13px] text-[#e8e2f5]">{s.label}</p>
-                  <p className="text-[11px] text-[#6b6488] mt-0.5">{s.desc}</p>
+                  <p className="text-[11px] text-[#8981ab] mt-0.5">{s.desc}</p>
                 </div>
                 <button
                   onClick={() => trigger(s.id)}
@@ -1902,7 +1902,7 @@ function ScrapersPanel({ showMsg }: { showMsg: (type: 'success' | 'error', text:
       <div className="rounded-lg overflow-hidden" style={{ border: '1px solid #1e1a30', background: '#0d0b1a' }}>
         <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid #1e1a30' }}>
           <span className="text-[13px] font-semibold text-[#ffc542]">JOURNAUX</span>
-          <button onClick={fetchLogs} className="text-[#6b6488] hover:text-[#e8e2f5]">
+          <button onClick={fetchLogs} className="text-[#8981ab] hover:text-[#e8e2f5]">
             <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
           </button>
         </div>
@@ -1910,7 +1910,7 @@ function ScrapersPanel({ showMsg }: { showMsg: (type: 'success' | 'error', text:
           <thead>
             <tr style={{ borderBottom: '1px solid #1e1a30' }}>
               {['Source', 'Statut', 'Matchs', 'Durée', 'Date', 'Erreur'].map(h => (
-                <th key={h} className="text-left px-4 py-2 text-[11px] text-[#6b6488] uppercase tracking-wider font-medium">{h}</th>
+                <th key={h} className="text-left px-4 py-2 text-[11px] text-[#8981ab] uppercase tracking-wider font-medium">{h}</th>
               ))}
             </tr>
           </thead>
@@ -1925,7 +1925,7 @@ function ScrapersPanel({ showMsg }: { showMsg: (type: 'success' | 'error', text:
                 </td>
                 <td className="px-4 py-2 text-[#9990b8]">{log.matchesFound}</td>
                 <td className="px-4 py-2 text-[#9990b8]">{log.duration ? `${(log.duration / 1000).toFixed(1)}s` : ''}</td>
-                <td className="px-4 py-2 text-[#6b6488]">{new Date(log.createdAt).toLocaleTimeString('fr-FR')}</td>
+                <td className="px-4 py-2 text-[#8981ab]">{new Date(log.createdAt).toLocaleTimeString('fr-FR')}</td>
                 <td className="px-4 py-2 text-red-400 truncate max-w-[200px]">{log.error ?? ''}</td>
               </tr>
             ))}
@@ -1984,7 +1984,7 @@ function ChatHistoryPanel() {
               onClick={() => { setRoomFilter(r); setPage(1); }}
               className={cn(
                 'px-4 py-2 text-[12px] font-medium transition-colors',
-                roomFilter === r ? 'text-[#d4a017] bg-[#d4a01715]' : 'text-[#6b6488] hover:text-[#c8c0e0]'
+                roomFilter === r ? 'text-[#d4a017] bg-[#d4a01715]' : 'text-[#8981ab] hover:text-[#c8c0e0]'
               )}
             >
               {r === 'global' ? 'Global' : r === 'match' ? 'Matchs' : 'Tous'}
@@ -1992,19 +1992,19 @@ function ChatHistoryPanel() {
           ))}
         </div>
         <div className="flex items-center gap-2 flex-1 max-w-xs px-3 py-2 rounded-lg text-[12px]" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
-          <Search size={12} className="text-[#6b6488]" />
+          <Search size={12} className="text-[#8981ab]" />
           <input
-            className="bg-transparent outline-none text-[#e8e2f5] placeholder-[#6b6488] w-full"
+            className="bg-transparent outline-none text-[#e8e2f5] placeholder-[#8981ab] w-full"
             placeholder="Filtrer par userId..."
             value={userFilter}
             onChange={e => { setUserFilter(e.target.value); setPage(1); }}
           />
         </div>
-        <button onClick={fetchChat} className="flex items-center gap-1.5 text-[#6b6488] hover:text-[#e8e2f5] text-[12px]">
+        <button onClick={fetchChat} className="flex items-center gap-1.5 text-[#8981ab] hover:text-[#e8e2f5] text-[12px]">
           <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
           Rafraîchir
         </button>
-        <span className="text-[11px] text-[#6b6488] ml-auto">{total} message(s)</span>
+        <span className="text-[11px] text-[#8981ab] ml-auto">{total} message(s)</span>
       </div>
 
       {/* Table */}
@@ -2013,23 +2013,23 @@ function ChatHistoryPanel() {
           <thead>
             <tr style={{ borderBottom: '1px solid #1e1a30' }}>
               {['Date', 'Utilisateur', 'Room', 'Message'].map(h => (
-                <th key={h} className="text-left px-4 py-2.5 text-[11px] text-[#6b6488] uppercase tracking-wider font-medium">{h}</th>
+                <th key={h} className="text-left px-4 py-2.5 text-[11px] text-[#8981ab] uppercase tracking-wider font-medium">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={4} className="px-4 py-8 text-center text-[#6b6488]">Chargement...</td></tr>
+              <tr><td colSpan={4} className="px-4 py-8 text-center text-[#8981ab]">Chargement...</td></tr>
             ) : messages.length === 0 ? (
-              <tr><td colSpan={4} className="px-4 py-8 text-center text-[#6b6488]">Aucun message</td></tr>
+              <tr><td colSpan={4} className="px-4 py-8 text-center text-[#8981ab]">Aucun message</td></tr>
             ) : messages.map(m => (
               <tr key={m.id} className="hover:bg-[#13111f] transition-colors" style={{ borderBottom: '1px solid #1e1a3022' }}>
-                <td className="px-4 py-2.5 text-[#6b6488] whitespace-nowrap">
+                <td className="px-4 py-2.5 text-[#8981ab] whitespace-nowrap">
                   {new Date(m.createdAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                 </td>
                 <td className="px-4 py-2.5">
                   <span className="font-semibold text-[#e8e2f5]">{m.username}</span>
-                  <span className="ml-1.5 text-[10px] text-[#6b6488]">{m.userId.slice(0, 8)}…</span>
+                  <span className="ml-1.5 text-[10px] text-[#8981ab]">{m.userId.slice(0, 8)}…</span>
                 </td>
                 <td className="px-4 py-2.5">
                   {m.roomType === 'global' ? (
@@ -2056,7 +2056,7 @@ function ChatHistoryPanel() {
           >
             ←
           </button>
-          <span className="text-[12px] text-[#6b6488]">Page {page} / {pages}</span>
+          <span className="text-[12px] text-[#8981ab]">Page {page} / {pages}</span>
           <button
             onClick={() => setPage(p => Math.min(pages, p + 1))}
             disabled={page === pages}

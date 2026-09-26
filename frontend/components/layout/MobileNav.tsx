@@ -120,7 +120,7 @@ export function MobileNav() {
                 href={href}
                 className={cn(
                   'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors relative',
-                  active ? 'text-[#ffc542]' : 'text-[#4a4468]'
+                  active ? 'text-[#ffc542]' : 'text-[#6a6390]'
                 )}
               >
                 <Icon size={20} />
@@ -139,7 +139,7 @@ export function MobileNav() {
             onClick={() => setDrawerOpen(true)}
             className={cn(
               'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors relative',
-              drawerOpen ? 'text-[#ffc542]' : 'text-[#4a4468]'
+              drawerOpen ? 'text-[#ffc542]' : 'text-[#6a6390]'
             )}
             aria-label="Open menu"
           >
@@ -185,7 +185,7 @@ export function MobileNav() {
               </span>
               <button
                 onClick={() => setDrawerOpen(false)}
-                className="text-[#6b6488] hover:text-[#e8e2f5] p-1"
+                className="text-[#8981ab] hover:text-[#e8e2f5] p-1"
                 aria-label="Close menu"
               >
                 <X size={18} />

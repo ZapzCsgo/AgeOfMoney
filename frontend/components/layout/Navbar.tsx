@@ -231,12 +231,12 @@ export function Navbar() {
                       <div className="flex items-center justify-between px-4 py-3 border-b border-[#1e1a30]">
                         <span className="font-cinzel text-[13px] text-[#ffc542] font-bold">Notifications</span>
                         {notifications.length > 0 && (
-                          <span className="text-[11px] text-[#6b6488]">{notifications.length} au total</span>
+                          <span className="text-[11px] text-[#8981ab]">{notifications.length} au total</span>
                         )}
                       </div>
 
                       {notifications.length === 0 ? (
-                        <div className="py-8 text-center text-[13px] text-[#6b6488]">
+                        <div className="py-8 text-center text-[13px] text-[#8981ab]">
                           Aucune notification
                         </div>
                       ) : (
@@ -258,14 +258,14 @@ export function Navbar() {
                                   <div className="flex-1 min-w-0">
                                     <p className={`text-[13px] font-semibold ${color}`}>{title}</p>
                                     {n.tournamentName && (
-                                      <p className="text-[11px] text-[#6b6488] truncate">{n.tournamentName}</p>
+                                      <p className="text-[11px] text-[#8981ab] truncate">{n.tournamentName}</p>
                                     )}
                                     <p className="text-[12px] text-[#9988bb] mt-0.5">
                                       {n.playerBetOn} · Mise {Number(n.amount).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜
                                       {n.won && !isRefund && <span className="text-[#ffd97a] font-bold"> → +{Number(n.payout).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜</span>}
                                       {isRefund && <span className="text-[#9dcbff] font-bold"> → +{Number(n.amount).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜</span>}
                                     </p>
-                                    <p className="text-[10px] text-[#4a4468] mt-0.5">
+                                    <p className="text-[10px] text-[#6a6390] mt-0.5">
                                       {new Date(n.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                                     </p>
                                   </div>
@@ -284,7 +284,7 @@ export function Navbar() {
                                 <div className="flex-1 min-w-0">
                                   <p className={`text-[13px] font-semibold ${color}`}>{title}</p>
                                   <p className="text-[12px] text-[#ffd97a] font-bold mt-0.5">+{Number(n.amount).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜</p>
-                                  <p className="text-[10px] text-[#4a4468] mt-0.5">
+                                  <p className="text-[10px] text-[#6a6390] mt-0.5">
                                     {new Date(n.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                                   </p>
                                 </div>
@@ -308,10 +308,10 @@ export function Navbar() {
                     style={{ background: 'rgba(255,197,66,0.08)' }}>
                     <Wallet size={12} className="text-aoe-gold shrink-0" />
                     <span className={cn(
-                      'font-bold font-cinzel text-[12px] md:text-sm tabular-nums transition-colors duration-300',
+                      'font-extrabold font-cinzel text-[13px] md:text-base tabular-nums transition-colors duration-300',
                       coinFlash === 'up' ? 'text-green-400 drop-shadow-[0_0_8px_rgba(74,222,128,0.9)]' :
                       coinFlash === 'down' ? 'text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.9)]' :
-                      'text-aoe-gold'
+                      'text-aoe-gold drop-shadow-[0_0_6px_rgba(255,197,66,0.35)]'
                     )}>
                       {new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(displayCoins)} ⚜
                     </span>
@@ -342,7 +342,7 @@ export function Navbar() {
                         <p className="text-xs text-aoe-gold font-cinzel font-bold mt-0.5">
                           ⚜ {new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(displayCoins)} coins
                         </p>
-                        <p className="text-[10px] text-[#6b6488] mt-0.5">
+                        <p className="text-[10px] text-[#8981ab] mt-0.5">
                           ≈ ${(displayCoins / 1.69).toFixed(2)}
                         </p>
                       </div>

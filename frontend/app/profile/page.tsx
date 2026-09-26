@@ -66,7 +66,7 @@ function StatPeriodCard({ title, won, played, count }: { title: string; won: num
   const profit = won - played;
   return (
     <div className="rounded-xl p-4 flex flex-col gap-4" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
-      <p className="text-[12px] text-[#6b6488] font-medium">{title}</p>
+      <p className="text-[12px] text-[#8981ab] font-medium">{title}</p>
       <div className="space-y-3">
         <div>
           <div className="flex items-center gap-1.5">
@@ -75,23 +75,23 @@ function StatPeriodCard({ title, won, played, count }: { title: string; won: num
               {new Intl.NumberFormat('fr-FR').format(won)}
             </span>
           </div>
-          <p className="text-[11px] text-[#6b6488] mt-0.5">{t('profile_total_won')}</p>
+          <p className="text-[11px] text-[#8981ab] mt-0.5">{t('profile_total_won')}</p>
         </div>
         <div>
           <div className="flex items-center gap-1.5">
-            <span className="text-[#6b6488]">⚜</span>
+            <span className="text-[#8981ab]">⚜</span>
             <span className="text-[18px] font-bold text-[#c8c0e0]">
               {new Intl.NumberFormat('fr-FR').format(played)}
             </span>
           </div>
-          <p className="text-[11px] text-[#6b6488] mt-0.5">{t('profile_total_wagered')}</p>
+          <p className="text-[11px] text-[#8981ab] mt-0.5">{t('profile_total_wagered')}</p>
         </div>
         <div>
           <div className="flex items-center gap-1.5">
-            <Swords size={12} className="text-[#6b6488]" />
+            <Swords size={12} className="text-[#8981ab]" />
             <span className="text-[18px] font-bold text-[#c8c0e0]">{count}</span>
           </div>
-          <p className="text-[11px] text-[#6b6488] mt-0.5">{t('profile_total_bets')}</p>
+          <p className="text-[11px] text-[#8981ab] mt-0.5">{t('profile_total_bets')}</p>
         </div>
       </div>
     </div>
@@ -145,8 +145,8 @@ function SettingsTab({ session, initialBio, onBioSaved }: { session: { user: { n
               className="w-full px-4 py-3 rounded-lg text-[13px] text-[#c8c0e0] outline-none cursor-not-allowed"
               style={{ background: '#13111f', border: '1px solid #1e1a30' }} />
             <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-              <span className="text-[11px] text-[#6b6488]">{username.length}/32</span>
-              <span className="text-[10px] text-[#6b6488] bg-[#1e1a30] px-2 py-0.5 rounded">Steam</span>
+              <span className="text-[11px] text-[#8981ab]">{username.length}/32</span>
+              <span className="text-[10px] text-[#8981ab] bg-[#1e1a30] px-2 py-0.5 rounded">Steam</span>
             </div>
           </div>
         </div>
@@ -161,7 +161,7 @@ function SettingsTab({ session, initialBio, onBioSaved }: { session: { user: { n
               style={{ background: '#13111f', border: `1px solid ${settEmail ? '#22c55e44' : '#1e1a30'}`, color: '#c8c0e0' }} />
             {settEmail && <CheckCircle2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500" />}
           </div>
-          <p className="text-[11px] text-[#6b6488] mt-1.5">
+          <p className="text-[11px] text-[#8981ab] mt-1.5">
             {t('settings_email_hint')}
           </p>
         </div>
@@ -171,11 +171,11 @@ function SettingsTab({ session, initialBio, onBioSaved }: { session: { user: { n
           <label className="block text-[11px] font-semibold text-[#9990b8] uppercase tracking-widest mb-2">{t('settings_userid')}</label>
           <div className="relative">
             <input readOnly value={(session.user as { id?: string }).id ?? ''}
-              className="w-full px-4 py-3 rounded-lg text-[13px] text-[#6b6488] outline-none cursor-default font-mono"
+              className="w-full px-4 py-3 rounded-lg text-[13px] text-[#8981ab] outline-none cursor-default font-mono"
               style={{ background: '#13111f', border: '1px solid #1e1a30' }} />
             <button onClick={handleCopyId}
               className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors hover:text-[#ffc542]"
-              style={{ color: copied ? '#22c55e' : '#6b6488' }}
+              style={{ color: copied ? '#22c55e' : '#8981ab' }}
               title={copied ? t('common_copied') : t('common_copy')}>
               {copied ? <Check size={15} /> : <Copy size={15} />}
             </button>
@@ -190,7 +190,7 @@ function SettingsTab({ session, initialBio, onBioSaved }: { session: { user: { n
               placeholder={t('settings_bio_placeholder')} rows={4}
               className="w-full px-4 py-3 rounded-lg text-[13px] text-[#c8c0e0] outline-none resize-none transition-colors placeholder-[#3d3860]"
               style={{ background: '#13111f', border: '1px solid #1e1a30' }} />
-            <span className="absolute bottom-3 right-3 text-[10px] text-[#6b6488]">{settBio.length}/200</span>
+            <span className="absolute bottom-3 right-3 text-[10px] text-[#8981ab]">{settBio.length}/200</span>
           </div>
         </div>
 
@@ -333,14 +333,14 @@ function SecurityTab({ session }: { session: { user: { accessToken: string; id?:
       {/* Two-Factor */}
       <div className="rounded-xl overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
         <div className="px-6 py-4 border-b" style={{ borderColor: '#1e1a30', background: 'rgba(0,0,0,0.2)' }}>
-          <h3 className="text-[11px] font-bold text-[#6b6488] uppercase tracking-widest font-cinzel">{t('sec_twofactor')}</h3>
+          <h3 className="text-[11px] font-bold text-[#8981ab] uppercase tracking-widest font-cinzel">{t('sec_twofactor')}</h3>
         </div>
 
         {/* Toggle row */}
         <div className="px-6 py-4 flex items-center justify-between gap-4" style={showSetup ? { borderBottom: '1px solid #1e1a30' } : {}}>
           <div>
             <p className="text-[13px] font-semibold text-[#c8c0e0]">{t('sec_2fa_title')}</p>
-            <p className="text-[11px] text-[#6b6488] mt-0.5">
+            <p className="text-[11px] text-[#8981ab] mt-0.5">
               {t('sec_2fa_desc')}
             </p>
           </div>
@@ -372,7 +372,7 @@ function SecurityTab({ session }: { session: { user: { accessToken: string; id?:
             {disableError && <p className="text-red-400 text-[11px]">{disableError}</p>}
             <div className="flex gap-2">
               <button onClick={() => { setShowDisable(false); setDisableCode(''); setDisableError(''); }}
-                className="flex-1 py-2 rounded-lg text-[12px] font-semibold text-[#6b6488] hover:text-[#c8c0e0] border border-[#1e1a30] transition-colors">
+                className="flex-1 py-2 rounded-lg text-[12px] font-semibold text-[#8981ab] hover:text-[#c8c0e0] border border-[#1e1a30] transition-colors">
                 {t('sec_cancel')}
               </button>
               <button onClick={handleDisable} disabled={loadingDisable}
@@ -407,12 +407,12 @@ function SecurityTab({ session }: { session: { user: { accessToken: string; id?:
                   <span className="text-[#3d3860] text-[11px]">…</span>
                 </div>
               )}
-              <p className="text-[11px] text-center text-[#6b6488] max-w-xs leading-relaxed">
+              <p className="text-[11px] text-center text-[#8981ab] max-w-xs leading-relaxed">
                 {t('sec_2fa_backup')}
               </p>
               {otpauthUrl && (
                 <details className="text-[10px] text-[#4a4570] max-w-xs w-full">
-                  <summary className="cursor-pointer hover:text-[#6b6488] text-center">
+                  <summary className="cursor-pointer hover:text-[#8981ab] text-center">
                     {t('sec_2fa_manual_entry')}
                   </summary>
                   <code className="block mt-2 break-all bg-[#13111f] rounded p-2 font-mono text-[#9990b8]">
@@ -459,7 +459,7 @@ function SecurityTab({ session }: { session: { user: { accessToken: string; id?:
       {/* Sessions */}
       <div className="rounded-xl overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
         <div className="px-6 py-4 border-b" style={{ borderColor: '#1e1a30', background: 'rgba(0,0,0,0.2)' }}>
-          <h3 className="text-[11px] font-bold text-[#6b6488] uppercase tracking-widest font-cinzel">{t('sec_sessions')}</h3>
+          <h3 className="text-[11px] font-bold text-[#8981ab] uppercase tracking-widest font-cinzel">{t('sec_sessions')}</h3>
         </div>
 
         <div className="px-6 py-4 flex items-center justify-between gap-4" style={{ borderBottom: '1px solid #13111f' }}>
@@ -470,7 +470,7 @@ function SecurityTab({ session }: { session: { user: { accessToken: string; id?:
                 {t('sec_current_session')}
               </span>
             </div>
-            <p className="text-[11px] text-[#6b6488]">{now}</p>
+            <p className="text-[11px] text-[#8981ab]">{now}</p>
           </div>
           <button
             className="px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-colors shrink-0"
@@ -502,8 +502,8 @@ function BetStatusBadge({ status }: { status: string }) {
     WON:      { label: t('profile_history_won'),     bg: '#04200f', color: '#22c55e' },
     LOST:     { label: t('profile_history_lost'),    bg: '#200404', color: '#ef4444' },
     PENDING:  { label: t('profile_history_pending'), bg: '#201a04', color: '#ffc542' },
-    REFUNDED: { label: t('common_pending'),          bg: '#131025', color: '#6b6488' },
-    CANCELLED:{ label: t('common_pending'),          bg: '#131025', color: '#6b6488' },
+    REFUNDED: { label: t('common_pending'),          bg: '#131025', color: '#8981ab' },
+    CANCELLED:{ label: t('common_pending'),          bg: '#131025', color: '#8981ab' },
   };
   const c = cfg[status] ?? cfg.CANCELLED;
   return (
@@ -605,7 +605,7 @@ export default function ProfilePage() {
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#07060f' }}>
         <div className="text-center p-8 rounded-xl" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
           <h2 className="font-bold text-lg text-[#ffc542] mb-2" style={{ fontFamily: 'Cinzel, serif' }}>{t('auth_required')}</h2>
-          <p className="text-[#6b6488] text-sm mb-5">{t('auth_required_desc')}</p>
+          <p className="text-[#8981ab] text-sm mb-5">{t('auth_required_desc')}</p>
           {/* Bouton Steam bleu (même style que /deposit) — plus cohérent
               avec l'identité Steam qu'un bouton or générique. */}
           <button
@@ -635,7 +635,7 @@ export default function ProfilePage() {
         <div className="text-center p-8 rounded-xl" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
           <div className="text-3xl mb-3">⚔</div>
           <h2 className="font-bold text-lg text-[#ffc542] mb-2" style={{ fontFamily: 'Cinzel, serif' }}>{t('profile_user_not_found')}</h2>
-          <Link href="/profile" className="text-[#6b6488] text-sm hover:text-[#ffc542]">{t('profile_back_to_profile')}</Link>
+          <Link href="/profile" className="text-[#8981ab] text-sm hover:text-[#ffc542]">{t('profile_back_to_profile')}</Link>
         </div>
       </div>
     );
@@ -645,7 +645,7 @@ export default function ProfilePage() {
     return (
       <div className="min-h-screen" style={{ background: '#07060f' }}>
         <div className="max-w-2xl mx-auto px-3 sm:px-4 py-6 sm:py-10 space-y-4">
-          <Link href="/profile" className="text-[11px] text-[#6b6488] hover:text-[#ffc542] transition-colors">{t('profile_back_to_profile')}</Link>
+          <Link href="/profile" className="text-[11px] text-[#8981ab] hover:text-[#ffc542] transition-colors">{t('profile_back_to_profile')}</Link>
           <div className="rounded-xl p-6 relative overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
             <div className="absolute inset-0 opacity-10" style={{ background: `radial-gradient(ellipse at top right, ${pubColor}, transparent 60%)` }} />
             <div className="relative flex items-center gap-5">
@@ -683,7 +683,7 @@ export default function ProfilePage() {
             <div className="relative mt-5">
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-[12px] font-semibold" style={{ color: pubColor }}>Niveau {pubLvl.level}</span>
-                <span className="text-[11px] text-[#6b6488]">{pubLvl.pct.toFixed(1)}%</span>
+                <span className="text-[11px] text-[#8981ab]">{pubLvl.pct.toFixed(1)}%</span>
               </div>
               <div className="h-1.5 rounded-full overflow-hidden" style={{ background: '#1e1a30' }}>
                 <div className="h-full rounded-full transition-all" style={{ width: `${pubLvl.pct}%`, background: pubColor }} />
@@ -700,28 +700,28 @@ export default function ProfilePage() {
             ];
             return periods.map(({ label, s }) => (
               <div key={label} className="rounded-xl p-4" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
-                <p className="text-[11px] text-[#6b6488] font-medium mb-3">{label}</p>
+                <p className="text-[11px] text-[#8981ab] font-medium mb-3">{label}</p>
                 <div className="grid grid-cols-3 gap-2 sm:gap-3">
                   <div>
                     <div className="flex items-center gap-1">
                       <span className="text-[#ffc542] text-xs">⚜</span>
                       <span className="text-[14px] sm:text-[16px] font-bold text-[#ffc542]">{fmt(s.won)}</span>
                     </div>
-                    <p className="text-[10px] text-[#6b6488] mt-0.5">Total gagné</p>
+                    <p className="text-[10px] text-[#8981ab] mt-0.5">Total gagné</p>
                   </div>
                   <div>
                     <div className="flex items-center gap-1">
-                      <span className="text-[#6b6488] text-xs">⚜</span>
+                      <span className="text-[#8981ab] text-xs">⚜</span>
                       <span className="text-[16px] font-bold text-[#c8c0e0]">{fmt(s.wagered)}</span>
                     </div>
-                    <p className="text-[10px] text-[#6b6488] mt-0.5">Total misé</p>
+                    <p className="text-[10px] text-[#8981ab] mt-0.5">Total misé</p>
                   </div>
                   <div>
                     <div className="flex items-center gap-1">
-                      <Swords size={12} className="text-[#6b6488]" />
+                      <Swords size={12} className="text-[#8981ab]" />
                       <span className="text-[16px] font-bold text-[#c8c0e0]">{s.count}</span>
                     </div>
-                    <p className="text-[10px] text-[#6b6488] mt-0.5">Paris</p>
+                    <p className="text-[10px] text-[#8981ab] mt-0.5">Paris</p>
                   </div>
                 </div>
               </div>
@@ -805,7 +805,7 @@ export default function ProfilePage() {
 
             {/* Right: joined date */}
             <div className="text-right shrink-0">
-              <p className="text-[12px] text-[#6b6488]">{t('profile_member_since')} {joinedAt}</p>
+              <p className="text-[12px] text-[#8981ab]">{t('profile_member_since')} {joinedAt}</p>
             </div>
           </div>
 
@@ -815,7 +815,7 @@ export default function ProfilePage() {
               <span className="text-[12px] font-semibold" style={{ color }}>
                 {t('profile_level')} {lvl.level}
               </span>
-              <span className="text-[11px] text-[#6b6488]">{lvl.pct.toFixed(1)}%</span>
+              <span className="text-[11px] text-[#8981ab]">{lvl.pct.toFixed(1)}%</span>
             </div>
             <div className="h-2 rounded-full overflow-hidden" style={{ background: '#1a1630' }}>
               <div
@@ -846,7 +846,7 @@ export default function ProfilePage() {
                 'shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-medium transition-all whitespace-nowrap',
                 activeTab === tab.id
                   ? 'text-[#ffc542]'
-                  : 'text-[#6b6488] hover:text-[#c8c0e0]'
+                  : 'text-[#8981ab] hover:text-[#c8c0e0]'
               )}
               style={activeTab === tab.id ? { background: '#1a1630' } : {}}
             >
@@ -908,7 +908,7 @@ export default function ProfilePage() {
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all"
                       style={{
                         background: historyFilter === f ? '#1e1a30' : 'transparent',
-                        color: historyFilter === f ? '#e8e2f5' : '#6b6488',
+                        color: historyFilter === f ? '#e8e2f5' : '#8981ab',
                         border: `1px solid ${historyFilter === f ? '#2a2640' : 'transparent'}`,
                       }}>
                       {f === 'all' && <><Swords size={11} /> Tout</>}
@@ -926,7 +926,7 @@ export default function ProfilePage() {
               ) : filtered.length === 0 ? (
                 <div className="text-center py-12">
                   <Swords size={24} className="mx-auto mb-3 text-[#3d3860]" />
-                  <p className="text-[13px] text-[#6b6488]">{t('profile_no_history')}</p>
+                  <p className="text-[13px] text-[#8981ab]">{t('profile_no_history')}</p>
                 </div>
               ) : (
                 <div className="divide-y" style={{ borderColor: '#1a1730' }}>
@@ -943,25 +943,25 @@ export default function ProfilePage() {
                         <div key={`m-${bet.id}`} className="flex items-center gap-4 px-4 py-3 hover:bg-[#13111f] transition-colors">
                           <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
                             style={{ background: '#1a1630', border: '1px solid #2a2640' }}>
-                            <Swords size={11} style={{ color: '#6b6488' }} />
+                            <Swords size={11} style={{ color: '#8981ab' }} />
                           </div>
                           <div className="flex-1 min-w-0">
                             <Link href={`/matches/${bet.matchId}`} className="hover:text-[#ffc542] transition-colors">
                               <p className="text-[13px] font-medium text-[#c8c0e0] truncate">
-                                <span className="text-[#6b6488]">{playerName}</span>
+                                <span className="text-[#8981ab]">{playerName}</span>
                                 <span className="text-[#3d3860] mx-1.5">·</span>
                                 {bet.match.player1.name} vs {bet.match.player2.name}
                               </p>
                             </Link>
                           </div>
-                          <div className="shrink-0 text-[11px] text-[#6b6488] tabular-nums whitespace-nowrap">
+                          <div className="shrink-0 text-[11px] text-[#8981ab] tabular-nums whitespace-nowrap">
                             {fmt(bet.amount)} ⚜ <span className="text-[#3d3860]">× {bet.oddsAtBet.toFixed(2)}</span>
                           </div>
                           <div className="text-right shrink-0 w-24 tabular-nums">
                             {bet.status === 'WON'      && <p className="text-[13px] font-bold text-emerald-400">+{fmt(profit)} ⚜</p>}
                             {bet.status === 'LOST'     && <p className="text-[13px] font-bold text-red-400">−{fmt(bet.amount)} ⚜</p>}
-                            {bet.status === 'PENDING'  && <p className="text-[12px] text-[#6b6488]">{t('profile_history_pending')}</p>}
-                            {bet.status === 'REFUNDED' && <p className="text-[12px] text-[#6b6488]">{t('common_pending')}</p>}
+                            {bet.status === 'PENDING'  && <p className="text-[12px] text-[#8981ab]">{t('profile_history_pending')}</p>}
+                            {bet.status === 'REFUNDED' && <p className="text-[12px] text-[#8981ab]">{t('common_pending')}</p>}
                           </div>
                         </div>
                       );
@@ -975,24 +975,24 @@ export default function ProfilePage() {
                         <div key={`r-${bet.id}`} className="flex items-center gap-4 px-4 py-3 hover:bg-[#13111f] transition-colors">
                           <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
                             style={{ background: '#1a1630', border: '1px solid #2a2640' }}>
-                            <Dices size={11} style={{ color: '#6b6488' }} />
+                            <Dices size={11} style={{ color: '#8981ab' }} />
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-[13px] font-medium text-[#c8c0e0] truncate">
                               {zoneLabel}
                               {winLabel && <>
                                 <span className="text-[#3d3860] mx-1.5">→</span>
-                                <span className="text-[#6b6488]">{winLabel}</span>
+                                <span className="text-[#8981ab]">{winLabel}</span>
                               </>}
                             </p>
                           </div>
-                          <div className="shrink-0 text-[11px] text-[#6b6488] tabular-nums whitespace-nowrap">
+                          <div className="shrink-0 text-[11px] text-[#8981ab] tabular-nums whitespace-nowrap">
                             {fmt(bet.amount)} ⚜ <span className="text-[#3d3860]">× {bet.round.multiplier ?? '?'}</span>
                           </div>
                           <div className="text-right shrink-0 w-24 tabular-nums">
                             {bet.won === true  && <p className="text-[13px] font-bold text-emerald-400">+{fmt(profit)} ⚜</p>}
                             {bet.won === false && <p className="text-[13px] font-bold text-red-400">−{fmt(bet.amount)} ⚜</p>}
-                            {bet.won === null  && <p className="text-[12px] text-[#6b6488]">{t('profile_history_pending')}</p>}
+                            {bet.won === null  && <p className="text-[12px] text-[#8981ab]">{t('profile_history_pending')}</p>}
                           </div>
                         </div>
                       );

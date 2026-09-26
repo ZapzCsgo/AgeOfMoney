@@ -87,12 +87,12 @@ export default function PrivacyPage() {
                 <h2 className="text-[15px] font-bold" style={{ color: '#e8e2f5', fontFamily: 'Cinzel, serif' }}>
                   Politique de Confidentialité
                 </h2>
-                <p className="text-[10px]" style={{ color: '#6b6488' }}>AgeOfMoney — Dernière mise à jour : 2026</p>
+                <p className="text-[10px]" style={{ color: '#8981ab' }}>AgeOfMoney — Dernière mise à jour : 2026</p>
               </div>
               <button
                 onClick={() => setOpen(false)}
                 className="w-7 h-7 rounded-full flex items-center justify-center transition-colors hover:bg-[#1e1a30]">
-                <X size={14} style={{ color: '#6b6488' }} />
+                <X size={14} style={{ color: '#8981ab' }} />
               </button>
             </div>
 
@@ -114,7 +114,7 @@ export default function PrivacyPage() {
               ))}
 
               <div className="rounded-xl p-4 mt-2" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
-                <p className="text-[11px] leading-relaxed" style={{ color: '#6b6488' }}>
+                <p className="text-[11px] leading-relaxed" style={{ color: '#8981ab' }}>
                   Pour toute question relative à cette politique de confidentialité, contactez-nous à{' '}
                   <a href="mailto:support@ageofmoney.gg" className="hover:opacity-80 transition-opacity" style={{ color: '#ffc542' }}>
                     support@ageofmoney.gg

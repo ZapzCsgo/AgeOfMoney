@@ -143,7 +143,7 @@ export function RedeemPopover() {
               </span>
               <button
                 onClick={closePanel}
-                className="text-[#6b6488] hover:text-aoe-parchment p-0.5"
+                className="text-[#8981ab] hover:text-aoe-parchment p-0.5"
                 aria-label="Close"
               >
                 <X size={13} />
@@ -186,7 +186,7 @@ export function RedeemPopover() {
                   {msg.text}
                 </p>
               ) : (
-                <p className="text-[11px] text-[#6b6488] leading-snug">
+                <p className="text-[11px] text-[#8981ab] leading-snug">
                   Bonus coins are locked until you wager them through. Withdraw is blocked on locked coins.
                 </p>
               )}
@@ -201,9 +201,9 @@ export function RedeemPopover() {
               {historyOpen && (
                 <div className="space-y-1.5 max-h-[280px] overflow-y-auto">
                   {history === null ? (
-                    <p className="text-[11px] text-[#6b6488]">Loading…</p>
+                    <p className="text-[11px] text-[#8981ab]">Loading…</p>
                   ) : history.length === 0 ? (
-                    <p className="text-[11px] text-[#6b6488]">No codes redeemed yet.</p>
+                    <p className="text-[11px] text-[#8981ab]">No codes redeemed yet.</p>
                   ) : (
                     history.map((r) => {
                       const done = parseFloat(r.wageringDone);

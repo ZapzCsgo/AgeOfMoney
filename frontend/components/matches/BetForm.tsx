@@ -154,14 +154,22 @@ export function BetForm({ match, onBetPlaced, initialPlayer = null }: BetFormPro
                     key={p}
                     type="button"
                     onClick={() => setSelectedPlayer(p)}
-                    className="relative p-3 rounded-lg transition-all duration-150 text-left"
+                    className="relative p-3 rounded-lg transition-all duration-150 text-left active:scale-[0.97]"
                     style={{
                       background: isSelected ? 'rgba(255,197,66,0.1)' : 'rgba(255,255,255,0.03)',
                       border: isSelected ? '2px solid #ffc542' : '2px solid rgba(255,255,255,0.08)',
                       boxShadow: isSelected ? '0 0 18px rgba(255,197,66,0.2), inset 0 0 10px rgba(255,197,66,0.05)' : 'none',
                     }}
                   >
-                    <div className="font-cinzel font-bold text-xl" style={{ color: isSelected ? '#ffd97a' : '#ffc542' }}>{odds.toFixed(2)}</div>
+                    <div
+                      className="font-cinzel font-black text-2xl"
+                      style={{
+                        color: isSelected ? '#ffd97a' : '#ffc542',
+                        textShadow: isSelected ? '0 0 16px rgba(255,217,122,0.5)' : 'none',
+                      }}
+                    >
+                      {odds.toFixed(2)}
+                    </div>
                     <div className="text-sm font-medium mt-0.5 truncate" style={{ color: isSelected ? '#e8e2f5' : '#9990b8' }}>{name}</div>
                   </button>
                 );
@@ -212,7 +220,7 @@ export function BetForm({ match, onBetPlaced, initialPlayer = null }: BetFormPro
                   type="button"
                   onClick={() => { setAmount(q); setCustomAmount(String(q)); }}
                   className={cn(
-                    'flex-1 py-1.5 text-xs font-cinzel rounded border transition-all',
+                    'flex-1 py-2.5 text-sm font-cinzel font-bold rounded border transition-all active:scale-95',
                     amount === q
                       ? 'border-aoe-gold text-aoe-gold bg-aoe-gold/10'
                       : 'border-aoe-border text-aoe-parchment-muted hover:border-aoe-border-gold hover:text-aoe-parchment'
@@ -238,7 +246,10 @@ export function BetForm({ match, onBetPlaced, initialPlayer = null }: BetFormPro
               <div className="border-t border-aoe-border pt-2">
                 <div className="flex justify-between items-center">
                   <span className="text-aoe-parchment-dim text-xs font-cinzel uppercase">{t('bet_potential')}</span>
-                  <span className="text-aoe-emerald-bright font-cinzel font-bold text-base">
+                  <span
+                    className="text-aoe-emerald-bright font-cinzel font-black text-lg"
+                    style={{ textShadow: '0 0 14px rgba(39,174,96,0.45)' }}
+                  >
                     +{netGain.toFixed(2)} ⚜
                   </span>
                 </div>

@@ -110,7 +110,7 @@ export function RainLaunchModal({
             </span>
           </div>
           <button onClick={onClose} className="hover:opacity-60 transition-opacity" aria-label="fermer">
-            <X size={14} style={{ color: '#6b6488' }} />
+            <X size={14} style={{ color: '#8981ab' }} />
           </button>
         </div>
 
@@ -123,7 +123,7 @@ export function RainLaunchModal({
 
           {/* Amount */}
           <div>
-            <label className="block text-[10px] font-bold tracking-[0.2em] uppercase mb-1" style={{ color: '#6b6488' }}>
+            <label className="block text-[10px] font-bold tracking-[0.2em] uppercase mb-1" style={{ color: '#8981ab' }}>
               Amount (coins)
             </label>
             <input
@@ -135,14 +135,14 @@ export function RainLaunchModal({
               className="w-full rounded-lg px-3 py-2 text-[14px] font-bold outline-none"
               style={{ background: '#13111f', border: '1px solid #2a2640', color: '#ffd97a' }}
             />
-            <p className="text-[10px] mt-1" style={{ color: '#6b6488' }}>
+            <p className="text-[10px] mt-1" style={{ color: '#8981ab' }}>
               [{BOUNDS.amount.min.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} – {BOUNDS.amount.max.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}] coins
             </p>
           </div>
 
           {/* Max participants */}
           <div>
-            <label className="block text-[10px] font-bold tracking-[0.2em] uppercase mb-1" style={{ color: '#6b6488' }}>
+            <label className="block text-[10px] font-bold tracking-[0.2em] uppercase mb-1" style={{ color: '#8981ab' }}>
               Max participants
             </label>
             <input
@@ -154,14 +154,14 @@ export function RainLaunchModal({
               className="w-full rounded-lg px-3 py-2 text-[14px] font-bold outline-none"
               style={{ background: '#13111f', border: '1px solid #2a2640', color: '#e5e5e5' }}
             />
-            <p className="text-[10px] mt-1" style={{ color: '#6b6488' }}>
+            <p className="text-[10px] mt-1" style={{ color: '#8981ab' }}>
               [{BOUNDS.maxParticipants.min} – {BOUNDS.maxParticipants.max}] users
             </p>
           </div>
 
           {/* Duration */}
           <div>
-            <label className="block text-[10px] font-bold tracking-[0.2em] uppercase mb-1" style={{ color: '#6b6488' }}>
+            <label className="block text-[10px] font-bold tracking-[0.2em] uppercase mb-1" style={{ color: '#8981ab' }}>
               Duration (seconds)
             </label>
             <input
@@ -173,7 +173,7 @@ export function RainLaunchModal({
               className="w-full rounded-lg px-3 py-2 text-[14px] font-bold outline-none"
               style={{ background: '#13111f', border: '1px solid #2a2640', color: '#e5e5e5' }}
             />
-            <p className="text-[10px] mt-1" style={{ color: '#6b6488' }}>
+            <p className="text-[10px] mt-1" style={{ color: '#8981ab' }}>
               [{BOUNDS.duration.min} – {BOUNDS.duration.max}] secondes ({Math.round(duration / 60)} min)
             </p>
           </div>

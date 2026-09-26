@@ -24,7 +24,7 @@ const TIER_STYLE: Record<string, { bg: string; text: string; border: string }> =
   S: { bg: 'rgba(255,197,66,0.12)', text: '#ffc542', border: 'rgba(255,197,66,0.3)' },
   A: { bg: 'rgba(167,139,250,0.10)', text: '#a78bfa', border: 'rgba(167,139,250,0.25)' },
   B: { bg: 'rgba(96,165,250,0.08)', text: '#60a5fa', border: 'rgba(96,165,250,0.2)' },
-  C: { bg: 'rgba(107,100,136,0.08)', text: '#6b6488', border: 'rgba(107,100,136,0.2)' },
+  C: { bg: 'rgba(107,100,136,0.08)', text: '#8981ab', border: 'rgba(107,100,136,0.2)' },
 };
 
 // Per-game badge styles — match home page colors
@@ -66,7 +66,7 @@ function MatchMiniRow({ match }: { match: Match }) {
         ) : isCompleted && match.resultScore ? (
           <span className="font-bold text-[13px] text-[#e8e2f5] tabular-nums">{match.resultScore}</span>
         ) : (
-          <span className="text-[11px] text-[#6b6488] tabular-nums">
+          <span className="text-[11px] text-[#8981ab] tabular-nums">
             {match.odds1.toFixed(2)} - {match.odds2.toFixed(2)}
           </span>
         )}
@@ -153,7 +153,7 @@ function TournamentCard({ tournament }: { tournament: Tournament & { _count?: { 
                 );
               })()}
             </div>
-            <div className="flex items-center gap-3 text-[10px] text-[#6b6488]">
+            <div className="flex items-center gap-3 text-[10px] text-[#8981ab]">
               <span className="flex items-center gap-1">
                 <Calendar size={9} />
                 {formatDate(tournament.startDate)}
@@ -188,7 +188,7 @@ function TournamentCard({ tournament }: { tournament: Tournament & { _count?: { 
               </span>
             )}
 
-            {expanded ? <ChevronUp size={14} className="text-[#6b6488]" /> : <ChevronDown size={14} className="text-[#6b6488]" />}
+            {expanded ? <ChevronUp size={14} className="text-[#8981ab]" /> : <ChevronDown size={14} className="text-[#8981ab]" />}
           </div>
         </div>
       </button>
@@ -334,12 +334,12 @@ export default function TournamentsPage() {
                     {activeCount} {t('tourn_active').toLowerCase()}
                   </span>
                 )}
-                <span className="text-[#6b6488]">{upcomingCount} {t('tourn_upcoming').toLowerCase()}</span>
+                <span className="text-[#8981ab]">{upcomingCount} {t('tourn_upcoming').toLowerCase()}</span>
               </div>
             </div>
           </div>
           <button onClick={fetchTournaments} disabled={loading}
-            className="p-2 rounded-lg border border-[#1e1a30] text-[#6b6488] hover:text-[#ffc542] transition-colors">
+            className="p-2 rounded-lg border border-[#1e1a30] text-[#8981ab] hover:text-[#ffc542] transition-colors">
             <RefreshCw size={14} className={loading ? 'animate-spin text-[#ffc542]' : ''} />
           </button>
         </div>
@@ -396,7 +396,7 @@ export default function TournamentsPage() {
                   'px-3 py-1.5 text-[10px] font-bold tracking-wider uppercase transition-colors',
                   statusFilter === f.id
                     ? 'bg-[#1e1a30] text-[#e8e2f5]'
-                    : 'text-[#6b6488] hover:text-[#9990b8]'
+                    : 'text-[#8981ab] hover:text-[#9990b8]'
                 )}
               >
                 {f.label}
@@ -412,7 +412,7 @@ export default function TournamentsPage() {
               <AlertTriangle size={13} className="text-red-400 shrink-0" />
               <p className="text-red-400 text-[12px]">{error}</p>
             </div>
-            <button onClick={fetchTournaments} className="text-[11px] text-[#6b6488] hover:text-[#e8e2f5] underline">{t('common_retry')}</button>
+            <button onClick={fetchTournaments} className="text-[11px] text-[#8981ab] hover:text-[#e8e2f5] underline">{t('common_retry')}</button>
           </div>
         )}
 

@@ -133,7 +133,7 @@ export function JackpotCountdownAlert() {
               <button
                 onClick={() => setAlert(null)}
                 className="px-3 py-1 rounded-full text-[11px] tracking-wider uppercase hover:opacity-60 transition-opacity"
-                style={{ color: '#6b6488', background: 'transparent' }}
+                style={{ color: '#8981ab', background: 'transparent' }}
               >
                 Ignorer
               </button>
@@ -144,7 +144,7 @@ export function JackpotCountdownAlert() {
             className="shrink-0 hover:opacity-60 transition-opacity"
             aria-label="close"
           >
-            <X size={14} style={{ color: '#6b6488' }} />
+            <X size={14} style={{ color: '#8981ab' }} />
           </button>
         </div>
       </div>

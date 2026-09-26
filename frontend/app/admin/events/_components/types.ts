@@ -82,6 +82,6 @@ export const PRIORITY_STYLE: Record<Priority, { border: string; badgeBg: string;
     border:     'rgba(107,100,136,0.35)',
     badgeBg:    'rgba(107,100,136,0.15)',
     badgeColor: '#9990b8',
-    accent:     '#6b6488',
+    accent:     '#8981ab',
   },
 };

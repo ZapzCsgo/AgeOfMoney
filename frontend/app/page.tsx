@@ -340,10 +340,10 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
             <div className="flex items-center gap-1.5">
               {/* Finished-at date — short locale-aware ("24 avr.", "Apr 24",
                   "24 abr."). Tooltip shows the full timestamp on hover. */}
-              <span className="text-[11px] text-[#6b6488] tabular-nums" title={new Date(match.updatedAt).toLocaleString()}>
+              <span className="text-[11px] text-[#8981ab] tabular-nums" title={new Date(match.updatedAt).toLocaleString()}>
                 {new Date(match.updatedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
               </span>
-              <span className="text-[11px] text-[#6b6488] font-cinzel border border-[#2a2540] rounded px-1.5 py-0.5">
+              <span className="text-[11px] text-[#8981ab] font-cinzel border border-[#2a2540] rounded px-1.5 py-0.5">
                 {t('matches_finished')}
               </span>
             </div>
@@ -466,7 +466,7 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
               className={cn('px-3 py-1.5 rounded-lg text-center transition-all duration-200 border', selected === 0 ? 'border-[#ffc542] bg-[#ffc542]/10' : 'border-[#1e1a30] bg-[#0d0b1a]/50 hover:border-[#3d3860]')}
             >
               <div className="font-cinzel font-bold text-sm text-[#ffc542] leading-none">{match.oddsDraw.toFixed(2)}</div>
-              <div className="text-[8px] text-[#6b6488] mt-0.5 uppercase tracking-widest">Draw</div>
+              <div className="text-[8px] text-[#8981ab] mt-0.5 uppercase tracking-widest">Draw</div>
             </button>
           )}
         </div>
@@ -555,7 +555,7 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
         >
           <Link
             href={`/matches/${match.id}`}
-            className="flex items-center gap-1 text-[11px] font-cinzel text-[#6b6488] hover:text-[#ffc542] transition-colors"
+            className="flex items-center gap-1 text-[11px] font-cinzel text-[#8981ab] hover:text-[#ffc542] transition-colors"
             onClick={(e) => e.stopPropagation()}
           >
             {t('match_show_more_bets')} <ChevronRight size={11} />
@@ -1010,9 +1010,9 @@ export default function HomePage() {
                   <div className="flex-1 min-w-0">
                     <p className="font-cinzel font-bold text-[13px] text-[#e8e2f5] truncate group-hover:text-[#ffc542] transition-colors">{tourn.name}</p>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[10px] text-[#6b6488]">{tourn.game ?? 'AoE4'}</span>
-                      {tourn.startDate && <span className="text-[10px] text-[#6b6488]">· {new Date(tourn.startDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>}
-                      {tourn.endDate && <span className="text-[10px] text-[#6b6488]">→ {new Date(tourn.endDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>}
+                      <span className="text-[10px] text-[#8981ab]">{tourn.game ?? 'AoE4'}</span>
+                      {tourn.startDate && <span className="text-[10px] text-[#8981ab]">· {new Date(tourn.startDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>}
+                      {tourn.endDate && <span className="text-[10px] text-[#8981ab]">→ {new Date(tourn.endDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>}
                     </div>
                   </div>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded shrink-0"

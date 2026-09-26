@@ -58,7 +58,7 @@ const config: Config = {
           // Text
           parchment:       '#e8e2f5',
           'parchment-dim': '#9890b8',
-          'parchment-muted':'#4a4468',
+          'parchment-muted':'#6a6390',
 
           // Accents (legacy conservés pour compat)
           crimson:       '#c0392b',

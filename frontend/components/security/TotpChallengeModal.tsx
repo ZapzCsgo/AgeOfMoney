@@ -91,7 +91,7 @@ export function TotpChallengeModal() {
           <div className="flex gap-2 mt-5 w-full">
             <button
               onClick={cancel}
-              className="flex-1 py-2.5 rounded-lg text-[13px] font-semibold text-[#6b6488] hover:text-[#c8c0e0] border border-[#1e1a30] transition-colors"
+              className="flex-1 py-2.5 rounded-lg text-[13px] font-semibold text-[#8981ab] hover:text-[#c8c0e0] border border-[#1e1a30] transition-colors"
             >
               Annuler
             </button>

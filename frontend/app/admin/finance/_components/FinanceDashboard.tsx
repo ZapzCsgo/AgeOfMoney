@@ -96,7 +96,7 @@ export function FinanceDashboard() {
   if (!isOwner) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
-        <p className="text-[13px]" style={{ color: '#6b6488' }}>Unauthorized.</p>
+        <p className="text-[13px]" style={{ color: '#8981ab' }}>Unauthorized.</p>
       </div>
     );
   }

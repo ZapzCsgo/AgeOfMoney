@@ -411,7 +411,7 @@ function JackpotWheel({
             dominantBaseline="central"
             y={18}
             fontSize="9"
-            fill="#6b6488"
+            fill="#8981ab"
             style={{ letterSpacing: '2px' }}
           >
             TOTAL POT
@@ -722,7 +722,7 @@ export default function JackpotPage() {
               JACKPOT
             </h1>
           </div>
-          <p className="text-[11px] tracking-widest uppercase" style={{ color: '#6b6488' }}>
+          <p className="text-[11px] tracking-widest uppercase" style={{ color: '#8981ab' }}>
             Winner takes the pot · Provably fair
           </p>
 
@@ -733,7 +733,7 @@ export default function JackpotPage() {
               className="px-4 py-1.5 rounded-lg text-[11px] font-bold tracking-wider uppercase transition-all"
               style={{
                 background: viewTab === 'live' ? 'rgba(255,197,66,0.15)' : 'transparent',
-                color: viewTab === 'live' ? '#ffd97a' : '#6b6488',
+                color: viewTab === 'live' ? '#ffd97a' : '#8981ab',
                 border: viewTab === 'live' ? '1px solid rgba(255,197,66,0.3)' : '1px solid transparent',
               }}
             >
@@ -745,7 +745,7 @@ export default function JackpotPage() {
               className="px-4 py-1.5 rounded-lg text-[11px] font-bold tracking-wider uppercase transition-all"
               style={{
                 background: viewTab === 'history' ? 'rgba(255,197,66,0.15)' : 'transparent',
-                color: viewTab === 'history' ? '#ffd97a' : '#6b6488',
+                color: viewTab === 'history' ? '#ffd97a' : '#8981ab',
                 border: viewTab === 'history' ? '1px solid rgba(255,197,66,0.3)' : '1px solid transparent',
               }}
             >
@@ -800,7 +800,7 @@ export default function JackpotPage() {
               ) : (
                 <div
                   className="w-14 h-14 rounded-full flex items-center justify-center"
-                  style={{ border: '2px solid rgba(255,255,255,0.05)', color: '#4a4468' }}
+                  style={{ border: '2px solid rgba(255,255,255,0.05)', color: '#6a6390' }}
                 >
                   <Clock size={20} />
                 </div>
@@ -810,7 +810,7 @@ export default function JackpotPage() {
                   <Users size={13} />
                   {round?.participantCount ?? 0} {round?.participantCount === 1 ? 'joueur' : 'joueurs'}
                 </div>
-                <div className="text-[10px] tracking-wider uppercase mt-0.5" style={{ color: '#6b6488' }}>
+                <div className="text-[10px] tracking-wider uppercase mt-0.5" style={{ color: '#8981ab' }}>
                   {round?.status === 'OPEN' && (round.participantCount < 2
                     ? 'En attente d\u2019un 2ᵉ joueur…'
                     : 'Ouvert aux paris'
@@ -824,7 +824,7 @@ export default function JackpotPage() {
 
             {userId && myAggregate && round && round.potTotal > 0 && (
               <div className="text-right">
-                <div className="text-[10px] tracking-[0.2em] uppercase" style={{ color: '#6b6488' }}>
+                <div className="text-[10px] tracking-[0.2em] uppercase" style={{ color: '#8981ab' }}>
                   Votre chance
                 </div>
                 <div className="text-xl font-bold" style={{ color: myAggregate.color }}>
@@ -891,7 +891,7 @@ export default function JackpotPage() {
               <div className="text-[11px]" style={{ color: '#9b94b8' }}>
                 chance {reveal.chance.toFixed(2)}% · tiré à {(reveal.winningTicket / 100).toFixed(2)}%
               </div>
-              <div className="text-[10px] mt-1" style={{ color: '#6b6488' }}>
+              <div className="text-[10px] mt-1" style={{ color: '#8981ab' }}>
                 RNG : {reveal.rngSource === 'random_org_signed' ? 'Random.org Signed API' : 'HMAC fallback'}
               </div>
             </motion.div>
@@ -955,7 +955,7 @@ export default function JackpotPage() {
                 background: canBet
                   ? 'linear-gradient(135deg, #f5c842 0%, #d4a017 100%)'
                   : 'rgba(255,197,66,0.2)',
-                color: canBet ? '#1a1010' : '#6b6488',
+                color: canBet ? '#1a1010' : '#8981ab',
                 border: 'none',
                 minWidth: 140,
               }}
@@ -964,7 +964,7 @@ export default function JackpotPage() {
             </Button>
           </div>
           {!canBet && isLive && (
-            <div className="mt-2 text-[11px]" style={{ color: '#6b6488' }}>
+            <div className="mt-2 text-[11px]" style={{ color: '#8981ab' }}>
               Les paris sont fermés pour ce round.
             </div>
           )}
@@ -981,7 +981,7 @@ export default function JackpotPage() {
           </div>
 
           {view.aggregates.length === 0 ? (
-            <div className="text-center py-8 text-sm" style={{ color: '#6b6488' }}>
+            <div className="text-center py-8 text-sm" style={{ color: '#8981ab' }}>
               Personne n&apos;a encore misé. Soyez le premier !
             </div>
           ) : (
@@ -1021,7 +1021,7 @@ export default function JackpotPage() {
                         {p.user.username}
                         {isWinner && <span className="ml-2 text-[10px] font-bold" style={{ color: '#ffd97a' }}>WINNER</span>}
                       </div>
-                      <div className="text-[10px] font-mono mt-0.5 truncate" style={{ color: '#6b6488' }}>
+                      <div className="text-[10px] font-mono mt-0.5 truncate" style={{ color: '#8981ab' }}>
                         {formatTicketRanges(p.bets, round?.potTotal ?? 0)}
                       </div>
                     </div>
@@ -1064,7 +1064,7 @@ export default function JackpotPage() {
                   </span>
                 </div>
                 <button onClick={() => setShowFairness(false)} className="hover:opacity-60 transition-opacity">
-                  <X size={16} style={{ color: '#6b6488' }} />
+                  <X size={16} style={{ color: '#8981ab' }} />
                 </button>
               </div>
 
@@ -1101,16 +1101,16 @@ export default function JackpotPage() {
                     background: fairnessRound.rngSource === 'random_org_signed' ? 'rgba(52,211,153,0.1)'
                       : fairnessRound.rngSource === 'hmac_fallback' ? 'rgba(99,102,241,0.1)' : 'rgba(107,100,136,0.1)',
                     border: `1px solid ${fairnessRound.rngSource === 'random_org_signed' ? '#34d39940'
-                      : fairnessRound.rngSource === 'hmac_fallback' ? '#6366f140' : '#6b648840'}`,
+                      : fairnessRound.rngSource === 'hmac_fallback' ? '#6366f140' : '#8981ab40'}`,
                     color: fairnessRound.rngSource === 'random_org_signed' ? '#34d399'
-                      : fairnessRound.rngSource === 'hmac_fallback' ? '#818cf8' : '#6b6488',
+                      : fairnessRound.rngSource === 'hmac_fallback' ? '#818cf8' : '#8981ab',
                   }}
                 >
                   {fairnessRound.rngSource === 'random_org_signed' ? '✓ random.org Signed API'
                     : fairnessRound.rngSource === 'hmac_fallback' ? '✓ HMAC fallback'
                     : 'tirage en attente'}
                 </div>
-                <span className="text-[10px]" style={{ color: '#6b6488' }}>
+                <span className="text-[10px]" style={{ color: '#8981ab' }}>
                   statut : {fairnessRound.status}
                 </span>
               </div>
@@ -1135,7 +1135,7 @@ export default function JackpotPage() {
                   if (fairnessRound.randomJson) rows.push({ label: 'Random JSON', value: fairnessRound.randomJson, key: 'json' });
                   return rows.map(({ label, value, key }) => (
                     <div key={key} className="flex items-start justify-between gap-3">
-                      <span className="text-[11px] shrink-0 mt-0.5" style={{ color: '#6b6488', minWidth: 110 }}>{label}:</span>
+                      <span className="text-[11px] shrink-0 mt-0.5" style={{ color: '#8981ab', minWidth: 110 }}>{label}:</span>
                       <div
                         className="flex items-center gap-2 flex-1 min-w-0 px-3 py-2 rounded-lg"
                         style={{ background: '#13111f', border: '1px solid #1a1730' }}
@@ -1145,7 +1145,7 @@ export default function JackpotPage() {
                         </span>
                         {value && (
                           <button onClick={() => copyToClipboard(value, key)} className="shrink-0 hover:opacity-70 transition-opacity" aria-label="copy">
-                            {copied === key ? <Check size={12} style={{ color: '#34d399' }} /> : <Copy size={12} style={{ color: '#4a4468' }} />}
+                            {copied === key ? <Check size={12} style={{ color: '#34d399' }} /> : <Copy size={12} style={{ color: '#6a6390' }} />}
                           </button>
                         )}
                       </div>
@@ -1157,7 +1157,7 @@ export default function JackpotPage() {
               {/* Verify block */}
               {fairnessRound.rngSource === 'random_org_signed' && fairnessRound.randomSignature && (
                 <div className="mx-6 mb-5 rounded-lg p-4" style={{ background: '#13111f', border: '1px solid #1a1730' }}>
-                  <p className="text-[10px] mb-2" style={{ color: '#6b6488' }}>
+                  <p className="text-[10px] mb-2" style={{ color: '#8981ab' }}>
                     Vérifiez ce résultat sur random.org :
                   </p>
                   <a
@@ -1169,14 +1169,14 @@ export default function JackpotPage() {
                   >
                     <ShieldCheck size={12} /> api.random.org/signatures/form <ExternalLink size={10} />
                   </a>
-                  <p className="text-[10px] mt-2" style={{ color: '#4a4468' }}>
+                  <p className="text-[10px] mt-2" style={{ color: '#6a6390' }}>
                     Collez la <b>Signature</b> et le <b>Random JSON</b> pour vérifier l&apos;authenticité.
                   </p>
                 </div>
               )}
               {fairnessRound.rngSource === 'hmac_fallback' && (
                 <div className="mx-6 mb-5 rounded-lg p-4" style={{ background: '#13111f', border: '1px solid #1a1730' }}>
-                  <p className="text-[10px] font-mono" style={{ color: '#6b6488' }}>
+                  <p className="text-[10px] font-mono" style={{ color: '#8981ab' }}>
                     winningTicket = HMAC_SHA256(serverSeed, clientSeed + &quot;:&quot; + nonce).hex
                     <br />→ rejection-sampled to [0, 9999]
                   </p>
@@ -1190,16 +1190,16 @@ export default function JackpotPage() {
         {viewTab === 'history' && (
           <div className="rounded-2xl p-5" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
             <div className="flex items-center gap-2 mb-4">
-              <Trophy size={16} style={{ color: '#6b6488' }} />
+              <Trophy size={16} style={{ color: '#8981ab' }} />
               <h2 className="text-[14px] font-bold tracking-wider uppercase" style={{ fontFamily: 'Cinzel, serif', color: '#e8e2f5' }}>
                 Historique des jackpots
               </h2>
-              <span className="ml-auto text-[11px]" style={{ color: '#6b6488' }}>{history.length} rounds</span>
+              <span className="ml-auto text-[11px]" style={{ color: '#8981ab' }}>{history.length} rounds</span>
             </div>
             {historyLoading ? (
-              <div className="text-center py-8 text-[12px]" style={{ color: '#6b6488' }}>Chargement…</div>
+              <div className="text-center py-8 text-[12px]" style={{ color: '#8981ab' }}>Chargement…</div>
             ) : history.length === 0 ? (
-              <div className="text-center py-8 text-[12px]" style={{ color: '#6b6488' }}>Aucun round terminé pour l&apos;instant.</div>
+              <div className="text-center py-8 text-[12px]" style={{ color: '#8981ab' }}>Aucun round terminé pour l&apos;instant.</div>
             ) : (
               <div className="space-y-2">
                 {history.map((r) => {
@@ -1232,7 +1232,7 @@ export default function JackpotPage() {
                         <div className="text-sm font-bold truncate" style={{ color: '#ffd97a' }}>
                           {r.winner?.username ?? 'Unknown'}
                         </div>
-                        <div className="text-[11px] truncate" style={{ color: '#6b6488' }}>
+                        <div className="text-[11px] truncate" style={{ color: '#8981ab' }}>
                           {r.participantCount} joueurs · chance {chance.toFixed(1)}% · {dateStr}
                         </div>
                       </div>
@@ -1240,7 +1240,7 @@ export default function JackpotPage() {
                         <div className="text-sm font-bold" style={{ color: '#ffd97a' }}>
                           +{(r.netPayout ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜
                         </div>
-                        <div className="text-[10px] font-mono" style={{ color: '#6b6488' }}>
+                        <div className="text-[10px] font-mono" style={{ color: '#8981ab' }}>
                           pot {r.potTotal.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                         </div>
                         <button

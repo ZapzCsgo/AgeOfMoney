@@ -48,7 +48,7 @@ export function LineChart({
     return (
       <div
         className="flex items-center justify-center rounded-lg text-[11px]"
-        style={{ width, height, color: '#6b6488', background: 'rgba(255,255,255,0.02)' }}
+        style={{ width, height, color: '#8981ab', background: 'rgba(255,255,255,0.02)' }}
       >
         {emptyLabel}
       </div>
@@ -97,7 +97,7 @@ export function LineChart({
               y={y + 3}
               textAnchor="end"
               fontSize="9"
-              fill="#4a4468"
+              fill="#6a6390"
             >
               {fmt(t)}{ySuffix}
             </text>
@@ -123,7 +123,7 @@ export function LineChart({
             y={height - 6}
             textAnchor="middle"
             fontSize="9"
-            fill="#6b6488"
+            fill="#8981ab"
           >
             {c.px}
           </text>

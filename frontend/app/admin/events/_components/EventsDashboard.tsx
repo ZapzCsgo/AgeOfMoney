@@ -140,7 +140,7 @@ export function EventsDashboard() {
   if (!isOwner) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
-        <p className="text-[13px]" style={{ color: '#6b6488' }}>Unauthorized.</p>
+        <p className="text-[13px]" style={{ color: '#8981ab' }}>Unauthorized.</p>
       </div>
     );
   }
@@ -172,7 +172,7 @@ export function EventsDashboard() {
 
       {/* Count line */}
       <div className="flex items-center gap-2 mb-4 text-[12px]" style={{ color: '#9990b8' }}>
-        <Radar size={13} style={{ color: newCount > 0 ? '#ffd97a' : '#6b6488' }} />
+        <Radar size={13} style={{ color: newCount > 0 ? '#ffd97a' : '#8981ab' }} />
         <span>
           <strong style={{ color: '#e5e5e5' }}>{newCount}</strong> nouvelle{newCount !== 1 ? 's' : ''} ·{' '}
           <strong style={{ color: '#e5e5e5' }}>{visible.length}</strong> active{visible.length !== 1 ? 's' : ''}
@@ -202,7 +202,7 @@ export function EventsDashboard() {
           <p className="text-[14px]" style={{ color: '#c8c0e0' }}>
             🎯 Tout va bien — pas d&apos;opportunité détectée pour le moment.
           </p>
-          <p className="text-[11px] mt-2" style={{ color: '#6b6488' }}>
+          <p className="text-[11px] mt-2" style={{ color: '#8981ab' }}>
             Le scanner tourne toutes les 6 h. Tu peux aussi relancer via « Scan now » ci-dessus.
           </p>
         </div>

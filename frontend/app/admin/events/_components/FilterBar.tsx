@@ -121,7 +121,7 @@ export function FilterBar({
           Refresh
         </button>
 
-        <span className="text-[10px]" style={{ color: '#6b6488' }}>
+        <span className="text-[10px]" style={{ color: '#8981ab' }}>
           Données · {ago}
         </span>
       </div>

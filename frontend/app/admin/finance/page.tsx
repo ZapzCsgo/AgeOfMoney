@@ -33,7 +33,7 @@ export default async function AdminFinancePage() {
           >
             FINANCE
           </h1>
-          <p className="text-[11px] tracking-widest uppercase mt-1" style={{ color: '#6b6488' }}>
+          <p className="text-[11px] tracking-widest uppercase mt-1" style={{ color: '#8981ab' }}>
             Owner-only dashboard · signed in as {session.user.name ?? session.user.email ?? session.user.id}
           </p>
         </div>

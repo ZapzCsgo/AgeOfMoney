@@ -70,7 +70,7 @@ export function DateRangePicker({
           style={{ background: '#13111f', border: '1px solid #2a2640', color: '#e5e5e5' }}
         >
           {RANGE_LABELS[value]}
-          <ChevronDown size={12} style={{ color: '#6b6488' }} />
+          <ChevronDown size={12} style={{ color: '#8981ab' }} />
         </button>
 
         {open && (
@@ -121,7 +121,7 @@ export function DateRangePicker({
       </button>
 
       {/* Data-as-of indicator */}
-      <span className="text-[10px] ml-1" style={{ color: '#6b6488' }}>
+      <span className="text-[10px] ml-1" style={{ color: '#8981ab' }}>
         Données • {ago}
       </span>
     </div>

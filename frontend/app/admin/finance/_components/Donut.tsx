@@ -70,12 +70,12 @@ export function Donut({
         {(centerLabel || centerValue) && (
           <>
             {centerValue && (
-              <text x={cx} y={cy - 6} textAnchor="middle" fontSize="16" fontWeight="bold" fill="#6b6488" style={{ fontFamily: 'Cinzel, serif' }}>
+              <text x={cx} y={cy - 6} textAnchor="middle" fontSize="16" fontWeight="bold" fill="#8981ab" style={{ fontFamily: 'Cinzel, serif' }}>
                 {centerValue}
               </text>
             )}
             {centerLabel && (
-              <text x={cx} y={cy + 12} textAnchor="middle" fontSize="9" fill="#4a4468" letterSpacing="2">
+              <text x={cx} y={cy + 12} textAnchor="middle" fontSize="9" fill="#6a6390" letterSpacing="2">
                 {centerLabel}
               </text>
             )}
@@ -144,7 +144,7 @@ export function Donut({
           y={cy + 14}
           textAnchor="middle"
           fontSize="9"
-          fill="#6b6488"
+          fill="#8981ab"
           letterSpacing="2"
         >
           {centerLabel}

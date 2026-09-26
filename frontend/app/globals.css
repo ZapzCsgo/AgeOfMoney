@@ -113,14 +113,14 @@
     align-items: center;
     justify-content: center;
     gap: 6px;
-    padding: 8px 20px;
+    padding: 9px 22px;
     background: linear-gradient(135deg, #b8881a 0%, #ffc542 45%, #ffd97a 55%, #ffc542 80%, #b8881a 100%);
     background-size: 200% auto;
     color: #07060f;
     font-family: 'Cinzel', serif;
-    font-weight: 700;
-    font-size: 12px;
-    letter-spacing: 0.15em;
+    font-weight: 800;
+    font-size: 14px;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     border-radius: 6px;
     border: none;
@@ -133,7 +133,13 @@
     box-shadow: 0 0 20px rgba(255,197,66,0.5), 0 0 40px rgba(255,197,66,0.2);
     transform: translateY(-1px);
   }
-  .aom-btn-gold:active { transform: translateY(0); }
+  .aom-btn-gold:active { transform: translateY(0) scale(0.98); }
+  .aom-btn-gold:disabled,
+  .aom-btn-outline:disabled {
+    cursor: not-allowed;
+    pointer-events: none;
+    opacity: 0.5;
+  }
 
   .aom-btn-outline {
     display: inline-flex;
@@ -144,8 +150,8 @@
     background: transparent;
     color: #ffc542;
     font-family: 'Cinzel', serif;
-    font-weight: 600;
-    font-size: 12px;
+    font-weight: 700;
+    font-size: 13px;
     letter-spacing: 0.12em;
     text-transform: uppercase;
     border-radius: 6px;
@@ -157,6 +163,7 @@
     background: rgba(255,197,66,0.08);
     border-color: #ffc542;
   }
+  .aom-btn-outline:active { transform: scale(0.98); }
 
   .aom-btn-steam {
     display: inline-flex;
@@ -223,6 +230,9 @@
     background: rgba(255,197,66,0.12);
     box-shadow: 0 0 16px rgba(255,197,66,0.25);
   }
+  .odds-btn:active {
+    transform: translateY(0) scale(0.97);
+  }
 
   /* === Odds buttons (aoe-prefixed, used in MatchCard — similar to odds-btn but tighter) === */
   .aoe-odds-btn {
@@ -251,7 +261,7 @@
     box-shadow: 0 0 20px rgba(255,197,66,0.3), inset 0 0 12px rgba(255,197,66,0.08);
   }
   .aoe-odds-btn:active {
-    transform: translateY(0);
+    transform: translateY(0) scale(0.97);
   }
 
   /* === Live badge === */
@@ -306,9 +316,9 @@
     align-items: center;
     gap: 5px;
     font-family: 'Cinzel', serif;
-    font-weight: 700;
+    font-weight: 800;
     color: #ffc542;
-    font-size: 13px;
+    font-size: 15px;
   }
 
   /* === Progress bar === */
@@ -349,7 +359,7 @@
     border-color: rgba(255,197,66,0.5);
     box-shadow: 0 0 0 2px rgba(255,197,66,0.1);
   }
-  .aom-input::placeholder { color: #4a4468; }
+  .aom-input::placeholder { color: #6a6390; }
 
   /* === Legacy aliases (aoe-* → copies des styles aom-*) === */
   .aoe-card {
@@ -370,12 +380,12 @@
   }
   .aoe-btn-gold {
     display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-    padding: 8px 20px;
+    padding: 9px 22px;
     background: linear-gradient(135deg, #b8881a 0%, #ffc542 45%, #ffd97a 55%, #ffc542 80%, #b8881a 100%);
     background-size: 200% auto;
     color: #07060f;
-    font-family: 'Cinzel', serif; font-weight: 700; font-size: 12px;
-    letter-spacing: 0.15em; text-transform: uppercase;
+    font-family: 'Cinzel', serif; font-weight: 800; font-size: 14px;
+    letter-spacing: 0.12em; text-transform: uppercase;
     border-radius: 6px; border: none; cursor: pointer;
     transition: background-position 0.4s, box-shadow 0.2s, transform 0.1s;
     user-select: none;
@@ -385,16 +395,24 @@
     box-shadow: 0 0 20px rgba(255,197,66,0.5), 0 0 40px rgba(255,197,66,0.2);
     transform: translateY(-1px);
   }
+  .aoe-btn-gold:active { transform: translateY(0) scale(0.98); }
+  .aoe-btn-gold:disabled,
+  .aoe-btn-outline:disabled {
+    cursor: not-allowed;
+    pointer-events: none;
+    opacity: 0.5;
+  }
   .aoe-btn-outline {
     display: inline-flex; align-items: center; justify-content: center; gap: 6px;
     padding: 8px 20px;
     background: transparent; color: #ffc542;
-    font-family: 'Cinzel', serif; font-weight: 600; font-size: 12px;
+    font-family: 'Cinzel', serif; font-weight: 700; font-size: 13px;
     letter-spacing: 0.12em; text-transform: uppercase;
     border-radius: 6px; border: 1px solid rgba(255,197,66,0.4); cursor: pointer;
     transition: all 0.2s;
   }
   .aoe-btn-outline:hover { background: rgba(255,197,66,0.08); border-color: #ffc542; }
+  .aoe-btn-outline:active { transform: scale(0.98); }
 
   /* === Legacy tier badge aliases === */
   .aoe-badge-s { background: rgba(255,197,66,0.2); border: 1px solid rgba(255,197,66,0.6); color: #ffd97a; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-family: 'Cinzel', serif; font-weight: 700; }
@@ -549,3 +567,23 @@
   to   { opacity: 1; transform: translateY(0);   max-height: 200px; }
 }
 .animate-slide-down { animation: slide-down 0.2s ease-out forwards; }
+
+/* ── Reduced motion ───────────────────────────────────────────────────────── */
+/* Keep state changes (color/opacity/box-shadow endpoints) but drop the looping
+   motion for users who asked for it. Live badges/pulses stay visible at their
+   "on" state instead of flashing. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .match-card-live,
+  .badge-live::before,
+  .live-dot,
+  .live-ring::before {
+    animation: none !important;
+    opacity: 1;
+  }
+}

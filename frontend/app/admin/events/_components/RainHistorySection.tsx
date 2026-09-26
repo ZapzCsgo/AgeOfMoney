@@ -62,11 +62,11 @@ export function RainHistorySection({ ready }: { ready: boolean }) {
           >
             Rains history
           </h3>
-          <span className="text-[10px]" style={{ color: '#6b6488' }}>
+          <span className="text-[10px]" style={{ color: '#8981ab' }}>
             {open ? 'fermer' : 'ouvrir'}
           </span>
         </div>
-        {open ? <ChevronUp size={14} style={{ color: '#6b6488' }} /> : <ChevronDown size={14} style={{ color: '#6b6488' }} />}
+        {open ? <ChevronUp size={14} style={{ color: '#8981ab' }} /> : <ChevronDown size={14} style={{ color: '#8981ab' }} />}
       </button>
 
       {open && (
@@ -74,7 +74,7 @@ export function RainHistorySection({ ready }: { ready: boolean }) {
           {loading && !data ? (
             <div className="h-24 rounded animate-pulse" style={{ background: 'rgba(255,255,255,0.02)' }} />
           ) : rows.length === 0 ? (
-            <div className="text-center py-8 text-[12px]" style={{ color: '#6b6488' }}>
+            <div className="text-center py-8 text-[12px]" style={{ color: '#8981ab' }}>
               Aucun rain lancé pour l&apos;instant.
             </div>
           ) : (
@@ -86,7 +86,7 @@ export function RainHistorySection({ ready }: { ready: boolean }) {
               <div className="overflow-x-auto">
                 <table className="w-full text-[12px] min-w-[620px]" cellPadding={0} cellSpacing={0}>
                   <thead>
-                    <tr style={{ color: '#6b6488' }}>
+                    <tr style={{ color: '#8981ab' }}>
                       <th className="text-left py-2 px-2 font-bold tracking-wider uppercase text-[10px]">Date</th>
                       <th className="text-left py-2 px-2 font-bold tracking-wider uppercase text-[10px]">Par</th>
                       <th className="text-right py-2 px-2 font-bold tracking-wider uppercase text-[10px]">Pool</th>
@@ -114,7 +114,7 @@ export function RainHistorySection({ ready }: { ready: boolean }) {
                           <td className="py-2 px-2" style={{ color: '#c8c0e0' }}>
                             {r.triggeredByAdmin}
                             {r.triggeredByEvent && (
-                              <span className="ml-1 text-[9px]" style={{ color: '#6b6488' }}>· via event</span>
+                              <span className="ml-1 text-[9px]" style={{ color: '#8981ab' }}>· via event</span>
                             )}
                           </td>
                           <td className="py-2 px-2 text-right font-mono font-bold" style={{ color: '#ffd97a' }}>
@@ -148,7 +148,7 @@ export function RainHistorySection({ ready }: { ready: boolean }) {
                 <button
                   onClick={() => refresh()}
                   className="text-[10px] tracking-wider uppercase hover:opacity-80 transition-opacity"
-                  style={{ color: '#6b6488' }}
+                  style={{ color: '#8981ab' }}
                 >
                   Rafraîchir
                 </button>

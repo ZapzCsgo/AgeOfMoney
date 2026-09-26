@@ -111,7 +111,7 @@ export function AnomaliesSection({ ready }: { ready: boolean }) {
     >
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div className="flex items-center gap-2">
-          <AlertTriangle size={14} style={{ color: totalCount > 0 ? '#f87171' : '#6b6488' }} />
+          <AlertTriangle size={14} style={{ color: totalCount > 0 ? '#f87171' : '#8981ab' }} />
           <h2
             className="text-[14px] font-bold tracking-widest uppercase"
             style={{ fontFamily: 'Cinzel, serif', color: '#e8e2f5' }}
@@ -133,7 +133,7 @@ export function AnomaliesSection({ ready }: { ready: boolean }) {
           )}
         </div>
         {lastUpdatedAt && (
-          <span className="text-[10px]" style={{ color: '#6b6488' }}>
+          <span className="text-[10px]" style={{ color: '#8981ab' }}>
             dernière analyse · {new Date(lastUpdatedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
           </span>
         )}
@@ -146,7 +146,7 @@ export function AnomaliesSection({ ready }: { ready: boolean }) {
           ))}
         </div>
       ) : anomalies.length === 0 ? (
-        <div className="text-center py-10 text-[12px]" style={{ color: '#6b6488' }}>
+        <div className="text-center py-10 text-[12px]" style={{ color: '#8981ab' }}>
           <Check size={20} className="mx-auto mb-2" style={{ color: '#10b981' }} />
           Aucune anomalie détectée pour l&apos;instant. Tout est clean.
         </div>

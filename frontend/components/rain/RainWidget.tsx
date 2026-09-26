@@ -203,7 +203,7 @@ export function RainWidget() {
                   onClick={() => setDismissed(true)}
                   aria-label="fermer la bannière"
                   className="shrink-0 p-1 rounded hover:opacity-80 transition-opacity"
-                  style={{ color: '#6b6488' }}
+                  style={{ color: '#8981ab' }}
                 >
                   <X size={12} />
                 </button>

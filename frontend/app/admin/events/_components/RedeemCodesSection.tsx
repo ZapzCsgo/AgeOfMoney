@@ -379,16 +379,16 @@ export function RedeemCodesSection({ ready }: { ready: boolean }) {
             )}
 
             {codes === null ? (
-              <p className="text-[12px]" style={{ color: '#6b6488' }}>Loading…</p>
+              <p className="text-[12px]" style={{ color: '#8981ab' }}>Loading…</p>
             ) : codes.length === 0 ? (
-              <p className="text-[12px] text-center py-6" style={{ color: '#6b6488' }}>
+              <p className="text-[12px] text-center py-6" style={{ color: '#8981ab' }}>
                 No codes yet. Create your first one above.
               </p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-[11px]">
                   <thead>
-                    <tr style={{ color: '#6b6488', borderBottom: '1px solid #1e1a30' }}>
+                    <tr style={{ color: '#8981ab', borderBottom: '1px solid #1e1a30' }}>
                       <th className="text-left py-2 font-normal uppercase tracking-widest">Code</th>
                       <th className="text-right py-2 font-normal uppercase tracking-widest">Amount</th>
                       <th className="text-right py-2 font-normal uppercase tracking-widest">Wagering</th>

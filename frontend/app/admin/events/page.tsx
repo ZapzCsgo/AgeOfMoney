@@ -30,7 +30,7 @@ export default async function AdminEventsPage() {
           >
             EVENT OPPORTUNITIES
           </h1>
-          <p className="text-[11px] tracking-widest uppercase mt-1" style={{ color: '#6b6488' }}>
+          <p className="text-[11px] tracking-widest uppercase mt-1" style={{ color: '#8981ab' }}>
             Radar automatique · 8 rules · scan toutes les 6 h
           </p>
         </div>

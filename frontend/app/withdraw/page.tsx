@@ -382,7 +382,7 @@ export default function WithdrawPage() {
       <div className="flex mb-8 border-b" style={{ borderColor: '#1e1a30' }}>
         <Link
           href="/deposit"
-          className="flex-1 flex items-center justify-center gap-2 py-3 font-cinzel font-bold text-[12px] tracking-[0.18em] uppercase text-[#6b6488] hover:text-[#e8e2f5] transition-colors"
+          className="flex-1 flex items-center justify-center gap-2 py-3 font-cinzel font-bold text-[12px] tracking-[0.18em] uppercase text-[#8981ab] hover:text-[#e8e2f5] transition-colors"
         >
           <ArrowDownToLine size={13} />
           {t('deposit_tab')}

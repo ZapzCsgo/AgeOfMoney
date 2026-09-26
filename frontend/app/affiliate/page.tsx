@@ -309,12 +309,12 @@ export default function AffiliatePage() {
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg"
                   style={{ background: '#13111f', border: '1px solid #2a2640' }}>
-                  <span className="text-[11px] uppercase tracking-widest" style={{ color: '#6b6488' }}>{t('aff_code_label')}</span>
+                  <span className="text-[11px] uppercase tracking-widest" style={{ color: '#8981ab' }}>{t('aff_code_label')}</span>
                   <span className="text-[14px] font-mono font-bold tracking-widest" style={{ color: '#ffc542' }}>
                     {aff.code}
                   </span>
                   <button onClick={() => copyText(aff.code, 'code')} className="hover:opacity-70">
-                    {copied === 'code' ? <Check size={14} style={{ color: '#22c55e' }} /> : <Copy size={14} style={{ color: '#6b6488' }} />}
+                    {copied === 'code' ? <Check size={14} style={{ color: '#22c55e' }} /> : <Copy size={14} style={{ color: '#8981ab' }} />}
                   </button>
                 </div>
                 <div className="px-3 py-2 rounded-lg" style={{ background: `${currentTier.color}15`, border: `1px solid ${currentTier.color}55` }}>
@@ -336,7 +336,7 @@ export default function AffiliatePage() {
                   }
                   const daysLeft = Math.ceil((unlocksAt!.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
                   return (
-                    <span className="text-[11px] px-3 py-2 rounded-lg" style={{ background: '#13111f', color: '#6b6488', border: '1px solid #1a1730' }}>
+                    <span className="text-[11px] px-3 py-2 rounded-lg" style={{ background: '#13111f', color: '#8981ab', border: '1px solid #1a1730' }}>
                       {t('aff_modifiable_in').replace('{days}', String(daysLeft))}
                     </span>
                   );
@@ -363,7 +363,7 @@ export default function AffiliatePage() {
               className="px-4 md:px-5 py-2 rounded-lg text-[12px] font-medium transition-all"
               style={{
                 background: activeTab === id ? '#1a1630' : 'transparent',
-                color: activeTab === id ? '#e8e2f5' : '#6b6488',
+                color: activeTab === id ? '#e8e2f5' : '#8981ab',
               }}>
               {label}
             </button>
@@ -379,8 +379,8 @@ export default function AffiliatePage() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <div className="lg:col-span-2 rounded-xl p-5" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
                     <div className="flex items-center justify-between mb-1">
-                      <p className="text-[11px] uppercase tracking-widest" style={{ color: '#6b6488' }}>{t('aff_commissions_earned')}</p>
-                      <span className="text-[10px] px-2 py-0.5 rounded" style={{ background: '#1a1630', color: '#6b6488' }}>{t('aff_7_days')}</span>
+                      <p className="text-[11px] uppercase tracking-widest" style={{ color: '#8981ab' }}>{t('aff_commissions_earned')}</p>
+                      <span className="text-[10px] px-2 py-0.5 rounded" style={{ background: '#1a1630', color: '#8981ab' }}>{t('aff_7_days')}</span>
                     </div>
                     <p className="text-2xl font-bold mb-5" style={{ color: '#ffc542', fontFamily: 'Cinzel,serif' }}>
                       ⚜ {aff.totalEarnings.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
@@ -405,7 +405,7 @@ export default function AffiliatePage() {
                           {claiming ? '...' : t('aff_claim')}
                         </button>
                       </div>
-                      <p className="text-[11px]" style={{ color: '#6b6488' }}>{t('aff_available')}</p>
+                      <p className="text-[11px]" style={{ color: '#8981ab' }}>{t('aff_available')}</p>
                       {claimMsg && (
                         <p className={cn('text-[11px] mt-2', claimMsg.type === 'ok' ? 'text-emerald-400' : 'text-red-400')}>
                           {claimMsg.text}
@@ -415,32 +415,32 @@ export default function AffiliatePage() {
 
                     <div className="rounded-xl p-4" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
                       <div className="flex items-center gap-2 mb-1">
-                        <TrendingUp size={14} style={{ color: '#6b6488' }} />
+                        <TrendingUp size={14} style={{ color: '#8981ab' }} />
                         <span className="text-[18px] font-bold" style={{ color: '#e8e2f5' }}>
                           {aff.totalEarnings.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                         </span>
                       </div>
-                      <p className="text-[11px]" style={{ color: '#6b6488' }}>{t('aff_total_earned')}</p>
+                      <p className="text-[11px]" style={{ color: '#8981ab' }}>{t('aff_total_earned')}</p>
                     </div>
 
                     <div className="rounded-xl p-4" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
                       <div className="flex items-center gap-2 mb-1">
-                        <Users size={14} style={{ color: '#6b6488' }} />
+                        <Users size={14} style={{ color: '#8981ab' }} />
                         <span className="text-[18px] font-bold" style={{ color: '#e8e2f5' }}>
                           {aff.totalReferrals}
                         </span>
                       </div>
-                      <p className="text-[11px]" style={{ color: '#6b6488' }}>{t('aff_total_referrals')}</p>
+                      <p className="text-[11px]" style={{ color: '#8981ab' }}>{t('aff_total_referrals')}</p>
                     </div>
 
                     <div className="rounded-xl p-4" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
                       <div className="flex items-center gap-2 mb-1">
-                        <UserCheck size={14} style={{ color: '#6b6488' }} />
+                        <UserCheck size={14} style={{ color: '#8981ab' }} />
                         <span className="text-[18px] font-bold" style={{ color: '#e8e2f5' }}>
                           {aff.activeReferrals}
                         </span>
                       </div>
-                      <p className="text-[11px]" style={{ color: '#6b6488' }}>{t('aff_active_referrals')}</p>
+                      <p className="text-[11px]" style={{ color: '#8981ab' }}>{t('aff_active_referrals')}</p>
                     </div>
                   </div>
                 </div>
@@ -455,7 +455,7 @@ export default function AffiliatePage() {
                           className="px-3 py-1.5 rounded-lg text-[11px] font-medium"
                           style={{
                             background: referralFilter === f ? '#1a1630' : 'transparent',
-                            color: referralFilter === f ? '#e8e2f5' : '#6b6488',
+                            color: referralFilter === f ? '#e8e2f5' : '#8981ab',
                             border: `1px solid ${referralFilter === f ? '#2a2640' : 'transparent'}`,
                           }}>
                           {f === 'all' ? t('aff_filter_all') : t('aff_filter_active')}
@@ -467,8 +467,8 @@ export default function AffiliatePage() {
                   {filteredReferrals.length === 0 ? (
                     <div className="text-center py-12">
                       <Users size={24} className="mx-auto mb-3" style={{ color: '#3d3860' }} />
-                      <p className="text-[13px]" style={{ color: '#6b6488' }}>{t('aff_no_referrals')}</p>
-                      <p className="text-[11px] mt-1" style={{ color: '#4a4468' }}>
+                      <p className="text-[13px]" style={{ color: '#8981ab' }}>{t('aff_no_referrals')}</p>
+                      <p className="text-[11px] mt-1" style={{ color: '#6a6390' }}>
                         {t('aff_share_to_earn').split('{code}').map((part, i, arr) =>
                           i < arr.length - 1
                             ? <span key={i}>{part}<span style={{ color: '#ffc542' }}>{aff.code}</span></span>
@@ -487,7 +487,7 @@ export default function AffiliatePage() {
                             {r.user?.avatar
                               ? <img src={r.user.avatar} alt="" className="w-7 h-7 rounded-full" />
                               : <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold"
-                                  style={{ background: '#1a1630', color: '#6b6488' }}>
+                                  style={{ background: '#1a1630', color: '#8981ab' }}>
                                   {(r.user?.username ?? '?')[0]?.toUpperCase()}
                                 </div>}
                             <span className="text-[12px] truncate" style={{ color: '#c8c0e0' }}>
@@ -497,7 +497,7 @@ export default function AffiliatePage() {
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full w-fit"
                             style={{
                               background: r.isActive ? '#04200f' : '#13111f',
-                              color: r.isActive ? '#22c55e' : '#4a4468',
+                              color: r.isActive ? '#22c55e' : '#6a6390',
                               border: `1px solid ${r.isActive ? '#22c55e33' : '#2a2640'}`,
                             }}>
                             {r.isActive ? t('aff_status_active') : t('aff_status_inactive')}
@@ -576,7 +576,7 @@ export default function AffiliatePage() {
                       <p className="text-[28px] md:text-[32px] font-black" style={{ color: tier.color, fontFamily: 'Cinzel,serif' }}>
                         {Math.round(tier.rate * 100)}%
                       </p>
-                      <p className="text-[10px]" style={{ color: '#4a4468' }}>{t('aff_of_net_losses')}</p>
+                      <p className="text-[10px]" style={{ color: '#6a6390' }}>{t('aff_of_net_losses')}</p>
                     </div>
                   </div>
                 </div>

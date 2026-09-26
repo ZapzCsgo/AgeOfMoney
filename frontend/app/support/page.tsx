@@ -68,7 +68,7 @@ export default function SupportPage() {
           <h2 className="text-[20px] font-bold mb-2" style={{ color: '#e8e2f5', fontFamily: 'Cinzel, serif' }}>
             {t('support_sent_title')}
           </h2>
-          <p className="text-[13px] leading-relaxed mb-6" style={{ color: '#6b6488' }}>
+          <p className="text-[13px] leading-relaxed mb-6" style={{ color: '#8981ab' }}>
             {t('support_sent_desc', { email: form.email })}
           </p>
           <a href="/"
@@ -94,7 +94,7 @@ export default function SupportPage() {
           <h1 className="text-[28px] font-bold mb-2" style={{ color: '#e8e2f5', fontFamily: 'Cinzel, serif' }}>
             {t('support_open_ticket')}
           </h1>
-          <p className="text-[13px]" style={{ color: '#6b6488' }}>
+          <p className="text-[13px]" style={{ color: '#8981ab' }}>
             {t('support_subtitle')}
           </p>
         </div>
@@ -145,7 +145,7 @@ export default function SupportPage() {
                   <option key={s.value} value={s.value}>{s.label}</option>
                 ))}
               </select>
-              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: '#6b6488' }} />
+              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: '#8981ab' }} />
             </div>
           </div>
 
@@ -198,7 +198,7 @@ export default function SupportPage() {
           <div className="rounded-xl p-4 text-center" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
             <div className="text-[20px] mb-1">⏱</div>
             <p className="text-[11px] font-semibold mb-0.5" style={{ color: '#e8e2f5' }}>{t('support_response_time')}</p>
-            <p className="text-[10px]" style={{ color: '#6b6488' }}>{t('support_response_desc')}</p>
+            <p className="text-[10px]" style={{ color: '#8981ab' }}>{t('support_response_desc')}</p>
           </div>
         </div>
 

@@ -52,7 +52,7 @@ export function ActedModal({
             </span>
           </div>
           <button onClick={onClose} className="hover:opacity-60 transition-opacity" aria-label="fermer">
-            <X size={14} style={{ color: '#6b6488' }} />
+            <X size={14} style={{ color: '#8981ab' }} />
           </button>
         </div>
 
@@ -72,7 +72,7 @@ export function ActedModal({
             style={{ background: '#13111f', border: '1px solid #2a2640', color: '#e5e5e5' }}
           />
           <div className="flex justify-between items-center">
-            <span className="text-[10px]" style={{ color: '#6b6488' }}>
+            <span className="text-[10px]" style={{ color: '#8981ab' }}>
               {note.length} / 500
             </span>
             <div className="flex gap-2">

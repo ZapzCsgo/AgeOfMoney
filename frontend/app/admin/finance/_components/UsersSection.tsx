@@ -97,7 +97,7 @@ function UserKpi({
       style={{ background: '#0e0d1a', border: '1px solid #1e1a30' }}
     >
       <div>
-        <div className="flex items-center gap-1.5 text-[10px] tracking-[0.2em] uppercase" style={{ color: '#6b6488' }}>
+        <div className="flex items-center gap-1.5 text-[10px] tracking-[0.2em] uppercase" style={{ color: '#8981ab' }}>
           <Icon size={11} />
           <span>{label}</span>
           {tooltip && <InfoTooltip content={tooltip} />}
@@ -110,7 +110,7 @@ function UserKpi({
               <span className="text-[22px] font-bold leading-none" style={{ color: '#ffd97a', fontFamily: 'Cinzel, serif' }}>
                 {value}
               </span>
-              {suffix && <span className="text-[11px]" style={{ color: '#6b6488' }}>{suffix}</span>}
+              {suffix && <span className="text-[11px]" style={{ color: '#8981ab' }}>{suffix}</span>}
             </>
           )}
         </div>
@@ -142,7 +142,7 @@ function DepositsHistogram({ data }: { data: UserGrowthResponse['depositsFrequen
   const total = buckets.reduce((s, b) => s + b.value, 0);
   if (total === 0) {
     return (
-      <div className="text-center py-6 text-[12px]" style={{ color: '#6b6488' }}>
+      <div className="text-center py-6 text-[12px]" style={{ color: '#8981ab' }}>
         Aucun dépôt enregistré pour le moment.
       </div>
     );
@@ -271,7 +271,7 @@ export function UsersSection({
               <div className="text-[11px] font-bold tracking-wider uppercase" style={{ color: '#c8c0e0' }}>
                 Nouveaux utilisateurs
               </div>
-              <div className="text-[10px]" style={{ color: '#6b6488' }}>
+              <div className="text-[10px]" style={{ color: '#8981ab' }}>
                 {signupsTotal} signup{signupsTotal !== 1 ? 's' : ''} sur la période
               </div>
             </div>
@@ -279,7 +279,7 @@ export function UsersSection({
           {loading && !data ? (
             <div className="h-40 rounded animate-pulse" style={{ background: 'rgba(255,255,255,0.02)' }} />
           ) : signupPoints.length === 0 ? (
-            <div className="text-center py-12 text-[11px]" style={{ color: '#6b6488' }}>
+            <div className="text-center py-12 text-[11px]" style={{ color: '#8981ab' }}>
               Pas de nouveaux utilisateurs sur cette période.
             </div>
           ) : (
@@ -294,7 +294,7 @@ export function UsersSection({
               <div className="text-[11px] font-bold tracking-wider uppercase" style={{ color: '#c8c0e0' }}>
                 Retention moyenne
               </div>
-              <div className="text-[10px]" style={{ color: '#6b6488' }}>
+              <div className="text-[10px]" style={{ color: '#8981ab' }}>
                 {cohortCount} cohort{cohortCount !== 1 ? 's' : ''} — stabilise avec plus d&apos;utilisateurs
               </div>
             </div>
@@ -310,7 +310,7 @@ export function UsersSection({
           {loading && !data ? (
             <div className="h-40 rounded animate-pulse" style={{ background: 'rgba(255,255,255,0.02)' }} />
           ) : retentionPoints.length === 0 || cohortCount === 0 ? (
-            <div className="text-center py-12 text-[11px]" style={{ color: '#6b6488' }}>
+            <div className="text-center py-12 text-[11px]" style={{ color: '#8981ab' }}>
               Pas de cohorts disponibles sur cette période.
             </div>
           ) : (

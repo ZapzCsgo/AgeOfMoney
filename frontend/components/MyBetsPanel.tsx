@@ -86,14 +86,14 @@ export function MyBetsPanel() {
                 {(['PENDING', 'all'] as const).map(tabKey => (
                   <button key={tabKey} onClick={() => setTab(tabKey)}
                     className={cn('px-2.5 py-1 text-[10px] font-cinzel font-bold transition-colors',
-                      tab === tabKey ? 'bg-[#ffc542] text-black' : 'text-[#6b6488] hover:text-[#e8e2f5]'
+                      tab === tabKey ? 'bg-[#ffc542] text-black' : 'text-[#8981ab] hover:text-[#e8e2f5]'
                     )}
                   >
                     {tabKey === 'PENDING' ? t('mybets_pending') : t('mybets_all')}
                   </button>
                 ))}
               </div>
-              <button onClick={() => setOpen(false)} className="text-[#6b6488] hover:text-[#e8e2f5] transition-colors">
+              <button onClick={() => setOpen(false)} className="text-[#8981ab] hover:text-[#e8e2f5] transition-colors">
                 <ChevronDown size={16} />
               </button>
             </div>
@@ -106,7 +106,7 @@ export function MyBetsPanel() {
                 <Loader2 size={20} className="animate-spin text-[#ffc542]" />
               </div>
             ) : displayBets.length === 0 ? (
-              <div className="py-8 text-center text-[#6b6488] text-[12px]">
+              <div className="py-8 text-center text-[#8981ab] text-[12px]">
                 {tab === 'PENDING' ? t('mybets_empty_pending') : t('mybets_empty')}
               </div>
             ) : (
@@ -158,7 +158,7 @@ export function MyBetsPanel() {
                           <span className="text-[10px] text-[#4a4570] truncate">{matchupLabel}</span>
                         </div>
                         <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="text-[10px] text-[#6b6488] truncate">{bet.match?.tournament?.name ?? t('mybets_tournament_fallback')}</span>
+                          <span className="text-[10px] text-[#8981ab] truncate">{bet.match?.tournament?.name ?? t('mybets_tournament_fallback')}</span>
                           <span className={cn('text-[10px] font-semibold shrink-0', cfg.color)}>· {statusLabel}</span>
                         </div>
                       </div>
@@ -170,7 +170,7 @@ export function MyBetsPanel() {
                         ) : (
                           <div className="text-[12px] font-bold text-[#ffc542]">{(bet.amount * bet.oddsAtBet).toFixed(2)} ⚜</div>
                         )}
-                        <div className="text-[10px] text-[#6b6488] mt-0.5">{bet.amount.toFixed(2)} × {bet.oddsAtBet.toFixed(2)}</div>
+                        <div className="text-[10px] text-[#8981ab] mt-0.5">{bet.amount.toFixed(2)} × {bet.oddsAtBet.toFixed(2)}</div>
                       </div>
                     </Link>
                   );

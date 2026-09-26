@@ -86,7 +86,7 @@ export function ProductsSection({
           Revenue by product
         </h2>
         {data && (
-          <span className="text-[10px]" style={{ color: '#6b6488' }}>
+          <span className="text-[10px]" style={{ color: '#8981ab' }}>
             Total · {coinsFmt(totalRevenue)} ⚜
           </span>
         )}
@@ -95,7 +95,7 @@ export function ProductsSection({
       {loading ? (
         <div className="h-40 rounded-lg animate-pulse" style={{ background: 'rgba(255,255,255,0.02)' }} />
       ) : !anyActivity ? (
-        <div className="text-center py-12 text-sm" style={{ color: '#6b6488' }}>
+        <div className="text-center py-12 text-sm" style={{ color: '#8981ab' }}>
           Aucun pari placé pendant cette période.<br />
           L&apos;activité apparaîtra ici dès que des users joueront.
         </div>
@@ -130,7 +130,7 @@ export function ProductsSection({
                       style={{ width: 10, height: 10, background: paletteColor(i) }}
                     />
                     <span className="flex-1 truncate" style={{ color: '#c8c0e0' }}>{r.label}</span>
-                    <span className="font-mono" style={{ color: '#6b6488' }}>{pct.toFixed(1)}%</span>
+                    <span className="font-mono" style={{ color: '#8981ab' }}>{pct.toFixed(1)}%</span>
                   </li>
                 );
               })}
@@ -141,7 +141,7 @@ export function ProductsSection({
           <div className="lg:col-span-3 overflow-x-auto">
             <table className="w-full text-[12px]" cellPadding={0} cellSpacing={0}>
               <thead>
-                <tr style={{ color: '#6b6488' }}>
+                <tr style={{ color: '#8981ab' }}>
                   <th className="text-left py-2 px-2 font-bold tracking-wider uppercase text-[10px]">Produit</th>
                   <th
                     className="text-right py-2 px-2 font-bold tracking-wider uppercase text-[10px] cursor-pointer hover:text-[#c8c0e0]"

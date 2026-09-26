@@ -65,11 +65,11 @@ export function EventCard({
             {CATEGORY_LABELS[category]}
           </span>
           {event.status === 'SEEN' && (
-            <span className="text-[9px] tracking-wider uppercase" style={{ color: '#6b6488' }}>
+            <span className="text-[9px] tracking-wider uppercase" style={{ color: '#8981ab' }}>
               vu
             </span>
           )}
-          <span className="ml-auto text-[10px]" style={{ color: '#6b6488' }}>
+          <span className="ml-auto text-[10px]" style={{ color: '#8981ab' }}>
             {relativeTime(event.createdAt)} · {RULE_LABELS[event.ruleType]}
           </span>
         </div>
@@ -145,7 +145,7 @@ export function EventCard({
           <button
             onClick={() => setExpanded((v) => !v)}
             className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold tracking-wider uppercase hover:opacity-80 transition-opacity"
-            style={{ background: 'transparent', border: '1px solid #2a2640', color: '#6b6488' }}
+            style={{ background: 'transparent', border: '1px solid #2a2640', color: '#8981ab' }}
           >
             {expanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
             {expanded ? 'Moins' : 'Détails'}
@@ -160,7 +160,7 @@ export function EventCard({
           >
             {contextEntries.map(([k, v]) => (
               <div key={k} className="flex items-baseline gap-2">
-                <span className="shrink-0" style={{ color: '#6b6488' }}>{k} :</span>
+                <span className="shrink-0" style={{ color: '#8981ab' }}>{k} :</span>
                 <span className="font-mono truncate" style={{ color: '#c8c0e0' }}>
                   {renderContextValue(v)}
                 </span>

@@ -88,7 +88,7 @@ export function OddsDisplay({ match }: OddsDisplayProps) {
         <div className="flex-1 text-center p-3 bg-aoe-stone/50 rounded border border-aoe-border">
           <p className="text-aoe-parchment-dim text-xs mb-1 truncate">{match.player1.name}</p>
           <div className="flex items-center justify-center gap-1">
-            <span className="font-cinzel font-black text-2xl text-aoe-gold">{odds1.toFixed(2)}</span>
+            <span className="font-cinzel font-black text-3xl text-aoe-gold text-glow-gold">{odds1.toFixed(2)}</span>
             {odds1Changed && (
               <span className={odds1Up ? 'text-aoe-emerald-bright text-sm' : 'text-aoe-crimson-bright text-sm'}>
                 {odds1Up ? '▲' : '▼'}
@@ -103,7 +103,7 @@ export function OddsDisplay({ match }: OddsDisplayProps) {
         <div className="flex-1 text-center p-3 bg-aoe-stone/50 rounded border border-aoe-border">
           <p className="text-aoe-parchment-dim text-xs mb-1 truncate">{match.player2.name}</p>
           <div className="flex items-center justify-center gap-1">
-            <span className="font-cinzel font-black text-2xl text-aoe-gold">{odds2.toFixed(2)}</span>
+            <span className="font-cinzel font-black text-3xl text-aoe-gold text-glow-gold">{odds2.toFixed(2)}</span>
             {odds2Changed && (
               <span className={odds2Up ? 'text-aoe-emerald-bright text-sm' : 'text-aoe-crimson-bright text-sm'}>
                 {odds2Up ? '▲' : '▼'}

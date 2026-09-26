@@ -76,7 +76,7 @@ function Pill({ period, loading }: { period?: PnlPeriod; loading: boolean }) {
           : '1px solid #1e1a30',
       }}
     >
-      <div className="flex items-center gap-1 text-[10px] tracking-[0.2em] uppercase" style={{ color: '#6b6488' }}>
+      <div className="flex items-center gap-1 text-[10px] tracking-[0.2em] uppercase" style={{ color: '#8981ab' }}>
         <span>{period ? PERIOD_LABELS[period.label] : '—'}</span>
         {period && (
           <InfoTooltip content={PERIOD_TOOLTIPS[period.label]} />
@@ -91,14 +91,14 @@ function Pill({ period, loading }: { period?: PnlPeriod; loading: boolean }) {
             <span className="text-[24px] font-bold leading-none" style={{ color, fontFamily: 'Cinzel, serif' }}>
               {sign}{absEur.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
-            <span className="text-[12px]" style={{ color: '#6b6488' }}>€</span>
+            <span className="text-[12px]" style={{ color: '#8981ab' }}>€</span>
           </>
         )}
       </div>
 
       {/* Extra detail under the big number */}
       {period && !loading && (
-        <div className="mt-1.5 text-[10px] flex flex-wrap gap-x-2" style={{ color: '#6b6488' }}>
+        <div className="mt-1.5 text-[10px] flex flex-wrap gap-x-2" style={{ color: '#8981ab' }}>
           {period.label === 'lifetime' ? (
             <>
               <span>NGR • {formatCents(period.ngrEur)} €</span>

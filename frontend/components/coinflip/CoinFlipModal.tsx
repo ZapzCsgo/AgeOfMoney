@@ -196,7 +196,7 @@ export function CoinFlipModal({
                   ) : (
                     <div
                       className="w-full h-full flex items-center justify-center text-xl font-bold"
-                      style={{ background: '#1e1a30', color: '#6b6488' }}
+                      style={{ background: '#1e1a30', color: '#8981ab' }}
                     >
                       {player1.username[0]?.toUpperCase()}
                     </div>
@@ -266,7 +266,7 @@ export function CoinFlipModal({
                 {/* Bet amount display */}
                 <div
                   className="mt-4 text-center text-[13px] font-bold"
-                  style={{ color: '#6b6488' }}
+                  style={{ color: '#8981ab' }}
                 >
                   {betAmount.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜ {t('coinflip_each')}
                 </div>
@@ -303,7 +303,7 @@ export function CoinFlipModal({
                   ) : (
                     <div
                       className="w-full h-full flex items-center justify-center text-xl font-bold"
-                      style={{ background: '#1e1a30', color: '#6b6488' }}
+                      style={{ background: '#1e1a30', color: '#8981ab' }}
                     >
                       {player2.username[0]?.toUpperCase()}
                     </div>
@@ -405,7 +405,7 @@ export function CoinFlipModal({
                         className="px-6 py-2.5 text-[13px]"
                         style={{
                           background: 'transparent',
-                          color: '#6b6488',
+                          color: '#8981ab',
                           border: '1px solid #1e1a30',
                         }}
                       >

@@ -86,10 +86,10 @@ export function MatchCard({ match }: MatchCardProps) {
                 {/* Finished-at date — uses match.updatedAt because the row is
                     touched once when the result is settled (the COMPLETED
                     transition). Short locale-aware format like "24 avr.". */}
-                <span className="text-[10px] text-[#6b6488] tabular-nums" title={new Date(match.updatedAt).toLocaleString()}>
+                <span className="text-[10px] text-[#8981ab] tabular-nums" title={new Date(match.updatedAt).toLocaleString()}>
                   {new Date(match.updatedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
                 </span>
-                <span className="text-[10px] text-[#6b6488] font-semibold tracking-wider uppercase border border-[#2a2540] rounded px-1.5 py-0.5">
+                <span className="text-[10px] text-[#8981ab] font-semibold tracking-wider uppercase border border-[#2a2540] rounded px-1.5 py-0.5">
                   Terminé
                 </span>
               </div>
@@ -115,7 +115,7 @@ export function MatchCard({ match }: MatchCardProps) {
                 <div className="flex items-center gap-1">
                   {p1Won && <Crown size={12} className="text-aoe-gold shrink-0" />}
                   <p className={`font-semibold truncate transition-colors
-                    ${p1Won ? 'text-aoe-gold' : p2Won ? 'text-[#6b6488]' : 'text-aoe-parchment group-hover:text-aoe-gold'}
+                    ${p1Won ? 'text-aoe-gold' : p2Won ? 'text-[#8981ab]' : 'text-aoe-parchment group-hover:text-aoe-gold'}
                   `}>
                     {match.player1.name}
                   </p>
@@ -131,18 +131,18 @@ export function MatchCard({ match }: MatchCardProps) {
           <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
             {isCompleted ? (
               <div className="flex items-center gap-2 tabular-nums">
-                <span className={`font-black text-3xl leading-none ${p1Won ? 'text-aoe-gold' : 'text-[#6b6488]'}`}>
+                <span className={`font-black text-3xl leading-none ${p1Won ? 'text-aoe-gold' : 'text-[#8981ab]'}`}>
                   {match.p1Score ?? 0}
                 </span>
                 <span className="text-[#3a3560] font-bold text-lg">—</span>
-                <span className={`font-black text-3xl leading-none ${p2Won ? 'text-aoe-gold' : 'text-[#6b6488]'}`}>
+                <span className={`font-black text-3xl leading-none ${p2Won ? 'text-aoe-gold' : 'text-[#8981ab]'}`}>
                   {match.p2Score ?? 0}
                 </span>
               </div>
             ) : (
               <div className="flex gap-1.5">
                 <div className={`aoe-odds-btn px-3 py-2 min-w-[62px] ${flash1 === 'up' ? 'animate-odds-flash-up' : flash1 === 'down' ? 'animate-odds-flash-down' : ''}`}>
-                  <div className="text-aoe-gold font-extrabold text-xl leading-none tabular-nums">
+                  <div className="text-aoe-gold text-glow-gold font-black text-2xl leading-none tabular-nums">
                     {match.odds1.toFixed(2)}
                   </div>
                   <div className="text-aoe-parchment-muted text-[10px] mt-1 truncate max-w-[54px]">
@@ -150,7 +150,7 @@ export function MatchCard({ match }: MatchCardProps) {
                   </div>
                 </div>
                 <div className={`aoe-odds-btn px-3 py-2 min-w-[62px] ${flash2 === 'up' ? 'animate-odds-flash-up' : flash2 === 'down' ? 'animate-odds-flash-down' : ''}`}>
-                  <div className="text-aoe-gold font-extrabold text-xl leading-none tabular-nums">
+                  <div className="text-aoe-gold text-glow-gold font-black text-2xl leading-none tabular-nums">
                     {match.odds2.toFixed(2)}
                   </div>
                   <div className="text-aoe-parchment-muted text-[10px] mt-1 truncate max-w-[54px]">
@@ -184,7 +184,7 @@ export function MatchCard({ match }: MatchCardProps) {
               <div className="min-w-0 text-right">
                 <div className="flex items-center gap-1 justify-end">
                   <p className={`font-semibold truncate transition-colors
-                    ${p2Won ? 'text-aoe-gold' : p1Won ? 'text-[#6b6488]' : 'text-aoe-parchment group-hover:text-aoe-gold'}
+                    ${p2Won ? 'text-aoe-gold' : p1Won ? 'text-[#8981ab]' : 'text-aoe-parchment group-hover:text-aoe-gold'}
                   `}>
                     {match.player2.name}
                   </p>

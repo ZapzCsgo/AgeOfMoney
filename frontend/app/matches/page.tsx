@@ -24,7 +24,7 @@ function formatCountdown(dateStr: string, t: (k: TKey) => string): string {
 }
 
 const TIER_COLORS: Record<string, string> = {
-  S: '#ffc542', A: '#a78bfa', B: '#60a5fa', C: '#6b6488',
+  S: '#ffc542', A: '#a78bfa', B: '#60a5fa', C: '#8981ab',
 };
 
 const GAME_STYLE: Record<string, { bg: string; text: string; border: string }> = {
@@ -114,7 +114,7 @@ function MatchRow({ match }: { match: Match }) {
                 {match.resultScore.split('-')[0]}
               </p>
             ) : (
-              <p className="text-[10px] text-[#6b6488] mt-0.5">—</p>
+              <p className="text-[10px] text-[#8981ab] mt-0.5">—</p>
             )}
           </div>
         </button>
@@ -157,7 +157,7 @@ function MatchRow({ match }: { match: Match }) {
           ) : (
             <>
               <span className="text-[#3d3860] font-cinzel text-[10px] tracking-[0.15em] font-bold">VS</span>
-              <div className="flex items-center gap-0.5 text-[8px] text-[#6b6488] font-medium whitespace-nowrap">
+              <div className="flex items-center gap-0.5 text-[8px] text-[#8981ab] font-medium whitespace-nowrap">
                 {betClosed ? (
                   <span>{t('matches_bets_closed')}</span>
                 ) : (
@@ -193,7 +193,7 @@ function MatchRow({ match }: { match: Match }) {
                 {match.resultScore.split('-')[1]}
               </p>
             ) : (
-              <p className="text-[10px] text-[#6b6488] mt-0.5">—</p>
+              <p className="text-[10px] text-[#8981ab] mt-0.5">—</p>
             )}
           </div>
           <div className="relative shrink-0">
@@ -349,11 +349,11 @@ export default function MatchesPage() {
               <h1 className="font-cinzel font-black text-2xl tracking-[0.12em] text-[#ffd97a] uppercase">{t('matches_title')}</h1>
               <div className="flex items-center gap-3 mt-0.5">
                 {liveCount > 0 && <span className="flex items-center gap-1 text-[11px] text-red-400 font-cinzel"><span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse inline-block" />{liveCount} {t('matches_filter_live')}</span>}
-                <span className="text-[11px] text-[#6b6488] font-cinzel">{upcoming} {t('matches_upcoming_label')} · {matches.length} {t('matches_total')}</span>
+                <span className="text-[11px] text-[#8981ab] font-cinzel">{upcoming} {t('matches_upcoming_label')} · {matches.length} {t('matches_total')}</span>
               </div>
             </div>
           </div>
-          <button onClick={fetchMatches} disabled={loading} className="p-2 rounded-lg border border-[#1e1a30] text-[#6b6488] hover:text-[#ffc542] hover:border-[#ffc542]/20 transition-colors">
+          <button onClick={fetchMatches} disabled={loading} className="p-2 rounded-lg border border-[#1e1a30] text-[#8981ab] hover:text-[#ffc542] hover:border-[#ffc542]/20 transition-colors">
             <RefreshCw size={14} className={loading ? 'animate-spin text-[#ffc542]' : ''} />
           </button>
         </div>
@@ -398,7 +398,7 @@ export default function MatchesPage() {
               return (
                 <button key={f.id} onClick={() => setFilter(f.id)}
                   className={cn('flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold tracking-wider uppercase transition-colors',
-                    isActive ? 'bg-[#1e1a30] text-[#e8e2f5]' : 'text-[#6b6488] hover:text-[#9990b8]')}
+                    isActive ? 'bg-[#1e1a30] text-[#e8e2f5]' : 'text-[#8981ab] hover:text-[#9990b8]')}
                 >
                   {f.id === 'LIVE' && liveCount > 0 && <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />}
                   {f.label}
@@ -412,7 +412,7 @@ export default function MatchesPage() {
         {error && (
           <div className="rounded-xl border border-red-900/30 bg-red-950/10 p-4 mb-5 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2"><AlertTriangle size={13} className="text-red-400 shrink-0" /><p className="text-red-400 text-sm">{error}</p></div>
-            <button onClick={fetchMatches} className="text-xs text-[#6b6488] hover:text-[#e8e2f5] underline shrink-0">{t('common_retry')}</button>
+            <button onClick={fetchMatches} className="text-xs text-[#8981ab] hover:text-[#e8e2f5] underline shrink-0">{t('common_retry')}</button>
           </div>
         )}
 
@@ -426,8 +426,8 @@ export default function MatchesPage() {
               <div key={g.id} className="rounded-xl overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
                 {/* Tournament header — minimal */}
                 <div className="flex items-center gap-3 px-5 py-3 border-b" style={{ borderColor: '#1e1a30', background: 'rgba(0,0,0,0.2)' }}>
-                  <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: TIER_COLORS[g.tier] ?? '#6b6488' }} />
-                  <span className="text-[11px] font-cinzel font-semibold truncate" style={{ color: TIER_COLORS[g.tier] ?? '#6b6488' }}>{g.name}</span>
+                  <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: TIER_COLORS[g.tier] ?? '#8981ab' }} />
+                  <span className="text-[11px] font-cinzel font-semibold truncate" style={{ color: TIER_COLORS[g.tier] ?? '#8981ab' }}>{g.name}</span>
                   {(() => {
                     const gs = GAME_STYLE[g.game] ?? GAME_STYLE.AoE4;
                     return (

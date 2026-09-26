@@ -595,14 +595,14 @@ function RoulettePageImpl() {
         {/* Header */}
         <div className="text-center mb-5">
           <h1 className="text-3xl font-bold mb-0.5" style={{ fontFamily:'Cinzel,serif', color:'#ffd97a' }}>{t('roulette_title').toUpperCase()}</h1>
-          <p className="text-[11px] tracking-widest uppercase" style={{ color:'#6b6488' }}>#1 Age of Empire</p>
+          <p className="text-[11px] tracking-widest uppercase" style={{ color:'#8981ab' }}>#1 Age of Empire</p>
         </div>
 
         {/* History + Zone stats */}
         <div className="flex items-start gap-3 mb-3 sm:mb-5">
           {/* Scrollable history icons */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 flex-1 min-w-0">
-            <span className="text-[10px] uppercase tracking-widest text-[#6b6488] shrink-0">{t('roulette_history')}</span>
+            <span className="text-[10px] uppercase tracking-widest text-[#8981ab] shrink-0">{t('roulette_history')}</span>
             {history.slice(0, 20).map(h => {
               const z = ZONES[h.winZone]; const Icon = z.icon;
               return (
@@ -624,7 +624,7 @@ function RoulettePageImpl() {
             const total = last50.length;
             return (
               <div className="hidden sm:flex shrink-0 flex-col gap-1 rounded-xl p-2.5" style={{ background:'#0d0b1a', border:'1px solid #1e1a30', minWidth: 130 }}>
-                <span className="text-[9px] uppercase tracking-widest text-[#6b6488] mb-0.5">Stats</span>
+                <span className="text-[9px] uppercase tracking-widest text-[#8981ab] mb-0.5">Stats</span>
                 {(['KNIGHTS','EMPEROR','ARCHERS'] as Zone[]).map(zone => {
                   const z = ZONES[zone];
                   const Icon = z.icon;
@@ -944,7 +944,7 @@ function RoulettePageImpl() {
                 value={betAmount}
                 onChange={e=>setBetAmount(e.target.value)}
                 placeholder={t('deposit_amount_coins')}
-                className="w-full pl-9 pr-3 py-3 sm:py-2.5 rounded-lg text-[14px] sm:text-[13px] outline-none text-[#e8e2f5] placeholder:text-[#6b6488] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:border-[#ffc54260]"
+                className="w-full pl-9 pr-3 py-3 sm:py-2.5 rounded-lg text-[14px] sm:text-[13px] outline-none text-[#e8e2f5] placeholder:text-[#8981ab] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:border-[#ffc54260]"
                 style={{ background:'#13111f', border:'1px solid #2a2640' }}
               />
             </div>
@@ -962,7 +962,7 @@ function RoulettePageImpl() {
                 className="shrink-0 px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-80 min-w-[44px]"
                 style={{ background:'#1e1a30',color:'#9990b8',border:'1px solid #2a2640' }}>MAX</button>
               <button onClick={()=>setBetAmount('')}
-                className="shrink-0 px-3 py-2 rounded-lg text-[12px] text-[#6b6488] hover:text-[#9990b8] min-w-[44px]"
+                className="shrink-0 px-3 py-2 rounded-lg text-[12px] text-[#8981ab] hover:text-[#9990b8] min-w-[44px]"
                 style={{ background:'#13111f',border:'1px solid #1e1a30' }}>CLR</button>
             </div>
           </div>
@@ -974,7 +974,7 @@ function RoulettePageImpl() {
               `${t('roulette_bet')} ${betAmount ? parseCoinAmount(betAmount).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : '...'} ⚜`}
           </button>
           {myZoneBet && isBetting && (
-            <p className="text-center text-[11px] mt-2" style={{ color:'#6b6488' }}>
+            <p className="text-center text-[11px] mt-2" style={{ color:'#8981ab' }}>
               {t('bet_stake')} : <span style={{ color:selectedZone?ZONES[selectedZone].color:'#ffd97a' }}>{myZoneBet.amount.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜</span>
             </p>
           )}
@@ -1036,7 +1036,7 @@ function RoulettePageImpl() {
                   <p className="text-[22px] font-bold" style={{ color:z.color, fontFamily:'Cinzel,serif', textShadow:isWin?`0 0 20px ${z.glow}`:'none' }}>×{z.multiplier}</p>
                 </div>
                 <div className="px-4 py-2 flex justify-between text-[11px]" style={{ borderBottom:'1px solid #1e1a3030' }}>
-                  <span style={{ color:'#6b6488' }}>{count} {t('lb_bets').toLowerCase()}</span>
+                  <span style={{ color:'#8981ab' }}>{count} {t('lb_bets').toLowerCase()}</span>
                   <span className="font-bold" style={{ color:z.color }}>{total.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜</span>
                 </div>
                 <div className="p-2 max-h-52 overflow-y-auto space-y-0.5">
@@ -1059,7 +1059,7 @@ function RoulettePageImpl() {
 
         {!round&&(
           <div className="mt-6 text-center p-4 rounded-xl" style={{ background:'#0d0b1a',border:'1px solid #1e1a30' }}>
-            <p className="text-[13px]" style={{ color:'#6b6488' }}>{t('common_loading')}</p>
+            <p className="text-[13px]" style={{ color:'#8981ab' }}>{t('common_loading')}</p>
           </div>
         )}
       </div>
@@ -1080,7 +1080,7 @@ function RoulettePageImpl() {
                 <span className="font-bold text-[14px] tracking-widest" style={{ fontFamily:'Cinzel,serif', color:'#e8e2f5' }}>FAIRNESS</span>
               </div>
               <button onClick={() => setShowFairnessGuide(false)} className="hover:opacity-60 transition-opacity">
-                <X size={16} style={{ color:'#6b6488' }} />
+                <X size={16} style={{ color:'#8981ab' }} />
               </button>
             </div>
 
@@ -1109,7 +1109,7 @@ function RoulettePageImpl() {
                     1 (K) · 2 (K) · 3 (A) · 4 (K) · 5 (A) · 6 (K) · 7 (A) · 8 (E) · 9 (A) · 10 (K) · 11 (A) · 12 (K) · 13 (A) · 14 (K) · 15 (A)
                   </code>
                   <br />
-                  <span className="text-[11px]" style={{ color:'#6b6488' }}>K = {t('roulette_knights')} ×2 · A = {t('roulette_archers')} ×2 · E = {t('roulette_emperor')} ×14</span>
+                  <span className="text-[11px]" style={{ color:'#8981ab' }}>K = {t('roulette_knights')} ×2 · A = {t('roulette_archers')} ×2 · E = {t('roulette_emperor')} ×14</span>
                 </p>
                 <p>
                   {t('fair_formula')}{' '}
@@ -1136,13 +1136,13 @@ function RoulettePageImpl() {
 
               <div style={{ height:1, background:'#1e1a30' }} />
 
-              <p style={{ color:'#4a4468' }}>{t('fair_contact')}</p>
+              <p style={{ color:'#6a6390' }}>{t('fair_contact')}</p>
             </div>
 
             {/* Footer */}
             <div className="px-6 py-4 shrink-0 flex justify-between items-center" style={{ borderTop:'1px solid #1e1a30' }}>
               <button onClick={() => { setShowFairnessGuide(false); setShowFairness(true); }}
-                className="text-[11px] hover:opacity-80 transition-opacity" style={{ color:'#6b6488' }}>
+                className="text-[11px] hover:opacity-80 transition-opacity" style={{ color:'#8981ab' }}>
                 ← {t('deposit_back')}
               </button>
               <button onClick={() => setShowFairnessGuide(false)}
@@ -1171,7 +1171,7 @@ function RoulettePageImpl() {
                 <span className="font-bold text-[14px] tracking-widest" style={{ fontFamily:'Cinzel,serif', color:'#e8e2f5' }}>FAIRNESS</span>
               </div>
               <button onClick={() => setShowFairness(false)} className="hover:opacity-60 transition-opacity">
-                <X size={16} style={{ color:'#6b6488' }} />
+                <X size={16} style={{ color:'#8981ab' }} />
               </button>
             </div>
 
@@ -1225,7 +1225,7 @@ function RoulettePageImpl() {
                 ];
                 return rows.map(({ label, value, key }) => (
                   <div key={key} className="flex items-start justify-between gap-3">
-                    <span className="text-[11px] shrink-0 mt-0.5" style={{ color:'#6b6488', minWidth: 90 }}>{label}:</span>
+                    <span className="text-[11px] shrink-0 mt-0.5" style={{ color:'#8981ab', minWidth: 90 }}>{label}:</span>
                     <div className="flex items-center gap-2 flex-1 min-w-0 px-3 py-2 rounded-lg"
                       style={{ background:'#13111f', border:'1px solid #1a1730' }}>
                       <span className="flex-1 text-[11px] font-mono break-all" style={{ color: '#c8c0e0' }}>
@@ -1233,7 +1233,7 @@ function RoulettePageImpl() {
                       </span>
                       {value !== '' && (
                         <button onClick={() => copyToClipboard(value, key)} className="shrink-0 hover:opacity-70 transition-opacity">
-                          {copied === key ? <Check size={12} style={{ color:'#34d399' }} /> : <Copy size={12} style={{ color:'#4a4468' }} />}
+                          {copied === key ? <Check size={12} style={{ color:'#34d399' }} /> : <Copy size={12} style={{ color:'#6a6390' }} />}
                         </button>
                       )}
                     </div>
@@ -1246,17 +1246,17 @@ function RoulettePageImpl() {
             <div className="mx-6 mb-5 rounded-lg p-4" style={{ background:'#13111f', border:'1px solid #1a1730' }}>
               {fairnessRound?.source === 'random.org' ? (
                 <div className="space-y-2">
-                  <p className="text-[10px]" style={{ color:'#6b6488' }}>Vérifiez ce résultat sur random.org :</p>
+                  <p className="text-[10px]" style={{ color:'#8981ab' }}>Vérifiez ce résultat sur random.org :</p>
                   <a href="https://api.random.org/signatures/form" target="_blank" rel="noopener noreferrer"
                     className="flex items-center gap-2 text-[11px] font-bold hover:opacity-80 transition-opacity"
                     style={{ color:'#34d399' }}>
                     <ShieldCheck size={12} /> api.random.org/signatures/form →
                   </a>
-                  <p className="text-[10px]" style={{ color:'#4a4468' }}>Collez la Signature et le Serial N° pour vérifier l&apos;authenticité.</p>
+                  <p className="text-[10px]" style={{ color:'#6a6390' }}>Collez la Signature et le Serial N° pour vérifier l&apos;authenticité.</p>
                 </div>
               ) : (
                 <div className="space-y-1">
-                  <p className="text-[10px] font-mono" style={{ color:'#6b6488' }}>SHA256(Seed) = Hash · slot = (parseInt(Hash[0..8], 16) % 15) + 1</p>
+                  <p className="text-[10px] font-mono" style={{ color:'#8981ab' }}>SHA256(Seed) = Hash · slot = (parseInt(Hash[0..8], 16) % 15) + 1</p>
                 </div>
               )}
             </div>

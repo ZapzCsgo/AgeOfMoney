@@ -58,11 +58,11 @@ function PrivacyModal({ onClose }: { onClose: () => void }) {
             <h2 className="text-[15px] font-bold" style={{ color: '#e8e2f5', fontFamily: 'Cinzel, serif' }}>
               Politique de Confidentialité
             </h2>
-            <p className="text-[10px]" style={{ color: '#6b6488' }}>AgeOfMoney — Dernière mise à jour : 2026</p>
+            <p className="text-[10px]" style={{ color: '#8981ab' }}>AgeOfMoney — Dernière mise à jour : 2026</p>
           </div>
           <button onClick={onClose}
             className="w-7 h-7 rounded-full flex items-center justify-center transition-colors hover:bg-[#1e1a30]">
-            <X size={14} style={{ color: '#6b6488' }} />
+            <X size={14} style={{ color: '#8981ab' }} />
           </button>
         </div>
 
@@ -80,7 +80,7 @@ function PrivacyModal({ onClose }: { onClose: () => void }) {
           ))}
 
           <div className="rounded-xl p-4" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
-            <p className="text-[11px] leading-relaxed" style={{ color: '#6b6488' }}>
+            <p className="text-[11px] leading-relaxed" style={{ color: '#8981ab' }}>
               Pour toute question, contactez-nous à{' '}
               <a href="mailto:support@ageofmoney.gg" className="hover:opacity-80 transition-opacity" style={{ color: '#ffc542' }}>
                 support@ageofmoney.gg
@@ -133,10 +133,10 @@ function TermsModal({ onClose }: { onClose: () => void }) {
             <h2 className="text-[15px] font-bold" style={{ color: '#e8e2f5', fontFamily: 'Cinzel, serif' }}>
               Conditions d&apos;Utilisation
             </h2>
-            <p className="text-[10px]" style={{ color: '#6b6488' }}>AgeOfMoney — ageof.money — Avril 2026</p>
+            <p className="text-[10px]" style={{ color: '#8981ab' }}>AgeOfMoney — ageof.money — Avril 2026</p>
           </div>
           <button onClick={onClose} className="w-7 h-7 rounded-full flex items-center justify-center transition-colors hover:bg-[#1e1a30]">
-            <X size={14} style={{ color: '#6b6488' }} />
+            <X size={14} style={{ color: '#8981ab' }} />
           </button>
         </div>
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
@@ -147,7 +147,7 @@ function TermsModal({ onClose }: { onClose: () => void }) {
             </div>
           ))}
           <div className="rounded-xl p-4" style={{ background: '#13111f', border: '1px solid #1e1a30' }}>
-            <p className="text-[11px] leading-relaxed" style={{ color: '#6b6488' }}>
+            <p className="text-[11px] leading-relaxed" style={{ color: '#8981ab' }}>
               Pour toute question, contactez-nous a{' '}
               <a href="mailto:support@ageofmoney.gg" className="hover:opacity-80 transition-opacity" style={{ color: '#ffc542' }}>support@ageofmoney.gg</a>
             </p>
@@ -203,17 +203,17 @@ export function Footer() {
                 </span>
               </Link>
 
-              <p className="text-[12px] leading-relaxed" style={{ color: '#6b6488' }}>
+              <p className="text-[12px] leading-relaxed" style={{ color: '#8981ab' }}>
                 © 2026 AgeOfMoney | Tous droits réservés.
               </p>
-              <p className="text-[11px] leading-relaxed" style={{ color: '#4a4468' }}>
+              <p className="text-[11px] leading-relaxed" style={{ color: '#6a6390' }}>
                 AgeOfMoney est opéré avec des coins virtuels uniquement. <strong style={{ color: '#ffc542' }}>18+ only.</strong> Non affilié à Xbox Game Studios.
               </p>
 
               <div className="flex items-center gap-3 pt-1">
                 <a href="https://twitter.com" target="_blank" rel="noopener noreferrer"
                   className="hover:opacity-70 transition-opacity" aria-label="Twitter/X">
-                  <svg width="16" height="16" fill="#6b6488" viewBox="0 0 24 24">
+                  <svg width="16" height="16" fill="#8981ab" viewBox="0 0 24 24">
                     <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
                   </svg>
                 </a>
@@ -226,7 +226,7 @@ export function Footer() {
               <ul className="space-y-2.5">
                 {GAMES_LINKS.map(l => (
                   <li key={l.href}>
-                    <Link href={l.href} className="text-[13px] transition-colors hover:text-[#e8e2f5]" style={{ color: '#6b6488' }}>
+                    <Link href={l.href} className="text-[13px] transition-colors hover:text-[#e8e2f5]" style={{ color: '#8981ab' }}>
                       {l.label}
                     </Link>
                   </li>
@@ -240,7 +240,7 @@ export function Footer() {
               <ul className="space-y-2.5">
                 {PLATFORM_LINKS.map(l => (
                   <li key={l.href}>
-                    <Link href={l.href} className="text-[13px] transition-colors hover:text-[#e8e2f5]" style={{ color: '#6b6488' }}>
+                    <Link href={l.href} className="text-[13px] transition-colors hover:text-[#e8e2f5]" style={{ color: '#8981ab' }}>
                       {l.label}
                     </Link>
                   </li>
@@ -253,19 +253,19 @@ export function Footer() {
               <h4 className="text-[11px] font-bold uppercase tracking-widest mb-4" style={{ color: '#ffd97a' }}>{t('footer_about')}</h4>
               <ul className="space-y-2.5">
                 <li>
-                  <button onClick={() => setTermsOpen(true)} className="text-[13px] transition-colors hover:text-[#e8e2f5] text-left" style={{ color: '#6b6488' }}>
+                  <button onClick={() => setTermsOpen(true)} className="text-[13px] transition-colors hover:text-[#e8e2f5] text-left" style={{ color: '#8981ab' }}>
                     {t('footer_terms')}
                   </button>
                 </li>
                 <li>
                   <button onClick={() => setPrivacyOpen(true)}
                     className="text-[13px] transition-colors hover:text-[#e8e2f5] text-left"
-                    style={{ color: '#6b6488' }}>
+                    style={{ color: '#8981ab' }}>
                     {t('footer_privacy')}
                   </button>
                 </li>
                 <li>
-                  <Link href="/roulette" className="text-[13px] transition-colors hover:text-[#e8e2f5]" style={{ color: '#6b6488' }}>
+                  <Link href="/roulette" className="text-[13px] transition-colors hover:text-[#e8e2f5]" style={{ color: '#8981ab' }}>
                     {t('footer_fairness')}
                   </Link>
                 </li>
@@ -279,7 +279,7 @@ export function Footer() {
           <div className="max-w-6xl mx-auto px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex flex-col sm:flex-row gap-6">
               <div>
-                <p className="text-[11px] mb-0.5" style={{ color: '#4a4468' }}>{t('footer_support')}</p>
+                <p className="text-[11px] mb-0.5" style={{ color: '#6a6390' }}>{t('footer_support')}</p>
                 <Link href="/support"
                   className="text-[12px] font-semibold hover:opacity-80 transition-opacity"
                   style={{ color: '#9990b8' }}>
@@ -287,7 +287,7 @@ export function Footer() {
                 </Link>
               </div>
               <div>
-                <p className="text-[11px] mb-0.5" style={{ color: '#4a4468' }}>{t('footer_partners')}</p>
+                <p className="text-[11px] mb-0.5" style={{ color: '#6a6390' }}>{t('footer_partners')}</p>
                 <a href="mailto:partners@ageofmoney.gg"
                   className="text-[12px] font-semibold hover:opacity-80 transition-opacity"
                   style={{ color: '#9990b8' }}>
@@ -304,7 +304,7 @@ export function Footer() {
               >
                 <span className="text-[12px]">{currentLang.flag}</span>
                 <span className="text-[12px]" style={{ color: '#9990b8' }}>{currentLang.label}</span>
-                <ChevronDown width={12} height={12} style={{ color: '#6b6488' }} />
+                <ChevronDown width={12} height={12} style={{ color: '#8981ab' }} />
               </button>
               {langOpen && (
                 <>

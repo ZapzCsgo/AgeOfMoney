@@ -47,7 +47,7 @@ function RankBadge({ rank }: { rank: number }) {
     </div>
   );
   return (
-    <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-[12px] font-bold tabular-nums" style={{ background: '#13111f', border: '1px solid #1e1a30', color: '#6b6488' }}>
+    <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-[12px] font-bold tabular-nums" style={{ background: '#13111f', border: '1px solid #1e1a30', color: '#8981ab' }}>
       {rank}
     </div>
   );
@@ -83,7 +83,7 @@ export default function LeaderboardPage() {
           <h1 className="text-[28px] font-bold mb-1" style={{ color: '#e8e2f5', fontFamily: 'Cinzel, serif' }}>
             {t('lb_top_bettors')}
           </h1>
-          <p className="text-[13px]" style={{ color: '#6b6488' }}>
+          <p className="text-[13px]" style={{ color: '#8981ab' }}>
             {t('lb_sorted_by')}
           </p>
         </div>
@@ -100,7 +100,7 @@ export default function LeaderboardPage() {
         {/* Table */}
         <div className="rounded-2xl overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
           {loading ? (
-            <div className="py-16 text-center text-[13px]" style={{ color: '#6b6488' }}>{t('common_loading')}</div>
+            <div className="py-16 text-center text-[13px]" style={{ color: '#8981ab' }}>{t('common_loading')}</div>
           ) : entries.length === 0 ? (
             <EmptyState
               icon={Trophy}
@@ -148,7 +148,7 @@ export default function LeaderboardPage() {
                         {entry.username}
                         {isMe && <span className="ml-2 text-[10px] font-normal text-[#ffc542]/60">{t('lb_you_short')}</span>}
                       </p>
-                      <p className="text-[11px]" style={{ color: '#6b6488' }}>
+                      <p className="text-[11px]" style={{ color: '#8981ab' }}>
                         {entry._count?.bets ?? 0} {t('lb_bets').toLowerCase()}
                       </p>
                     </div>
@@ -158,7 +158,7 @@ export default function LeaderboardPage() {
                       <p className="text-[13px] font-bold tabular-nums" style={{ color: '#ffc542' }}>
                         {new Intl.NumberFormat('fr-FR').format(entry.totalWagered)} ⚜
                       </p>
-                      <p className="text-[10px]" style={{ color: '#6b6488' }}>{t('lb_wagered')}</p>
+                      <p className="text-[10px]" style={{ color: '#8981ab' }}>{t('lb_wagered')}</p>
                     </div>
                   </div>
                 );

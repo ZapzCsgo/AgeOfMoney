@@ -732,7 +732,7 @@ export default function MatchPage() {
                 <div className="flex items-center gap-2 px-4 py-2.5" style={{ background: '#0d0b1a', borderBottom: '1px solid #1e1a30' }}>
                   <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                   <span className="text-[12px] font-bold uppercase tracking-widest" style={{ color: '#9146ff' }}>{t('matches_filter_live')} — Twitch</span>
-                  <span className="text-[11px] ml-auto" style={{ color: '#6b6488' }}>{twitchChannel}</span>
+                  <span className="text-[11px] ml-auto" style={{ color: '#8981ab' }}>{twitchChannel}</span>
                 </div>
                 <div style={{ aspectRatio: '16/9', background: '#000' }}>
                   <iframe
@@ -744,8 +744,8 @@ export default function MatchPage() {
               </div>
             ) : (
               <div className="rounded-xl flex flex-col items-center justify-center py-10 gap-3" style={{ background: '#0d0b1a', border: '1px solid #1e1a30' }}>
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="#6b6488"><path d="M2.149 0L.537 4.119v16.836h5.731V24h3.224l3.045-3.045h4.657l6.269-6.269V0H2.149zm19.164 13.612l-3.582 3.582H13l-3.045 3.045v-3.045H4.537V2.149h16.776v11.463zm-3.582-7.343v6.262h-2.149V6.269h2.149zm-5.731 0v6.262H9.851V6.269H12z"/></svg>
-                <p className="text-[12px]" style={{ color: '#6b6488' }}>No Twitch stream configured</p>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="#8981ab"><path d="M2.149 0L.537 4.119v16.836h5.731V24h3.224l3.045-3.045h4.657l6.269-6.269V0H2.149zm19.164 13.612l-3.582 3.582H13l-3.045 3.045v-3.045H4.537V2.149h16.776v11.463zm-3.582-7.343v6.262h-2.149V6.269h2.149zm-5.731 0v6.262H9.851V6.269H12z"/></svg>
+                <p className="text-[12px]" style={{ color: '#8981ab' }}>No Twitch stream configured</p>
               </div>
             )}
             <MatchChat matchId={match.id} />

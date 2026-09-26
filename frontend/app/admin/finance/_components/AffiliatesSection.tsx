@@ -72,7 +72,7 @@ function MiniKpi({
       className="flex-1 min-w-[140px] rounded-xl p-3"
       style={{ background: '#0e0d1a', border: '1px solid #1e1a30' }}
     >
-      <div className="flex items-center gap-2 text-[10px] tracking-[0.2em] uppercase" style={{ color: '#6b6488' }}>
+      <div className="flex items-center gap-2 text-[10px] tracking-[0.2em] uppercase" style={{ color: '#8981ab' }}>
         <Icon size={11} />
         <span>{label}</span>
         {tooltip && <InfoTooltip content={tooltip} />}
@@ -85,7 +85,7 @@ function MiniKpi({
             <span className="text-[20px] font-bold leading-none" style={{ color: '#ffd97a', fontFamily: 'Cinzel, serif' }}>
               {value}
             </span>
-            {suffix && <span className="text-[11px]" style={{ color: '#6b6488' }}>{suffix}</span>}
+            {suffix && <span className="text-[11px]" style={{ color: '#8981ab' }}>{suffix}</span>}
           </>
         )}
       </div>
@@ -103,7 +103,7 @@ function RankBadge({ rank }: { rank: number }) {
   };
   const s = styles[rank];
   if (!s) {
-    return <span className="text-[11px] font-mono w-6 inline-block" style={{ color: '#6b6488' }}>#{rank}</span>;
+    return <span className="text-[11px] font-mono w-6 inline-block" style={{ color: '#8981ab' }}>#{rank}</span>;
   }
   return (
     <span
@@ -203,7 +203,7 @@ export function AffiliatesSection({
       {loading && !data ? (
         <div className="h-40 rounded-lg animate-pulse" style={{ background: 'rgba(255,255,255,0.02)' }} />
       ) : !anyActivity ? (
-        <div className="text-center py-10 text-sm" style={{ color: '#6b6488' }}>
+        <div className="text-center py-10 text-sm" style={{ color: '#8981ab' }}>
           Aucune activité d&apos;affiliation sur cette période.<br />
           Les affiliés actifs (Corvinus1 & co) apparaîtront ici avec leurs stats.
         </div>
@@ -211,7 +211,7 @@ export function AffiliatesSection({
         <div className="overflow-x-auto">
           <table className="w-full text-[12px]" cellPadding={0} cellSpacing={0}>
             <thead>
-              <tr style={{ color: '#6b6488' }}>
+              <tr style={{ color: '#8981ab' }}>
                 <th className="text-left py-2 px-2 font-bold tracking-wider uppercase text-[10px] w-10">#</th>
                 <th className="text-left py-2 px-2 font-bold tracking-wider uppercase text-[10px]">Affilié</th>
                 <th className="text-left py-2 px-2 font-bold tracking-wider uppercase text-[10px] hidden sm:table-cell">Code</th>

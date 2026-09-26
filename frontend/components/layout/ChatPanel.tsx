@@ -100,7 +100,7 @@ const ChatMessage = memo(function ChatMessage({ msg, isMe, onAvatarClick }: Chat
   if (msg.userId === 'system') {
     return (
       <div className="px-3 py-1.5 text-center">
-        <span className="text-[10px] italic" style={{ color: '#4a4468' }}>{msg.message}</span>
+        <span className="text-[10px] italic" style={{ color: '#6a6390' }}>{msg.message}</span>
       </div>
     );
   }
@@ -489,7 +489,7 @@ export function ChatPanel() {
             className="flex items-center gap-2.5 px-3 py-2 text-[12px] text-[#c8c0e0] hover:bg-[#13111f] transition-colors"
             onClick={() => setUserMenu(null)}
           >
-            <User size={13} className="text-[#6b6488]" /> Voir le profil
+            <User size={13} className="text-[#8981ab]" /> Voir le profil
           </a>
 
           {/* Tip */}
@@ -542,7 +542,7 @@ export function ChatPanel() {
             <h3 className="font-bold text-[13px] mb-1 flex items-center gap-2" style={{ color: '#60a5fa' }}>
               <VolumeX size={14} /> Muter {muteTarget.username}
             </h3>
-            <p className="text-[11px] mb-3" style={{ color: '#6b6488' }}>Durée du mute</p>
+            <p className="text-[11px] mb-3" style={{ color: '#8981ab' }}>Durée du mute</p>
             <div className="grid grid-cols-3 gap-1.5 mb-4">
               {[5, 15, 60, 360, 1440, 10080].map(min => (
                 <button key={min} onClick={() => setMuteDuration(min)}
@@ -550,14 +550,14 @@ export function ChatPanel() {
                   style={{
                     background: muteDuration === min ? '#1e3a5f' : '#13111f',
                     border: `1px solid ${muteDuration === min ? '#3b82f6' : '#1e1a30'}`,
-                    color: muteDuration === min ? '#60a5fa' : '#6b6488',
+                    color: muteDuration === min ? '#60a5fa' : '#8981ab',
                   }}>
                   {min < 60 ? `${min}m` : min < 1440 ? `${min/60}h` : min === 1440 ? '24h' : '7j'}
                 </button>
               ))}
             </div>
             <div className="flex gap-2">
-              <button onClick={() => setMuteTarget(null)} className="flex-1 py-2 rounded text-[11px]" style={{ background: '#13111f', border: '1px solid #1e1a30', color: '#6b6488' }}>{t('common_close')}</button>
+              <button onClick={() => setMuteTarget(null)} className="flex-1 py-2 rounded text-[11px]" style={{ background: '#13111f', border: '1px solid #1e1a30', color: '#8981ab' }}>{t('common_close')}</button>
               <button onClick={() => {
                 getSocket().emit('muteUser', { userId: muteTarget.userId, durationMinutes: muteDuration });
                 setMuteTarget(null);

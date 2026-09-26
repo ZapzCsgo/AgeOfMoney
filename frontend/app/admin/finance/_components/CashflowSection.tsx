@@ -224,7 +224,7 @@ export function CashflowSection({
           <Search
             size={12}
             className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
-            style={{ color: '#6b6488' }}
+            style={{ color: '#8981ab' }}
           />
           <input
             type="text"
@@ -251,14 +251,14 @@ export function CashflowSection({
       {loading && !data ? (
         <div className="h-60 rounded-lg animate-pulse" style={{ background: 'rgba(255,255,255,0.02)' }} />
       ) : !data || data.rows.length === 0 ? (
-        <div className="text-center py-12 text-[12px]" style={{ color: '#6b6488' }}>
+        <div className="text-center py-12 text-[12px]" style={{ color: '#8981ab' }}>
           Aucune transaction sur cette période avec ces filtres.
         </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-[12px] min-w-[620px]" cellPadding={0} cellSpacing={0}>
             <thead>
-              <tr style={{ color: '#6b6488' }}>
+              <tr style={{ color: '#8981ab' }}>
                 <th className="text-left py-2 px-2 font-bold tracking-wider uppercase text-[10px]">Date</th>
                 <th className="text-left py-2 px-2 font-bold tracking-wider uppercase text-[10px]">User</th>
                 <th className="text-left py-2 px-2 font-bold tracking-wider uppercase text-[10px]">Type</th>
@@ -316,7 +316,7 @@ export function CashflowSection({
                         {r.status}
                       </span>
                     </td>
-                    <td className="py-2 px-2 font-mono hidden lg:table-cell truncate max-w-[160px]" style={{ color: '#6b6488' }}>
+                    <td className="py-2 px-2 font-mono hidden lg:table-cell truncate max-w-[160px]" style={{ color: '#8981ab' }}>
                       {ref || '—'}
                     </td>
                   </tr>
