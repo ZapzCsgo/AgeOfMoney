@@ -158,7 +158,7 @@ export default function AffiliatePage() {
       setNewCodeInput('');
       await fetchAff();
     } catch (e) {
-      setChangeErr(e instanceof Error ? e.message : 'Erreur');
+      setChangeErr(e instanceof Error ? e.message : t('common_error'));
     } finally {
       setChanging(false);
     }
@@ -171,7 +171,7 @@ export default function AffiliatePage() {
       setClaimMsg({ type: 'ok', text: t('affiliate_claimed_credited', { amount: res.data.claimed.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) }) });
       fetchAff();
     } catch (e) {
-      setClaimMsg({ type: 'err', text: e instanceof Error ? e.message : 'Erreur' });
+      setClaimMsg({ type: 'err', text: e instanceof Error ? e.message : t('common_error') });
     } finally {
       setClaiming(false);
       setTimeout(() => setClaimMsg(null), 4000);

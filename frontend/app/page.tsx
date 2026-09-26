@@ -697,13 +697,17 @@ function Hero({ liveCount, totalBets, matchCount }: { liveCount: number; totalBe
           }}
         />
 
-        <p className="text-aoe-parchment-dim text-sm tracking-wide max-w-sm mb-8 leading-relaxed text-center">
-          {(() => {
-            const text = t('home_hero_sub');
-            const parts = text.split('·').map(s => s.trim());
-            if (parts.length === 2) return <>{parts[0]}<br />{parts[1]}</>;
-            return text;
-          })()}
+        <h2
+          className="font-cinzel font-bold mb-2 max-w-md text-center"
+          style={{ fontSize: 'clamp(1.25rem, 4vw, 1.75rem)', color: '#f5f1ff', letterSpacing: '0.02em' }}
+        >
+          {t('home_hero_headline')}
+        </h2>
+        <p
+          className="text-aoe-parchment-dim mb-8 max-w-sm text-center leading-relaxed"
+          style={{ fontSize: '1rem' }}
+        >
+          {t('home_hero_subline')}
         </p>
 
         {/* Stats row */}

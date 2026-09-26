@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { ChevronDown, Globe } from 'lucide-react';
 import { useT, LANGUAGES } from '@/lib/i18n';
@@ -28,9 +29,9 @@ export function Footer() {
 
   return (
     <>
-      <footer style={{ background: '#09080f', borderTop: '1px solid rgba(255,197,66,0.2)' }}>
+      <footer className="group relative" style={{ background: '#09080f', borderTop: '1px solid rgba(255,197,66,0.2)' }}>
         {/* Main section */}
-        <div className="max-w-6xl mx-auto px-6 py-12">
+        <div className="relative z-10 max-w-6xl mx-auto px-6 py-12">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
 
             {/* Brand column */}
@@ -120,7 +121,7 @@ export function Footer() {
         </div>
 
         {/* Bottom bar */}
-        <div style={{ borderTop: '1px solid rgba(255,197,66,0.2)' }}>
+        <div className="relative z-10" style={{ borderTop: '1px solid rgba(255,197,66,0.2)' }}>
           <div className="max-w-6xl mx-auto px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex flex-col sm:flex-row gap-6">
               <div>
@@ -177,6 +178,41 @@ export function Footer() {
               )}
             </div>
           </div>
+        </div>
+
+        {/* Decorative mascot — presentational only, never intercepts clicks
+            and stacks behind the real footer content (z-0 vs content's z-10).
+            Hidden below md: the mobile bottom nav is a fixed full-width bar
+            there and would visually collide with him. Placed on the left
+            since the floating "My Bets" button is fixed bottom-right at
+            every breakpoint where the footer can be in view.
+            The 3-column app shell (sidebar + chat panel) means max-w-6xl
+            never actually gets clear side margin at realistic widths, so
+            instead of chasing a breakpoint with "free space" that doesn't
+            exist here, he stays translucent at every size — a soft
+            background presence rather than a hard shape fighting the logo
+            for attention, consistent with the faint/blended look asked for. */}
+        <div
+          className="hidden md:block absolute left-1 xl:left-6 top-0 -translate-y-1/4 z-0 pointer-events-none select-none opacity-25 lg:opacity-40 xl:opacity-65 2xl:opacity-85 transition-opacity motion-reduce:!transition-none"
+          aria-hidden="true"
+        >
+          <div
+            className="absolute inset-0 -z-10 blur-3xl"
+            style={{ background: 'radial-gradient(circle, rgba(255,197,66,0.22), transparent 70%)' }}
+          />
+          <Image
+            src="/images/monk.webp"
+            alt=""
+            width={633}
+            height={1148}
+            loading="lazy"
+            className="h-[110px] lg:h-[150px] xl:h-[200px] 2xl:h-[240px] w-auto animate-monk-float transition-transform duration-500 ease-out group-hover:rotate-1"
+            style={{
+              filter: 'drop-shadow(0 0 10px rgba(255,197,66,0.35)) drop-shadow(0 8px 14px rgba(0,0,0,0.55))',
+              maskImage: 'linear-gradient(to bottom, black 78%, transparent 98%)',
+              WebkitMaskImage: 'linear-gradient(to bottom, black 78%, transparent 98%)',
+            }}
+          />
         </div>
       </footer>
 

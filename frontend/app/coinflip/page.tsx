@@ -370,7 +370,7 @@ export default function CoinFlipPage() {
               }}
             >
               <Users size={12} className="inline mr-1.5" />
-              En direct · {waitingGames.length + recentResults.length}
+              {t('matches_filter_live')} · {waitingGames.length + recentResults.length}
             </button>
             <button
               onClick={() => setViewTab('history')}
@@ -382,7 +382,7 @@ export default function CoinFlipPage() {
               }}
             >
               <Trophy size={12} className="inline mr-1.5" />
-              Historique
+              {t('profile_tab_history')}
             </button>
           </div>
         </div>
@@ -407,12 +407,12 @@ export default function CoinFlipPage() {
             <div className="flex items-center gap-2 mb-4">
               <Trophy size={16} style={{ color: '#8981ab' }} />
               <h2 className="text-[14px] font-bold tracking-wider uppercase" style={{ fontFamily: 'Cinzel, serif', color: '#e8e2f5' }}>
-                Historique des coinflips
+                {t('coinflip_history_title')}
               </h2>
-              <span className="ml-auto text-[11px]" style={{ color: '#8981ab' }}>{historyGames.length} flips</span>
+              <span className="ml-auto text-[11px]" style={{ color: '#8981ab' }}>{t('coinflip_flips_count', { n: historyGames.length })}</span>
             </div>
             {historyLoading ? (
-              <div className="text-center py-8 text-[12px]" style={{ color: '#8981ab' }}>Chargement…</div>
+              <div className="text-center py-8 text-[12px]" style={{ color: '#8981ab' }}>{t('common_loading')}</div>
             ) : historyGames.length === 0 ? (
               <div className="text-center py-8 text-[12px]" style={{ color: '#8981ab' }}>{t('coinflip_no_completed')}</div>
             ) : (

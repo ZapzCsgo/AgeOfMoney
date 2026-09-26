@@ -655,7 +655,7 @@ export default function JackpotPage() {
       await apiClient.post('/jackpot/bet', { amount });
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: string } }; message?: string };
-      showMsg('error', err?.response?.data?.error ?? err?.message ?? 'Erreur');
+      showMsg('error', err?.response?.data?.error ?? err?.message ?? t('common_error'));
     } finally {
       setPlacing(false);
     }
@@ -740,7 +740,7 @@ export default function JackpotPage() {
               }}
             >
               <Users size={12} className="inline mr-1.5" />
-              En direct
+              {t('matches_filter_live')}
             </button>
             <button
               onClick={() => setViewTab('history')}
@@ -752,7 +752,7 @@ export default function JackpotPage() {
               }}
             >
               <Trophy size={12} className="inline mr-1.5" />
-              Historique
+              {t('profile_tab_history')}
             </button>
           </div>
         </div>
@@ -827,7 +827,7 @@ export default function JackpotPage() {
             {userId && myAggregate && round && round.potTotal > 0 && (
               <div className="text-right">
                 <div className="text-[10px] tracking-[0.2em] uppercase" style={{ color: '#8981ab' }}>
-                  Votre chance
+                  {t('jackpot_your_chance')}
                 </div>
                 <div className="text-xl font-bold" style={{ color: myAggregate.color }}>
                   {myChance.toFixed(1)}%
@@ -1187,12 +1187,12 @@ export default function JackpotPage() {
             <div className="flex items-center gap-2 mb-4">
               <Trophy size={16} style={{ color: '#8981ab' }} />
               <h2 className="text-[14px] font-bold tracking-wider uppercase" style={{ fontFamily: 'Cinzel, serif', color: '#e8e2f5' }}>
-                Historique des jackpots
+                {t('jackpot_history_title')}
               </h2>
-              <span className="ml-auto text-[11px]" style={{ color: '#8981ab' }}>{history.length} rounds</span>
+              <span className="ml-auto text-[11px]" style={{ color: '#8981ab' }}>{t('jackpot_rounds_count', { n: history.length })}</span>
             </div>
             {historyLoading ? (
-              <div className="text-center py-8 text-[12px]" style={{ color: '#8981ab' }}>Chargement…</div>
+              <div className="text-center py-8 text-[12px]" style={{ color: '#8981ab' }}>{t('common_loading')}</div>
             ) : history.length === 0 ? (
               <div className="text-center py-8 text-[12px]" style={{ color: '#8981ab' }}>{t('jackpot_no_completed_rounds')}</div>
             ) : (
@@ -1225,10 +1225,10 @@ export default function JackpotPage() {
                       )}
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-bold truncate" style={{ color: '#ffd97a' }}>
-                          {r.winner?.username ?? 'Unknown'}
+                          {r.winner?.username ?? t('common_unknown')}
                         </div>
                         <div className="text-[11px] truncate" style={{ color: '#8981ab' }}>
-                          {r.participantCount} joueurs · chance {chance.toFixed(1)}% · {dateStr}
+                          {t('jackpot_history_stats', { n: r.participantCount, chance: chance.toFixed(1), date: dateStr })}
                         </div>
                       </div>
                       <div className="text-right shrink-0 flex flex-col items-end gap-1">

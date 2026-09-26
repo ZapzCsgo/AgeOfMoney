@@ -110,7 +110,8 @@ const t_fr = {
 
   // Home
   home_hero_title:    'Paris Esports AoE4',
-  home_hero_sub:      'Premier site de match betting AOE · Pariez sur les meilleurs joueurs de la scène compétitive.',
+  home_hero_headline: 'Premier site de match betting AOE',
+  home_hero_subline:  'Pariez sur les meilleurs joueurs de la scène compétitive.',
   home_live_now:      'Live maintenant',
   home_upcoming:      'À venir',
   home_no_matches:    'Aucun match en cours',
@@ -786,6 +787,13 @@ const t_fr = {
   badge_partner:                 'PARTENAIRE',
   badge_member:                  'MEMBRE',
   bet_closed_match_live:         'Paris fermés, match en direct',
+  jackpot_history_title:         'Historique des jackpots',
+  jackpot_your_chance:           'Votre chance',
+  jackpot_history_stats:         '{n} joueurs · chance {chance}% · {date}',
+  coinflip_history_title:        'Historique des coinflips',
+  jackpot_rounds_count:          '{n} rounds',
+  common_unknown:                'Inconnu',
+  coinflip_flips_count:          '{n} flips',
   match_exact_score_title:       'Score Exact',
   exact_score_signin_title:      'Connecte-toi avec Steam pour parier sur le score exact',
   exact_score_signin_prompt:     'Connecte-toi avec Steam pour placer un pari sur le score exact.',
@@ -908,7 +916,8 @@ const t_en: Record<keyof typeof t_fr, string> = {
   matches_no_tournament: 'No tournament',
 
   home_hero_title:    'AoE4 Esports Betting',
-  home_hero_sub:      '#1 AOE match betting site · Bet on the best players in the competitive scene.',
+  home_hero_headline: 'The premier AoE match betting site',
+  home_hero_subline:  'Bet on the best players of the competitive scene.',
   home_live_now:      'Live now',
   home_upcoming:      'Upcoming',
   home_no_matches:    'No matches currently',
@@ -1535,6 +1544,13 @@ const t_en: Record<keyof typeof t_fr, string> = {
   badge_partner:                 'PARTNER',
   badge_member:                  'MEMBER',
   bet_closed_match_live:         'Bets closed, match is live',
+  jackpot_history_title:         'Jackpot history',
+  jackpot_your_chance:           'Your chance',
+  jackpot_history_stats:         '{n} players · chance {chance}% · {date}',
+  coinflip_history_title:        'Coinflip history',
+  jackpot_rounds_count:          '{n} rounds',
+  common_unknown:                'Unknown',
+  coinflip_flips_count:          '{n} flips',
   match_exact_score_title:       'Exact Score',
   exact_score_signin_title:      'Sign in with Steam to bet on the exact score',
   exact_score_signin_prompt:     'Sign in with Steam to place an exact-score bet.',
@@ -1682,7 +1698,8 @@ const t_es: Record<keyof typeof t_fr, string> = {
   matches_no_tournament: 'Sin torneo',
 
   home_hero_title:    'Apuestas Esports AoE4',
-  home_hero_sub:      'Primer sitio de match betting de AOE · Apuesta por los mejores jugadores de la escena competitiva.',
+  home_hero_headline: 'El sitio líder de apuestas de partidas AoE',
+  home_hero_subline:  'Apuesta por los mejores jugadores de la escena competitiva.',
   home_live_now:      'En vivo ahora',
   home_upcoming:      'Próximas',
   home_no_matches:    'No hay partidas en curso',
@@ -2309,6 +2326,13 @@ const t_es: Record<keyof typeof t_fr, string> = {
   badge_partner:                 'SOCIO',
   badge_member:                  'MIEMBRO',
   bet_closed_match_live:         'Apuestas cerradas, partido en vivo',
+  jackpot_history_title:         'Historial de jackpots',
+  jackpot_your_chance:           'Tu probabilidad',
+  jackpot_history_stats:         '{n} jugadores · probabilidad {chance}% · {date}',
+  coinflip_history_title:        'Historial de coinflips',
+  jackpot_rounds_count:          '{n} rondas',
+  common_unknown:                'Desconocido',
+  coinflip_flips_count:          '{n} tiradas',
   match_exact_score_title:       'Marcador Exacto',
   exact_score_signin_title:      'Inicia sesión con Steam para apostar en el marcador exacto',
   exact_score_signin_prompt:     'Inicia sesión con Steam para hacer una apuesta de marcador exacto.',
@@ -2365,13 +2389,17 @@ const LanguageContext = createContext<{
   setLang: (l: Lang) => void;
   t: (key: TKey, vars?: Record<string, string | number>) => string;
 }>({
-  lang: 'fr',
+  lang: 'en',
   setLang: () => {},
-  t: (k) => t_fr[k],
+  t: (k) => t_en[k],
 });
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>('fr');
+  // English is the site's universal default/fallback. This initial state is
+  // only what's used for the very first paint before the effect below runs
+  // (it can't read localStorage/cookies during SSR) — keeping it 'en' avoids
+  // a flash-of-French for every visitor regardless of country.
+  const [lang, setLangState] = useState<Lang>('en');
 
   useEffect(() => {
     // 1. Respect explicit user preference stored in localStorage (picker clicks)
@@ -2407,7 +2435,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   const t = (key: TKey, vars?: Record<string, string | number>): string => {
     const dict = translations[lang] as Record<string, string>;
-    let str = dict[key] ?? (translations.fr as Record<string, string>)[key] ?? key;
+    let str = dict[key] ?? (translations.en as Record<string, string>)[key] ?? key;
     if (vars) {
       Object.entries(vars).forEach(([k, v]) => {
         str = str.replace(`{${k}}`, String(v));

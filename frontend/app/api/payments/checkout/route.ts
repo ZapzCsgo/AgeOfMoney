@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { serverError } from '@/lib/serverLocale';
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession();
 
   if (!session) {
-    return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    return NextResponse.json({ error: serverError(req, 'notAuthenticated') }, { status: 401 });
   }
 
   try {
@@ -30,6 +31,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(data);
   } catch (error) {
     console.error('Checkout proxy error:', error);
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+    return NextResponse.json({ error: serverError(req, 'serverError') }, { status: 500 });
   }
 }

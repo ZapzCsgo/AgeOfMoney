@@ -256,7 +256,7 @@ function ExactScoreBets({ match, onBetPlaced }: { match: Match; onBetPlaced: () 
           .then(r => r.json()).then(r => setScores(r.data ?? [])).catch(() => {});
         return;
       }
-      if (!res.ok) { setMsg({ type: 'err', text: data.error ?? 'Erreur' }); return; }
+      if (!res.ok) { setMsg({ type: 'err', text: data.error ?? t('common_error') }); return; }
       setMsg({ type: 'ok', text: t('bet_placed_success', { score: selected.score, odds: selected.odds }) });
       setSelected(null); setAmount('10');
       onBetPlaced();

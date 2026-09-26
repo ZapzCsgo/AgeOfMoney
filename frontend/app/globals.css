@@ -568,6 +568,13 @@
 }
 .animate-slide-down { animation: slide-down 0.2s ease-out forwards; }
 
+/* Footer mascot idle float */
+@keyframes monk-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+.animate-monk-float { animation: monk-float 4s ease-in-out infinite; }
+
 /* ── Reduced motion ───────────────────────────────────────────────────────── */
 /* Keep state changes (color/opacity/box-shadow endpoints) but drop the looping
    motion for users who asked for it. Live badges/pulses stay visible at their

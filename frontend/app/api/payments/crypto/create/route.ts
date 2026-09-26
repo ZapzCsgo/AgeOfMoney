@@ -1,13 +1,14 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
+import { serverError } from '@/lib/serverLocale';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) {
-    return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    return NextResponse.json({ error: serverError(req, 'notAuthenticated') }, { status: 401 });
   }
 
   const body = await req.json();
