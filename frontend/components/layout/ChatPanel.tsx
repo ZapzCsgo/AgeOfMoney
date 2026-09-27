@@ -94,9 +94,10 @@ function avatarColor(name: string): string {
 interface ChatMessageProps {
   msg: ChatMsg;
   isMe: boolean;
+  grouped: boolean;
   onAvatarClick: (msg: ChatMsg, rect: DOMRect) => void;
 }
-const ChatMessage = memo(function ChatMessage({ msg, isMe, onAvatarClick }: ChatMessageProps) {
+const ChatMessage = memo(function ChatMessage({ msg, isMe, grouped, onAvatarClick }: ChatMessageProps) {
   if (msg.userId === 'system') {
     return (
       <div className="px-3 py-1.5 text-center">
@@ -106,6 +107,27 @@ const ChatMessage = memo(function ChatMessage({ msg, isMe, onAvatarClick }: Chat
   }
   const bgColor = avatarColor(msg.username);
   const color   = levelColor(msg.tier);
+
+  // Grouped (consecutive) messages from the same user: skip the avatar/name/badge
+  // row entirely and indent the text under it — same width as avatar (36px) + gap (12px).
+  if (grouped) {
+    return (
+      <div
+        className={cn(
+          'group flex items-start gap-3 px-3 py-0.5 transition-colors cursor-default',
+          isMe ? 'bg-[#ffc542]/5' : 'hover:bg-[#0d0c18]'
+        )}
+      >
+        <div className="w-9 shrink-0 flex justify-center">
+          <span className="text-[9px] text-[#3d3860] opacity-0 group-hover:opacity-100 transition-opacity">
+            {formatTime(msg.timestamp)}
+          </span>
+        </div>
+        <p className="flex-1 min-w-0 text-[13px] text-[#9990b8] leading-snug break-words">{renderMessage(msg.message)}</p>
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(
@@ -147,7 +169,7 @@ const ChatMessage = memo(function ChatMessage({ msg, isMe, onAvatarClick }: Chat
             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#1e3a5f', color: '#60a5fa', border: '1px solid #3b82f640' }}>MOD</span>
           )}
           {msg.isPartner && (
-            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#2d1b4e', color: '#c084fc', border: '1px solid #a855f740' }}>PARTNER</span>
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'transparent', color: '#ffc542', border: '1px solid #ffc54260' }}>PARTNER</span>
           )}
           <span className="text-[10px] text-[#3d3860] opacity-0 group-hover:opacity-100 transition-opacity ml-auto shrink-0">
             {formatTime(msg.timestamp)}
@@ -364,14 +386,21 @@ export function ChatPanel() {
             </p>
           </div>
         ) : (
-          messages.map((msg) => (
-            <ChatMessage
-              key={msg.id}
-              msg={msg}
-              isMe={msg.userId === session?.user?.id}
-              onAvatarClick={handleAvatarClick}
-            />
-          ))
+          messages.map((msg, i) => {
+            const prev = messages[i - 1];
+            const grouped = Boolean(
+              prev && prev.userId === msg.userId && msg.userId !== 'system'
+            );
+            return (
+              <ChatMessage
+                key={msg.id}
+                msg={msg}
+                isMe={msg.userId === session?.user?.id}
+                grouped={grouped}
+                onAvatarClick={handleAvatarClick}
+              />
+            );
+          })
         )}
         <div ref={bottomRef} />
       </div>

@@ -171,10 +171,10 @@ export function Navbar() {
               key={link.href}
               href={link.href}
               className={cn(
-                'px-4 py-1.5 font-cinzel text-sm tracking-widest uppercase transition-all rounded-sm relative',
+                'px-4 py-1.5 font-cinzel font-semibold text-[15px] tracking-wide uppercase transition-all rounded-sm relative',
                 pathname === link.href
                   ? 'text-aoe-gold'
-                  : 'text-aoe-parchment-dim hover:text-aoe-parchment'
+                  : 'text-aoe-parchment hover:text-aoe-gold'
               )}
             >
               {link.label}
@@ -187,14 +187,16 @@ export function Navbar() {
             <Link
               href="/deposit"
               className={cn(
-                'flex items-center gap-1.5 px-4 py-1.5 font-cinzel text-sm tracking-widest uppercase transition-all rounded-sm',
+                'px-4 py-1.5 font-cinzel font-semibold text-[15px] tracking-wide uppercase transition-all rounded-sm relative',
                 pathname === '/deposit' || pathname === '/withdraw'
                   ? 'text-aoe-gold'
-                  : 'text-aoe-parchment-dim hover:text-aoe-gold'
+                  : 'text-aoe-parchment hover:text-aoe-gold'
               )}
             >
-              <Wallet size={13} />
               {t('nav_deposit')}
+              {(pathname === '/deposit' || pathname === '/withdraw') && (
+                <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1/2 h-px bg-aoe-gold" />
+              )}
             </Link>
           )}
         </div>

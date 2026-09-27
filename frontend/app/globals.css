@@ -295,6 +295,16 @@
   .badge-tier-b  { background: rgba(39,174,96,0.15);  border: 1px solid rgba(39,174,96,0.5);  color: #27ae60; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-family: 'Cinzel', serif; font-weight: 700; }
   .badge-tier-c  { background: rgba(127,140,141,0.15); border: 1px solid rgba(127,140,141,0.4); color: #95a5a6; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-family: 'Cinzel', serif; font-weight: 700; }
 
+  /* === Shared neutral tag badge (format, finished, etc.) — same geometry as badge-tier-* === */
+  .badge-tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 1px 6px; border-radius: 3px;
+    font-size: 10px; font-family: 'Cinzel', serif; font-weight: 700;
+    letter-spacing: 0.05em; text-transform: uppercase;
+    background: rgba(255,197,66,0.1); border: 1px solid rgba(255,197,66,0.3); color: #ffc542;
+  }
+  .badge-tag-muted { background: rgba(154,144,184,0.08); border-color: rgba(154,144,184,0.3); color: #9890b8; }
+
   /* === Chat level badge base === */
   .level-badge { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 3px; font-size: 9px; font-weight: 700; font-family: 'Cinzel', serif; }
 

@@ -326,7 +326,7 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
               <Lock size={9} />{t('matches_bets_closed')}
             </span>
           )}
-          <span className="text-[10px] font-cinzel tracking-widest text-aoe-parchment-dim border border-aoe-border/60 px-1.5 py-0.5 rounded">
+          <span className="badge-tag">
             {match.format}
           </span>
           {isLive ? (
@@ -337,10 +337,10 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
             <div className="flex items-center gap-1.5">
               {/* Finished-at date — short locale-aware ("24 avr.", "Apr 24",
                   "24 abr."). Tooltip shows the full timestamp on hover. */}
-              <span className="text-[11px] text-[#8981ab] tabular-nums" title={new Date(match.updatedAt).toLocaleString()}>
+              <span className="text-[11px] text-aoe-parchment-dim tabular-nums" title={new Date(match.updatedAt).toLocaleString()}>
                 {new Date(match.updatedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
               </span>
-              <span className="text-[11px] text-[#8981ab] font-cinzel border border-[#2a2540] rounded px-1.5 py-0.5">
+              <span className="badge-tag badge-tag-muted">
                 {t('matches_finished')}
               </span>
             </div>
@@ -357,14 +357,14 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
       <div className="grid grid-cols-[1fr_auto_1fr]">
         {/* Player 1 */}
         <div
-          className={cn('p-4 flex flex-col items-center gap-3 transition-all duration-300', p2Won && 'opacity-40')}
+          className="p-4 flex flex-col items-center gap-3 transition-all duration-300"
           style={{
             background: selected === 1
               ? 'radial-gradient(ellipse at 50% 0%, rgba(255,197,66,0.1) 0%, transparent 70%)'
               : p1Won ? 'radial-gradient(ellipse at 50% 0%, rgba(255,197,66,0.07) 0%, transparent 70%)' : 'transparent',
           }}
         >
-          <div className="relative">
+          <div className={cn('relative', p2Won && 'grayscale opacity-80')}>
             <PlayerAvatar
               name={match.player1.name}
               playerId={match.player1.id}
@@ -373,7 +373,7 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
               selected={selected === 1}
             />
             {p1Won && (
-              <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-3xl leading-none drop-shadow-[0_0_8px_rgba(255,197,66,0.6)]">👑</span>
+              <Crown size={26} className="absolute -top-5 left-1/2 -translate-x-1/2 text-aoe-gold drop-shadow-[0_0_8px_rgba(255,197,66,0.6)]" />
             )}
           </div>
           <div className="text-center">
@@ -390,10 +390,10 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
           {/* Odds button P1 or winner label */}
           {isCompleted ? (
             <div className="w-full rounded-lg px-3 py-2.5 text-center" style={{ background: p1Won ? 'rgba(255,197,66,0.08)' : 'rgba(255,255,255,0.02)', border: `1px solid ${p1Won ? 'rgba(255,197,66,0.25)' : 'rgba(255,255,255,0.05)'}` }}>
-              <div className={cn('font-cinzel text-[11px] font-bold uppercase tracking-widest', p1Won ? 'text-[#ffc542]' : 'text-[#3d3860]')}>
+              <div className={cn('font-cinzel text-xs font-bold uppercase tracking-widest', p1Won ? 'text-[#ffc542]' : 'text-aoe-parchment-muted')}>
                 {p1Won ? t('match_winner') : t('match_eliminated')}
               </div>
-              <div className="text-[10px] text-[#4a4570] mt-0.5 font-cinzel">
+              <div className="text-[11px] text-aoe-parchment-dim mt-0.5 font-cinzel tabular-nums">
                 {t('match_final_odds')} {match.odds1.toFixed(2)}×
               </div>
             </div>
@@ -407,7 +407,7 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
                 boxShadow: '0 0 20px rgba(255,197,66,0.3), inset 0 1px 0 rgba(255,255,255,0.05)',
               } : undefined}
             >
-              <div className={cn('font-cinzel font-black text-2xl leading-none', selected === 1 ? 'text-aoe-gold-bright text-glow-gold' : 'text-aoe-parchment')}>
+              <div className={cn('font-cinzel font-black text-2xl leading-none tabular-nums', selected === 1 ? 'text-aoe-gold-bright text-glow-gold' : 'text-aoe-parchment')}>
                 {match.odds1.toFixed(2)}
               </div>
               <div className="text-[9px] text-aoe-parchment-muted mt-1 uppercase tracking-widest font-cinzel">
@@ -422,11 +422,11 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
           <div className="w-px flex-1 bg-gradient-to-b from-transparent via-aoe-border to-transparent" />
           {isCompleted ? (
             <div className="flex flex-col items-center shrink-0 gap-0.5">
-              <div className={cn('font-cinzel font-black text-xl leading-none', p1Won ? 'text-[#ffc542]' : 'text-[#4a4570]')}>
+              <div className={cn('font-cinzel font-black text-xl leading-none tabular-nums', p1Won ? 'text-[#ffc542]' : 'text-aoe-parchment-muted')}>
                 {match.p1Score ?? 0}
               </div>
-              <div className="text-[#3a3560] text-[8px] font-cinzel tracking-widest">{t('common_end_abbr')}</div>
-              <div className={cn('font-cinzel font-black text-xl leading-none', p2Won ? 'text-[#ffc542]' : 'text-[#4a4570]')}>
+              <div className="text-aoe-parchment-muted text-[8px] font-cinzel tracking-widest">{t('common_end_abbr')}</div>
+              <div className={cn('font-cinzel font-black text-xl leading-none tabular-nums', p2Won ? 'text-[#ffc542]' : 'text-aoe-parchment-muted')}>
                 {match.p2Score ?? 0}
               </div>
             </div>
@@ -439,11 +439,11 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
             // alors qu'un 1-0 / 2-1 vient de notre polling Liquipedia et
             // complète utilement le stream.
             <div className="flex flex-col items-center shrink-0">
-              <div className="text-aoe-gold font-cinzel font-black text-lg leading-none">
+              <div className="text-aoe-gold font-cinzel font-black text-lg leading-none tabular-nums">
                 {match.p1Score ?? 0}
               </div>
               <div className="text-aoe-parchment-muted text-[8px] font-cinzel tracking-widest my-0.5">VS</div>
-              <div className="text-aoe-parchment font-cinzel font-black text-lg leading-none">
+              <div className="text-aoe-parchment font-cinzel font-black text-lg leading-none tabular-nums">
                 {match.p2Score ?? 0}
               </div>
             </div>
@@ -470,14 +470,14 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
 
         {/* Player 2 */}
         <div
-          className={cn('p-4 flex flex-col items-center gap-3 transition-all duration-300', p1Won && 'opacity-40')}
+          className="p-4 flex flex-col items-center gap-3 transition-all duration-300"
           style={{
             background: selected === 2
               ? 'radial-gradient(ellipse at 50% 0%, rgba(41,128,185,0.1) 0%, transparent 70%)'
               : p2Won ? 'radial-gradient(ellipse at 50% 0%, rgba(255,197,66,0.07) 0%, transparent 70%)' : 'transparent',
           }}
         >
-          <div className="relative">
+          <div className={cn('relative', p1Won && 'grayscale opacity-80')}>
             <PlayerAvatar
               name={match.player2.name}
               playerId={match.player2.id}
@@ -486,7 +486,7 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
               selected={selected === 2}
             />
             {p2Won && (
-              <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-3xl leading-none drop-shadow-[0_0_8px_rgba(255,197,66,0.6)]">👑</span>
+              <Crown size={26} className="absolute -top-5 left-1/2 -translate-x-1/2 text-aoe-gold drop-shadow-[0_0_8px_rgba(255,197,66,0.6)]" />
             )}
           </div>
           <div className="text-center">
@@ -503,10 +503,10 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
           {/* Odds button P2 or winner label */}
           {isCompleted ? (
             <div className="w-full rounded-lg px-3 py-2.5 text-center" style={{ background: p2Won ? 'rgba(255,197,66,0.08)' : 'rgba(255,255,255,0.02)', border: `1px solid ${p2Won ? 'rgba(255,197,66,0.25)' : 'rgba(255,255,255,0.05)'}` }}>
-              <div className={cn('font-cinzel text-[11px] font-bold uppercase tracking-widest', p2Won ? 'text-[#ffc542]' : 'text-[#3d3860]')}>
+              <div className={cn('font-cinzel text-xs font-bold uppercase tracking-widest', p2Won ? 'text-[#ffc542]' : 'text-aoe-parchment-muted')}>
                 {p2Won ? t('match_winner') : t('match_eliminated')}
               </div>
-              <div className="text-[10px] text-[#4a4570] mt-0.5 font-cinzel">
+              <div className="text-[11px] text-aoe-parchment-dim mt-0.5 font-cinzel tabular-nums">
                 {t('match_final_odds')} {match.odds2.toFixed(2)}×
               </div>
             </div>
@@ -520,7 +520,7 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
                 boxShadow: '0 0 20px rgba(41,128,185,0.3), inset 0 1px 0 rgba(255,255,255,0.05)',
               } : undefined}
             >
-              <div className={cn('font-cinzel font-black text-2xl leading-none', selected === 2 ? 'text-aoe-blue-bright' : 'text-aoe-parchment')}>
+              <div className={cn('font-cinzel font-black text-2xl leading-none tabular-nums', selected === 2 ? 'text-aoe-blue-bright' : 'text-aoe-parchment')}>
                 {match.odds2.toFixed(2)}
               </div>
               <div className="text-[9px] text-aoe-parchment-muted mt-1 uppercase tracking-widest font-cinzel">
@@ -695,13 +695,13 @@ function Hero({ liveCount, totalBets, matchCount }: { liveCount: number; totalBe
         />
 
         <h2
-          className="font-cinzel font-bold mb-2 max-w-md text-center"
-          style={{ fontSize: 'clamp(1.25rem, 4vw, 1.75rem)', color: '#f5f1ff', letterSpacing: '0.02em' }}
+          className="font-cinzel font-bold mb-2 max-w-md text-center text-balance"
+          style={{ fontSize: 'clamp(1.1rem, 3.5vw, 1.6rem)', color: '#f5f1ff', letterSpacing: '0.02em' }}
         >
           {t('home_hero_headline')}
         </h2>
         <p
-          className="text-aoe-parchment-dim mb-8 max-w-sm text-center leading-relaxed"
+          className="text-aoe-parchment-dim mb-8 max-w-sm text-center leading-relaxed text-pretty"
           style={{ fontSize: '1rem' }}
         >
           {t('home_hero_subline')}
@@ -726,8 +726,8 @@ function Hero({ liveCount, totalBets, matchCount }: { liveCount: number; totalBe
             <span className="text-aoe-parchment-dim">⚜ {t('lb_wagered').toLowerCase()}</span>
           </div>
           <div className="flex items-center gap-2 px-5 py-2.5 font-cinzel tracking-wide text-xs">
-            <Trophy size={12} className="text-aoe-blue-bright" />
-            <span className="text-aoe-blue-bright font-bold">{matchCount}</span>
+            <Trophy size={12} className="text-aoe-gold" />
+            <span className="text-aoe-gold font-bold">{matchCount}</span>
             <span className="text-aoe-parchment-dim">{t('nav_matches').toLowerCase()}</span>
           </div>
         </div>
