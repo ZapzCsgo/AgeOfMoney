@@ -477,10 +477,25 @@ function RoulettePageImpl() {
       return;
     }
 
-    // Reset start to false then re-true so the lib re-triggers the spin animation
+    // Reset start to false then re-true so the lib re-triggers the spin
+    // animation. The library keys its CSS transition off this false→true
+    // edge (start=false resets position to 0 with no transition; start=true
+    // applies `transition: all {spinningTime}s ...` to the target offset).
+    // A fixed setTimeout here was flaky: if the main thread was busy for
+    // longer than the delay, the browser could coalesce the false and true
+    // style updates into a single paint with no intermediate frame, so the
+    // reset never actually rendered and the transition had nothing to
+    // animate from — the wheel would silently snap to the result instead of
+    // visibly spinning. Double-rAF guarantees the reset paints first: the
+    // first callback runs after this frame's paint, the second is scheduled
+    // for the frame after that.
     setWheelStart(false);
     setWheelPrizeIndex(landIdx);
-    setTimeout(() => setWheelStart(true), 30);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setWheelStart(true);
+      });
+    });
 
     // Parallel timer for tick sounds + anticipation phase (not synced to actual
     // slot crossings, but progression feels right relative to elapsed time).
