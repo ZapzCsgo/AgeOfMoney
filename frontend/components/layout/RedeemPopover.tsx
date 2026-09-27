@@ -23,6 +23,7 @@ import { signInWithSteam } from '@/lib/authHelpers';
 import { apiClient } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/i18n';
+import { useNotifications } from '@/contexts/NotificationsContext';
 
 interface RedemptionRow {
   id: string;
@@ -36,11 +37,11 @@ interface RedemptionRow {
 
 export function RedeemPopover() {
   const { t } = useT();
+  const { showToast } = useNotifications();
   const { data: session } = useSession();
   const [open, setOpen] = useState(false);
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [history, setHistory] = useState<RedemptionRow[] | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
 
@@ -57,11 +58,10 @@ export function RedeemPopover() {
       const target = ev.target as Node | null;
       if (target && rootRef.current && !rootRef.current.contains(target)) {
         setOpen(false);
-        setMsg(null);
       }
     };
     const handleKey = (ev: KeyboardEvent) => {
-      if (ev.key === 'Escape') { setOpen(false); setMsg(null); }
+      if (ev.key === 'Escape') setOpen(false);
     };
     document.addEventListener('mousedown', handlePointer);
     document.addEventListener('touchstart', handlePointer);
@@ -85,27 +85,24 @@ export function RedeemPopover() {
   const handleRedeem = useCallback(async () => {
     if (!session) { signInWithSteam(); return; }
     const c = code.trim().toUpperCase();
-    if (!c) { setMsg({ ok: false, text: t('redeem_enter_code') }); return; }
-    setBusy(true); setMsg(null);
+    if (!c) { showToast('error', t('redeem_enter_code')); return; }
+    setBusy(true);
     try {
       const res = await apiClient.post('/redeem', { code: c });
       const data = res.data;
       if (data.ok === false) {
-        setMsg({ ok: false, text: data.message ?? t('redeem_code_rejected') });
+        showToast('error', data.message ?? t('redeem_code_rejected'));
       } else {
-        setMsg({
-          ok: true,
-          text: t('redeem_success', { amount: data.amount, required: data.wageringRequired }),
-        });
+        showToast('success', t('redeem_success', { amount: data.amount, required: data.wageringRequired }));
         setCode('');
         if (historyOpen) loadHistory();
       }
     } catch (e) {
-      setMsg({ ok: false, text: e instanceof Error ? e.message : t('common_network_error') });
+      showToast('error', e instanceof Error ? e.message : t('common_network_error'));
     } finally {
       setBusy(false);
     }
-  }, [session, code, historyOpen, loadHistory, t]);
+  }, [session, code, historyOpen, loadHistory, t, showToast]);
 
   const toggleHistory = useCallback(() => {
     const next = !historyOpen;
@@ -115,7 +112,6 @@ export function RedeemPopover() {
 
   const closePanel = () => {
     setOpen(false);
-    setMsg(null);
   };
 
   return (
@@ -178,20 +174,9 @@ export function RedeemPopover() {
                 </button>
               </div>
 
-              {msg ? (
-                <p
-                  className={cn(
-                    'text-[11px] leading-snug',
-                    msg.ok ? 'text-aoe-emerald-bright' : 'text-aoe-crimson-bright',
-                  )}
-                >
-                  {msg.text}
-                </p>
-              ) : (
-                <p className="text-[11px] text-[#8981ab] leading-snug">
-                  {t('redeem_hint')}
-                </p>
-              )}
+              <p className="text-[11px] text-[#8981ab] leading-snug">
+                {t('redeem_hint')}
+              </p>
 
               <button
                 onClick={toggleHistory}

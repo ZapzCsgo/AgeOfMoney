@@ -7,6 +7,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { signInWithSteam } from '@/lib/authHelpers';
 import { useT } from '@/lib/i18n';
+import { useNotifications } from '@/contexts/NotificationsContext';
 import { Match, BoResult, Bet } from '@/types';
 import { getMatch, getMyBets, setAuthToken } from '@/lib/api';
 import { BetForm } from '@/components/matches/BetForm';
@@ -218,12 +219,12 @@ interface ExactScoreEntry { score: string; player: 0|1|2; loserGames: number; od
 
 function ExactScoreBets({ match, onBetPlaced }: { match: Match; onBetPlaced: () => void }) {
   const { t } = useT();
+  const { showToast } = useNotifications();
   const { data: session } = useSession();
   const [scores, setScores] = useState<ExactScoreEntry[]>([]);
   const [selected, setSelected] = useState<ExactScoreEntry | null>(null);
   const [amount, setAmount] = useState('10');
   const [placing, setPlacing] = useState(false);
-  const [msg, setMsg] = useState<{ type: 'ok'|'err'; text: string } | null>(null);
 
   useEffect(() => {
     fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/v1/bets/exact-scores/${match.id}`)
@@ -232,7 +233,7 @@ function ExactScoreBets({ match, onBetPlaced }: { match: Match; onBetPlaced: () 
 
   const handleBet = async () => {
     if (!session?.user?.accessToken || !selected) return;
-    setPlacing(true); setMsg(null);
+    setPlacing(true);
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/v1/bets/exact`, {
         method: 'POST',
@@ -250,17 +251,17 @@ function ExactScoreBets({ match, onBetPlaced }: { match: Match; onBetPlaced: () 
       });
       const data = await res.json();
       if (res.status === 409 && data.code === 'ODDS_CHANGED') {
-        setMsg({ type: 'err', text: t('bet_odds_changed', { odds: data.currentOdds?.toFixed(2) ?? '?' }) });
+        showToast('error', t('bet_odds_changed', { odds: data.currentOdds?.toFixed(2) ?? '?' }));
         // Refresh the scores list so the next click uses the new odds.
         fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/v1/bets/exact-scores/${match.id}`)
           .then(r => r.json()).then(r => setScores(r.data ?? [])).catch(() => {});
         return;
       }
-      if (!res.ok) { setMsg({ type: 'err', text: data.error ?? t('common_error') }); return; }
-      setMsg({ type: 'ok', text: t('bet_placed_success', { score: selected.score, odds: selected.odds }) });
+      if (!res.ok) { showToast('error', data.error ?? t('common_error')); return; }
+      showToast('success', t('bet_placed_success', { score: selected.score, odds: selected.odds }));
       setSelected(null); setAmount('10');
       onBetPlaced();
-    } catch { setMsg({ type: 'err', text: t('common_network_error') }); }
+    } catch { showToast('error', t('common_network_error')); }
     finally { setPlacing(false); }
   };
 
@@ -364,9 +365,6 @@ function ExactScoreBets({ match, onBetPlaced }: { match: Match; onBetPlaced: () 
             );
           })()}
         </div>
-      )}
-      {msg && (
-        <p className={`text-[11px] font-cinzel ${msg.type === 'ok' ? 'text-emerald-400' : 'text-red-400'}`}>{msg.text}</p>
       )}
     </div>
   );

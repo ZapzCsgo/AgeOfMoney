@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Users, Clock, Trophy, ShieldCheck, ExternalLink, Copy, Check, X } from 'lucide-react';
 import { parseCoinAmount } from '@/lib/utils';
 import { useT } from '@/lib/i18n';
+import { useNotifications } from '@/contexts/NotificationsContext';
 
 interface JackpotUser {
   id: string;
@@ -454,13 +455,13 @@ function JackpotWheel({
 
 export default function JackpotPage() {
   const { t } = useT();
+  const { showToast } = useNotifications();
   const { data: session } = useSession();
   const userId = (session?.user as { id?: string } | undefined)?.id;
 
   const [round, setRound] = useState<JackpotRound | null>(null);
   const [betAmount, setBetAmount] = useState('10');
   const [placing, setPlacing] = useState(false);
-  const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [reveal, setReveal] = useState<{ winner: JackpotUser; netPayout: number; rngSource: string; winningTicket: number; potTotal: number; chance: number } | null>(null);
   const revealTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -625,7 +626,7 @@ export default function JackpotPage() {
         ? { ...prev, status: 'CANCELLED' }
         : prev
       );
-      showMsg('error', t('jackpot_round_cancelled'));
+      showToast('error', t('jackpot_round_cancelled'));
     });
 
     return () => {
@@ -640,22 +641,17 @@ export default function JackpotPage() {
     };
   }, []);
 
-  function showMsg(type: 'success' | 'error', text: string) {
-    setMsg({ type, text });
-    setTimeout(() => setMsg(null), 3000);
-  }
-
   async function handleBet() {
     if (!session) { signInWithSteam(); return; }
     const amount = parseCoinAmount(betAmount);
-    if (!amount || amount < MIN_BET) { showMsg('error', `Minimum ${MIN_BET} ⚜`); return; }
-    if (amount > MAX_BET) { showMsg('error', `Maximum ${MAX_BET} ⚜`); return; }
+    if (!amount || amount < MIN_BET) { showToast('error', `Minimum ${MIN_BET} ⚜`); return; }
+    if (amount > MAX_BET) { showToast('error', `Maximum ${MAX_BET} ⚜`); return; }
     setPlacing(true);
     try {
       await apiClient.post('/jackpot/bet', { amount });
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: string } }; message?: string };
-      showMsg('error', err?.response?.data?.error ?? err?.message ?? t('common_error'));
+      showToast('error', err?.response?.data?.error ?? err?.message ?? t('common_error'));
     } finally {
       setPlacing(false);
     }
@@ -756,20 +752,6 @@ export default function JackpotPage() {
             </button>
           </div>
         </div>
-
-        {/* Flash message */}
-        {msg && (
-          <div
-            className="mb-4 px-4 py-2 rounded-lg text-sm text-center"
-            style={{
-              background: msg.type === 'success' ? 'rgba(74,222,128,0.1)' : 'rgba(248,113,113,0.1)',
-              border: `1px solid ${msg.type === 'success' ? 'rgba(74,222,128,0.3)' : 'rgba(248,113,113,0.3)'}`,
-              color: msg.type === 'success' ? '#4ade80' : '#f87171',
-            }}
-          >
-            {msg.text}
-          </div>
-        )}
 
         {viewTab === 'live' && (
         <>

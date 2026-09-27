@@ -8,7 +8,7 @@ import { ChatPanel } from '@/components/layout/ChatPanel';
 import { Footer } from '@/components/layout/Footer';
 import { MobileNav } from '@/components/layout/MobileNav';
 import { Providers } from './providers';
-import { BetNotifications } from '@/components/BetNotifications';
+import { GlobalNotifications } from '@/components/GlobalNotifications';
 import { JackpotCountdownAlert } from '@/components/JackpotCountdownAlert';
 // RainWidget is mounted inside ChatPanel (top of the right column) so it
 // doesn't overlay the navbar. See components/layout/ChatPanel.tsx.
@@ -349,8 +349,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {/* Mobile bottom nav */}
           <MobileNav />
 
-          {/* Global bet result notifications */}
-          <BetNotifications />
+          {/* Global toast stack — bet results + client-fired success/error/info toasts */}
+          <GlobalNotifications />
 
           {/* Global jackpot "8s before launch" toast — fires anywhere on the site */}
           <JackpotCountdownAlert />

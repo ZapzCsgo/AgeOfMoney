@@ -6,8 +6,8 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { signInWithSteam } from '@/lib/authHelpers';
 import { apiClient, setAuthToken } from '@/lib/api';
-import { cn } from '@/lib/utils';
 import { useT } from '@/lib/i18n';
+import { useNotifications } from '@/contexts/NotificationsContext';
 import {
   Copy, Check, Users, TrendingUp, Coins, UserCheck, Rocket,
 } from 'lucide-react';
@@ -83,6 +83,7 @@ function EarningsChart({ data }: { data: number[] }) {
 export default function AffiliatePage() {
   const { data: session, status } = useSession();
   const { t } = useT();
+  const { showToast } = useNotifications();
 
   const [aff, setAff] = useState<AffiliateData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -92,11 +93,8 @@ export default function AffiliatePage() {
   const [copied, setCopied] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('tiers');
   const [referralFilter, setReferralFilter] = useState<'all' | 'active'>('all');
-  const [claimMsg, setClaimMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
-  const [createErr, setCreateErr] = useState<string | null>(null);
   const [editingCode, setEditingCode] = useState(false);
   const [newCodeInput, setNewCodeInput] = useState('');
-  const [changeErr, setChangeErr] = useState<string | null>(null);
   const [changing, setChanging] = useState(false);
 
   useEffect(() => {
@@ -120,14 +118,13 @@ export default function AffiliatePage() {
   }, [session]);
 
   async function createCode() {
-    setCreateErr(null);
     const trimmed = customCode.trim();
     if (!trimmed) {
-      setCreateErr('Choisis un code');
+      showToast('error', t('aff_choose_code_err'));
       return;
     }
     if (!/^[A-Za-z0-9]{4,16}$/.test(trimmed)) {
-      setCreateErr(t('affiliate_code_format_err'));
+      showToast('error', t('affiliate_code_format_err'));
       return;
     }
     setCreating(true);
@@ -136,18 +133,16 @@ export default function AffiliatePage() {
       setAff(res.data.data);
       await fetchAff();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : t('affiliate_create_err');
-      setCreateErr(msg);
+      showToast('error', e instanceof Error ? e.message : t('affiliate_create_err'));
     } finally {
       setCreating(false);
     }
   }
 
   async function changeCode() {
-    setChangeErr(null);
     const trimmed = newCodeInput.trim();
     if (!/^[A-Za-z0-9]{4,16}$/.test(trimmed)) {
-      setChangeErr(t('affiliate_code_format_err'));
+      showToast('error', t('affiliate_code_format_err'));
       return;
     }
     setChanging(true);
@@ -158,7 +153,7 @@ export default function AffiliatePage() {
       setNewCodeInput('');
       await fetchAff();
     } catch (e) {
-      setChangeErr(e instanceof Error ? e.message : t('common_error'));
+      showToast('error', e instanceof Error ? e.message : t('common_error'));
     } finally {
       setChanging(false);
     }
@@ -168,13 +163,12 @@ export default function AffiliatePage() {
     setClaiming(true);
     try {
       const res = await apiClient.post('/affiliate/claim', {});
-      setClaimMsg({ type: 'ok', text: t('affiliate_claimed_credited', { amount: res.data.claimed.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) }) });
+      showToast('success', t('affiliate_claimed_credited', { amount: res.data.claimed.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) }));
       fetchAff();
     } catch (e) {
-      setClaimMsg({ type: 'err', text: e instanceof Error ? e.message : t('common_error') });
+      showToast('error', e instanceof Error ? e.message : t('common_error'));
     } finally {
       setClaiming(false);
-      setTimeout(() => setClaimMsg(null), 4000);
     }
   }
 
@@ -297,7 +291,7 @@ export default function AffiliatePage() {
                   style={{ background: '#ffc542', color: '#07060f' }}>
                   {changing ? '...' : t('aff_confirm')}
                 </button>
-                <button onClick={() => { setEditingCode(false); setNewCodeInput(''); setChangeErr(null); }}
+                <button onClick={() => { setEditingCode(false); setNewCodeInput(''); }}
                   className="px-4 py-2.5 rounded-lg text-[12px]"
                   style={{ background: 'transparent', border: '1px solid #2a2640', color: '#8a82a8' }}>
                   {t('aff_cancel')}
@@ -342,12 +336,6 @@ export default function AffiliatePage() {
               </div>
             )}
 
-            {createErr && !aff && (
-              <p className="text-[11px] text-red-400 mt-3">{createErr}</p>
-            )}
-            {changeErr && editingCode && (
-              <p className="text-[11px] text-red-400 mt-3">{changeErr}</p>
-            )}
           </div>
         </div>
 
@@ -404,11 +392,6 @@ export default function AffiliatePage() {
                         </button>
                       </div>
                       <p className="text-[11px]" style={{ color: '#8981ab' }}>{t('aff_available')}</p>
-                      {claimMsg && (
-                        <p className={cn('text-[11px] mt-2', claimMsg.type === 'ok' ? 'text-emerald-400' : 'text-red-400')}>
-                          {claimMsg.text}
-                        </p>
-                      )}
                     </div>
 
                     <div className="rounded-xl p-4" style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}>

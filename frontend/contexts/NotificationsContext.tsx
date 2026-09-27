@@ -8,11 +8,28 @@ export type AppNotification =
   | (BetResultPayload & { id: string; at: number; read: boolean; notifType: 'betResult' })
   | (AppNotificationPayload & { id: string; at: number; read: boolean; notifType: 'system' });
 
+export type ToastKind = 'success' | 'error' | 'info';
+export interface Toast {
+  id: string;
+  at: number;
+  kind: ToastKind;
+  message: string;
+}
+
 interface NotificationsCtx {
   notifications: AppNotification[];
   unreadCount: number;
   dismiss: (id: string) => void;
   markAllRead: () => void;
+  /** Transient success/error/info toasts fired from anywhere client-side —
+   *  no server round-trip, unlike bet-result/system notifications which
+   *  arrive over the socket. Kept in a separate list from `notifications`
+   *  so they never pollute the navbar bell's history/unread count; they
+   *  render in the same GlobalNotifications stack so every toast on the
+   *  site shares one visual language. */
+  toasts: Toast[];
+  showToast: (kind: ToastKind, message: string) => void;
+  dismissToast: (id: string) => void;
 }
 
 const Ctx = createContext<NotificationsCtx>({
@@ -20,17 +37,28 @@ const Ctx = createContext<NotificationsCtx>({
   unreadCount: 0,
   dismiss: () => {},
   markAllRead: () => {},
+  toasts: [],
+  showToast: () => {},
+  dismissToast: () => {},
 });
 
 export function NotificationsProvider({ children }: { children: ReactNode }) {
   const { data: session } = useSession();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [toasts, setToasts] = useState<Toast[]>([]);
   const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const toastTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   const dismiss = useCallback((id: string) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
     const t = timers.current.get(id);
     if (t) { clearTimeout(t); timers.current.delete(id); }
+  }, []);
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+    const t = toastTimers.current.get(id);
+    if (t) { clearTimeout(t); toastTimers.current.delete(id); }
   }, []);
 
   const markAllRead = useCallback(() => {
@@ -42,6 +70,17 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     const timer = setTimeout(() => dismiss(notif.id), 7000);
     timers.current.set(notif.id, timer);
   }, [dismiss]);
+
+  const showToast = useCallback((kind: ToastKind, message: string) => {
+    const id = `toast_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const toast: Toast = { id, at: Date.now(), kind, message };
+    setToasts(prev => [...prev, toast].slice(-4));
+    // Errors linger a touch longer than success/info — plain sentences take
+    // longer to read than the compact win/loss cards bet toasts use.
+    const ttl = kind === 'error' ? 6000 : 4500;
+    const timer = setTimeout(() => dismissToast(id), ttl);
+    toastTimers.current.set(id, timer);
+  }, [dismissToast]);
 
   useEffect(() => {
     if (!session?.user) return;
@@ -62,7 +101,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
-    <Ctx.Provider value={{ notifications, unreadCount, dismiss, markAllRead }}>
+    <Ctx.Provider value={{ notifications, unreadCount, dismiss, markAllRead, toasts, showToast, dismissToast }}>
       {children}
     </Ctx.Provider>
   );

@@ -3,12 +3,13 @@
 import { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { signInWithSteam } from '@/lib/authHelpers';
-import { Coins, TrendingUp, AlertCircle, CheckCircle } from 'lucide-react';
+import { Coins, TrendingUp, AlertCircle } from 'lucide-react';
 import { Match } from '@/types';
 import { placeBet } from '@/lib/api';
 import { setAuthToken } from '@/lib/api';
 import { cn, formatCoins, isMatchBettable } from '@/lib/utils';
 import { useT } from '@/lib/i18n';
+import { useNotifications } from '@/contexts/NotificationsContext';
 
 interface BetFormProps {
   match: Match;
@@ -19,6 +20,7 @@ interface BetFormProps {
 export function BetForm({ match, onBetPlaced, initialPlayer = null }: BetFormProps) {
   const { data: session } = useSession();
   const { t } = useT();
+  const { showToast } = useNotifications();
   const [selectedPlayer, setSelectedPlayer] = useState<1 | 2 | null>(
     initialPlayer === 1 || initialPlayer === 2 ? initialPlayer : null
   );
@@ -26,8 +28,6 @@ export function BetForm({ match, onBetPlaced, initialPlayer = null }: BetFormPro
   const [customAmount, setCustomAmount] = useState('');
   const [loading, setLoading] = useState(false);
   const [cooldown, setCooldown] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   const boNum = parseInt(match.format.replace(/\D/g, ''), 10) || 3;
   // BO2/BO4 are now 2-way void-on-draw — show a refund notice instead of a 3rd button.
@@ -55,12 +55,11 @@ export function BetForm({ match, onBetPlaced, initialPlayer = null }: BetFormPro
     e.preventDefault();
 
     if (!session) { signInWithSteam(); return; }
-    if (!selectedPlayer) { setError(t('bet_err_select')); return; }
-    if (amount < 2) { setError(t('bet_err_min')); return; }
-    if (amount > 500) { setError(t('bet_err_max')); return; }
-    if (amount > userBalance) { setError(t('bet_err_balance')); return; }
+    if (!selectedPlayer) { showToast('error', t('bet_err_select')); return; }
+    if (amount < 2) { showToast('error', t('bet_err_min')); return; }
+    if (amount > 500) { showToast('error', t('bet_err_max')); return; }
+    if (amount > userBalance) { showToast('error', t('bet_err_balance')); return; }
 
-    setError(null);
     setLoading(true);
 
     try {
@@ -69,11 +68,10 @@ export function BetForm({ match, onBetPlaced, initialPlayer = null }: BetFormPro
       }
 
       await placeBet(match.id, amount, selectedPlayer, selectedOdds ?? undefined);
-      setSuccess(t('bet_success', { amount }));
+      showToast('success', t('bet_success', { amount }));
       onBetPlaced?.();
       setCooldown(true);
       setTimeout(() => setCooldown(false), 3000);
-      setTimeout(() => setSuccess(null), 4000);
     } catch (err) {
       // 409 ODDS_CHANGED: server recomputed odds differ > 5% from what the
       // user saw. Ask them to confirm with the new odds rather than placing
@@ -81,9 +79,9 @@ export function BetForm({ match, onBetPlaced, initialPlayer = null }: BetFormPro
       const axiosErr = err as { response?: { status?: number; data?: { code?: string; currentOdds?: number; expectedOdds?: number } } };
       if (axiosErr.response?.status === 409 && axiosErr.response.data?.code === 'ODDS_CHANGED') {
         const cur = axiosErr.response.data.currentOdds;
-        setError(t('bet_odds_changed', { odds: cur?.toFixed(2) ?? '?' }));
+        showToast('error', t('bet_odds_changed', { odds: cur?.toFixed(2) ?? '?' }));
       } else {
-        setError(err instanceof Error ? err.message : t('bet_err_generic'));
+        showToast('error', err instanceof Error ? err.message : t('bet_err_generic'));
       }
     } finally {
       setLoading(false);
@@ -271,22 +269,6 @@ export function BetForm({ match, onBetPlaced, initialPlayer = null }: BetFormPro
               {new Intl.NumberFormat('fr-FR').format(userBalance)} ⚜
             </span>
           </div>
-
-          {/* Error message */}
-          {error && (
-            <div className="flex items-center gap-2 p-2.5 rounded bg-red-900/20 border border-red-800/50">
-              <AlertCircle size={14} className="text-red-400 flex-shrink-0" />
-              <p className="text-red-400 text-xs">{error}</p>
-            </div>
-          )}
-
-          {/* Success message */}
-          {success && (
-            <div className="flex items-center gap-2 p-2.5 rounded bg-emerald-900/20 border border-emerald-800/50">
-              <CheckCircle size={14} className="text-emerald-400 flex-shrink-0" />
-              <p className="text-emerald-400 text-xs">{success}</p>
-            </div>
-          )}
 
           {/* Submit button */}
           <button

@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useT } from '@/lib/i18n';
+import { useNotifications } from '@/contexts/NotificationsContext';
 import { cn, formatCoins } from '@/lib/utils';
 import { ArrowUpFromLine, ArrowDownToLine, Check, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
@@ -102,12 +103,12 @@ type Step = 'form' | 'confirm' | '2fa' | 'success';
 export default function WithdrawPage() {
   const { data: session } = useSession();
   const { t } = useT();
+  const { showToast } = useNotifications();
   const [selectedCrypto, setSelectedCrypto] = useState('usdt');
   const [coinsAmount, setCoinsAmount] = useState('');
   const [walletAddress, setWalletAddress] = useState('');
   const [step, setStep] = useState<Step>('form');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [txId, setTxId] = useState('');
   const [twoFaCode, setTwoFaCode] = useState('');
   const [twoFaError, setTwoFaError] = useState('');
@@ -134,7 +135,6 @@ export default function WithdrawPage() {
   const handleSubmit = async (alreadyLoading = false) => {
     if (!isValid || !session) return;
     if (!alreadyLoading) setLoading(true);
-    setError('');
     try {
       const res = await fetch('/api/payments/crypto/withdraw', {
         method: 'POST',
@@ -147,14 +147,14 @@ export default function WithdrawPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || data.message || t('common_error'));
+        showToast('error', data.error || data.message || t('common_error'));
         setLoading(false);
         return;
       }
       setTxId(data.data?.id || data.id || '');
       setStep('success');
     } catch {
-      setError(t('common_error'));
+      showToast('error', t('common_error'));
     } finally {
       setLoading(false);
     }
@@ -274,12 +274,6 @@ export default function WithdrawPage() {
             )}
           </div>
 
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mb-4 text-red-400 text-sm">
-              {error}
-            </div>
-          )}
-
           <div className="flex gap-3">
             <button
               onClick={() => { setStep('confirm'); setTwoFaCode(''); setTwoFaError(''); }}
@@ -348,15 +342,9 @@ export default function WithdrawPage() {
             </p>
           </div>
 
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mb-4 text-red-400 text-sm">
-              {error}
-            </div>
-          )}
-
           <div className="flex gap-3">
             <button
-              onClick={() => { setStep('form'); setError(''); }}
+              onClick={() => setStep('form')}
               className="flex-1 py-3 border border-aoe-border rounded-lg text-aoe-parchment-dim hover:border-aoe-border-gold hover:text-aoe-parchment transition-all text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc542]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0d0b1a]"
               disabled={loading}
             >

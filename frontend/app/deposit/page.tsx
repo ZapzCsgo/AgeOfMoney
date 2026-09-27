@@ -5,8 +5,9 @@ export const dynamic = 'force-dynamic';
 import { useState, useMemo, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useT } from '@/lib/i18n';
+import { useNotifications } from '@/contexts/NotificationsContext';
 import { cn } from '@/lib/utils';
-import { ArrowDownToLine, ArrowUpFromLine, Check, Copy, AlertTriangle, RefreshCw, Zap, Shield, Clock, Gift, CreditCard } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpFromLine, Check, Copy, RefreshCw, Zap, Shield, Clock, Gift, CreditCard } from 'lucide-react';
 import Link from 'next/link';
 
 async function handleSteamLogin(callbackPath = '/deposit') {
@@ -103,6 +104,7 @@ interface Invoice {
 export default function DepositPage() {
   const { data: session } = useSession();
   const { t } = useT();
+  const { showToast } = useNotifications();
 
   const [customUsd, setCustomUsd]              = useState('5');
   const [selectedCrypto, setCrypto]            = useState<typeof CRYPTOS[0]>(CRYPTOS[0]);
@@ -134,7 +136,6 @@ export default function DepositPage() {
   }, []);
   const [invoice, setInvoice]                  = useState<Invoice | null>(null);
   const [loading, setLoading]                  = useState(false);
-  const [error, setError]                      = useState<string | null>(null);
 
   // Backend stores coins as Decimal(20, 8) so we no longer floor : $5.20
   // converts to exactly 5.20 × 1.69 = 8.788 ⚜ instead of 8 (the previous
@@ -196,10 +197,10 @@ export default function DepositPage() {
 
   const handleDeposit = async () => {
     if (!session) { handleSteamLogin(); return; }
-    if (!baseCoins || baseCoins < 1) { setError(t('deposit_select_crypto')); return; }
-    if (usdCost < 3) { setError(t('deposit_min') + ' $3.00 (≈ 5 ⚜)'); return; }
+    if (!baseCoins || baseCoins < 1) { showToast('error', t('deposit_select_crypto')); return; }
+    if (usdCost < 3) { showToast('error', t('deposit_min') + ' $3.00 (≈ 5 ⚜)'); return; }
 
-    setLoading(true); setError(null);
+    setLoading(true);
     try {
       // Card path → backend creates OxaPay white-label invoice and returns a
       // MoonPay widget URL with our TRC20 wallet pre-filled as destination.
@@ -242,7 +243,7 @@ export default function DepositPage() {
         setInvoice({ ...data, crypto: paymentMethod === 'card' ? 'USDT' : selectedCrypto.symbol });
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : t('common_error'));
+      showToast('error', e instanceof Error ? e.message : t('common_error'));
     } finally {
       setLoading(false);
     }
@@ -625,14 +626,6 @@ export default function DepositPage() {
             )}
             {promoError && <p className="text-red-400 text-xs mt-1.5">{promoError}</p>}
           </div>
-
-          {/* ERROR */}
-          {error && (
-            <div className="flex items-center gap-2 p-3 rounded-xl text-xs" style={{ background: 'rgba(231,76,60,0.08)', border: '1px solid rgba(231,76,60,0.25)' }}>
-              <AlertTriangle size={12} className="text-red-400 shrink-0" />
-              <span className="text-red-400">{error}</span>
-            </div>
-          )}
 
           {/* CTA — minimal solid button, no decoration */}
           <div className="pt-2 border-t" style={{ borderColor: 'rgba(255,197,66,0.2)' }}>

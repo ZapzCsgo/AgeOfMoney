@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useT } from '@/lib/i18n';
+import { useNotifications } from '@/contexts/NotificationsContext';
 import { cn, parseCoinAmount, round2 } from '@/lib/utils';
 import { apiClient, setAuthToken } from '@/lib/api';
 import { Shield, Crown, Target, ShieldCheck, X, Copy, Check } from 'lucide-react';
@@ -79,11 +80,11 @@ const GLOBAL_CSS = `
 function RoulettePageImpl() {
   const { data: session } = useSession();
   const { t } = useT();
+  const { showToast } = useNotifications();
   const [round, setRound] = useState<Round | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [selectedZone, setSelectedZone] = useState<Zone | null>(null);
   const [betAmount, setBetAmount] = useState('');
-  const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [countdown, setCountdown] = useState(0);
   const [countdownExact, setCountdownExact] = useState(0); // float for smooth arc
   const [phase, setPhase] = useState<'idle' | 'betting' | 'spinning' | 'result'>('idle');
@@ -477,16 +478,16 @@ function RoulettePageImpl() {
   }
 
   async function placeBet() {
-    if (!session) { showMsg('error', t('auth_required')); return; }
-    if (!selectedZone) { showMsg('error', t('bet_err_select')); return; }
+    if (!session) { showToast('error', t('auth_required')); return; }
+    if (!selectedZone) { showToast('error', t('bet_err_select')); return; }
     // Decimal-aware parsing : accept "1.2" and "1,2" alike.
     const amount = parseCoinAmount(betAmount);
-    if (!amount || amount < 1) { showMsg('error', t('roulette_err_min')); return; }
+    if (!amount || amount < 1) { showToast('error', t('roulette_err_min')); return; }
     // Defensive : the zone is also disabled in the UI when locked, but
     // if the user spam-clicked between renders this catches it before
     // the optimistic update fires.
     if (selectedZone === lockedZone) {
-      showMsg('error', "Can't combine Knights and Archers in the same round");
+      showToast('error', selectedZone === 'KNIGHTS' ? t('roulette_zone_lock_archers') : t('roulette_zone_lock_knights'));
       return;
     }
     // Keep amount so user can chain bets without retyping
@@ -515,7 +516,7 @@ function RoulettePageImpl() {
     apiClient.post('/roulette/bet', { zone: selectedZone, amount })
       .catch((e: unknown) => {
         const err = e as { response?: { data?: { error?: string } } };
-        showMsg('error', err?.response?.data?.error ?? t('common_error'));
+        showToast('error', err?.response?.data?.error ?? t('common_error'));
         // Rollback the same change we just made : either decrement the
         // existing row or remove the optimistic row by its captured id.
         setRound(prev => {
@@ -531,10 +532,6 @@ function RoulettePageImpl() {
           return { ...prev, bets: prev.bets.filter(b => b.id !== optimisticId) };
         });
       });
-  }
-
-  function showMsg(type: 'success' | 'error', text: string) {
-    setMsg({ type, text }); setTimeout(() => setMsg(null), 3000);
   }
 
   function copyToClipboard(text: string, key: string) {
@@ -922,12 +919,6 @@ function RoulettePageImpl() {
 
         {/* Bet controls */}
         <div className="rounded-xl p-4 mb-5" style={{ background:'#0d0b1a', border:'1px solid rgba(255,197,66,0.2)' }}>
-          {msg && (
-            <div className={cn('p-2.5 rounded-lg mb-3 text-[12px]',
-              msg.type==='success'?'bg-emerald-950 border border-emerald-800/40 text-emerald-400':'bg-red-950 border border-red-800/40 text-red-400')}>
-              {msg.text}
-            </div>
-          )}
           {/* Stacked on mobile so the input occupies its own full-width row
               (used to be one of 7 cells in a single row → 60-80 px wide, the
               placeholder was clipped and the input looked identical to a

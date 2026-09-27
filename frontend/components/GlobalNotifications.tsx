@@ -1,22 +1,56 @@
 'use client';
 
+import { AlertTriangle, CheckCircle2, Info, X } from 'lucide-react';
 import { useNotifications } from '@/contexts/NotificationsContext';
 import { useT } from '@/lib/i18n';
 
-export function BetNotifications() {
-  const { notifications, dismiss } = useNotifications();
+const TOAST_STYLE = {
+  success: { border: '#2a5c2a', bg: '#0a1a0a', icon: '#4ade80', Icon: CheckCircle2 },
+  error:   { border: '#4a1a2a', bg: '#12080f', icon: '#f87171', Icon: AlertTriangle },
+  info:    { border: '#3d3860', bg: '#0f0d1a', icon: '#ffc542', Icon: Info },
+} as const;
+
+/** Global toast stack — bet-result cards (pushed over the socket) and plain
+ * success/error/info toasts (fired client-side via useNotifications().showToast)
+ * share this one fixed bottom-right column so every transient message on the
+ * site looks and behaves the same way. */
+export function GlobalNotifications() {
+  const { notifications, dismiss, toasts, dismissToast } = useNotifications();
   const { t } = useT();
 
-  // Only show recent unread bet-result toasts (last 5, within 7s)
-  const toasts = notifications
+  const betToasts = notifications
     .filter(n => n.notifType === 'betResult' && !n.read && Date.now() - n.at < 7000)
     .slice(0, 5);
 
-  if (toasts.length === 0) return null;
+  if (betToasts.length === 0 && toasts.length === 0) return null;
 
   return (
-    <div className="fixed bottom-20 right-4 z-[9999] flex flex-col gap-2 md:bottom-4">
-      {toasts.map(n => {
+    <div className="fixed bottom-20 right-4 z-[9999] flex flex-col-reverse gap-2 md:bottom-4">
+      {toasts.map(toast => {
+        const s = TOAST_STYLE[toast.kind];
+        const Icon = s.Icon;
+        return (
+          <div
+            key={toast.id}
+            role="status"
+            className="relative flex items-start gap-3 rounded-lg border px-4 py-3 shadow-2xl backdrop-blur-sm
+              w-[300px] sm:w-[340px] text-sm animate-in slide-in-from-right-4"
+            style={{ background: s.bg, borderColor: s.border, color: '#e8e2f5' }}
+          >
+            <Icon size={18} className="mt-0.5 shrink-0" style={{ color: s.icon }} />
+            <p className="flex-1 min-w-0 leading-snug">{toast.message}</p>
+            <button
+              onClick={() => dismissToast(toast.id)}
+              aria-label={t('common_close')}
+              className="shrink-0 text-[#9988bb] hover:text-[#e8e2f5] transition-colors mt-0.5"
+            >
+              <X size={15} />
+            </button>
+          </div>
+        );
+      })}
+
+      {betToasts.map(n => {
         if (n.notifType !== 'betResult') return null;
         const refunded = n.refunded === true || n.status === 'REFUNDED';
         return (

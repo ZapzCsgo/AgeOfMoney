@@ -6,6 +6,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { signInWithSteam } from '@/lib/authHelpers';
 import { useT } from '@/lib/i18n';
+import { useNotifications } from '@/contexts/NotificationsContext';
 import { cn, parseCoinAmount, round2 } from '@/lib/utils';
 import { apiClient, setAuthToken } from '@/lib/api';
 import { Coins, Plus, Users, Trophy, Clock } from 'lucide-react';
@@ -135,6 +136,7 @@ function CancelOrWait({ gameId, createdAt, onCancel }: { gameId: string; created
 export default function CoinFlipPage() {
   const { data: session } = useSession();
   const { t } = useT();
+  const { showToast } = useNotifications();
 
   const [games, setGames] = useState<CoinFlipGame[]>([]);
   // Recent completed flips are now derived from the live `games` list rather
@@ -142,7 +144,6 @@ export default function CoinFlipPage() {
   // recent COMPLETED within 30min alongside WAITING/FLIPPING.
   const [betAmount, setBetAmount] = useState('5');
   const [selectedSide, setSelectedSide] = useState<CoinSide>('crown');
-  const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [creating, setCreating] = useState(false);
 
   // Modal state
@@ -253,15 +254,15 @@ export default function CoinFlipPage() {
     }
     const amount = parseCoinAmount(betAmount);
     if (!amount || amount < 2) {
-      showMsg('error', 'Minimum 2 ⚜');
+      showToast('error', 'Minimum 2 ⚜');
       return;
     }
     if (amount > 500) {
-      showMsg('error', 'Maximum 500 ⚜');
+      showToast('error', 'Maximum 500 ⚜');
       return;
     }
     if (amount > userCoins) {
-      showMsg('error', t('bet_err_balance'));
+      showToast('error', t('bet_err_balance'));
       return;
     }
 
@@ -276,7 +277,7 @@ export default function CoinFlipPage() {
       setBetAmount('5');
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: string } }; message?: string };
-      showMsg('error', err?.response?.data?.error ?? err?.message ?? t('common_error'));
+      showToast('error', err?.response?.data?.error ?? err?.message ?? t('common_error'));
     } finally {
       setCreating(false);
     }
@@ -290,7 +291,7 @@ export default function CoinFlipPage() {
       return;
     }
     if (game.creator.id === userId) {
-      showMsg('error', t('coinflip_cant_join_own'));
+      showToast('error', t('coinflip_cant_join_own'));
       return;
     }
     try {
@@ -300,7 +301,7 @@ export default function CoinFlipPage() {
       setModalOpen(true);
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: string } }; message?: string };
-      showMsg('error', err?.response?.data?.error ?? err?.message ?? t('common_error'));
+      showToast('error', err?.response?.data?.error ?? err?.message ?? t('common_error'));
     }
   }
 
@@ -313,10 +314,6 @@ export default function CoinFlipPage() {
     }
   }
 
-  function showMsg(type: 'success' | 'error', text: string) {
-    setMsg({ type, text });
-    setTimeout(() => setMsg(null), 3000);
-  }
 
   const waitingGames = games.filter((g) => g.status === 'WAITING');
   const recentResults = games.filter((g) => g.status === 'COMPLETED').slice(0, 10);
@@ -386,20 +383,6 @@ export default function CoinFlipPage() {
             </button>
           </div>
         </div>
-
-        {/* Message */}
-        {msg && (
-          <div
-            className={cn(
-              'p-2.5 rounded-lg mb-4 text-[12px]',
-              msg.type === 'success'
-                ? 'bg-emerald-950 border border-emerald-800/40 text-emerald-400'
-                : 'bg-red-950 border border-red-800/40 text-red-400'
-            )}
-          >
-            {msg.text}
-          </div>
-        )}
 
         {/* Historique tab — full completed flips list */}
         {viewTab === 'history' && (
