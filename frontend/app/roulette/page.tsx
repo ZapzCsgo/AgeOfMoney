@@ -951,6 +951,15 @@ function RoulettePageImpl() {
                   prizes={prizeList}
                   prizeIndex={wheelPrizeIndex}
                   spinningTime={6.5}
+                  // The library's default easing (cubic-bezier(0.0125, 0.1,
+                  // 0.1, 1)) is so front-loaded that the wheel visually
+                  // reaches its final position ~2.5s into the declared 6.5s
+                  // transition, then just sits still for the remaining ~4s —
+                  // looks exactly like "no animation, straight to the tile".
+                  // Verified live (sampling getBoundingClientRect during a
+                  // real spin) that this curve instead spans ~6.2 of the
+                  // 6.5s, decelerating smoothly into the last moment.
+                  transitionFunction="cubic-bezier(0.15, 0.85, 0.25, 1)"
                   designPlugin={wheelDesignPlugin}
                   options={{ withoutAnimation: wheelSkipAnim }}
                   onPrizeDefined={() => {
