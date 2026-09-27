@@ -20,25 +20,70 @@ const GAME_TABS = [
   { id: 'AoM', label: 'AoM' },
 ] as const;
 
-const TIER_STYLE: Record<string, { bg: string; text: string; border: string }> = {
-  S: { bg: 'rgba(255,197,66,0.12)', text: '#ffc542', border: 'rgba(255,197,66,0.3)' },
-  A: { bg: 'rgba(167,139,250,0.10)', text: '#a78bfa', border: 'rgba(167,139,250,0.25)' },
-  B: { bg: 'rgba(96,165,250,0.08)', text: '#60a5fa', border: 'rgba(96,165,250,0.2)' },
-  C: { bg: 'rgba(107,100,136,0.08)', text: '#8981ab', border: 'rgba(107,100,136,0.2)' },
+// Crest colors — gold/silver/bronze/stone, no blue/purple.
+const TIER_CREST: Record<string, { metal: string; dark: string; text: string }> = {
+  S: { metal: '#ffc542', dark: '#8a6410', text: '#2a1d00' },
+  A: { metal: '#c9d0da', dark: '#6b7280', text: '#1c2027' },
+  B: { metal: '#cd8a4a', dark: '#7c4a1e', text: '#2a1608' },
+  C: { metal: '#8981ab', dark: '#4a4570', text: '#e8e2f5' },
 };
 
-// Per-game badge styles — match home page colors
-const GAME_STYLE: Record<string, { bg: string; text: string; border: string }> = {
-  AoE4: { bg: 'rgba(255,197,66,0.10)', text: '#ffd97a', border: 'rgba(255,197,66,0.25)' },  // gold
-  AoE2: { bg: 'rgba(248,113,113,0.10)', text: '#f87171', border: 'rgba(248,113,113,0.40)' }, // red-400
-  AoE3: { bg: 'rgba(96,165,250,0.10)', text: '#60a5fa', border: 'rgba(96,165,250,0.40)' },   // blue-400
-  AoM:  { bg: 'rgba(52,211,153,0.10)', text: '#34d399', border: 'rgba(52,211,153,0.40)' },   // emerald-400
-  AoE1: { bg: 'rgba(251,146,60,0.10)', text: '#fb923c', border: 'rgba(251,146,60,0.40)' },   // orange-400
+// One shared badge chrome for every game — differentiated only by a small
+// tonal dot (gold/bronze/stone family), never by random bright hues.
+const GAME_STYLE: Record<string, { dot: string }> = {
+  AoE4: { dot: '#ffc542' },
+  AoE2: { dot: '#cd8a4a' },
+  AoE3: { dot: '#8981ab' },
+  AoM:  { dot: '#d9a441' },
+  AoE1: { dot: '#a8763e' },
 };
 
 function formatDate(dateStr?: string): string {
   if (!dateStr) return '';
   return new Date(dateStr).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+// ── Tier crest — shield emblem with the tier letter engraved ──────────────────
+function TierCrest({ tier, size = 32 }: { tier: string; size?: number }) {
+  const c = TIER_CREST[tier] ?? TIER_CREST.C;
+  return (
+    <svg width={size} height={size * 1.15} viewBox="0 0 26 30" fill="none" className="shrink-0">
+      <path
+        d="M13 1 L24 5 V14 C24 21 19.5 26.5 13 29 C6.5 26.5 2 21 2 14 V5 Z"
+        fill={c.dark} fillOpacity={0.25}
+        stroke={c.metal} strokeWidth={1.4}
+      />
+      <text x="13" y="18.5" textAnchor="middle" fontFamily="Cinzel, serif" fontWeight={700} fontSize={11} fill={c.metal}>
+        {tier}
+      </text>
+    </svg>
+  );
+}
+
+// ── Decorative banner strip — abstract per-game pattern, no game artwork ──────
+function GameBanner({ game, muted }: { game?: string; muted?: boolean }) {
+  const dot = (game && GAME_STYLE[game]?.dot) || GAME_STYLE.AoE4.dot;
+  const patternId = `banner-pattern-${game ?? 'default'}`;
+  return (
+    <div
+      className="relative h-16 overflow-hidden"
+      style={{ background: 'linear-gradient(135deg, #0d0b1a 0%, #07060f 100%)' }}
+    >
+      <svg width="100%" height="100%" className="absolute inset-0" style={{ opacity: muted ? 0.12 : 0.3 }}>
+        <defs>
+          <pattern id={patternId} width="28" height="28" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="28" stroke={dot} strokeWidth="1" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill={`url(#${patternId})`} />
+      </svg>
+      <div
+        className="absolute inset-0"
+        style={{ background: `radial-gradient(ellipse at 15% 50%, ${dot}22 0%, transparent 65%)` }}
+      />
+      <div className="absolute bottom-0 left-0 right-0 h-px" style={{ background: `linear-gradient(90deg, transparent, ${dot}55 50%, transparent)` }} />
+    </div>
+  );
 }
 
 // ── Match Mini Row ─────────────────────────────────────────────────────────────
@@ -82,8 +127,8 @@ function MatchMiniRow({ match }: { match: Match }) {
   );
 }
 
-// ── Tournament Card ────────────────────────────────────────────────────────────
-function TournamentCard({ tournament }: { tournament: Tournament & { _count?: { matches: number } } }) {
+// ── Tournament Card (banner card) ──────────────────────────────────────────────
+function TournamentCard({ tournament, featured = false }: { tournament: Tournament & { _count?: { matches: number } }; featured?: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const [matches, setMatches]   = useState<Match[]>([]);
   const [loadingMatches, setLoadingMatches] = useState(false);
@@ -109,60 +154,62 @@ function TournamentCard({ tournament }: { tournament: Tournament & { _count?: { 
   const isActive  = tournament.isActive && !endDatePassed;
   const matchCount = tournament._count?.matches ?? 0;
   const tier = tournament.tier ?? 'C';
-  const tierStyle = TIER_STYLE[tier] ?? TIER_STYLE.C;
 
-  // Visual status
+  // Visual status — gold for upcoming, red for ongoing/live, muted neutral for finished.
   const isOngoing = isActive && hasStarted;
   const isUpcoming = !hasStarted && !endDatePassed;
   const isFinished = endDatePassed || (!isActive && hasStarted);
-  const statusColor = isOngoing ? '#10b981' : isUpcoming ? '#60a5fa' : '#3d3860';
+  const statusColor = isOngoing ? '#ef4444' : isUpcoming ? '#ffc542' : '#6a6390';
 
   return (
     <div
-      className={cn("rounded-lg border overflow-hidden transition-colors relative", expanded && "lg:col-span-2")}
+      className={cn(
+        'rounded-lg border overflow-hidden transition-all duration-200 relative group/card cursor-pointer',
+        'hover:-translate-y-0.5',
+        expanded && 'lg:col-span-2'
+      )}
       style={{
         background: isFinished ? '#0a0918' : '#0d0b1a',
-        borderColor: isOngoing ? statusColor + '50' : isUpcoming ? 'rgba(255,197,66,0.2)' : '#151325',
-        opacity: isFinished ? 0.7 : 1,
+        borderColor: isOngoing ? statusColor + '55' : isUpcoming ? 'rgba(255,197,66,0.25)' : '#1e1a30',
+        opacity: isFinished ? 0.75 : 1,
       }}
+      onMouseEnter={(e) => { if (!isFinished) e.currentTarget.style.borderColor = isOngoing ? statusColor : '#ffc542'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.borderColor = isOngoing ? statusColor + '55' : isUpcoming ? 'rgba(255,197,66,0.25)' : '#1e1a30'; }}
     >
-      {/* Left status bar */}
-      <div className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: statusColor }} />
+      <GameBanner game={tournament.game} muted={isFinished} />
 
       <button onClick={handleToggle} className="w-full text-left">
-        <div className="flex items-center gap-4 px-4 py-3.5 pl-5">
-          {/* Tier badge */}
-          <div
-            className="shrink-0 w-8 h-8 rounded flex items-center justify-center text-[11px] font-black"
-            style={{ background: tierStyle.bg, color: tierStyle.text, border: `1px solid ${tierStyle.border}` }}
-          >
-            {tier}
-          </div>
+        <div className={cn('flex items-center gap-2 sm:gap-3 px-4', featured ? 'py-4' : 'py-3')}>
+          <TierCrest tier={tier} size={featured ? 40 : 30} />
+          <span className="hidden sm:inline text-[9px] font-bold uppercase tracking-wider shrink-0" style={{ color: TIER_CREST[tier]?.metal ?? '#8981ab' }}>
+            {t('tourn_tier')} {tier}
+          </span>
 
           {/* Info */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-0.5">
-              <h3 className={cn("text-[13px] font-semibold truncate", isFinished ? 'text-[#8880a8]' : 'text-[#e8e2f5]')}>{tournament.name}</h3>
-              {tournament.game && (() => {
-                const gs = GAME_STYLE[tournament.game] ?? GAME_STYLE.AoE4;
-                return (
-                  <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded font-bold tracking-wide"
-                    style={{ background: gs.bg, color: gs.text, border: `1px solid ${gs.border}` }}>
-                    {tournament.game}
-                  </span>
-                );
-              })()}
+          <div className="flex-1 min-w-0 ml-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <h3 className={cn('font-semibold break-words', featured ? 'text-[18px] line-clamp-2' : 'text-[14px] line-clamp-1', isFinished ? 'text-aoe-parchment-muted' : 'text-[#e8e2f5]')}>
+                {tournament.name}
+              </h3>
+              {tournament.game && (
+                <span className="badge-tag shrink-0 !bg-transparent" style={{ borderColor: 'rgba(255,197,66,0.25)' }}>
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: (GAME_STYLE[tournament.game] ?? GAME_STYLE.AoE4).dot }} />
+                  {tournament.game}
+                </span>
+              )}
             </div>
-            <div className="flex items-center gap-3 text-[10px] text-[#8981ab]">
-              <span className="flex items-center gap-1">
-                <Calendar size={9} />
-                {formatDate(tournament.startDate)}
-                {tournament.endDate && ` → ${formatDate(tournament.endDate)}`}
+            <div className={cn('flex items-center gap-3 flex-wrap', featured ? 'text-[12px]' : 'text-[11px]')}>
+              <span className="flex items-center gap-1.5 text-aoe-parchment-dim">
+                <Calendar size={featured ? 13 : 11} />
+                <span className="tabular-nums">
+                  {formatDate(tournament.startDate)}
+                  {tournament.endDate && ` → ${formatDate(tournament.endDate)}`}
+                </span>
               </span>
               {matchCount > 0 && (
-                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded" style={{ background: 'rgba(255,197,66,0.2)' }}>
-                  <Zap size={8} />
-                  {matchCount} matchs
+                <span className="badge-tag">
+                  <Zap size={9} />
+                  {matchCount} {t('nav_matches').toLowerCase()}
                 </span>
               )}
             </div>
@@ -171,24 +218,24 @@ function TournamentCard({ tournament }: { tournament: Tournament & { _count?: { 
           {/* Status + chevron */}
           <div className="flex items-center gap-3 shrink-0">
             {isOngoing ? (
-              <span className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold text-emerald-400"
-                style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)' }}>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="badge-tag" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171' }}>
+                <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
                 {t('matches_filter_live').toUpperCase()}
               </span>
             ) : isUpcoming ? (
-              <span className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold text-[#60a5fa]"
-                style={{ background: 'rgba(96,165,250,0.08)', border: '1px solid rgba(96,165,250,0.2)' }}>
+              <span className="badge-tag">
                 {t('matches_filter_upcoming').toUpperCase()}
               </span>
             ) : (
-              <span className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold text-[#4a4570]"
-                style={{ background: 'rgba(74,69,112,0.08)', border: '1px solid rgba(74,69,112,0.15)' }}>
+              <span className="badge-tag badge-tag-muted">
                 {t('matches_finished').toUpperCase()}
               </span>
             )}
 
-            {expanded ? <ChevronUp size={14} className="text-[#8981ab]" /> : <ChevronDown size={14} className="text-[#8981ab]" />}
+            <ChevronDown
+              size={14}
+              className={cn('text-aoe-parchment-dim group-hover/card:text-aoe-gold transition-all duration-200', expanded && 'rotate-180')}
+            />
           </div>
         </div>
       </button>
@@ -205,7 +252,7 @@ function TournamentCard({ tournament }: { tournament: Tournament & { _count?: { 
               {matches.map(m => <MatchMiniRow key={m.id} match={m} />)}
             </div>
           ) : (
-            <p className="text-center text-[#4a4570] text-[12px] py-6">{t('tournament_no_matches')}</p>
+            <p className="text-center text-aoe-parchment-muted text-[12px] py-6">{t('tournament_no_matches')}</p>
           )}
         </div>
       )}
@@ -317,35 +364,35 @@ export default function TournamentsPage() {
 
   return (
     <div className="min-h-full">
-      {/* Header */}
-      <div className="border-b px-6 py-6" style={{ borderColor: 'rgba(255,197,66,0.2)', background: 'linear-gradient(180deg, #0a0918 0%, #07060f 100%)' }}>
-        <div className="relative">
-          <div className="absolute top-[-24px] left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, #ffc542 40%, #ffd97a 50%, #ffc542 60%, transparent)' }} />
-        </div>
+      {/* Header — same layout as the Matches page */}
+      <div className="relative border-b border-[#1e1a30] px-6 py-6 overflow-hidden" style={{ background: 'linear-gradient(180deg, #0a0918 0%, #07060f 100%)' }}>
+        <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, #ffc542 40%, #ffd97a 50%, #ffc542 60%, transparent)' }} />
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <Trophy size={20} className="text-[#ffc542]" />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(255,197,66,0.08)', border: '1px solid rgba(255,197,66,0.2)' }}>
+              <Trophy size={18} className="text-[#ffc542]" />
+            </div>
             <div>
-              <h1 className="font-cinzel font-bold text-xl tracking-[0.15em] text-[#ffc542] uppercase">{t('tourn_title')}</h1>
-              <div className="flex items-center gap-3 mt-0.5 text-[11px]">
+              <h1 className="font-cinzel font-black text-2xl tracking-[0.12em] text-[#ffd97a] uppercase">{t('tourn_title')}</h1>
+              <div className="flex items-center gap-3 mt-0.5">
                 {activeCount > 0 && (
-                  <span className="flex items-center gap-1 text-emerald-400">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="flex items-center gap-1 text-[11px] text-red-400 font-bold tabular-nums">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse inline-block" />
                     {activeCount} {t('tourn_active').toLowerCase()}
                   </span>
                 )}
-                <span className="text-[#8981ab]">{upcomingCount} {t('tourn_upcoming').toLowerCase()}</span>
+                <span className="text-[11px] text-aoe-parchment-dim tabular-nums">{upcomingCount} {t('tourn_upcoming').toLowerCase()}</span>
               </div>
             </div>
           </div>
           <button onClick={fetchTournaments} disabled={loading}
-            className="p-2 rounded-lg border border-[#1e1a30] text-[#8981ab] hover:text-[#ffc542] transition-colors">
+            className="w-9 h-9 flex items-center justify-center shrink-0 rounded-lg border border-[#1e1a30] text-aoe-parchment-dim hover:text-[#ffc542] hover:border-[#ffc542]/20 transition-colors">
             <RefreshCw size={14} className={loading ? 'animate-spin text-[#ffc542]' : ''} />
           </button>
         </div>
       </div>
 
-      <div className="px-5 py-5 space-y-4">
+      <div className="px-5 py-5 pb-28 space-y-4">
         {/* Game filter chips */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1">
           {GAME_TABS.filter(g => g.id === 'all' || availableGames.has(g.id)).map(g => {
@@ -355,10 +402,10 @@ export default function TournamentsPage() {
                 key={g.id}
                 onClick={() => setGameFilter(g.id)}
                 className={cn(
-                  'shrink-0 px-3 py-1.5 rounded-md text-[11px] font-medium transition-colors border',
+                  'shrink-0 h-9 px-3 rounded-md text-[11px] font-bold uppercase tracking-wide transition-colors border',
                   active
                     ? 'bg-[#ffc542] text-black border-[#ffc542]'
-                    : 'bg-transparent text-[#9990b8] border-[#1e1a30] hover:border-[#3d3860] hover:text-[#e8e2f5]'
+                    : 'bg-transparent text-aoe-parchment-dim border-[#1e1a30] hover:border-[#3d3860] hover:text-aoe-parchment'
                 )}
               >
                 {g.id === 'all' ? t('tourn_all_games') : g.label}
@@ -368,9 +415,9 @@ export default function TournamentsPage() {
         </div>
 
         {/* Search + status filter row */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
           {/* Search */}
-          <div className="relative flex-1">
+          <div className="relative flex-1 min-w-[160px]">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4a4570]" />
             <input
               type="text"
@@ -382,7 +429,7 @@ export default function TournamentsPage() {
           </div>
 
           {/* Status tabs */}
-          <div className="flex shrink-0 border border-[#1e1a30] rounded-md overflow-hidden">
+          <div className="flex items-center gap-2 shrink-0">
             {([
               { id: 'all', label: t('matches_filter_all') },
               { id: 'active', label: t('tourn_active') },
@@ -393,10 +440,10 @@ export default function TournamentsPage() {
                 key={f.id}
                 onClick={() => setStatusFilter(f.id)}
                 className={cn(
-                  'px-3 py-1.5 text-[10px] font-bold tracking-wider uppercase transition-colors',
+                  'h-9 px-3 rounded-md text-[11px] font-bold uppercase tracking-wide transition-colors border',
                   statusFilter === f.id
-                    ? 'bg-[#1e1a30] text-[#e8e2f5]'
-                    : 'text-[#8981ab] hover:text-[#9990b8]'
+                    ? 'bg-[#ffc542] text-black border-[#ffc542]'
+                    : 'bg-transparent text-aoe-parchment-dim border-[#1e1a30] hover:border-[#3d3860] hover:text-aoe-parchment'
                 )}
               >
                 {f.label}
@@ -433,6 +480,24 @@ export default function TournamentsPage() {
           </div>
         ) : filtered.length > 0 ? (
           <div className="space-y-6">
+            {/* Featured — first upcoming tournament from the already-sorted list,
+                shown once here and skipped in the regular Upcoming grid below.
+                Pure presentation of data already fetched — no new API call. */}
+            {(() => {
+              const upcomingAll = filtered.filter(t => new Date(t.startDate) > now && !isEnded(t));
+              const hero = upcomingAll[0];
+              if (!hero) return null;
+              return (
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="w-2 h-2 rounded-full bg-[#ffc542]" />
+                    <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#ffc542]">{t('matches_filter_upcoming')}</h2>
+                    <div className="flex-1 h-px ml-2" style={{ background: 'linear-gradient(90deg, rgba(255,197,66,0.3), transparent)' }} />
+                  </div>
+                  <TournamentCard tournament={hero} featured />
+                </div>
+              );
+            })()}
             {/* Ongoing section */}
             {(() => {
               const ongoing = filtered.filter(t => isReallyActive(t) && new Date(t.startDate) <= now);
@@ -440,10 +505,10 @@ export default function TournamentsPage() {
               return (
                 <div>
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-400">{t('tourn_active')}</h2>
-                    <span className="text-[10px] text-[#4a4570]">({ongoing.length})</span>
-                    <div className="flex-1 h-px ml-2" style={{ background: 'linear-gradient(90deg, rgba(16,185,129,0.3), transparent)' }} />
+                    <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
+                    <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-red-400">{t('tourn_active')}</h2>
+                    <span className="text-[10px] text-aoe-parchment-muted tabular-nums">({ongoing.length})</span>
+                    <div className="flex-1 h-px ml-2" style={{ background: 'linear-gradient(90deg, rgba(239,68,68,0.3), transparent)' }} />
                   </div>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
                     {ongoing.map(t => <TournamentCard key={t.id} tournament={t} />)}
@@ -451,17 +516,17 @@ export default function TournamentsPage() {
                 </div>
               );
             })()}
-            {/* Upcoming section */}
+            {/* Upcoming section (minus the featured one, already shown above) */}
             {(() => {
-              const upcoming = filtered.filter(t => new Date(t.startDate) > now && !isEnded(t));
+              const upcoming = filtered.filter(t => new Date(t.startDate) > now && !isEnded(t)).slice(1);
               if (upcoming.length === 0) return null;
               return (
                 <div>
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="w-2 h-2 rounded-full bg-[#60a5fa]" />
-                    <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#60a5fa]">{t('matches_filter_upcoming')}</h2>
-                    <span className="text-[10px] text-[#4a4570]">({upcoming.length})</span>
-                    <div className="flex-1 h-px ml-2" style={{ background: 'linear-gradient(90deg, rgba(96,165,250,0.3), transparent)' }} />
+                    <span className="w-2 h-2 rounded-full bg-[#ffc542]" />
+                    <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#ffc542]">{t('matches_filter_upcoming')}</h2>
+                    <span className="text-[10px] text-aoe-parchment-muted tabular-nums">({upcoming.length})</span>
+                    <div className="flex-1 h-px ml-2" style={{ background: 'linear-gradient(90deg, rgba(255,197,66,0.3), transparent)' }} />
                   </div>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
                     {upcoming.map(t => <TournamentCard key={t.id} tournament={t} />)}
@@ -476,10 +541,10 @@ export default function TournamentsPage() {
               return (
                 <div>
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="w-2 h-2 rounded-full bg-[#3d3860]" />
-                    <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#4a4570]">{t('matches_filter_done')}</h2>
-                    <span className="text-[10px] text-[#3d3860]">({finished.length})</span>
-                    <div className="flex-1 h-px ml-2" style={{ background: 'linear-gradient(90deg, rgba(61,56,96,0.3), transparent)' }} />
+                    <span className="w-2 h-2 rounded-full bg-aoe-parchment-muted" />
+                    <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-aoe-parchment-dim">{t('matches_filter_done')}</h2>
+                    <span className="text-[10px] text-aoe-parchment-muted tabular-nums">({finished.length})</span>
+                    <div className="flex-1 h-px ml-2" style={{ background: 'linear-gradient(90deg, rgba(154,144,184,0.2), transparent)' }} />
                   </div>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
                     {finished.map(t => <TournamentCard key={t.id} tournament={t} />)}
