@@ -91,17 +91,24 @@ if (process.env.NODE_ENV === 'production') {
 // bets/round polls intermittently failing, and once of the whole round
 // cycle dying and needing a manual restart.
 // Supabase's Postgres max_connections here is 60 with ~26 already held by
-// other things (checked directly against the project), so 15 leaves
-// comfortable headroom. Overridden unconditionally (not just when absent)
-// specifically because the existing value in the secret is part of the
-// problem — we do this at runtime on a parsed copy so the DATABASE_URL
-// secret itself never needs to be touched.
+// other things (checked directly against the project). First raised this
+// to 15, which got the round loop cycling again but Railway logs kept
+// showing near-continuous P2024s (RouletteRound/Match/Rain, ~1 every 1-2s
+// for 90+ seconds straight, not just a boot-time burst) — 15 genuinely
+// wasn't enough for the steady-state concurrent load, not just a startup
+// spike. Raised to 25, still comfortably under the 60 ceiling. If this
+// still isn't enough, the next step is reducing how often
+// matchVerifier/sweepExpiredRains poll rather than keep raising this,
+// since headroom below 60 running out is inherently temporary. Overridden
+// unconditionally (not just when absent) specifically because the existing
+// value in the secret is part of the problem — done at runtime on a parsed
+// copy so the DATABASE_URL secret itself never needs to be touched.
 function buildDatasourceUrl(): string {
   const raw = process.env.DATABASE_URL;
   if (!raw) return raw as unknown as string;
   try {
     const url = new URL(raw);
-    url.searchParams.set('connection_limit', '15');
+    url.searchParams.set('connection_limit', '25');
     url.searchParams.set('pool_timeout', '20');
     return url.toString();
   } catch {
