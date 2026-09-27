@@ -17,7 +17,7 @@ const RoulettePro = nextDynamic<any>(() => import('react-roulette-pro'), { ssr: 
 import 'react-roulette-pro/dist/index.css';
 
 const ZONES = {
-  KNIGHTS: { label: 'CHEVALIERS', multiplier: 2,  color: '#94a3b8', glow: 'rgba(148,163,184,0.4)', border: '#475569',    bg: 'rgba(71,85,105,0.3)',      icon: Shield },
+  KNIGHTS: { label: 'CHEVALIERS', multiplier: 2,  color: '#c2c8d2', glow: 'rgba(194,200,210,0.4)', border: '#8b8f9c',    bg: 'rgba(139,143,156,0.22)',   icon: Shield },
   EMPEROR: { label: 'EMPEROR',    multiplier: 14, color: '#ffd97a', glow: 'rgba(245,200,66,0.55)',  border: '#ffc54280',  bg: 'rgba(255,197,66,0.15)',    icon: Crown  },
   ARCHERS: { label: 'ARCHERS',    multiplier: 2,  color: '#fb923c', glow: 'rgba(251,146,60,0.45)',  border: '#c2410c80',  bg: 'rgba(194,65,12,0.15)',     icon: Target },
 } as const;
@@ -52,6 +52,28 @@ interface Round {
 }
 interface HistoryItem { id: string; winZone: Zone; multiplier: number; roundHash?: string | null; serverSeed?: string | null; result?: number | null; }
 
+type PrizeSlot = { id: string; image: string; zone: Zone; num: number };
+
+// Single source of truth for "which prizeList index carries this exact
+// server result" — was previously duplicated (and could have drifted)
+// between animateSpin() and the tab-hidden snap path. Lands deep into the
+// array (~78%) so the lib has plenty of runway for a full spin animation;
+// callers that just need to snap (no animation) use the same index.
+function computeLandIndex(prizeList: PrizeSlot[], wz: Zone, resultNum?: number | null): number {
+  const target = Math.floor(prizeList.length * 0.78);
+  let landIdx = target;
+  for (let i = 0; i < 60; i++) {
+    const idx = (target + i) % prizeList.length;
+    const slot = prizeList[idx];
+    if (resultNum != null) {
+      if (slot.num === resultNum) { landIdx = idx; break; }
+    } else if (slot.zone === wz) {
+      landIdx = idx; break;
+    }
+  }
+  return landIdx;
+}
+
 const GLOBAL_CSS = `
 @keyframes rl-glow-pulse { 0%,100%{box-shadow:0 0 18px var(--gz)} 50%{box-shadow:0 0 48px var(--gz),0 0 80px var(--gz)} }
 @keyframes rl-shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-7px)} 40%{transform:translateX(7px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
@@ -80,7 +102,7 @@ const GLOBAL_CSS = `
 function RoulettePageImpl() {
   const { data: session } = useSession();
   const { t } = useT();
-  const { showToast } = useNotifications();
+  const { showToast, holdBalanceFlashUntil } = useNotifications();
   const [round, setRound] = useState<Round | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [selectedZone, setSelectedZone] = useState<Zone | null>(null);
@@ -144,17 +166,20 @@ function RoulettePageImpl() {
     prizeItemHeight: ITEM_W + 6,         // 86px
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     prizeItemRenderFunction: (prize: any) => {
-      const slot = prize as { zone: Zone; num: number };
+      const slot = prize as { id: string; zone: Zone; num: number };
       const z = ZONES[slot.zone];
       const Icon = z.icon;
+      // Soft gold glow on the exact tile the marker landed on, once the
+      // spin has actually stopped (not during betting/spinning).
+      const isWinningTile = phase === 'result' && slot.id === prizeList[wheelPrizeIndex]?.id;
       return (
         <div
           className="rl-pro-slot"
           style={{
             width: ITEM_W,
             height: ITEM_W,
-            background: z.bg,
-            border: `1.5px solid ${z.border}`,
+            background: isWinningTile ? 'rgba(255,197,66,0.18)' : z.bg,
+            border: `1.5px solid ${isWinningTile ? '#ffc542' : z.border}`,
             borderRadius: 12,
             display: 'flex',
             flexDirection: 'column',
@@ -162,6 +187,8 @@ function RoulettePageImpl() {
             justifyContent: 'center',
             margin: `3px ${ITEM_GAP / 2}px`,
             boxSizing: 'border-box',
+            boxShadow: isWinningTile ? '0 0 22px rgba(255,197,66,0.55), inset 0 0 12px rgba(255,197,66,0.25)' : 'none',
+            transition: 'background 0.3s, border-color 0.3s, box-shadow 0.3s',
           }}
         >
           <Icon size={24} style={{ color: z.color }} />
@@ -180,7 +207,7 @@ function RoulettePageImpl() {
         </div>
       );
     },
-  }), []);
+  }), [phase, prizeList, wheelPrizeIndex]);
 
   useEffect(() => {
     if (session?.user.accessToken) setAuthToken(session.user.accessToken);
@@ -191,6 +218,20 @@ function RoulettePageImpl() {
     const s = document.createElement('style');
     s.id = 'rl-css'; s.textContent = GLOBAL_CSS;
     document.head.appendChild(s);
+  }, []);
+
+  // Snap the wheel to a slot with no animation — used both when a result
+  // was buffered while the tab was hidden, and when the page loads (or is
+  // refreshed) mid-round, where there is no spin-start moment to animate
+  // from. Never leaves the strip sitting on its default/last index while a
+  // SPINNING or COMPLETED round's real result is already known.
+  const snapWheelToIndex = useCallback((landIdx: number) => {
+    setWheelSkipAnim(true);
+    setWheelStart(false);
+    setWheelPrizeIndex(landIdx);
+    setTimeout(() => setWheelStart(true), 10);
+    // Clear skip after a short while so the next real spin animates normally
+    setTimeout(() => setWheelSkipAnim(false), 300);
   }, []);
 
   const fetchAll = useCallback(async () => {
@@ -205,15 +246,28 @@ function RoulettePageImpl() {
       if (rd?.status === 'BETTING') setPhase('betting');
       else if (rd?.status === 'SPINNING') {
         setPhase('spinning');
+        // Loaded/reconnected mid-spin: the real result is already decided
+        // server-side (and already in this payload) even though the round
+        // hasn't been resolved yet. There's no spin-start moment to animate
+        // from here, so snap straight to the correct tile instead of
+        // leaving the strip on its default index until the delayed
+        // 'roulette:result' handler fires — never show a tile that doesn't
+        // match the real result.
+        if (rd.winZone != null && !hasAnimatedRef.current) {
+          snapWheelToIndex(computeLandIndex(prizeList, rd.winZone, rd.result));
+        }
       } else if (rd?.status === 'COMPLETED') {
         setPhase('result');
         setWinZone(rd.winZone);
+        if (rd.winZone != null && !hasAnimatedRef.current) {
+          snapWheelToIndex(computeLandIndex(prizeList, rd.winZone, rd.result));
+        }
       } else {
         setPhase('idle');
       }
     }
     if (h.status === 'fulfilled') setHistory(h.value.data.data ?? []);
-  }, []);
+  }, [prizeList, snapWheelToIndex]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -240,23 +294,8 @@ function RoulettePageImpl() {
 
     // Recompute the landing index for the current prizeList so the snap lands
     // on the correct slot (the animateSpin version may not have run).
-    const target = Math.floor(prizeList.length * 0.78);
-    let landIdx = target;
-    for (let i = 0; i < 60; i++) {
-      const idx = (target + i) % prizeList.length;
-      const slot = prizeList[idx];
-      if (d.result != null) {
-        if (slot.num === d.result) { landIdx = idx; break; }
-      } else if (slot.zone === d.winZone) { landIdx = idx; break; }
-    }
-
-    // Snap the wheel to the final slot without animation
-    setWheelSkipAnim(true);
-    setWheelStart(false);
-    setWheelPrizeIndex(landIdx);
-    setTimeout(() => setWheelStart(true), 10);
-    // Clear skip after a short while so the next real spin animates normally
-    setTimeout(() => setWheelSkipAnim(false), 300);
+    const landIdx = computeLandIndex(prizeList, d.winZone, d.result);
+    snapWheelToIndex(landIdx);
 
     setAnticipation(false);
     setPhase('result');
@@ -413,23 +452,30 @@ function RoulettePageImpl() {
     if (tickIntervalRef.current) clearInterval(tickIntervalRef.current);
     setAnticipation(false);
 
-    // Pick a target index in prizeList that matches the result number (or zone)
-    // Land deep into the array (~80%) so the lib has plenty of runway.
-    const target = Math.floor(prizeList.length * 0.78);
-    let landIdx = target;
-    for (let i = 0; i < 60; i++) {
-      const idx = (target + i) % prizeList.length;
-      const slot = prizeList[idx];
-      if (resultNum != null) {
-        if (slot.num === resultNum) { landIdx = idx; break; }
-      } else if (slot.zone === wz) {
-        landIdx = idx; break;
-      }
-    }
+    const landIdx = computeLandIndex(prizeList, wz, resultNum);
 
-    const spinDuration = 6500; // ms
+    // Respect prefers-reduced-motion: skip the 6.5s slide and reveal the
+    // (already server-decided) result almost immediately instead, using the
+    // same no-animation snap path as the tab-hidden / page-reload cases.
+    const reducedMotion = typeof window !== 'undefined'
+      && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+    const spinDuration = reducedMotion ? 400 : 6500; // ms
     const startTime = Date.now();
     spinEndsAtRef.current = startTime + spinDuration;
+    // Hold the sitewide wallet-balance flash (Navbar's coinsUpdate listener)
+    // until this animation actually finishes, so the balance can't change
+    // before the wheel visually stops (same +300ms buffer the result
+    // handler itself uses).
+    holdBalanceFlashUntil(spinEndsAtRef.current + 300);
+
+    if (reducedMotion) {
+      setWheelPrizeIndex(landIdx);
+      snapWheelToIndex(landIdx);
+      setAnticipation(false);
+      setTimeout(() => setBurstKey(k => k + 1), spinDuration);
+      return;
+    }
 
     // Reset start to false then re-true so the lib re-triggers the spin animation
     setWheelStart(false);
@@ -587,27 +633,32 @@ function RoulettePageImpl() {
           }} />
       )}
 
-      <div className="max-w-5xl mx-auto px-4 py-8">
+      <div className="max-w-5xl mx-auto px-4 py-8 pb-28">
 
         {/* Header */}
         <div className="text-center mb-5">
-          <h1 className="text-3xl font-bold mb-0.5" style={{ fontFamily:'Cinzel,serif', color:'#ffd97a' }}>{t('roulette_title').toUpperCase()}</h1>
+          <h1 className="text-3xl font-bold mb-0.5" style={{ fontFamily:'var(--font-cinzel), Georgia, serif', color:'#ffd97a' }}>{t('roulette_title').toUpperCase()}</h1>
           <p className="text-[11px] tracking-widest uppercase" style={{ color:'#8981ab' }}>#1 Age of Empire</p>
         </div>
 
         {/* History + Zone stats */}
         <div className="flex items-start gap-3 mb-3 sm:mb-5">
           {/* Scrollable history icons */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 flex-1 min-w-0">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 flex-1 min-w-0" style={{ minHeight: 62 }}>
             <span className="text-[10px] uppercase tracking-widest text-[#8981ab] shrink-0">{t('roulette_history')}</span>
-            {history.slice(0, 20).map(h => {
+            {history.slice(0, 20).map((h, i) => {
               const z = ZONES[h.winZone]; const Icon = z.icon;
+              const isNewest = i === 0;
               return (
-                <div key={h.id} className="w-7 h-7 rounded-lg flex flex-col items-center justify-center shrink-0"
+                <div key={h.id} className="w-10 h-10 rounded-lg flex flex-col items-center justify-center shrink-0"
                   title={`#${h.result ?? '?'}`}
-                  style={{ background:z.bg, border:`1px solid ${z.border}`, boxShadow:`0 0 6px ${z.glow}` }}>
-                  <Icon size={10} style={{ color:z.color }} />
-                  <span className="text-[7px] font-bold leading-none" style={{ color:z.color }}>{h.result ?? ''}</span>
+                  style={{
+                    background: z.bg,
+                    border: `${isNewest ? 2 : 1}px solid ${isNewest ? z.color : z.border}`,
+                    boxShadow: isNewest ? `0 0 12px ${z.glow}` : `0 0 6px ${z.glow}`,
+                  }}>
+                  <Icon size={13} style={{ color:z.color }} />
+                  <span className="text-[10px] font-bold leading-none tabular-nums" style={{ color:z.color, marginTop: 2 }}>{h.result ?? ''}</span>
                 </div>
               );
             })}
@@ -620,7 +671,7 @@ function RoulettePageImpl() {
             const last50 = history.slice(0, 50);
             const total = last50.length;
             return (
-              <div className="hidden sm:flex shrink-0 flex-col gap-1 rounded-xl p-2.5" style={{ background:'#0d0b1a', border:'1px solid rgba(255,197,66,0.2)', minWidth: 130 }}>
+              <div className="hidden sm:flex shrink-0 flex-col justify-center gap-1 rounded-xl p-2.5" style={{ background:'#0d0b1a', border:'1px solid rgba(255,197,66,0.2)', minWidth: 130, minHeight: 62 }}>
                 <span className="text-[9px] uppercase tracking-widest text-[#8981ab] mb-0.5">Stats</span>
                 {(['KNIGHTS','EMPEROR','ARCHERS'] as Zone[]).map(zone => {
                   const z = ZONES[zone];
@@ -661,13 +712,22 @@ function RoulettePageImpl() {
           {/* Wheel */}
           <div className="py-3 sm:py-6 flex flex-col items-center">
 
-            {/* Timer — circular progress ring. Container collapses to 0 when no
-                countdown is active (round in SPINNING or RESULT phase) — was a
-                permanent 64 px slot reserving dead space on mobile. */}
+            {/* Timer — circular progress ring while betting. During the spin
+                this same space shows the round state (bets closed) instead
+                of sitting empty; collapses only for the result phase, which
+                already gets its own big reveal below the wheel. */}
             <div className={cn(
               'flex items-center justify-center transition-all',
-              isBetting && countdown > 0 ? 'h-16 mb-3' : 'h-0',
+              (isBetting && countdown > 0) || isSpinning ? 'h-16 mb-3' : 'h-0',
             )}>
+              {isSpinning && (
+                <span
+                  className="font-bold uppercase tracking-[0.2em]"
+                  style={{ fontSize: 20, color: '#ffd97a', fontFamily: 'var(--font-cinzel), Georgia, serif', opacity: 0.9 }}
+                >
+                  {t('bet_closed')}
+                </span>
+              )}
               {isBetting && countdown > 0 && (() => {
                 const max = countdownMaxRef.current;
                 const progress = max > 0 ? countdownExact / max : 0;
@@ -702,7 +762,7 @@ function RoulettePageImpl() {
                       />
                     </svg>
                     <span className="relative z-10 font-bold tabular-nums"
-                      style={{ fontSize: 14, color, fontFamily: 'Cinzel,serif', lineHeight: 1 }}>
+                      style={{ fontSize: 14, color, fontFamily:'var(--font-cinzel), Georgia, serif', lineHeight: 1 }}>
                       {countdown}
                     </span>
                   </div>
@@ -713,19 +773,29 @@ function RoulettePageImpl() {
             <div
               className="relative"
               style={{
-                // Mobile : clip the wheel to viewport width so it doesn't push
+                // Mobile: clip the wheel to viewport width so it doesn't push
                 // horizontal scroll on phones (was a 784px fixed slab). The
-                // internal slot animation still targets WHEEL_W ; we just
-                // window it to whatever fits. The winning slot lands at
-                // CENTER_OFFSET which stays inside any reasonable viewport.
+                // internal slot animation still targets WHEEL_W; we just
+                // window it to whatever fits.
+                //
+                // The inner track below is centered via absolute + left:50% +
+                // translateX(-50%), NOT margin:auto — a block wider than its
+                // container resolves auto margins to 0 (left-aligned, not
+                // centered), which used to push the marker (at the track's
+                // own center, CENTER_OFFSET) completely outside this clipped
+                // window on any viewport under ~784px — i.e. every phone.
+                // The transform-based centering keeps the marker (and the
+                // landing tile under it) aligned with the middle of whatever
+                // width this wrapper actually gets, at any viewport size.
                 width: '100%',
                 maxWidth: WHEEL_W,
+                height: ITEM_W + 6,
                 overflow: 'hidden',
               }}
             >
               {/* Inner track at full WHEEL_W so the spinner math stays valid ;
-                  the parent above clips. */}
-              <div className="relative mx-auto" style={{ width: WHEEL_W }}>
+                  the parent above clips and centers it. */}
+              <div className="absolute top-0 left-1/2 -translate-x-1/2" style={{ width: WHEEL_W }}>
 
               {/* Custom vertical center bar (replaces the old rectangular frame) */}
               {(() => {
@@ -883,7 +953,7 @@ function RoulettePageImpl() {
               <div className="mt-5 text-center" style={{ animation:'rl-win-in 0.5s cubic-bezier(0.2,1.4,0.4,1) both' }}>
                 {userWon && payout ? (
                   <div className="inline-flex items-center gap-2">
-                    <span className="text-[13px] font-bold uppercase tracking-wider" style={{ color: ZONES[winZone].color, opacity: 0.9, fontFamily: 'Cinzel,serif' }}>
+                    <span className="text-[13px] font-bold uppercase tracking-wider" style={{ color: ZONES[winZone].color, opacity: 0.9, fontFamily:'var(--font-cinzel), Georgia, serif' }}>
                       {zoneLabel(winZone)}
                     </span>
                     <span
@@ -900,12 +970,12 @@ function RoulettePageImpl() {
                 ) : userWon === false ? (
                   <div className="rl-shaking">
                     <p className="text-[11px] uppercase tracking-widest mb-1 text-red-400">{t('profile_history_lost').toUpperCase()}</p>
-                    <p className="text-2xl font-bold" style={{ color:ZONES[winZone].color, fontFamily:'Cinzel,serif' }}>
+                    <p className="text-2xl font-bold" style={{ color:ZONES[winZone].color, fontFamily:'var(--font-cinzel), Georgia, serif' }}>
                       {zoneLabel(winZone)} ×{ZONES[winZone].multiplier}
                     </p>
                   </div>
                 ) : (
-                  <p className="text-xl font-bold" style={{ color:ZONES[winZone].color, fontFamily:'Cinzel,serif' }}>
+                  <p className="text-xl font-bold" style={{ color:ZONES[winZone].color, fontFamily:'var(--font-cinzel), Georgia, serif' }}>
                     {zoneLabel(winZone)} ×{ZONES[winZone].multiplier}
                     {fairnessRound?.result != null && (
                       <span className="text-sm ml-2 opacity-60">#{fairnessRound.result}</span>
@@ -953,13 +1023,18 @@ function RoulettePageImpl() {
                 className="shrink-0 px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-80 min-w-[44px]"
                 style={{ background:'rgba(255,197,66,0.2)',color:'#9990b8',border:'1px solid #2a2640' }}>MAX</button>
               <button onClick={()=>setBetAmount('')}
-                className="shrink-0 px-3 py-2 rounded-lg text-[12px] text-[#8981ab] hover:text-[#9990b8] min-w-[44px]"
-                style={{ background:'#13111f',border:'1px solid rgba(255,197,66,0.2)' }}>CLR</button>
+                className="shrink-0 px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-80 min-w-[44px]"
+                style={{ background:'rgba(255,197,66,0.2)',color:'#9990b8',border:'1px solid #2a2640' }}>CLR</button>
             </div>
           </div>
           <button onClick={placeBet} disabled={!isBetting||!selectedZone||!betAmount}
-            className="w-full py-3 rounded-lg text-[14px] font-bold font-cinzel tracking-wider transition-all disabled:opacity-40"
-            style={{ background:selectedZone ? ZONES[selectedZone].color : '#ffd97a', color:'#07060f' }}>
+            className={cn(
+              'w-full py-3 rounded-lg text-[14px] font-bold font-cinzel tracking-wider transition-all',
+              isBetting && (!selectedZone || !betAmount) && 'disabled:opacity-40'
+            )}
+            style={!isBetting
+              ? { background:'#13111f', color:'#6a6390', border:'1px solid #2a2640' }
+              : { background:selectedZone ? ZONES[selectedZone].color : '#ffd97a', color:'#07060f' }}>
             {!isBetting ? t('bet_closed') :
               !selectedZone ? t('roulette_select_zone') :
               `${t('roulette_bet')} ${betAmount ? parseCoinAmount(betAmount).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : '...'} ⚜`}
@@ -984,13 +1059,28 @@ function RoulettePageImpl() {
             const lockReason = isLocked
               ? (zone === 'KNIGHTS' ? t('roulette_zone_lock_archers') : t('roulette_zone_lock_knights'))
               : '';
+            const clickable = isBetting && !isLocked;
             return (
               <div key={zone}
-                onClick={()=>{ if (isBetting && !isLocked) setSelectedZone(zone); }}
+                onClick={()=>{ if (clickable) setSelectedZone(zone); }}
+                onMouseEnter={(e)=>{
+                  if (!clickable || isSelected) return;
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.borderColor = z.color;
+                  e.currentTarget.style.boxShadow = `0 0 14px ${z.glow}`;
+                }}
+                onMouseLeave={(e)=>{
+                  if (!clickable || isSelected) return;
+                  e.currentTarget.style.transform = 'none';
+                  e.currentTarget.style.borderColor = 'rgba(255,197,66,0.2)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+                onMouseDown={(e)=>{ if (clickable) e.currentTarget.style.transform = 'translateY(0px) scale(0.98)'; }}
+                onMouseUp={(e)=>{ if (clickable && !isSelected) e.currentTarget.style.transform = 'translateY(-2px)'; }}
                 title={lockReason || undefined}
                 className={cn(
                   'rounded-xl overflow-hidden transition-all relative',
-                  isBetting && !isLocked && 'cursor-pointer',
+                  clickable && 'cursor-pointer',
                   isLocked && 'cursor-not-allowed',
                   isLose && 'rl-shaking',
                 )}
@@ -1022,16 +1112,16 @@ function RoulettePageImpl() {
                       style={{ background:z.bg, border:`1px solid ${z.border}`, boxShadow:`0 0 8px ${z.glow}` }}>
                       <Icon size={18} style={{ color:z.color }} />
                     </div>
-                    <p className="font-bold text-[13px]" style={{ color:z.color, fontFamily:'Cinzel,serif' }}>{zoneLabel(zone)}</p>
+                    <p className="font-bold text-[13px]" style={{ color:z.color, fontFamily:'var(--font-cinzel), Georgia, serif' }}>{zoneLabel(zone)}</p>
                   </div>
-                  <p className="text-[22px] font-bold" style={{ color:z.color, fontFamily:'Cinzel,serif', textShadow:isWin?`0 0 20px ${z.glow}`:'none' }}>×{z.multiplier}</p>
+                  <p className="text-[22px] font-bold tabular-nums" style={{ color:z.color, fontFamily:'var(--font-cinzel), Georgia, serif', textShadow:isWin?`0 0 20px ${z.glow}`:'none' }}>×{z.multiplier}</p>
                 </div>
                 <div className="px-4 py-2 flex justify-between text-[11px]" style={{ borderBottom:'1px solid #1e1a3030' }}>
                   <span style={{ color:'#8981ab' }}>{count} {t('lb_bets').toLowerCase()}</span>
                   <span className="font-bold" style={{ color:z.color }}>{total.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚜</span>
                 </div>
                 <div className="p-2 max-h-52 overflow-y-auto space-y-0.5">
-                  {bets.length===0&&<p className="text-center text-[11px] py-4" style={{ color:'#3d3860' }}>{t('lb_empty')}</p>}
+                  {bets.length===0&&<p className="text-center text-[11px] py-4" style={{ color:'#9890b8' }}>{t('lb_empty')}</p>}
                   {bets.map(bet=>(
                     <div key={bet.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[#13111f] transition-colors">
                       {bet.user.avatar
@@ -1068,7 +1158,7 @@ function RoulettePageImpl() {
             <div className="flex items-center justify-between px-6 py-4 shrink-0" style={{ borderBottom:'1px solid rgba(255,197,66,0.2)' }}>
               <div className="flex items-center gap-2">
                 <ShieldCheck size={16} style={{ color:'#34d399' }} />
-                <span className="font-bold text-[14px] tracking-widest" style={{ fontFamily:'Cinzel,serif', color:'#e8e2f5' }}>FAIRNESS</span>
+                <span className="font-bold text-[14px] tracking-widest" style={{ fontFamily:'var(--font-cinzel), Georgia, serif', color:'#e8e2f5' }}>FAIRNESS</span>
               </div>
               <button onClick={() => setShowFairnessGuide(false)} className="hover:opacity-60 transition-opacity">
                 <X size={16} style={{ color:'#8981ab' }} />
@@ -1083,7 +1173,7 @@ function RoulettePageImpl() {
 
               {/* How it works */}
               <div>
-                <h3 className="font-bold text-[13px] mb-2" style={{ color:'#e8e2f5', fontFamily:'Cinzel,serif' }}>{t('fair_how_works')}</h3>
+                <h3 className="font-bold text-[13px] mb-2" style={{ color:'#e8e2f5', fontFamily:'var(--font-cinzel), Georgia, serif' }}>{t('fair_how_works')}</h3>
                 <p className="mb-2">{t('fair_seed_p1')}</p>
                 <p>{t('fair_seed_p2')}</p>
               </div>
@@ -1092,7 +1182,7 @@ function RoulettePageImpl() {
 
               {/* Roulette section */}
               <div>
-                <h3 className="font-bold text-[13px] mb-2" style={{ color:'#ffd97a', fontFamily:'Cinzel,serif' }}>Roulette</h3>
+                <h3 className="font-bold text-[13px] mb-2" style={{ color:'#ffd97a', fontFamily:'var(--font-cinzel), Georgia, serif' }}>Roulette</h3>
                 <p className="mb-2">{t('fair_roulette_p1')}</p>
                 <p className="mb-3">
                   {t('fair_slots_intro')}{' '}
@@ -1114,7 +1204,7 @@ function RoulettePageImpl() {
 
               {/* Random.org section */}
               <div>
-                <h3 className="font-bold text-[13px] mb-2" style={{ color:'#e8e2f5', fontFamily:'Cinzel,serif' }}>{t('fair_random_title')}</h3>
+                <h3 className="font-bold text-[13px] mb-2" style={{ color:'#e8e2f5', fontFamily:'var(--font-cinzel), Georgia, serif' }}>{t('fair_random_title')}</h3>
                 <p className="mb-2">
                   {t('fair_random_p1')}{' '}
                   <a href="https://api.random.org/verify" target="_blank" rel="noopener noreferrer"
@@ -1159,7 +1249,7 @@ function RoulettePageImpl() {
             <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom:'1px solid rgba(255,197,66,0.2)' }}>
               <div className="flex items-center gap-2">
                 <ShieldCheck size={16} style={{ color:'#34d399' }} />
-                <span className="font-bold text-[14px] tracking-widest" style={{ fontFamily:'Cinzel,serif', color:'#e8e2f5' }}>FAIRNESS</span>
+                <span className="font-bold text-[14px] tracking-widest" style={{ fontFamily:'var(--font-cinzel), Georgia, serif', color:'#e8e2f5' }}>FAIRNESS</span>
               </div>
               <button onClick={() => setShowFairness(false)} className="hover:opacity-60 transition-opacity">
                 <X size={16} style={{ color:'#8981ab' }} />

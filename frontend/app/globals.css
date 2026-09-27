@@ -66,7 +66,7 @@
   /* ── Font classes ──────────────────────────────────────────────────────── */
   /* Cinzel est r\u00e9serv\u00e9 au wordmark + titres h\u00e9ros (opt-in via .font-cinzel). */
   /* Tous les autres titres/body utilisent Inter par d\u00e9faut (d\u00e9fini sur body). */
-  .font-cinzel { font-family: 'Cinzel', Georgia, serif; }
+  .font-cinzel { font-family: var(--font-cinzel), Georgia, serif; }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: inherit;

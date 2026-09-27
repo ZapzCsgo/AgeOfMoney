@@ -52,7 +52,7 @@ export function Navbar() {
   const flashTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rampRaf = useRef<number | null>(null);
   const { t } = useT();
-  const { notifications, unreadCount, markAllRead } = useNotifications();
+  const { notifications, unreadCount, markAllRead, getBalanceHoldUntil } = useNotifications();
 
   // Close dropdowns on route change
   useEffect(() => {
@@ -123,7 +123,7 @@ export function Navbar() {
   useEffect(() => {
     if (!session?.user?.accessToken) return;
     const s = getSocket(session.user.accessToken);
-    const handler = ({ coins, direction }: { coins: number; direction?: 'up' | 'down' }) => {
+    const apply = ({ coins, direction }: { coins: number; direction?: 'up' | 'down' }) => {
       const previous = localCoins ?? session?.user?.coins ?? 0;
       setLocalCoins(coins);
       setCoinFlash(direction ?? (coins > previous ? 'up' : 'down'));
@@ -135,9 +135,18 @@ export function Navbar() {
       rampTo(previous, coins);
       update();
     };
+    const handler = (d: { coins: number; direction?: 'up' | 'down' }) => {
+      // A game with a cosmetic reveal animation in progress (e.g. roulette's
+      // wheel spin) can hold this balance change back so it doesn't flash
+      // the wallet and spoil the outcome before the animation lands.
+      const holdUntil = getBalanceHoldUntil();
+      const wait = holdUntil - Date.now();
+      if (wait > 0) { setTimeout(() => apply(d), wait); return; }
+      apply(d);
+    };
     s.on('coinsUpdate', handler);
     return () => { s.off('coinsUpdate', handler); };
-  }, [session?.user?.accessToken, update]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [session?.user?.accessToken, update, getBalanceHoldUntil]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const rawCoins = localCoins ?? session?.user?.coins ?? 0;
   const displayCoins = animatedCoins ?? rawCoins;

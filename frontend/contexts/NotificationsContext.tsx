@@ -30,6 +30,14 @@ interface NotificationsCtx {
   toasts: Toast[];
   showToast: (kind: ToastKind, message: string) => void;
   dismissToast: (id: string) => void;
+  /** Games with a cosmetic outcome-reveal animation (e.g. roulette's wheel
+   *  spin) call this with the timestamp their animation actually finishes.
+   *  The Navbar's wallet-balance listener checks it before applying an
+   *  incoming coinsUpdate, so a payout settled server-side mid-animation
+   *  can't flash/ramp the balance and spoil the result before the player
+   *  sees it land. */
+  holdBalanceFlashUntil: (timestampMs: number) => void;
+  getBalanceHoldUntil: () => number;
 }
 
 const Ctx = createContext<NotificationsCtx>({
@@ -40,6 +48,8 @@ const Ctx = createContext<NotificationsCtx>({
   toasts: [],
   showToast: () => {},
   dismissToast: () => {},
+  holdBalanceFlashUntil: () => {},
+  getBalanceHoldUntil: () => 0,
 });
 
 export function NotificationsProvider({ children }: { children: ReactNode }) {
@@ -48,6 +58,11 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const toastTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const balanceHoldUntilRef = useRef(0);
+  const holdBalanceFlashUntil = useCallback((timestampMs: number) => {
+    balanceHoldUntilRef.current = timestampMs;
+  }, []);
+  const getBalanceHoldUntil = useCallback(() => balanceHoldUntilRef.current, []);
 
   const dismiss = useCallback((id: string) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
@@ -101,7 +116,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
-    <Ctx.Provider value={{ notifications, unreadCount, dismiss, markAllRead, toasts, showToast, dismissToast }}>
+    <Ctx.Provider value={{ notifications, unreadCount, dismiss, markAllRead, toasts, showToast, dismissToast, holdBalanceFlashUntil, getBalanceHoldUntil }}>
       {children}
     </Ctx.Provider>
   );
