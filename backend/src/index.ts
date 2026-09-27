@@ -78,27 +78,31 @@ if (process.env.NODE_ENV === 'production') {
   }
 }
 
-// Prisma has no explicit connection_limit set in DATABASE_URL, so it falls
-// back to its own default (num_cpus * 2 + 1) — on this container that
-// computes to 5. With cron jobs firing every few seconds (rain sweep, match
-// verifier, odds recalc, the roulette round loop, ...) all sharing that same
-// 5-connection pool alongside every incoming HTTP request, it saturates
-// constantly: confirmed via Railway logs, repeated
-// "Timed out fetching a new connection from the connection pool"
-// (P2024) errors across totally unrelated models (RouletteRound, Match,
-// User, Rain, Transaction, ...), and confirmed as the direct cause of
-// roulette bets/round polls intermittently failing during play.
+// DATABASE_URL has an explicit connection_limit=5 baked in (not just
+// Prisma's num_cpus*2+1 default, as originally assumed — verified via
+// Railway logs still showing connection_limit:5 in P2024 errors AFTER an
+// earlier fix here that only set the param when absent). With cron jobs
+// firing every few seconds (rain sweep, match verifier, odds recalc, the
+// roulette round loop, ...) all sharing that same 5-connection pool
+// alongside every incoming HTTP request, it saturates constantly: repeated
+// "Timed out fetching a new connection from the connection pool" (P2024)
+// errors across totally unrelated models (RouletteRound, Match, User, Rain,
+// Transaction, ...), and confirmed as the direct cause of roulette
+// bets/round polls intermittently failing, and once of the whole round
+// cycle dying and needing a manual restart.
 // Supabase's Postgres max_connections here is 60 with ~26 already held by
-// other things (checked via the dashboard), so 15 leaves comfortable
-// headroom without touching the DATABASE_URL secret itself — we append the
-// params to a parsed copy of it at runtime instead.
+// other things (checked directly against the project), so 15 leaves
+// comfortable headroom. Overridden unconditionally (not just when absent)
+// specifically because the existing value in the secret is part of the
+// problem — we do this at runtime on a parsed copy so the DATABASE_URL
+// secret itself never needs to be touched.
 function buildDatasourceUrl(): string {
   const raw = process.env.DATABASE_URL;
   if (!raw) return raw as unknown as string;
   try {
     const url = new URL(raw);
-    if (!url.searchParams.has('connection_limit')) url.searchParams.set('connection_limit', '15');
-    if (!url.searchParams.has('pool_timeout')) url.searchParams.set('pool_timeout', '20');
+    url.searchParams.set('connection_limit', '15');
+    url.searchParams.set('pool_timeout', '20');
     return url.toString();
   } catch {
     return raw;
