@@ -70,6 +70,27 @@ export function getZoneFromResult(result: number): Zone {
 let currentRoundId: string | null = null;
 let roundTimer: ReturnType<typeof setTimeout> | null = null;
 
+// How long to wait before retrying after a round-cycle step throws (e.g. a
+// transient DB connection-pool timeout). A single unhandled rejection in any
+// of startRound/spinRound/resolveRound used to permanently kill the whole
+// loop — nothing was ever scheduled again, so the game got stuck showing
+// "bets closed" forever until someone manually restarted the process.
+// scheduleRoundStep() makes every step self-healing: on failure it clears
+// the (possibly half-written) round and retries startRound() after a short
+// delay, indefinitely, so the game recovers on its own once the transient
+// condition clears.
+const RECOVERY_RETRY_DELAY = 10_000;
+
+function scheduleRoundStep(fn: () => Promise<void>, delay: number): void {
+  roundTimer = setTimeout(() => {
+    fn().catch(err => {
+      logger.error('[Roulette] Round cycle step failed — will retry in 10s:', err);
+      currentRoundId = null;
+      scheduleRoundStep(startRound, RECOVERY_RETRY_DELAY);
+    });
+  }, delay);
+}
+
 export function getCurrentRoundId(): string | null {
   return currentRoundId;
 }
@@ -109,7 +130,7 @@ export async function startRound(): Promise<void> {
   // roundHash is null: result will be determined by random.org at spin time
   io?.emit('roulette:roundStart', { roundId: round.id, endsAt: endsAt.toISOString(), roundHash: null });
 
-  roundTimer = setTimeout(() => spinRound(round.id), BETTING_DURATION);
+  scheduleRoundStep(() => spinRound(round.id), BETTING_DURATION);
 }
 
 async function spinRound(roundId: string): Promise<void> {
@@ -162,7 +183,7 @@ async function spinRound(roundId: string): Promise<void> {
   io?.emit('roulette:spin', { roundId, result, winZone, multiplier, roundHash, source });
 
   // Resolve after animation
-  roundTimer = setTimeout(() => resolveRound(roundId, winZone, multiplier), SPIN_DURATION);
+  scheduleRoundStep(() => resolveRound(roundId, winZone, multiplier), SPIN_DURATION);
 }
 
 async function resolveRound(roundId: string, winZone: string, multiplier: number): Promise<void> {
@@ -246,7 +267,7 @@ async function resolveRound(roundId: string, winZone: string, multiplier: number
 
   // Start next round after 1.5s
   currentRoundId = null;
-  roundTimer = setTimeout(startRound, 1_500);
+  scheduleRoundStep(startRound, 1_500);
 }
 
 export async function placeBet(userId: string, zone: Zone, amount: number): Promise<{ ok: boolean; error?: string }> {
@@ -319,11 +340,18 @@ export async function placeBet(userId: string, zone: Zone, amount: number): Prom
 }
 
 export async function initRoulette(): Promise<void> {
-  // On startup: complete any orphaned rounds and start fresh
-  await prisma.rouletteRound.updateMany({
-    where: { status: { in: ['BETTING', 'SPINNING'] } },
-    data: { status: 'COMPLETED', completedAt: new Date() },
-  });
-  await startRound();
+  // On startup: complete any orphaned rounds and start fresh. Boot-time DB
+  // contention (many services/crons hitting the pool at once) can make this
+  // throw — don't let that skip starting the round loop; scheduleRoundStep
+  // below will retry startRound() on its own if it also fails.
+  try {
+    await prisma.rouletteRound.updateMany({
+      where: { status: { in: ['BETTING', 'SPINNING'] } },
+      data: { status: 'COMPLETED', completedAt: new Date() },
+    });
+  } catch (err) {
+    logger.error('[Roulette] Startup cleanup failed (continuing anyway):', err);
+  }
+  scheduleRoundStep(startRound, 0);
   logger.info('[Roulette] Service initialized');
 }
