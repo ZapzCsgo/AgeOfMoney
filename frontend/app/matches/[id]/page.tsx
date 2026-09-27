@@ -1,528 +1,111 @@
-'use client';
+import type { Metadata } from 'next';
+import { getMatch } from '@/lib/api';
+import { getServerLocale, type ServerLocale } from '@/lib/serverLocale';
+import { Match } from '@/types';
+import { MatchPageClient } from './MatchPageClient';
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState, useCallback } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
-import { useSession } from 'next-auth/react';
-import { signInWithSteam } from '@/lib/authHelpers';
-import { useT } from '@/lib/i18n';
-import { useNotifications } from '@/contexts/NotificationsContext';
-import { Match, BoResult, Bet } from '@/types';
-import { getMatch, getMyBets, setAuthToken } from '@/lib/api';
-import { BetForm } from '@/components/matches/BetForm';
-import { MatchChat } from '@/components/matches/MatchChat';
-import { connectSocket, getSocket } from '@/lib/socket';
-import { formatDateTime, formatCountdown, getTierBadgeClass, getCountryFlag, parseCoinAmount, round2 } from '@/lib/utils';
-import {
-  ArrowLeft, Calendar, Zap, Lock, Tv, Shield, Swords, Receipt, TrendingUp, Clock,
-} from 'lucide-react';
-import Link from 'next/link';
-import { cn, getAvatarSrc } from '@/lib/utils';
-import { JsonLd } from '@/components/JsonLd';
-
-// ── My bets on this match ─────────────────────────────────────────────────────
-function MyMatchBets({ matchId, match, refreshKey }: { matchId: string; match: Match; refreshKey: number }) {
-  const { t } = useT();
-  const { data: session } = useSession();
-  const [bets, setBets] = useState<Bet[]>([]);
-
-  useEffect(() => {
-    if (!session?.user?.accessToken) return;
-    setAuthToken(session.user.accessToken);
-    getMyBets({ limit: 50 })
-      .then((res) => {
-        const matchBets = res.data.filter((b) => b.matchId === matchId);
-        setBets(matchBets);
-      })
-      .catch(() => {});
-  }, [matchId, session, refreshKey]);
-
-  if (!session || bets.length === 0) return null;
-
-  return (
-    <div className="aoe-card p-4 space-y-3">
-      <div className="flex items-center gap-2">
-        <Receipt size={13} className="text-aoe-gold" />
-        <h4 className="font-cinzel font-bold text-xs text-aoe-gold tracking-wider uppercase">
-          Mes paris
-        </h4>
-        <span className="ml-auto text-[10px] text-aoe-parchment-muted font-cinzel">
-          {bets.length} pari{bets.length > 1 ? 's' : ''}
-        </span>
-      </div>
-      <div className="space-y-2">
-        {bets.map((bet) => {
-          // For exact-score bets, reconstruct the score string from boNumber
-          // (which stores loserGames) + match format. Winner side = the player
-          // picked. BO3 → 2-N, BO5 → 3-N, BO7 → 4-N. BO2 has only 2-0 / 0-2.
-          const isExact = bet.betType === 'EXACT_SCORE';
-          const boNum = parseInt(match.format.replace(/\D/g, ''), 10) || 3;
-          const winsNeeded = Math.ceil(boNum / 2);
-          const loserGames = bet.boNumber ?? 0;
-          const pickedName = bet.selectedPlayer === 0
-            ? t('bet_draw_label')
-            : bet.selectedPlayer === 1 ? match.player1.name : match.player2.name;
-          const scoreStr = isExact
-            ? (bet.selectedPlayer === 1
-                ? `${winsNeeded}-${loserGames}`
-                : `${loserGames}-${winsNeeded}`)
-            : null;
-          const betLabel = isExact
-            ? `${scoreStr} · ${pickedName}`
-            : pickedName;
-          const potentialReturn = parseFloat((bet.amount * bet.oddsAtBet).toFixed(2));
-          const statusColor =
-            bet.status === 'WON'      ? 'text-emerald-400' :
-            bet.status === 'LOST'     ? 'text-red-400' :
-            bet.status === 'REFUNDED' ? 'text-blue-400' :
-            'text-aoe-parchment-dim';
-          const statusLabel =
-            bet.status === 'WON'      ? `✓ ${t('bet_status_won')}` :
-            bet.status === 'LOST'     ? `✗ ${t('bet_status_lost')}` :
-            bet.status === 'REFUNDED' ? `↩ ${t('common_refunded')}` :
-            `⏳ ${t('common_pending')}`;
-
-          return (
-            <div
-              key={bet.id}
-              className="rounded-lg p-3 space-y-1.5"
-              style={{
-                background: bet.status === 'WON'
-                  ? 'rgba(16,185,129,0.06)'
-                  : bet.status === 'LOST'
-                  ? 'rgba(220,38,38,0.06)'
-                  : 'rgba(255,255,255,0.03)',
-                border: `1px solid ${
-                  bet.status === 'WON'  ? 'rgba(16,185,129,0.2)' :
-                  bet.status === 'LOST' ? 'rgba(220,38,38,0.2)' :
-                  'rgba(255,255,255,0.06)'
-                }`,
-              }}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  {isExact && (
-                    <span className="px-1.5 py-0.5 rounded text-[9px] font-cinzel font-bold uppercase tracking-wider shrink-0" style={{ background: 'rgba(255,197,66,0.15)', color: '#ffc542', border: '1px solid rgba(255,197,66,0.3)' }}>
-                      {t('common_score_label')}
-                    </span>
-                  )}
-                  <span className="font-cinzel font-bold text-xs text-aoe-parchment truncate">{betLabel}</span>
-                </div>
-                <span className={cn('text-[10px] font-cinzel font-bold shrink-0', statusColor)}>
-                  {statusLabel}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="text-aoe-parchment-muted">{t('bet_stake')}</span>
-                <span className="text-aoe-parchment font-semibold">{bet.amount.toFixed(2)} ⚜</span>
-              </div>
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="text-aoe-parchment-muted">{t('bet_odds')}</span>
-                <span className="text-aoe-gold font-cinzel">× {bet.oddsAtBet.toFixed(2)}</span>
-              </div>
-              <div className="flex items-center justify-between text-[11px] border-t border-white/5 pt-1.5">
-                <span className="text-aoe-parchment-muted">
-                  {bet.status === 'WON' ? t('bet_gain_received') : t('bet_potential')}
-                </span>
-                <span className={cn('font-cinzel font-bold', bet.status === 'WON' ? 'text-emerald-400' : 'text-aoe-parchment')}>
-                  {bet.status === 'WON' && bet.payout
-                    ? `+${bet.payout.toFixed(2)} ⚜`
-                    : `${potentialReturn.toFixed(2)} ⚜`}
-                </span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function formatCiv(civ?: string | null): string {
-  if (!civ) return '';
-  return civ.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-function formatDuration(seconds?: number | null): string {
-  if (!seconds) return '';
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
-
-// ── Player avatar ─────────────────────────────────────────────────────────────
-function PlayerAvatar({ name, playerId, avatarUrl, size = 64 }: { name: string; playerId?: string; avatarUrl?: string | null; size?: number }) {
-  const hue = name.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
-  const imgSrc = playerId ? getAvatarSrc(playerId, avatarUrl) : avatarUrl;
-  return (
-    <div
-      className="rounded-full overflow-hidden shrink-0 flex items-center justify-center"
-      style={{
-        width: size, height: size,
-        background: imgSrc ? undefined : `radial-gradient(circle, hsl(${hue},30%,20%), hsl(${hue},20%,10%))`,
-        border: '2px solid rgba(255,197,66,0.3)',
-      }}
-    >
-      {imgSrc ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={imgSrc} alt={name} className="w-full h-full object-cover object-top" />
-      ) : (
-        <svg viewBox="0 0 24 24" fill="none" style={{ width: size * 0.65, height: size * 0.65 }}>
-          <circle cx="12" cy="8" r="4" fill={`hsl(${hue},45%,55%)`} />
-          <path d="M4 20c0-4.418 3.582-8 8-8s8 3.582 8 8" fill={`hsl(${hue},35%,40%)`} />
-        </svg>
-      )}
-    </div>
-  );
-}
-
-// ── BO History row ────────────────────────────────────────────────────────────
-function BoHistoryCard({ bo, p1Name, p2Name, p1Id }: {
-  bo: BoResult;
-  p1Name: string;
-  p2Name: string;
-  p1Id: string;
-}) {
-  const p1Won = bo.winnerId === p1Id;
-  return (
-    <div className="flex items-center gap-3 px-3 py-2 rounded-lg text-xs" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-      <span className="text-aoe-parchment-muted font-cinzel shrink-0">BO {bo.boNumber}</span>
-      <div className="flex items-center gap-1.5 flex-1 min-w-0">
-        <span className={cn('font-semibold truncate', p1Won ? 'text-amber-400' : 'text-aoe-parchment-dim')}>{p1Name}</span>
-        {bo.p1Civ && <span className="text-[9px] text-aoe-parchment-muted truncate">({formatCiv(bo.p1Civ)})</span>}
-      </div>
-      <div className="font-cinzel font-black text-sm shrink-0 flex items-center gap-1">
-        <span className={p1Won ? 'text-amber-400' : 'text-aoe-parchment-muted'}>
-          {p1Won ? 'W' : 'L'}
-        </span>
-        <span className="text-aoe-parchment-muted text-[10px]">vs</span>
-        <span className={!p1Won ? 'text-blue-400' : 'text-aoe-parchment-muted'}>
-          {!p1Won ? 'W' : 'L'}
-        </span>
-      </div>
-      <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
-        {bo.p2Civ && <span className="text-[9px] text-aoe-parchment-muted truncate">({formatCiv(bo.p2Civ)})</span>}
-        <span className={cn('font-semibold truncate', !p1Won ? 'text-blue-400' : 'text-aoe-parchment-dim')}>{p2Name}</span>
-      </div>
-      <div className="flex items-center gap-2 text-[9px] text-aoe-parchment-muted shrink-0">
-        {bo.map && <span className="truncate max-w-[70px]">{bo.map}</span>}
-        {bo.duration && <span>{formatDuration(bo.duration)}</span>}
-      </div>
-    </div>
-  );
-}
-
-// ── Exact Score Bets ──────────────────────────────────────────────────────────
-interface ExactScoreEntry { score: string; player: 0|1|2; loserGames: number; odds: number; }
-
-function ExactScoreBets({ match, onBetPlaced }: { match: Match; onBetPlaced: () => void }) {
-  const { t } = useT();
-  const { showToast } = useNotifications();
-  const { data: session } = useSession();
-  const [scores, setScores] = useState<ExactScoreEntry[]>([]);
-  const [selected, setSelected] = useState<ExactScoreEntry | null>(null);
-  const [amount, setAmount] = useState('10');
-  const [placing, setPlacing] = useState(false);
-
-  useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/v1/bets/exact-scores/${match.id}`)
-      .then(r => r.json()).then(r => setScores(r.data ?? [])).catch(() => {});
-  }, [match.id]);
-
-  const handleBet = async () => {
-    if (!session?.user?.accessToken || !selected) return;
-    setPlacing(true);
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/v1/bets/exact`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.user.accessToken}` },
-        // NB: `odds` is NOT sent — the server recomputes them. `expectedOdds`
-        // is the cote the user saw; server returns 409 if it has moved >5%.
-        body: JSON.stringify({
-          matchId: match.id,
-          amount: parseCoinAmount(amount),
-          score: selected.score,
-          player: selected.player,
-          loserGames: selected.loserGames,
-          expectedOdds: selected.odds,
-        }),
-      });
-      const data = await res.json();
-      if (res.status === 409 && data.code === 'ODDS_CHANGED') {
-        showToast('error', t('bet_odds_changed', { odds: data.currentOdds?.toFixed(2) ?? '?' }));
-        // Refresh the scores list so the next click uses the new odds.
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/v1/bets/exact-scores/${match.id}`)
-          .then(r => r.json()).then(r => setScores(r.data ?? [])).catch(() => {});
-        return;
-      }
-      if (!res.ok) { showToast('error', data.error ?? t('common_error')); return; }
-      showToast('success', t('bet_placed_success', { score: selected.score, odds: selected.odds }));
-      setSelected(null); setAmount('10');
-      onBetPlaced();
-    } catch { showToast('error', t('common_network_error')); }
-    finally { setPlacing(false); }
-  };
-
-  if (scores.length === 0) return null;
-  const p1Scores = scores.filter(s => s.player === 1);
-  const p2Scores = scores.filter(s => s.player === 2);
-  const drawScores = scores.filter(s => s.player === 0);
-  const hasDraw = drawScores.length > 0;
-
-  return (
-    <div className="aoe-card p-4 space-y-3">
-      <div className="flex items-center gap-2 mb-1">
-        <Receipt size={14} className="text-aoe-gold" />
-        <h3 className="font-cinzel font-bold text-sm text-aoe-gold tracking-wider uppercase">{t('match_exact_score_title')}</h3>
-      </div>
-      {/* Each tile redirects to Steam sign-in when the user isn't logged in.
-          Without this, the tile visually highlighted as selected but the
-          PARIER button below stayed hidden (rendered only when `selected &&
-          session`), so non-auth users got no feedback at all on click. */}
-      {(() => {
-        const onTileClick = (s: ExactScoreEntry) => {
-          if (!session) { signInWithSteam(); return; }
-          setSelected(sel => sel?.score === s.score ? null : s);
-        };
-        return (
-          <div className={`grid gap-2 ${hasDraw ? 'grid-cols-3' : 'grid-cols-2'}`}>
-            {/* P1 scores */}
-            <div className="space-y-1.5">
-              <p className="text-[10px] font-cinzel text-aoe-parchment-muted text-center mb-2 truncate">{match.player1.name}</p>
-              {p1Scores.map(s => (
-                <button key={s.score} onClick={() => onTileClick(s)}
-                  title={!session ? t('exact_score_signin_title') : undefined}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-[12px] font-cinzel font-bold transition-all ${selected?.score === s.score ? 'border-[#ffc542]' : 'border-aoe-border hover:border-aoe-border-gold'}`}
-                  style={{ background: selected?.score === s.score ? 'rgba(255,197,66,0.15)' : 'rgba(255,255,255,0.03)', border: `1px solid ${selected?.score === s.score ? '#ffc542' : 'rgba(255,197,66,0.2)'}` }}>
-                  <span className={selected?.score === s.score ? 'text-[#ffd97a]' : 'text-aoe-parchment'}>{s.score}</span>
-                  <span className="text-aoe-gold">×{s.odds}</span>
-                </button>
-              ))}
-            </div>
-            {/* Draw scores (BO2) */}
-            {hasDraw && (
-              <div className="space-y-1.5">
-                <p className="text-[10px] font-cinzel text-aoe-parchment-muted text-center mb-2">{t('bet_draw_label')}</p>
-                {drawScores.map(s => (
-                  <button key={s.score} onClick={() => onTileClick(s)}
-                    title={!session ? t('exact_score_signin_title') : undefined}
-                    className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-[12px] font-cinzel font-bold transition-all"
-                    style={{ background: selected?.score === s.score ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.03)', border: `1px solid ${selected?.score === s.score ? '#10b981' : 'rgba(255,197,66,0.2)'}` }}>
-                    <span className={selected?.score === s.score ? 'text-emerald-400' : 'text-aoe-parchment'}>{s.score}</span>
-                    <span className="text-aoe-gold">×{s.odds}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-            {/* P2 scores */}
-            <div className="space-y-1.5">
-              <p className="text-[10px] font-cinzel text-aoe-parchment-muted text-center mb-2 truncate">{match.player2.name}</p>
-              {p2Scores.map(s => (
-                <button key={s.score} onClick={() => onTileClick(s)}
-                  title={!session ? t('exact_score_signin_title') : undefined}
-                  className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-[12px] font-cinzel font-bold transition-all"
-                  style={{ background: selected?.score === s.score ? 'rgba(41,128,185,0.15)' : 'rgba(255,255,255,0.03)', border: `1px solid ${selected?.score === s.score ? '#2980b9' : 'rgba(255,197,66,0.2)'}` }}>
-                  <span className={selected?.score === s.score ? 'text-blue-300' : 'text-aoe-parchment'}>{s.score}</span>
-                  <span className="text-aoe-gold">×{s.odds}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        );
-      })()}
-      {!session && (
-        <p className="text-center text-[10px] font-cinzel text-aoe-parchment-muted/70">
-          {t('exact_score_signin_prompt')}
-        </p>
-      )}
-
-      {selected && session && (
-        <div className="pt-2 border-t border-aoe-border space-y-2">
-          <p className="text-[11px] text-aoe-parchment-muted font-cinzel">{t('match_score_selected')} <span className="text-[#ffd97a] font-bold">{selected.score} ×{selected.odds}</span></p>
-          <div className="flex gap-2">
-            <input type="text" inputMode="decimal" value={amount}
-              onChange={e => setAmount(e.target.value.replace(/[^\d.,]/g,'').replace(',', '.'))}
-              className="flex-1 rounded px-3 py-2 text-sm font-cinzel text-aoe-parchment outline-none"
-              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,197,66,0.2)' }} />
-            <span className="flex items-center text-aoe-gold text-sm">⚜</span>
-            <button onClick={handleBet} disabled={placing || !amount || parseCoinAmount(amount) < 10}
-              className="px-4 py-2 rounded font-cinzel text-[12px] font-bold disabled:opacity-40 transition-opacity"
-              style={{ background: 'linear-gradient(135deg, #b8881a, #ffc542)', color: '#07060f' }}>
-              {placing ? '…' : t('match_bet_button_short')}
-            </button>
-          </div>
-          {amount && parseCoinAmount(amount) >= 10 && (() => {
-            const a = parseCoinAmount(amount);
-            const total = round2(a * selected.odds);
-            const profit = round2(total - a);
-            return (
-              <div className="flex justify-between text-[10px] text-aoe-parchment-muted">
-                <span>{t('bet_potential')} : <span className="text-emerald-400 font-bold">+{profit} ⚜</span></span>
-                <span>{t('match_total_return')} <span className="text-[#ffd97a] font-bold">{total} ⚜</span></span>
-              </div>
-            );
-          })()}
-        </div>
-      )}
-    </div>
-  );
-}
-
-export default function MatchPage() {
-  const { t } = useT();
-  const params = useParams();
-  const searchParams = useSearchParams();
-  const id = params?.id as string;
-  const initialPlayer = searchParams?.get('player') === '1' ? 1 : searchParams?.get('player') === '2' ? 2 : null;
-  const { data: session } = useSession();
-
-  useEffect(() => { window.scrollTo(0, 0); }, []);
-  const [match, setMatch] = useState<Match | null>(null);
-  const [countdown, setCountdown] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [betRefreshKey, setBetRefreshKey] = useState(0);
-
-  const refreshMatch = useCallback(async () => {
-    if (!id) return;
-    try {
-      const res = await getMatch(id);
-      setMatch(res.data);
-    } catch { /* keep existing data */ }
-  }, [id]);
-
-  // Initial data fetch
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const matchRes = await getMatch(id);
-        setMatch(matchRes.data);
-      } catch {
-        // no mock data — show error
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, [id]);
-
-  // Countdown timer
-  useEffect(() => {
-    if (!match) return;
-    const update = () => setCountdown(formatCountdown(match.scheduledAt));
-    update();
-    const interval = setInterval(update, 1000);
-    return () => clearInterval(interval);
-  }, [match]);
-
-  // Polling fallback for LIVE matches — re-fetch every 5s in case socket event is missed
-  useEffect(() => {
-    if (match?.status !== 'LIVE') return;
-    const interval = setInterval(refreshMatch, 5_000);
-    return () => clearInterval(interval);
-  }, [match?.status, refreshMatch]);
-
-  // Socket: join room + listen for live events
-  useEffect(() => {
-    if (!match) return;
-    const token = session?.user?.accessToken;
-    connectSocket(token);
-    const s = getSocket();
-
-    const joinRoom = () => s.emit('joinMatchRoom', match.id);
-    if (s.connected) joinRoom();
-    s.on('connect', joinRoom);
-
-    // BO started: bets locked, civs stored
-    s.on('boStarted', (data: { matchId: string; boNumber: number; p1Civ: string; p2Civ: string }) => {
-      if (data.matchId !== match.id) return;
-      setMatch((prev) => prev ? { ...prev, betsOpen: false, currentBoNumber: data.boNumber, p1Civ: data.p1Civ, p2Civ: data.p2Civ } : prev);
-    });
-
-    // BO ended: bets reopen, score updated
-    s.on('boEnded', (data: { matchId: string; p1Score: number; p2Score: number; boResult?: BoResult }) => {
-      if (data.matchId !== match.id) return;
-      setMatch((prev) => {
-        if (!prev) return prev;
-        const newBoResults = data.boResult
-          ? [...(prev.boResults ?? []), data.boResult].sort((a, b) => a.boNumber - b.boNumber)
-          : prev.boResults;
-        return { ...prev, betsOpen: true, p1Score: data.p1Score, p2Score: data.p2Score, boResults: newBoResults };
-      });
-    });
-
-    // Generic bets status update
-    s.on('betsStatus', (data: { matchId: string; open: boolean }) => {
-      if (data.matchId !== match.id) return;
-      setMatch((prev) => prev ? { ...prev, betsOpen: data.open } : prev);
-    });
-
-    // Match result (winner decided)
-    s.on('matchResult', (data: { matchId: string; winnerId: string; p1Score: number; p2Score: number }) => {
-      if (data.matchId !== match.id) return;
-      refreshMatch();
-    });
-
-    // Odds updated by volume
-    s.on('oddsUpdate', (data: { matchId: string; odds1: number; odds2: number }) => {
-      if (data.matchId !== match.id) return;
-      setMatch((prev) => prev ? { ...prev, odds1: data.odds1, odds2: data.odds2 } : prev);
-    });
-
-    return () => {
-      s.off('connect', joinRoom);
-      s.off('boStarted');
-      s.off('boEnded');
-      s.off('betsStatus');
-      s.off('matchResult');
-      s.off('oddsUpdate');
-      s.emit('leaveMatchRoom', match.id);
-    };
-  }, [match?.id, session, refreshMatch]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-aoe flex items-center justify-center">
-        <div className="w-10 h-10 border-2 border-aoe-gold border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+async function fetchMatch(id: string): Promise<Match | null> {
+  try {
+    const res = await getMatch(id);
+    return res.data ?? null;
+  } catch {
+    return null;
   }
+}
+
+const NOT_FOUND_TITLE: Record<ServerLocale, string> = {
+  en: 'Match not found | AgeOfMoney',
+  fr: 'Match introuvable | AgeOfMoney',
+  es: 'Partido no encontrado | AgeOfMoney',
+};
+
+const VS = { en: 'vs', fr: 'vs', es: 'vs' } as const;
+
+function buildTitle(match: Match, locale: ServerLocale): string {
+  const suffix = match.tournament ? ` – ${match.tournament.name}` : '';
+  const oddsWord = { en: 'odds', fr: 'cotes', es: 'cuotas' }[locale];
+  return `${match.player1.name} ${VS[locale]} ${match.player2.name}${suffix} — ${oddsWord} | AgeOfMoney`;
+}
+
+function buildDescription(match: Match, locale: ServerLocale): string {
+  const o1 = match.odds1.toFixed(2);
+  const o2 = match.odds2.toFixed(2);
+  if (locale === 'fr') {
+    return `Pariez sur ${match.player1.name} (×${o1}) ou ${match.player2.name} (×${o2}) en ${match.format}${match.tournament ? ` au tournoi ${match.tournament.name}` : ''}. Cotes Age of Empires en temps réel sur AgeOfMoney.`;
+  }
+  if (locale === 'es') {
+    return `Apuesta por ${match.player1.name} (×${o1}) o ${match.player2.name} (×${o2}) en ${match.format}${match.tournament ? ` en el torneo ${match.tournament.name}` : ''}. Cuotas de Age of Empires en tiempo real en AgeOfMoney.`;
+  }
+  return `Bet on ${match.player1.name} (×${o1}) or ${match.player2.name} (×${o2}) in ${match.format}${match.tournament ? ` at ${match.tournament.name}` : ''}. Live Age of Empires odds on AgeOfMoney.`;
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const [match, locale] = await Promise.all([fetchMatch(id), getServerLocale()]);
+  const url = `https://ageof.money/matches/${id}`;
 
   if (!match) {
-    return (
-      <div className="min-h-screen bg-aoe flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-aoe-parchment font-cinzel text-xl">{t('common_error')}</p>
-          <Link href="/" className="text-aoe-gold hover:underline mt-3 block">{t('common_back')}</Link>
-        </div>
-      </div>
-    );
+    return { title: { absolute: NOT_FOUND_TITLE[locale] }, alternates: { canonical: url } };
   }
 
-  const isLive = match.status === 'LIVE';
-  const betsLocked = match.betsOpen === false && isLive;
-  const gameOngoing = betsLocked;
+  const title = buildTitle(match, locale);
+  const description = buildDescription(match, locale);
+
+  return {
+    // Root layout's title template appends "· AgeOfMoney" to every page
+    // title — these titles already end with "| AgeOfMoney" themselves
+    // (matches the brief's requested format), so opt out via `absolute`
+    // to avoid "... | AgeOfMoney · AgeOfMoney".
+    title: { absolute: title },
+    description,
+    alternates: { canonical: url },
+    openGraph: { title, description, url, type: 'website' },
+    twitter: { card: 'summary_large_image', title, description },
+  };
+}
+
+function buildJsonLd(match: Match, locale: ServerLocale) {
+  const url = `https://ageof.money/matches/${match.id}`;
   const twitchChannel = match.twitchChannel ?? match.tournament?.twitchChannel ?? null;
-  const hasBoHistory = (match.boResults?.length ?? 0) > 0;
+
+  const breadcrumbLabels = {
+    en: { home: 'Home', matches: 'Matches' },
+    fr: { home: 'Accueil', matches: 'Matchs' },
+    es: { home: 'Inicio', matches: 'Partidas' },
+  }[locale];
 
   const breadcrumbSchema = {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Accueil', item: 'https://ageof.money' },
-      { '@type': 'ListItem', position: 2, name: 'Matchs', item: 'https://ageof.money/matches' },
-      { '@type': 'ListItem', position: 3, name: `${match.player1.name} vs ${match.player2.name}`, item: `https://ageof.money/matches/${match.id}` },
+      { '@type': 'ListItem', position: 1, name: breadcrumbLabels.home, item: 'https://ageof.money' },
+      { '@type': 'ListItem', position: 2, name: breadcrumbLabels.matches, item: 'https://ageof.money/matches' },
+      { '@type': 'ListItem', position: 3, name: `${match.player1.name} vs ${match.player2.name}`, item: url },
     ],
   };
+
+  const winnerName = match.winnerId === match.player1Id ? match.player1.name : match.player2.name;
+  const resultDescription = {
+    en: `Final score: ${match.resultScore} — ${winnerName} wins`,
+    fr: `Score final : ${match.resultScore} — ${winnerName} gagne`,
+    es: `Marcador final: ${match.resultScore} — ${winnerName} gana`,
+  }[locale];
+
+  const offerDescription = {
+    en: `Bet on ${match.player1.name} (×${match.odds1.toFixed(2)}) or ${match.player2.name} (×${match.odds2.toFixed(2)})`,
+    fr: `Pariez sur ${match.player1.name} (×${match.odds1.toFixed(2)}) ou ${match.player2.name} (×${match.odds2.toFixed(2)})`,
+    es: `Apuesta por ${match.player1.name} (×${match.odds1.toFixed(2)}) o ${match.player2.name} (×${match.odds2.toFixed(2)})`,
+  }[locale];
 
   const matchSchema = {
     '@context': 'https://schema.org',
     '@type': 'SportsEvent',
-    '@id': `https://ageof.money/matches/${match.id}`,
+    '@id': url,
     name: `${match.player1.name} vs ${match.player2.name}${match.tournament ? ` — ${match.tournament.name}` : ''}`,
-    description: `Paris esport Age of Empires : ${match.player1.name} affronte ${match.player2.name} en ${match.format}${match.tournament ? ` dans le tournoi ${match.tournament.name}` : ''}. Cotes en temps réel sur AgeOfMoney.`,
-    url: `https://ageof.money/matches/${match.id}`,
+    description: buildDescription(match, locale),
+    url,
     startDate: match.scheduledAt,
     eventStatus: match.status === 'LIVE'
       ? 'https://schema.org/EventScheduled'
@@ -551,270 +134,33 @@ export default function MatchPage() {
       },
     ],
     ...(match.status === 'COMPLETED' && match.resultScore ? {
-      result: {
-        '@type': 'Result',
-        description: `Score final : ${match.resultScore} — ${match.winnerId === match.player1Id ? match.player1.name : match.player2.name} gagne`,
-      },
+      result: { '@type': 'Result', description: resultDescription },
     } : {}),
     offers: {
       '@type': 'Offer',
-      description: `Pariez sur ${match.player1.name} (×${match.odds1.toFixed(2)}) ou ${match.player2.name} (×${match.odds2.toFixed(2)})`,
-      url: `https://ageof.money/matches/${match.id}`,
+      description: offerDescription,
+      url,
       seller: { '@id': 'https://ageof.money/#organization' },
     },
   };
 
+  return [breadcrumbSchema, matchSchema];
+}
+
+export default async function MatchPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const [match, locale] = await Promise.all([fetchMatch(id), getServerLocale()]);
+  const jsonLd = match ? buildJsonLd(match, locale) : null;
+
   return (
-    <div className="min-h-screen bg-aoe">
-      <JsonLd data={breadcrumbSchema} />
-      <JsonLd data={matchSchema} />
-      {/* ── Header ── */}
-      <div className="bg-aoe-bg-card border-b border-aoe-border">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <Link href="/" className="inline-flex items-center gap-2 text-aoe-parchment-dim hover:text-aoe-parchment transition-colors text-sm mb-4">
-            <ArrowLeft size={16} />
-            {t('common_back')}
-          </Link>
-
-          {/* Tournament info row */}
-          <div className="flex flex-wrap items-center gap-3 mb-4">
-            {match.tournament && (
-              <span className={getTierBadgeClass(match.tournament.tier)}>
-                {match.tournament.tier}
-              </span>
-            )}
-            {match.tournament?.name && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-sm font-cinzel font-bold tracking-wide"
-                style={{ background: 'linear-gradient(135deg, rgba(255,197,66,0.15), rgba(255,197,66,0.08))', border: '1px solid rgba(255,197,66,0.4)', color: '#ffd97a' }}>
-                🏆 {match.tournament.name}
-              </span>
-            )}
-            <span className="text-aoe-parchment-muted text-xs border border-aoe-border rounded px-1.5 py-0.5 font-cinzel">
-              {match.format}
-            </span>
-
-            {/* Twitch button */}
-            {twitchChannel && (
-              <a
-                href={`https://twitch.tv/${twitchChannel}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3 py-1 rounded text-sm font-cinzel text-purple-300 hover:text-purple-200 transition-colors"
-                style={{ background: 'rgba(145,70,255,0.15)', border: '1px solid rgba(145,70,255,0.35)' }}
-              >
-                <Tv size={13} />
-                Twitch
-              </a>
-            )}
-
-            {/* Bets locked banner */}
-            {betsLocked && (
-              <div className="flex items-center gap-1.5 px-3 py-1 rounded text-sm font-cinzel text-red-400"
-                style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)' }}>
-                <Lock size={13} />
-                {t('matches_bets_closed')} — BO {match.currentBoNumber}
-              </div>
-            )}
-          </div>
-
-          {/* Status */}
-          <div className="mb-4">
-            {isLive ? (
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-red-900/20 border border-red-800/50">
-                <div className="live-dot" />
-                <span className="text-xs text-red-400 font-cinzel font-bold">{t('match_live')}</span>
-              </div>
-            ) : match.status === 'UPCOMING' ? (
-              <div className="flex items-center gap-1.5 text-aoe-parchment-dim text-sm">
-                <Calendar size={14} />
-                <span>{formatDateTime(match.scheduledAt)}</span>
-                <span className="text-aoe-gold font-cinzel font-bold ml-1">({countdown})</span>
-              </div>
-            ) : match.status === 'COMPLETED' ? (
-              <div className="flex items-center gap-1.5">
-                <span className="aoe-badge-completed">{t('matches_finished')}</span>
-                {match.resultScore && (
-                  <span className="text-aoe-gold font-cinzel font-bold text-lg ml-2">{match.resultScore}</span>
-                )}
-              </div>
-            ) : null}
-          </div>
-
-          {/* Players VS row */}
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            {/* Player 1 */}
-            <div className="flex items-center gap-4">
-              <PlayerAvatar name={match.player1.name} playerId={match.player1.id} avatarUrl={match.player1.avatarUrl} size={64} />
-              <div>
-                <h1 className="font-cinzel font-black text-xl sm:text-3xl text-aoe-parchment">{match.player1.name}</h1>
-                {gameOngoing && match.p1Civ && (
-                  <p className="text-amber-400 text-xs font-cinzel mt-0.5">{formatCiv(match.p1Civ)}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Center — score or VS.
-                Score live affiché si : pas de stream (seule source d'info) OU
-                au moins un joueur a marqué. Le 0-0 avec stream est caché pour
-                ne pas contredire visuellement le stream quand notre polling
-                Liquipedia n'est pas encore rafraîchi. */}
-            <div className="text-center">
-              {isLive && (!twitchChannel || (match.p1Score ?? 0) > 0 || (match.p2Score ?? 0) > 0) ? (
-                <div className="flex items-center gap-3">
-                  <span className="font-cinzel font-black text-5xl text-amber-400">{match.p1Score ?? 0}</span>
-                  <span className="font-cinzel text-aoe-parchment-muted text-xl">-</span>
-                  <span className="font-cinzel font-black text-5xl text-blue-400">{match.p2Score ?? 0}</span>
-                </div>
-              ) : null}
-              {isLive && (
-                <div className="flex items-center justify-center gap-1 mt-1">
-                  <Zap size={12} className="text-aoe-gold animate-pulse" />
-                  <span className="text-xs text-aoe-parchment-dim font-cinzel">{t('match_in_progress')}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Player 2 */}
-            <div className="flex items-center gap-4 flex-row-reverse">
-              <PlayerAvatar name={match.player2.name} playerId={match.player2.id} avatarUrl={match.player2.avatarUrl} size={64} />
-              <div className="text-right">
-                <h1 className="font-cinzel font-black text-3xl text-aoe-parchment">{match.player2.name}</h1>
-                {gameOngoing && match.p2Civ && (
-                  <p className="text-blue-400 text-xs font-cinzel mt-0.5">{formatCiv(match.p2Civ)}</p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Body ── */}
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left column */}
-          <div className="lg:col-span-2 space-y-5">
-            {/* H2H card removed 2026-05-02 per UX feedback — the data was
-                often misleading when one player had 0 confirmed h2h wins
-                against an active rival. The signal is folded into the
-                odds calculation directly via the engine's h2h factor. */}
-
-            {/* BO history */}
-            {hasBoHistory && (
-              <div className="aoe-card p-4 space-y-2">
-                <div className="flex items-center gap-2 mb-3">
-                  <Swords size={14} className="text-aoe-gold" />
-                  <h3 className="font-cinzel font-bold text-sm text-aoe-gold tracking-wider uppercase">
-                    BO History
-                  </h3>
-                  {isLive && (!twitchChannel || (match.p1Score ?? 0) > 0 || (match.p2Score ?? 0) > 0) && (
-                    <span className="ml-auto text-[10px] text-aoe-parchment-muted font-cinzel">
-                      {match.p1Score ?? 0} — {match.p2Score ?? 0}
-                    </span>
-                  )}
-                </div>
-                <div className="space-y-1.5">
-                  {match.boResults!.map((bo) => (
-                    <BoHistoryCard
-                      key={bo.boNumber}
-                      bo={bo}
-                      p1Name={match.player1.name}
-                      p2Name={match.player2.name}
-                      p1Id={match.player1Id}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {twitchChannel ? (
-              <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(255,197,66,0.2)' }}>
-                <div className="flex items-center gap-2 px-4 py-2.5" style={{ background: '#0d0b1a', borderBottom: '1px solid rgba(255,197,66,0.2)' }}>
-                  <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                  <span className="text-[12px] font-bold uppercase tracking-widest" style={{ color: '#9146ff' }}>{t('matches_filter_live')} — Twitch</span>
-                  <span className="text-[11px] ml-auto" style={{ color: '#8981ab' }}>{twitchChannel}</span>
-                </div>
-                <div style={{ aspectRatio: '16/9', background: '#000' }}>
-                  <iframe
-                    src={`https://player.twitch.tv/?channel=${twitchChannel}&parent=${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}&autoplay=false&muted=true`}
-                    allowFullScreen
-                    style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="rounded-xl flex flex-col items-center justify-center py-10 gap-3" style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}>
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="#8981ab"><path d="M2.149 0L.537 4.119v16.836h5.731V24h3.224l3.045-3.045h4.657l6.269-6.269V0H2.149zm19.164 13.612l-3.582 3.582H13l-3.045 3.045v-3.045H4.537V2.149h16.776v11.463zm-3.582-7.343v6.262h-2.149V6.269h2.149zm-5.731 0v6.262H9.851V6.269H12z"/></svg>
-                <p className="text-[12px]" style={{ color: '#8981ab' }}>No Twitch stream configured</p>
-              </div>
-            )}
-            <MatchChat matchId={match.id} />
-          </div>
-
-          {/* Right column */}
-          <div className="space-y-4">
-            <BetForm match={match} onBetPlaced={() => { refreshMatch(); setBetRefreshKey(k => k + 1); }} initialPlayer={initialPlayer} />
-            {match.status === 'UPCOMING' && match.betsOpen && match.format !== 'BO1' && (
-              <ExactScoreBets match={match} onBetPlaced={() => { refreshMatch(); setBetRefreshKey(k => k + 1); }} />
-            )}
-            <MyMatchBets matchId={match.id} match={match} refreshKey={betRefreshKey} />
-
-            {/* Match info */}
-            <div className="aoe-card p-4 space-y-2 text-xs">
-              <h4 className="font-cinzel text-aoe-gold text-xs uppercase tracking-wider mb-2">Info</h4>
-              <div className="flex justify-between">
-                <span className="text-aoe-parchment-muted">Format</span>
-                <span className="text-aoe-parchment font-cinzel">{match.format}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-aoe-parchment-muted">Date</span>
-                <span className="text-aoe-parchment">{formatDateTime(match.scheduledAt)}</span>
-              </div>
-              {match.tournament?.prizePool && (
-                <div className="flex justify-between">
-                  <span className="text-aoe-parchment-muted">{t('tourn_prize')}</span>
-                  <span className="text-aoe-gold font-semibold">{match.tournament.prizePool}</span>
-                </div>
-              )}
-              {match.betVolume && match.betVolume.total > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-aoe-parchment-muted">{t('lb_wagered')}</span>
-                  <span className="text-aoe-gold">
-                    {new Intl.NumberFormat('fr-FR').format(match.betVolume.total)} ⚜
-                  </span>
-                </div>
-              )}
-              {isLive && (
-                <div className="flex justify-between items-center">
-                  <span className="text-aoe-parchment-muted">{t('nav_matches')}</span>
-                  {betsLocked ? (
-                    <span className="flex items-center gap-1 text-red-400">
-                      <Lock size={10} />{t('bet_closed')}
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-emerald-400">
-                      <Shield size={10} />{t('matches_filter_live')}
-                    </span>
-                  )}
-                </div>
-              )}
-              {twitchChannel && (
-                <div className="pt-2">
-                  <a
-                    href={`https://twitch.tv/${twitchChannel}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 w-full py-2 rounded font-cinzel text-xs text-purple-300 hover:text-purple-200 transition-colors"
-                    style={{ background: 'rgba(145,70,255,0.12)', border: '1px solid rgba(145,70,255,0.3)' }}
-                  >
-                    <Tv size={12} />
-                    Twitch : {twitchChannel}
-                  </a>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <>
+      {jsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      )}
+      <MatchPageClient matchId={id} initialMatch={match} />
+    </>
   );
 }

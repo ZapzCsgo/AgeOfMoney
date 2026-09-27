@@ -19,14 +19,38 @@ export default function robots(): MetadataRoute.Robots {
           '/_next/',
         ],
       },
-      // Explicitly allow AI crawlers on all public content
+      // Explicitly allow search + AI crawlers on all public content
+      {
+        userAgent: 'Googlebot',
+        allow: '/',
+        disallow: ['/api/', '/admin', '/profile', '/deposit', '/withdraw', '/affiliate'],
+      },
+      {
+        userAgent: 'Bingbot',
+        allow: '/',
+        disallow: ['/api/', '/admin', '/profile', '/deposit', '/withdraw', '/affiliate'],
+      },
+      // OpenAI: GPTBot crawls for training, OAI-SearchBot powers ChatGPT's
+      // search/citations, ChatGPT-User fetches a page a user pasted/asked about.
       {
         userAgent: 'GPTBot',
         allow: '/',
         disallow: ['/api/', '/admin', '/profile', '/deposit', '/withdraw', '/affiliate'],
       },
       {
-        userAgent: 'PerplexityBot',
+        userAgent: 'OAI-SearchBot',
+        allow: '/',
+        disallow: ['/api/', '/admin', '/profile', '/deposit', '/withdraw', '/affiliate'],
+      },
+      {
+        userAgent: 'ChatGPT-User',
+        allow: '/',
+        disallow: ['/api/', '/admin', '/profile', '/deposit', '/withdraw', '/affiliate'],
+      },
+      // Anthropic: ClaudeBot is the current general crawler; anthropic-ai and
+      // Claude-Web are older identifiers kept for compatibility.
+      {
+        userAgent: 'ClaudeBot',
         allow: '/',
         disallow: ['/api/', '/admin', '/profile', '/deposit', '/withdraw', '/affiliate'],
       },
@@ -37,6 +61,11 @@ export default function robots(): MetadataRoute.Robots {
       },
       {
         userAgent: 'Claude-Web',
+        allow: '/',
+        disallow: ['/api/', '/admin', '/profile', '/deposit', '/withdraw', '/affiliate'],
+      },
+      {
+        userAgent: 'PerplexityBot',
         allow: '/',
         disallow: ['/api/', '/admin', '/profile', '/deposit', '/withdraw', '/affiliate'],
       },
