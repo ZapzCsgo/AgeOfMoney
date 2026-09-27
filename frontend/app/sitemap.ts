@@ -41,6 +41,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_BASE}/roulette`,    lastModified: now, changeFrequency: 'daily',  priority: 0.7 },
     { url: `${SITE_BASE}/coinflip`,    lastModified: now, changeFrequency: 'daily',  priority: 0.7 },
     { url: `${SITE_BASE}/leaderboard`, lastModified: now, changeFrequency: 'daily',  priority: 0.6 },
+    { url: `${SITE_BASE}/faq`,         lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
     { url: `${SITE_BASE}/support`,     lastModified: now, changeFrequency: 'monthly', priority: 0.3 },
     { url: `${SITE_BASE}/privacy`,     lastModified: now, changeFrequency: 'yearly', priority: 0.2 },
   ];

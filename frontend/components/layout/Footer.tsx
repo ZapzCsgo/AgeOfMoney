@@ -114,6 +114,11 @@ export function Footer() {
                     {t('footer_fairness')}
                   </Link>
                 </li>
+                <li>
+                  <Link href="/faq" className="text-[13px] transition-colors hover:text-[#e8e2f5]" style={{ color: '#8981ab' }}>
+                    {t('footer_faq')}
+                  </Link>
+                </li>
               </ul>
             </div>
           </div>
