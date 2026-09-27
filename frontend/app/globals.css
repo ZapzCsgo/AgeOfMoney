@@ -79,7 +79,7 @@
   .odds-value,
   .balance-value,
   .stat-value {
-    font-variant-numeric: tabular-nums;
+    font-variant-numeric: lining-nums tabular-nums;
     font-feature-settings: 'tnum' on, 'lnum' on;
   }
 }

@@ -9,7 +9,7 @@ import { Match } from '@/types';
 import { getMatches } from '@/lib/api';
 import { cn, getAvatarSrc } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Clock, RefreshCw, AlertTriangle, Swords, Search } from 'lucide-react';
+import { Clock, RefreshCw, AlertTriangle, Swords, Search, Crown } from 'lucide-react';
 import { useT, type TKey } from '@/lib/i18n';
 import { EmptyState } from '@/components/ui/empty-state';
 import { JsonLd } from '@/components/JsonLd';
@@ -35,26 +35,23 @@ const GAME_STYLE: Record<string, { bg: string; text: string; border: string }> =
   AoE1: { bg: 'rgba(251,146,60,0.10)', text: '#fb923c', border: 'rgba(251,146,60,0.40)' },
 };
 
-function PlayerAvatar({ name, playerId, avatarUrl, size = 44 }: { name: string; playerId?: string; avatarUrl?: string | null; size?: number }) {
-  const hue = name.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % 360;
+function PlayerAvatar({ name, playerId, avatarUrl, size = 44, muted = false }: { name: string; playerId?: string; avatarUrl?: string | null; size?: number; muted?: boolean }) {
   const imgSrc = playerId ? getAvatarSrc(playerId, avatarUrl) : avatarUrl;
+  const initials = name.slice(0, 2).toUpperCase();
   return (
     <div
-      className="rounded-full flex items-center justify-center relative overflow-hidden shrink-0"
+      className={cn('rounded-full flex items-center justify-center relative overflow-hidden shrink-0 transition-all duration-300', muted && 'grayscale opacity-60')}
       style={{
         width: size, height: size,
-        background: imgSrc ? undefined : `radial-gradient(circle at 40% 35%, hsl(${hue},35%,22%) 0%, hsl(${hue},20%,10%) 100%)`,
-        border: '2px solid rgba(255,197,66,0.15)',
+        background: '#0d0b1a',
+        border: `2px solid ${muted ? 'rgba(255,197,66,0.15)' : 'rgba(255,197,66,0.35)'}`,
       }}
     >
       {imgSrc ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={imgSrc} alt={name} className="w-full h-full object-cover object-top" />
+        <img src={imgSrc} alt={name} className="w-full h-full object-cover object-top" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
       ) : (
-        <svg viewBox="0 0 24 24" fill="none" style={{ width: size * 0.6, height: size * 0.6 }}>
-          <circle cx="12" cy="8" r="4" fill={`hsl(${hue},45%,55%)`} />
-          <path d="M4 20c0-4.418 3.582-8 8-8s8 3.582 8 8" fill={`hsl(${hue},35%,40%)`} />
-        </svg>
+        <span className="font-bold text-aoe-gold tabular-nums" style={{ fontSize: size * 0.32 }}>{initials}</span>
       )}
     </div>
   );
@@ -76,9 +73,9 @@ function MatchRow({ match }: { match: Match }) {
   };
 
   return (
-    <Link href={`/matches/${match.id}`} className="block group">
+    <Link href={`/matches/${match.id}`} className="block group cursor-pointer">
       <div
-        className="flex items-center gap-2 px-3 py-2.5 transition-all hover:bg-white/[0.02] rounded-lg"
+        className="flex items-center gap-2 px-3 py-2.5 transition-all hover:bg-white/[0.03] border-l-2 border-transparent group-hover:border-aoe-gold"
         style={{ minHeight: 56 }}
       >
         {/* Player 1 */}
@@ -86,35 +83,28 @@ function MatchRow({ match }: { match: Match }) {
           onClick={(e) => { if (!isCompleted && !betClosed) goToMatchWithPlayer(1, e); }}
           className={cn(
             'flex items-center gap-2 min-w-0 flex-1 rounded-md px-1.5 py-1 transition-all text-left',
-            !isCompleted && !betClosed && 'hover:bg-[#ffc542]/[0.06]',
-            p2Won && 'opacity-30'
+            !isCompleted && !betClosed && 'hover:bg-[#ffc542]/[0.06]'
           )}
         >
           <div className="relative shrink-0">
-            <PlayerAvatar name={match.player1.name} playerId={match.player1.id} avatarUrl={match.player1.avatarUrl} size={32} />
+            <PlayerAvatar name={match.player1.name} playerId={match.player1.id} avatarUrl={match.player1.avatarUrl} size={32} muted={p2Won} />
             {p1Won && (
-              <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[18px] leading-none drop-shadow-[0_0_6px_rgba(255,197,66,0.7)] select-none pointer-events-none">
-                👑
-              </span>
+              <Crown size={16} fill="#ffc542" color="#ffc542" strokeWidth={1.5} className="absolute -top-2.5 left-1/2 -translate-x-1/2 drop-shadow-[0_0_6px_rgba(255,197,66,0.7)] pointer-events-none" />
             )}
           </div>
           <div className="min-w-0 flex-1">
             <p className={cn(
-              'font-cinzel font-bold truncate text-[12px] leading-tight transition-colors',
-              p1Won ? 'text-[#ffd97a]' : 'text-[#e8e2f5]'
+              'font-bold truncate text-[12px] leading-tight transition-colors',
+              p1Won ? 'text-[#ffd97a]' : p2Won ? 'text-aoe-parchment-muted' : 'text-[#e8e2f5]'
             )}>
               {match.player1.name}
             </p>
             {!isCompleted && !betClosed ? (
-              <p className="text-[#ffc542] font-cinzel font-black text-[14px] leading-none mt-0.5">
+              <p className="text-[#ffc542] font-black text-[14px] leading-none mt-0.5 tabular-nums">
                 {match.odds1.toFixed(2)}<span className="text-[10px] opacity-60">×</span>
               </p>
-            ) : isCompleted && match.resultScore ? (
-              <p className={cn('font-cinzel font-black text-[14px] leading-none mt-0.5', p1Won ? 'text-[#ffd97a]' : 'text-[#3d3860]')}>
-                {match.resultScore.split('-')[0]}
-              </p>
             ) : (
-              <p className="text-[10px] text-[#8981ab] mt-0.5">—</p>
+              <p className="text-[10px] text-aoe-parchment-muted mt-0.5">—</p>
             )}
           </div>
         </button>
@@ -129,8 +119,8 @@ function MatchRow({ match }: { match: Match }) {
                   stream ou pas, le score brut vaut l'info. */}
               {match.p1Score != null && match.p2Score != null
                 && (match.p1Score > 0 || match.p2Score > 0) ? (
-                <p className="font-cinzel font-black text-[14px] text-[#e8e2f5]">
-                  {match.p1Score}<span className="text-[#3d3860] mx-0.5">-</span>{match.p2Score}
+                <p className="font-black text-[14px] text-[#e8e2f5] tabular-nums">
+                  {match.p1Score}<span className="text-aoe-parchment-muted mx-0.5">-</span>{match.p2Score}
                 </p>
               ) : null}
               <div className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-bold" style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171' }}>
@@ -141,16 +131,16 @@ function MatchRow({ match }: { match: Match }) {
           ) : isCompleted ? (
             <>
               {match.resultScore && (
-                <p className="font-cinzel font-black text-[14px]">
-                  <span className={p1Won ? 'text-[#ffd97a]' : 'text-[#3d3860]'}>{match.resultScore.split('-')[0]}</span>
-                  <span className="text-[#3d3860] mx-0.5">-</span>
-                  <span className={p2Won ? 'text-[#ffd97a]' : 'text-[#3d3860]'}>{match.resultScore.split('-')[1]}</span>
+                <p className="font-black text-[17px] tabular-nums">
+                  <span className={p1Won ? 'text-[#ffd97a]' : 'text-aoe-parchment-muted'}>{match.resultScore.split('-')[0]}</span>
+                  <span className="text-aoe-parchment-muted mx-0.5">-</span>
+                  <span className={p2Won ? 'text-[#ffd97a]' : 'text-aoe-parchment-muted'}>{match.resultScore.split('-')[1]}</span>
                 </p>
               )}
-              <span className="text-[8px] font-bold text-[#4a4570] tracking-wider">{t('common_end_abbr')}</span>
+              <span className="text-[10px] font-bold text-aoe-parchment-dim tracking-wider mt-0.5">{t('common_end_abbr')}</span>
               {/* Finished-at date : short locale-aware ("24 avr.") so users
                   can tell how old the result is at a glance. */}
-              <span className="text-[8px] text-[#3d3860] tabular-nums whitespace-nowrap" title={new Date(match.updatedAt).toLocaleString()}>
+              <span className="text-[10px] text-aoe-parchment-dim tabular-nums whitespace-nowrap" title={new Date(match.updatedAt).toLocaleString()}>
                 {new Date(match.updatedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
               </span>
             </>
@@ -173,35 +163,28 @@ function MatchRow({ match }: { match: Match }) {
           onClick={(e) => { if (!isCompleted && !betClosed) goToMatchWithPlayer(2, e); }}
           className={cn(
             'flex items-center gap-2 min-w-0 flex-1 rounded-md px-1.5 py-1 justify-end transition-all text-right',
-            !isCompleted && !betClosed && 'hover:bg-[#ffc542]/[0.06]',
-            p1Won && 'opacity-30'
+            !isCompleted && !betClosed && 'hover:bg-[#ffc542]/[0.06]'
           )}
         >
           <div className="min-w-0 flex-1 text-right">
             <p className={cn(
-              'font-cinzel font-bold truncate text-[12px] leading-tight transition-colors',
-              p2Won ? 'text-[#ffd97a]' : 'text-[#e8e2f5]'
+              'font-bold truncate text-[12px] leading-tight transition-colors',
+              p2Won ? 'text-[#ffd97a]' : p1Won ? 'text-aoe-parchment-muted' : 'text-[#e8e2f5]'
             )}>
               {match.player2.name}
             </p>
             {!isCompleted && !betClosed ? (
-              <p className="text-[#ffc542] font-cinzel font-black text-[14px] leading-none mt-0.5">
+              <p className="text-[#ffc542] font-black text-[14px] leading-none mt-0.5 tabular-nums">
                 {match.odds2.toFixed(2)}<span className="text-[10px] opacity-60">×</span>
               </p>
-            ) : isCompleted && match.resultScore ? (
-              <p className={cn('font-cinzel font-black text-[14px] leading-none mt-0.5', p2Won ? 'text-[#ffd97a]' : 'text-[#3d3860]')}>
-                {match.resultScore.split('-')[1]}
-              </p>
             ) : (
-              <p className="text-[10px] text-[#8981ab] mt-0.5">—</p>
+              <p className="text-[10px] text-aoe-parchment-muted mt-0.5">—</p>
             )}
           </div>
           <div className="relative shrink-0">
-            <PlayerAvatar name={match.player2.name} playerId={match.player2.id} avatarUrl={match.player2.avatarUrl} size={32} />
+            <PlayerAvatar name={match.player2.name} playerId={match.player2.id} avatarUrl={match.player2.avatarUrl} size={32} muted={p1Won} />
             {p2Won && (
-              <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[18px] leading-none drop-shadow-[0_0_6px_rgba(255,197,66,0.7)] select-none pointer-events-none">
-                👑
-              </span>
+              <Crown size={16} fill="#ffc542" color="#ffc542" strokeWidth={1.5} className="absolute -top-2.5 left-1/2 -translate-x-1/2 drop-shadow-[0_0_6px_rgba(255,197,66,0.7)] pointer-events-none" />
             )}
           </div>
         </button>
@@ -348,18 +331,18 @@ export default function MatchesPage() {
             <div>
               <h1 className="font-cinzel font-black text-2xl tracking-[0.12em] text-[#ffd97a] uppercase">{t('matches_title')}</h1>
               <div className="flex items-center gap-3 mt-0.5">
-                {liveCount > 0 && <span className="flex items-center gap-1 text-[11px] text-red-400 font-cinzel"><span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse inline-block" />{liveCount} {t('matches_filter_live')}</span>}
-                <span className="text-[11px] text-[#8981ab] font-cinzel">{upcoming} {t('matches_upcoming_label')} · {matches.length} {t('matches_total')}</span>
+                {liveCount > 0 && <span className="flex items-center gap-1 text-[11px] text-red-400 font-bold tabular-nums"><span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse inline-block" />{liveCount} {t('matches_filter_live')}</span>}
+                <span className="text-[11px] text-aoe-parchment-dim tabular-nums">{upcoming} {t('matches_upcoming_label')} · {matches.length} {t('matches_total')}</span>
               </div>
             </div>
           </div>
-          <button onClick={fetchMatches} disabled={loading} className="p-2 rounded-lg border border-[#1e1a30] text-[#8981ab] hover:text-[#ffc542] hover:border-[#ffc542]/20 transition-colors">
+          <button onClick={fetchMatches} disabled={loading} className="w-9 h-9 flex items-center justify-center shrink-0 rounded-lg border border-[#1e1a30] text-aoe-parchment-dim hover:text-[#ffc542] hover:border-[#ffc542]/20 transition-colors">
             <RefreshCw size={14} className={loading ? 'animate-spin text-[#ffc542]' : ''} />
           </button>
         </div>
       </div>
 
-      <div className="px-5 py-5 space-y-4">
+      <div className="px-5 py-5 pb-28 space-y-4">
         {/* Game filter chips */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1">
           {GAME_TABS.filter(g => g.id === 'all' || availableGames.has(g.id)).map(g => (
@@ -367,10 +350,10 @@ export default function MatchesPage() {
               key={g.id}
               onClick={() => setGameFilter(g.id)}
               className={cn(
-                'shrink-0 px-3 py-1.5 rounded-md text-[11px] font-medium transition-colors border',
+                'shrink-0 h-9 px-3 rounded-md text-[11px] font-bold uppercase tracking-wide transition-colors border',
                 gameFilter === g.id
                   ? 'bg-[#ffc542] text-black border-[#ffc542]'
-                  : 'bg-transparent text-[#9990b8] border-[#1e1a30] hover:border-[#3d3860] hover:text-[#e8e2f5]'
+                  : 'bg-transparent text-aoe-parchment-dim border-[#1e1a30] hover:border-[#3d3860] hover:text-aoe-parchment'
               )}
             >
               {g.id === 'all' ? t('tourn_all_games') : g.label}
@@ -379,8 +362,8 @@ export default function MatchesPage() {
         </div>
 
         {/* Search + status filters */}
-        <div className="flex items-center gap-3">
-          <div className="relative flex-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative flex-1 min-w-[160px]">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4a4570]" />
             <input
               type="text"
@@ -391,18 +374,20 @@ export default function MatchesPage() {
             />
           </div>
 
-          <div className="flex shrink-0 border border-[#1e1a30] rounded-md overflow-hidden">
+          <div className="flex items-center gap-2 shrink-0">
             {FILTERS.map(f => {
               const isActive = filter === f.id;
               const count = f.id === 'LIVE' ? liveCount : f.id === 'UPCOMING' ? upcoming : undefined;
               return (
                 <button key={f.id} onClick={() => setFilter(f.id)}
-                  className={cn('flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold tracking-wider uppercase transition-colors',
-                    isActive ? 'bg-[#1e1a30] text-[#e8e2f5]' : 'text-[#8981ab] hover:text-[#9990b8]')}
+                  className={cn('flex items-center gap-1.5 h-9 px-3 rounded-md text-[11px] font-bold uppercase tracking-wide transition-colors border',
+                    isActive
+                      ? 'bg-[#ffc542] text-black border-[#ffc542]'
+                      : 'bg-transparent text-aoe-parchment-dim border-[#1e1a30] hover:border-[#3d3860] hover:text-aoe-parchment')}
                 >
-                  {f.id === 'LIVE' && liveCount > 0 && <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />}
+                  {f.id === 'LIVE' && liveCount > 0 && <span className={cn('w-1.5 h-1.5 rounded-full animate-pulse', isActive ? 'bg-black' : 'bg-red-400')} />}
                   {f.label}
-                  {count !== undefined && count > 0 && !isActive && <span className="text-[9px] bg-[#1e1a30] px-1.5 py-0.5 rounded-full font-sans">{count}</span>}
+                  {count !== undefined && count > 0 && !isActive && <span className="text-[9px] bg-[#1e1a30] px-1.5 py-0.5 rounded-full font-sans tabular-nums">{count}</span>}
                 </button>
               );
             })}
@@ -427,21 +412,25 @@ export default function MatchesPage() {
                 {/* Tournament header — minimal */}
                 <div className="flex items-center gap-3 px-5 py-3 border-b" style={{ borderColor: 'rgba(255,197,66,0.2)', background: 'rgba(0,0,0,0.2)' }}>
                   <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: TIER_COLORS[g.tier] ?? '#8981ab' }} />
-                  <span className="text-[11px] font-cinzel font-semibold truncate" style={{ color: TIER_COLORS[g.tier] ?? '#8981ab' }}>{g.name}</span>
+                  <span className="text-[12px] font-semibold truncate" style={{ color: TIER_COLORS[g.tier] ?? '#8981ab' }}>{g.name}</span>
                   {(() => {
                     const gs = GAME_STYLE[g.game] ?? GAME_STYLE.AoE4;
                     return (
-                      <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded font-bold tracking-wide"
+                      <span className="badge-tag shrink-0"
                         style={{ background: gs.bg, color: gs.text, border: `1px solid ${gs.border}` }}>
                         {g.game}
                       </span>
                     );
                   })()}
-                  <span className="text-[10px] text-[#3d3860] ml-auto shrink-0 font-cinzel">{g.format} · {g.matches.length} {t('nav_matches').toLowerCase()}</span>
+                  <span className="text-[11px] text-aoe-parchment-dim ml-auto shrink-0 tabular-nums">{g.format} · {g.matches.length} {t('nav_matches').toLowerCase()}</span>
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2">
                   {g.matches.map((m, i) => (
-                    <div key={m.id} className="border-b lg:even:border-l" style={{ borderColor: '#13111f' }}>
+                    <div
+                      key={m.id}
+                      className={cn('border-b', i % 2 === 1 && 'lg:border-l lg:border-l-[rgba(255,197,66,0.12)]')}
+                      style={{ borderBottomColor: '#1e1a30' }}
+                    >
                       <MatchRow match={m} />
                     </div>
                   ))}

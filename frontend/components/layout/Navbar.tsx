@@ -337,14 +337,14 @@ export function Navbar() {
 
                 {dropdownOpen && (
                     <div className="absolute right-0 top-full mt-2 w-48 border border-aoe-border bg-aoe-bg-card shadow-xl z-20 py-1 rounded-md">
-                      <div className="px-4 py-2 border-b border-aoe-border mb-1">
-                        <p className="text-xs text-aoe-parchment-dim font-cinzel tracking-wide truncate">
+                      <div className="px-4 py-2.5 border-b border-aoe-border mb-1">
+                        <p className="text-[11px] text-aoe-parchment-dim font-cinzel tracking-wide truncate">
                           {session.user.name}
                         </p>
-                        <p className="text-xs text-aoe-gold font-cinzel font-bold mt-0.5">
+                        <p className="text-sm text-aoe-gold font-cinzel font-extrabold tabular-nums mt-1">
                           ⚜ {new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(displayCoins)} coins
                         </p>
-                        <p className="text-[10px] text-[#8981ab] mt-0.5">
+                        <p className="text-[10px] text-aoe-parchment-dim tabular-nums mt-0.5">
                           ≈ ${(displayCoins / 1.69).toFixed(2)}
                         </p>
                       </div>
@@ -363,7 +363,7 @@ export function Navbar() {
                         className="flex items-center gap-2 px-4 py-2 text-sm text-aoe-parchment hover:bg-aoe-stone transition-colors md:hidden"
                         onClick={() => setDropdownOpen(false)}
                       >
-                        <PlusCircle size={14} className="text-emerald-400" />
+                        <PlusCircle size={14} className="text-aoe-gold" />
                         {t('nav_deposit')}
                       </Link>
                       <Link
@@ -396,7 +396,7 @@ export function Navbar() {
                           className="flex items-center gap-2 px-4 py-2 text-sm text-aoe-parchment hover:bg-aoe-stone transition-colors"
                           onClick={() => setDropdownOpen(false)}
                         >
-                          <Shield size={14} className="text-aoe-crimson-bright" />
+                          <Shield size={14} className="text-aoe-gold" />
                           {t('nav_admin')}
                         </Link>
                       )}
