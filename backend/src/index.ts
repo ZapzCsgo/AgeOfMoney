@@ -78,14 +78,37 @@ if (process.env.NODE_ENV === 'production') {
   }
 }
 
-// Limit connection pool to avoid Supabase "MaxClientsInSessionMode" errors.
-// Supabase free/pro tier limits pool_size to ~15 in session mode.
-// Prisma default is 10 connections per instance which is fine, but we add
-// explicit config to prevent future issues.
+// Prisma has no explicit connection_limit set in DATABASE_URL, so it falls
+// back to its own default (num_cpus * 2 + 1) — on this container that
+// computes to 5. With cron jobs firing every few seconds (rain sweep, match
+// verifier, odds recalc, the roulette round loop, ...) all sharing that same
+// 5-connection pool alongside every incoming HTTP request, it saturates
+// constantly: confirmed via Railway logs, repeated
+// "Timed out fetching a new connection from the connection pool"
+// (P2024) errors across totally unrelated models (RouletteRound, Match,
+// User, Rain, Transaction, ...), and confirmed as the direct cause of
+// roulette bets/round polls intermittently failing during play.
+// Supabase's Postgres max_connections here is 60 with ~26 already held by
+// other things (checked via the dashboard), so 15 leaves comfortable
+// headroom without touching the DATABASE_URL secret itself — we append the
+// params to a parsed copy of it at runtime instead.
+function buildDatasourceUrl(): string {
+  const raw = process.env.DATABASE_URL;
+  if (!raw) return raw as unknown as string;
+  try {
+    const url = new URL(raw);
+    if (!url.searchParams.has('connection_limit')) url.searchParams.set('connection_limit', '15');
+    if (!url.searchParams.has('pool_timeout')) url.searchParams.set('pool_timeout', '20');
+    return url.toString();
+  } catch {
+    return raw;
+  }
+}
+
 export const prisma = new PrismaClient({
   datasources: {
     db: {
-      url: process.env.DATABASE_URL,
+      url: buildDatasourceUrl(),
     },
   },
 });
