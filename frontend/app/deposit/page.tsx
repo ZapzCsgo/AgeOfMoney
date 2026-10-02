@@ -315,11 +315,6 @@ export default function DepositPage() {
                   : t('deposit_go_oxapay')}
               </a>
             )}
-            {invoice.method === 'card' && (
-              <p className="text-[11px] text-aoe-parchment-dim text-center -mt-1">
-                {t('deposit_want_oxapay_directly')} <span className="text-aoe-gold">{t('deposit_method_crypto')}</span>.
-              </p>
-            )}
 
             {/* Back button */}
             <button onClick={() => setInvoice(null)} className="w-full py-2.5 rounded-xl text-sm text-aoe-parchment-dim hover:text-aoe-parchment border border-aoe-border hover:border-aoe-border-mid transition-colors">
