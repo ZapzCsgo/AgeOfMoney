@@ -742,6 +742,7 @@ function Hero({ liveCount, totalBets, matchCount }: { liveCount: number; totalBe
           <div
             className="flex items-center gap-2 px-5 py-2.5 font-cinzel tracking-wide text-xs"
             style={{ borderRight: '1px solid rgba(255,197,66,0.2)' }}
+            title="Total coins currently staked across all open bets on the platform"
           >
             <TrendingUp size={12} className="text-aoe-gold" />
             <span className="text-aoe-gold font-bold">{new Intl.NumberFormat('fr-FR').format(totalBets)}</span>

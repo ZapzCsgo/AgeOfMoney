@@ -9,7 +9,7 @@ import { Match } from '@/types';
 import { getMatches } from '@/lib/api';
 import { cn, getAvatarSrc } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Clock, RefreshCw, AlertTriangle, Swords, Search, Crown } from 'lucide-react';
+import { Clock, RefreshCw, AlertTriangle, Swords, Search, Crown, ChevronRight } from 'lucide-react';
 import { useT, localeFromLang, type TKey } from '@/lib/i18n';
 import { EmptyState } from '@/components/ui/empty-state';
 import { JsonLd } from '@/components/JsonLd';
@@ -101,8 +101,12 @@ function MatchRow({ match }: { match: Match }) {
               {match.player1.name}
             </p>
             {!isCompleted && !betClosed ? (
-              <p className="text-[#ffc542] font-black text-[14px] leading-none mt-0.5 tabular-nums">
+              <p
+                className="flex items-center gap-0.5 text-[#ffc542] font-black text-[14px] leading-none mt-0.5 tabular-nums group-hover:text-[#ffd97a]"
+                title={`Bet on ${match.player1.name} — potential return: stake × ${match.odds1.toFixed(2)}`}
+              >
                 {match.odds1.toFixed(2)}<span className="text-[10px] opacity-60">×</span>
+                <ChevronRight size={10} className="opacity-0 group-hover:opacity-70 transition-opacity shrink-0" />
               </p>
             ) : (
               <p className="text-[10px] text-aoe-parchment-muted mt-0.5">—</p>
@@ -175,7 +179,11 @@ function MatchRow({ match }: { match: Match }) {
               {match.player2.name}
             </p>
             {!isCompleted && !betClosed ? (
-              <p className="text-[#ffc542] font-black text-[14px] leading-none mt-0.5 tabular-nums">
+              <p
+                className="flex items-center justify-end gap-0.5 text-[#ffc542] font-black text-[14px] leading-none mt-0.5 tabular-nums group-hover:text-[#ffd97a]"
+                title={`Bet on ${match.player2.name} — potential return: stake × ${match.odds2.toFixed(2)}`}
+              >
+                <ChevronRight size={10} className="opacity-0 group-hover:opacity-70 transition-opacity shrink-0 rotate-180" />
                 {match.odds2.toFixed(2)}<span className="text-[10px] opacity-60">×</span>
               </p>
             ) : (
@@ -337,7 +345,7 @@ export default function MatchesPage() {
               </div>
             </div>
           </div>
-          <button onClick={fetchMatches} disabled={loading} className="w-9 h-9 flex items-center justify-center shrink-0 rounded-lg border border-[#1e1a30] text-aoe-parchment-dim hover:text-[#ffc542] hover:border-[#ffc542]/20 transition-colors">
+          <button onClick={fetchMatches} disabled={loading} className="w-11 h-11 flex items-center justify-center shrink-0 rounded-lg border border-[#1e1a30] text-aoe-parchment-dim hover:text-[#ffc542] hover:border-[#ffc542]/20 transition-colors">
             <RefreshCw size={14} className={loading ? 'animate-spin text-[#ffc542]' : ''} />
           </button>
         </div>
@@ -351,7 +359,7 @@ export default function MatchesPage() {
               key={g.id}
               onClick={() => setGameFilter(g.id)}
               className={cn(
-                'shrink-0 h-9 px-3 rounded-md text-[11px] font-bold uppercase tracking-wide transition-colors border',
+                'shrink-0 h-11 px-3 rounded-md text-[11px] font-bold uppercase tracking-wide transition-colors border',
                 gameFilter === g.id
                   ? 'bg-[#ffc542] text-black border-[#ffc542]'
                   : 'bg-transparent text-aoe-parchment-dim border-[#1e1a30] hover:border-[#3d3860] hover:text-aoe-parchment'
@@ -371,7 +379,7 @@ export default function MatchesPage() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder={t('tourn_search')}
-              className="w-full h-9 rounded-md pl-9 pr-3 text-[12px] outline-none bg-[#0d0b1a] border border-[#1e1a30] text-[#e8e2f5] placeholder-[#4a4570] focus:border-[#3d3860] transition-colors"
+              className="w-full h-11 rounded-md pl-9 pr-3 text-[12px] outline-none bg-[#0d0b1a] border border-[#1e1a30] text-[#e8e2f5] placeholder-[#4a4570] focus:border-[#3d3860] transition-colors"
             />
           </div>
 
@@ -381,7 +389,7 @@ export default function MatchesPage() {
               const count = f.id === 'LIVE' ? liveCount : f.id === 'UPCOMING' ? upcoming : undefined;
               return (
                 <button key={f.id} onClick={() => setFilter(f.id)}
-                  className={cn('flex items-center gap-1.5 h-9 px-3 rounded-md text-[11px] font-bold uppercase tracking-wide transition-colors border',
+                  className={cn('flex items-center gap-1.5 h-11 px-3 rounded-md text-[11px] font-bold uppercase tracking-wide transition-colors border',
                     isActive
                       ? 'bg-[#ffc542] text-black border-[#ffc542]'
                       : 'bg-transparent text-aoe-parchment-dim border-[#1e1a30] hover:border-[#3d3860] hover:text-aoe-parchment')}
@@ -411,9 +419,9 @@ export default function MatchesPage() {
             {groups.map(g => (
               <div key={g.id} className="rounded-xl overflow-hidden" style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}>
                 {/* Tournament header — minimal */}
-                <div className="flex items-center gap-3 px-5 py-3 border-b" style={{ borderColor: 'rgba(255,197,66,0.2)', background: 'rgba(0,0,0,0.2)' }}>
+                <div className="flex items-center gap-3 px-5 py-3 border-b flex-wrap" style={{ borderColor: 'rgba(255,197,66,0.2)', background: 'rgba(0,0,0,0.2)' }}>
                   <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: TIER_COLORS[g.tier] ?? '#8981ab' }} />
-                  <span className="text-[12px] font-semibold truncate" style={{ color: TIER_COLORS[g.tier] ?? '#8981ab' }}>{g.name}</span>
+                  <span className="min-w-0 flex-1 basis-32 text-[12px] font-semibold truncate" style={{ color: TIER_COLORS[g.tier] ?? '#8981ab' }}>{g.name}</span>
                   {(() => {
                     const gs = GAME_STYLE[g.game] ?? GAME_STYLE.AoE4;
                     return (
@@ -423,7 +431,12 @@ export default function MatchesPage() {
                       </span>
                     );
                   })()}
-                  <span className="text-[11px] text-aoe-parchment-dim ml-auto shrink-0 tabular-nums">{g.format} · {g.matches.length} {t('nav_matches').toLowerCase()}</span>
+                  <span
+                    className="text-[11px] text-aoe-parchment-dim ml-auto shrink-0 tabular-nums"
+                    title={`${g.format} — ${/^BO(\d+)$/.exec(g.format)?.[1] ? `Best of ${/^BO(\d+)$/.exec(g.format)![1]}` : g.format}`}
+                  >
+                    {g.format} · {g.matches.length} {t('nav_matches').toLowerCase()}
+                  </span>
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2">
                   {g.matches.map((m, i) => (
