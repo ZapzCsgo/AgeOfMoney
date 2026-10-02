@@ -189,7 +189,7 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
     const cached = matchByIdCache.get(id);
     if (cached && Date.now() - cached.ts < MATCH_BY_ID_TTL) {
       res.set('Cache-Control', 'public, max-age=10, stale-while-revalidate=30');
-      res.json(cached);
+      res.json({ data: cached.data });
       return;
     }
 
@@ -299,7 +299,11 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
     // Cache UPCOMING/LIVE only (COMPLETED already gets a 1h Cache-Control
     // and is immutable so caching forever in memory would just leak).
     if (match.status === 'UPCOMING' || match.status === 'LIVE') {
-      matchByIdCache.set(id, { data: payload, ts: Date.now() });
+      // `payload` is already `{ data: match }` — cache the unwrapped match
+      // object itself (cached.data), not `payload` again, or a cache hit
+      // above double-wraps the response and every `match.player1`/`.name`
+      // access downstream throws on `undefined`.
+      matchByIdCache.set(id, { data: payload.data, ts: Date.now() });
     }
     res.json(payload);
   } catch (error) {
