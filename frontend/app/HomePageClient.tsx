@@ -596,6 +596,25 @@ function SkeletonCard() {
 // ── Hero ──────────────────────────────────────────────────────────────────────
 function Hero({ liveCount, totalBets, matchCount }: { liveCount: number; totalBets: number; matchCount: number }) {
   const { t } = useT();
+  // Mobile Lighthouse perf audit (ux-audit/fixes/lh-mobile-before.json) found
+  // this hero's biggest single main-thread cost: the decorative Particles
+  // canvas's requestAnimationFrame loop starting immediately on mount,
+  // competing with hydration/paint for the exact window LCP/TBT measure.
+  // Delaying the mount past first paint moves that cost off the critical
+  // path entirely — purely cosmetic, so a few hundred ms of absence is
+  // imperceptible. Lower quantity also halves the steady-state per-frame
+  // cost once it does start.
+  const [fxReady, setFxReady] = useState(false);
+  useEffect(() => {
+    const ric = typeof window.requestIdleCallback === 'function'
+      ? window.requestIdleCallback
+      : (cb: () => void) => setTimeout(cb, 300);
+    const id = ric(() => setFxReady(true));
+    return () => {
+      if (typeof window.cancelIdleCallback === 'function') window.cancelIdleCallback(id as number);
+      else clearTimeout(id as unknown as number);
+    };
+  }, []);
   return (
     <div
       className="relative overflow-hidden"
@@ -604,15 +623,17 @@ function Hero({ liveCount, totalBets, matchCount }: { liveCount: number; totalBe
         minHeight: 260,
       }}
     >
-      {/* Particles layer */}
-      <Particles
-        className="absolute inset-0 pointer-events-none"
-        quantity={60}
-        color="#ffc542"
-        staticity={60}
-        ease={60}
-        size={0.5}
-      />
+      {/* Particles layer — mounted post-paint, see fxReady above */}
+      {fxReady && (
+        <Particles
+          className="absolute inset-0 pointer-events-none"
+          quantity={28}
+          color="#ffc542"
+          staticity={60}
+          ease={60}
+          size={0.5}
+        />
+      )}
 
       {/* Grid pattern overlay */}
       <GridPattern
