@@ -78,42 +78,36 @@ if (process.env.NODE_ENV === 'production') {
   }
 }
 
-// DATABASE_URL has an explicit connection_limit=5 baked in (not just
-// Prisma's num_cpus*2+1 default, as originally assumed — verified via
-// Railway logs still showing connection_limit:5 in P2024 errors AFTER an
-// earlier fix here that only set the param when absent). With cron jobs
-// firing every few seconds (rain sweep, match verifier, odds recalc, the
-// roulette round loop, ...) all sharing that same 5-connection pool
-// alongside every incoming HTTP request, it saturates constantly: repeated
-// "Timed out fetching a new connection from the connection pool" (P2024)
-// errors across totally unrelated models (RouletteRound, Match, User, Rain,
-// Transaction, ...), and confirmed as the direct cause of roulette
-// bets/round polls intermittently failing, and once of the whole round
-// cycle dying and needing a manual restart.
-// Supabase's Postgres max_connections here is 60 with ~26 already held by
-// other things (checked directly against the project). First raised this
-// to 15, which got the round loop cycling again but Railway logs kept
-// showing near-continuous P2024s (RouletteRound/Match/Rain, ~1 every 1-2s
-// for 90+ seconds straight, not just a boot-time burst) — 15 genuinely
-// wasn't enough for the steady-state concurrent load, not just a startup
-// spike. Raised to 25, still comfortably under the 60 ceiling. If this
-// still isn't enough, the next step is reducing how often
-// matchVerifier/sweepExpiredRains poll rather than keep raising this,
-// since headroom below 60 running out is inherently temporary. Overridden
-// unconditionally (not just when absent) specifically because the existing
-// value in the secret is part of the problem — done at runtime on a parsed
-// copy so the DATABASE_URL secret itself never needs to be touched.
+// connection_limit history: 5 (default) -> 15 -> 25 on 2026-09-27, chasing
+// P2024 "Timed out fetching a new connection" errors by raising the ceiling
+// instead of fixing the actual leak. Root cause (2026-10-02 incident):
+// matchVerifier.ts ran every 15s, looping through live matches SEQUENTIALLY
+// with a 1s sleep between each, no overlap guard — with enough live matches
+// a single tick already exceeded the 15s interval, so ticks stacked and
+// connections piled up without bound. That, not genuine load, is almost
+// certainly what forced 5->25. The unbounded pool growth combined with
+// 24h+ of 1/sec retry storms (5 cron loops hammering a dead Supabase
+// instance) is the likely proximate cause of the instance becoming
+// unresponsive and needing a Supabase-side restart (2026-10-02). Dropped
+// back to 5 (Prisma's own default) — matchVerifier.ts itself still needs
+// an overlap guard (tracked separately, not yet fixed); raise this again
+// only with log evidence of genuine steady-state saturation after that
+// fix, not a boot-time burst.
+//
+// Does NOT round-trip through `new URL(raw)` + `.toString()`: the WHATWG
+// URL parser re-serializes the userinfo (username:password) section, which
+// can silently corrupt a password containing `#`, `@`, `/` or `?` if it
+// isn't already percent-encoded exactly the way the parser expects. Only
+// the query string is touched, via plain string ops, so the credential is
+// never parsed/rewritten.
 function buildDatasourceUrl(): string {
   const raw = process.env.DATABASE_URL;
   if (!raw) return raw as unknown as string;
-  try {
-    const url = new URL(raw);
-    url.searchParams.set('connection_limit', '25');
-    url.searchParams.set('pool_timeout', '20');
-    return url.toString();
-  } catch {
-    return raw;
-  }
+  const [base, query = ''] = raw.split('?');
+  const params = new URLSearchParams(query);
+  params.set('connection_limit', '5');
+  params.set('pool_timeout', '20');
+  return `${base}?${params.toString()}`;
 }
 
 export const prisma = new PrismaClient({
