@@ -8,7 +8,7 @@ import { signInWithSteam } from '@/lib/authHelpers';
 import {
   Home, Swords, Dices, Coins, Menu as MenuIcon, X,
   Trophy, TrendingUp, Crown, User, Wallet, Gift,
-  Settings, LineChart, Radar, LogOut, LogIn,
+  Settings, LineChart, Radar, LogOut, LogIn, HelpCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/i18n';
@@ -86,6 +86,7 @@ export function MobileNav() {
         { href: '/matches',     icon: Swords,     label: t('nav_matches') },
         { href: '/tournaments', icon: Trophy,     label: t('nav_tournaments') },
         { href: '/leaderboard', icon: TrendingUp, label: t('nav_leaderboard') },
+        { href: '/faq',         icon: HelpCircle, label: t('footer_faq') },
       ],
     },
     {

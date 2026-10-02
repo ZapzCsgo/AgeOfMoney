@@ -4,14 +4,14 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
 import { signInWithSteam } from '@/lib/authHelpers';
-import { ChevronDown, User, LogOut, Shield, Wallet, PlusCircle, Crown, Bell, Gift, TrendingUp, ArrowDownToLine } from 'lucide-react';
+import { ChevronDown, User, LogOut, Shield, Wallet, PlusCircle, Crown, Bell, Gift, TrendingUp, ArrowDownToLine, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { WalletModal } from '@/components/wallet/WalletModal';
 import { RedeemPopover } from '@/components/layout/RedeemPopover';
-import { useT } from '@/lib/i18n';
+import { useT, LANGUAGES } from '@/lib/i18n';
 import { useNotifications } from '@/contexts/NotificationsContext';
 import { getSocket } from '@/lib/socket';
 
@@ -51,13 +51,17 @@ export function Navbar() {
   const [coinFlash, setCoinFlash]       = useState<'up' | 'down' | null>(null);
   const flashTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rampRaf = useRef<number | null>(null);
-  const { t } = useT();
+  const { t, lang, setLang } = useT();
   const { notifications, unreadCount, markAllRead, getBalanceHoldUntil } = useNotifications();
+  const [langOpen, setLangOpen] = useState(false);
+  const currentLang = LANGUAGES.find(l => l.code === lang) ?? LANGUAGES[0];
+  const langRootRef = useRef<HTMLDivElement>(null);
 
   // Close dropdowns on route change
   useEffect(() => {
     setNotifOpen(false);
     setDropdownOpen(false);
+    setLangOpen(false);
   }, [pathname]);
 
   // Close-on-outside-click + Escape for the bell + user dropdown. Same
@@ -69,7 +73,7 @@ export function Navbar() {
   const notifRootRef = useRef<HTMLDivElement>(null);
   const dropdownRootRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!notifOpen && !dropdownOpen) return;
+    if (!notifOpen && !dropdownOpen && !langOpen) return;
     const handlePointer = (ev: MouseEvent | TouchEvent) => {
       const target = ev.target as Node | null;
       if (!target) return;
@@ -79,9 +83,12 @@ export function Navbar() {
       if (dropdownOpen && dropdownRootRef.current && !dropdownRootRef.current.contains(target)) {
         setDropdownOpen(false);
       }
+      if (langOpen && langRootRef.current && !langRootRef.current.contains(target)) {
+        setLangOpen(false);
+      }
     };
     const handleKey = (ev: KeyboardEvent) => {
-      if (ev.key === 'Escape') { setNotifOpen(false); setDropdownOpen(false); }
+      if (ev.key === 'Escape') { setNotifOpen(false); setDropdownOpen(false); setLangOpen(false); }
     };
     document.addEventListener('mousedown', handlePointer);
     document.addEventListener('touchstart', handlePointer);
@@ -91,7 +98,7 @@ export function Navbar() {
       document.removeEventListener('touchstart', handlePointer);
       document.removeEventListener('keydown', handleKey);
     };
-  }, [notifOpen, dropdownOpen]);
+  }, [notifOpen, dropdownOpen, langOpen]);
 
   // Animated coin counter.
   // Two key design points :
@@ -155,6 +162,7 @@ export function Navbar() {
     { href: '/', label: t('nav_home') },
     { href: '/matches', label: t('nav_matches') },
     { href: '/tournaments', label: t('nav_tournaments') },
+    { href: '/faq', label: t('footer_faq') },
   ];
 
   return (
@@ -212,6 +220,39 @@ export function Navbar() {
 
         {/* Right side */}
         <div className="flex items-center gap-1.5 md:gap-2 shrink-0 ml-auto">
+          {/* Language switcher — in the header (not footer-only) so it's reachable
+              without scrolling, on every viewport including mobile. */}
+          <div className="relative" ref={langRootRef}>
+            <button
+              onClick={() => setLangOpen(o => !o)}
+              className="flex items-center gap-1 h-9 px-2 md:px-2.5 rounded border border-aoe-border bg-aoe-stone/30 hover:border-aoe-border-gold transition-colors"
+              aria-label="Language"
+              title="Language"
+            >
+              <Globe size={14} className="text-aoe-parchment-dim" />
+              <span className="text-[13px] hidden sm:inline">{currentLang.flag}</span>
+              <ChevronDown size={11} className="text-aoe-parchment-dim hidden sm:block" />
+            </button>
+            {langOpen && (
+              <div
+                className="absolute right-0 top-full mt-2 w-36 z-20 py-1 rounded-md shadow-xl"
+                style={{ background: '#0d0b1a', border: '1px solid rgba(255,197,66,0.2)' }}
+              >
+                {LANGUAGES.map(l => (
+                  <button
+                    key={l.code}
+                    onClick={() => { setLang(l.code); setLangOpen(false); }}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-[12px] transition-colors text-left hover:bg-[#13111f]"
+                    style={{ color: l.code === lang ? '#ffc542' : '#9990b8' }}
+                  >
+                    <span>{l.flag}</span>
+                    <span>{l.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           {session ? (
             <>
               {/* Redeem-code popover — sits at the immediate left of the bell */}
