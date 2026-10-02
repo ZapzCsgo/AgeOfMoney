@@ -36,6 +36,8 @@ const t_fr = {
   auth_my_profile:    'Mon Profil',
   auth_required:      'Connexion requise',
   auth_required_desc: 'Connectez-vous pour accéder à votre profil.',
+  auth_required_desc_deposit:  'Connectez-vous pour déposer des coins.',
+  auth_required_desc_withdraw: 'Connectez-vous pour retirer vos coins.',
 
   // Betting
   bet_place:          'PLACER UN PARI',
@@ -859,6 +861,8 @@ const t_en: Record<keyof typeof t_fr, string> = {
   auth_my_profile:    'My Profile',
   auth_required:      'Login required',
   auth_required_desc: 'Sign in to access your profile.',
+  auth_required_desc_deposit:  'Sign in to deposit coins.',
+  auth_required_desc_withdraw: 'Sign in to withdraw your coins.',
 
   bet_place:          'PLACE A BET',
   bet_choose_player:  'Choose a player',
@@ -1655,6 +1659,8 @@ const t_es: Record<keyof typeof t_fr, string> = {
   auth_my_profile:    'Mi Perfil',
   auth_required:      'Inicio de sesión requerido',
   auth_required_desc: 'Inicia sesión para acceder a tu perfil.',
+  auth_required_desc_deposit:  'Inicia sesión para depositar coins.',
+  auth_required_desc_withdraw: 'Inicia sesión para retirar tus coins.',
 
   bet_place:          'HACER UNA APUESTA',
   bet_choose_player:  'Elegir un jugador',
