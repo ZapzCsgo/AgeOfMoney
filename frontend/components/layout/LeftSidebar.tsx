@@ -112,6 +112,7 @@ export function LeftSidebar() {
       {/* Toggle button */}
       <button
         onClick={() => setExpanded(!expanded)}
+        aria-label={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
         className="flex items-center justify-center h-11 border-b border-[#1e1a30] text-[#8981ab] hover:text-[#c8c0e0] hover:bg-[#13111f] transition-all shrink-0"
       >
         {expanded ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}

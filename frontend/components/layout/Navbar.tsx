@@ -166,7 +166,7 @@ export function Navbar() {
 
       <div className="flex items-center w-full px-3 md:px-4 gap-2 md:gap-6">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 group shrink-0">
+        <Link href="/" aria-label="AgeOfMoney — Home" className="flex items-center gap-2 group shrink-0">
           <Crown size={22} className="text-aoe-gold group-hover:drop-shadow-[0_0_8px_rgba(201,162,39,0.8)] transition-all" />
           <span className="font-cinzel font-bold text-[15px] md:text-lg tracking-[0.15em] md:tracking-[0.2em] text-aoe-gold group-hover:text-aoe-gold-bright transition-colors uppercase hidden xs:inline sm:inline">
             AgeOfMoney

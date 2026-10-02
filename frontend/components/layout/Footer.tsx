@@ -67,7 +67,7 @@ export function Footer() {
 
             {/* GAMES column */}
             <div>
-              <h4 className="text-[11px] font-bold uppercase tracking-widest mb-4" style={{ color: '#ffd97a' }}>{t('footer_games')}</h4>
+              <h3 className="text-[11px] font-bold uppercase tracking-widest mb-4" style={{ color: '#ffd97a' }}>{t('footer_games')}</h3>
               <ul className="space-y-2.5">
                 {GAMES_LINKS.map(l => (
                   <li key={l.href}>
@@ -81,7 +81,7 @@ export function Footer() {
 
             {/* PLATFORM column */}
             <div>
-              <h4 className="text-[11px] font-bold uppercase tracking-widest mb-4" style={{ color: '#ffd97a' }}>{t('footer_platform')}</h4>
+              <h3 className="text-[11px] font-bold uppercase tracking-widest mb-4" style={{ color: '#ffd97a' }}>{t('footer_platform')}</h3>
               <ul className="space-y-2.5">
                 {PLATFORM_LINKS.map(l => (
                   <li key={l.href}>
@@ -95,7 +95,7 @@ export function Footer() {
 
             {/* ABOUT US column */}
             <div>
-              <h4 className="text-[11px] font-bold uppercase tracking-widest mb-4" style={{ color: '#ffd97a' }}>{t('footer_about')}</h4>
+              <h3 className="text-[11px] font-bold uppercase tracking-widest mb-4" style={{ color: '#ffd97a' }}>{t('footer_about')}</h3>
               <ul className="space-y-2.5">
                 <li>
                   <button onClick={() => setTermsOpen(true)} className="text-[13px] transition-colors hover:text-[#e8e2f5] text-left" style={{ color: '#8981ab' }}>

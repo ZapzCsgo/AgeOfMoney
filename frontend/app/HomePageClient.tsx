@@ -877,7 +877,7 @@ export function HomePageClient({ initialMatches, initialTournaments }: {
               {t('nav_matches')}
             </h2>
             {!loading && (
-              <span className="text-[11px] text-aoe-parchment-muted font-cinzel">
+              <span className="text-[11px] text-[#8981ab] font-cinzel">
                 {t('n_results', { n: filtered.length, s: filtered.length !== 1 ? 's' : '' })}
               </span>
             )}
@@ -983,7 +983,7 @@ export function HomePageClient({ initialMatches, initialTournaments }: {
               <h2 className="font-cinzel font-bold text-base tracking-[0.2em] text-aoe-gold uppercase">
                 {t('home_upcoming_tournaments')}
               </h2>
-              <span className="text-[11px] text-aoe-parchment-muted font-cinzel">{upcomingTourneys.length} tournoi{upcomingTourneys.length > 1 ? 's' : ''}</span>
+              <span className="text-[11px] text-[#8981ab] font-cinzel">{upcomingTourneys.length} tournoi{upcomingTourneys.length > 1 ? 's' : ''}</span>
             </div>
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
               {upcomingTourneys.map(tourn => (
