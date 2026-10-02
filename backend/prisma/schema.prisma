@@ -260,6 +260,8 @@ model BoResult {
   startedAt  DateTime?
   endedAt    DateTime  @default(now())
   createdAt  DateTime  @default(now())
+
+  @@index([matchId])
 }
 
 enum BetStatus {
@@ -303,6 +305,9 @@ model Transaction {
   status          String // "pending" | "completed" | "failed"
   affiliateCodeId String? // affiliate code used at deposit time
   createdAt       DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([status])
 }
 
 // Historical H2H records — AI-inferred or manually sourced
@@ -382,6 +387,8 @@ model AffiliateReferral {
   reviewed         Boolean       @default(false) // admin cleared the flag after review
   joinedAt         DateTime      @default(now())
   lastActiveAt     DateTime?
+
+  @@index([affiliateCodeId])
 }
 
 // ── Roulette ──────────────────────────────────────────────────────────────────
@@ -679,6 +686,7 @@ model RedeemCode {
 
   @@index([code])
   @@index([disabled, expiresAt])
+  @@index([createdBy])
 }
 
 model RedeemCodeRedemption {
