@@ -288,7 +288,7 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
     >
       {/* Top bar */}
       <div
-        className="flex items-center justify-between px-4 py-2.5 border-b border-aoe-border/60"
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 px-4 py-2.5 border-b border-aoe-border/60"
         style={{ background: 'rgba(0,0,0,0.35)' }}
       >
         <div className="flex items-center gap-2 min-w-0">
@@ -296,7 +296,7 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
             {match.tournament?.tier ?? 'C'}
           </span>
           <span className={cn(
-            'text-[10px] font-cinzel tracking-wider border rounded px-1.5 py-0.5',
+            'text-[10px] font-cinzel tracking-wider border rounded px-1.5 py-0.5 shrink-0',
             match.game === 'AoE2' ? 'text-red-400 border-red-400/40 bg-red-400/10' :
             match.game === 'AoM' ? 'text-emerald-400 border-emerald-400/40 bg-emerald-400/10' :
             match.game === 'AoE3' ? 'text-blue-400 border-blue-400/40 bg-blue-400/10' :
@@ -305,11 +305,11 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
           )}>
             {match.game || 'AoE4'}
           </span>
-          <span className="text-aoe-parchment-dim text-xs truncate max-w-[180px]">
+          <span className="text-aoe-parchment-dim text-xs truncate min-w-0 sm:max-w-[180px]">
             {match.tournament?.name ?? t('matches_no_tournament')}
           </span>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap sm:shrink-0">
           {twitchChannel && (
             <a
               href={`https://twitch.tv/${twitchChannel}`}
