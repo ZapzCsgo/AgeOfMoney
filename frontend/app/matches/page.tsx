@@ -10,7 +10,7 @@ import { getMatches } from '@/lib/api';
 import { cn, getAvatarSrc } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Clock, RefreshCw, AlertTriangle, Swords, Search, Crown } from 'lucide-react';
-import { useT, type TKey } from '@/lib/i18n';
+import { useT, localeFromLang, type TKey } from '@/lib/i18n';
 import { EmptyState } from '@/components/ui/empty-state';
 import { JsonLd } from '@/components/JsonLd';
 
@@ -58,7 +58,8 @@ function PlayerAvatar({ name, playerId, avatarUrl, size = 44, muted = false }: {
 }
 
 function MatchRow({ match }: { match: Match }) {
-  const { t } = useT();
+  const { t, lang } = useT();
+  const locale = localeFromLang(lang);
   const router = useRouter();
   const isLive = match.status === 'LIVE';
   const isCompleted = match.status === 'COMPLETED';
@@ -141,7 +142,7 @@ function MatchRow({ match }: { match: Match }) {
               {/* Finished-at date : short locale-aware ("24 avr.") so users
                   can tell how old the result is at a glance. */}
               <span className="text-[10px] text-aoe-parchment-dim tabular-nums whitespace-nowrap" title={new Date(match.updatedAt).toLocaleString()}>
-                {new Date(match.updatedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
+                {new Date(match.updatedAt).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}
               </span>
             </>
           ) : (

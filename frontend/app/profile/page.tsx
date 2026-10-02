@@ -12,7 +12,7 @@ import { Bet, UserStats, LeaderboardEntry } from '@/types';
 import { getMyBets, getLeaderboard, apiClient } from '@/lib/api';
 import { setAuthToken } from '@/lib/api';
 import { cn } from '@/lib/utils';
-import { useT, type TKey } from '@/lib/i18n';
+import { useT, localeFromLang, type TKey } from '@/lib/i18n';
 import {
   Settings, Clock, Shield, UserX, BadgeCheck, Users,
   BarChart2, Trophy, TrendingUp, TrendingDown, Coins,
@@ -565,7 +565,8 @@ interface PublicProfile {
 }
 
 export default function ProfilePage() {
-  const { t } = useT();
+  const { t, lang } = useT();
+  const locale = localeFromLang(lang);
   const { data: session, status } = useSession();
   const searchParams = useSearchParams();
   const viewId = searchParams.get('id');
@@ -782,7 +783,7 @@ export default function ProfilePage() {
   // Use the createdAt from /users/me (real DB value); fall back to "Recently"
   // only while the request is still in flight.
   const joinedAt = profileCreatedAt
-    ? new Date(profileCreatedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })
+    ? new Date(profileCreatedAt).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' })
     : t('profile_recently');
 
   // Compute period stats from both match bets + roulette bets

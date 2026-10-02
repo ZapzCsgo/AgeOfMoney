@@ -9,7 +9,7 @@ import { getTournaments, getTournament } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Calendar, Users, ChevronDown, ChevronUp, Trophy, RefreshCw, AlertTriangle, Zap, Search } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useT } from '@/lib/i18n';
+import { useT, localeFromLang } from '@/lib/i18n';
 import { EmptyState } from '@/components/ui/empty-state';
 
 const GAME_TABS = [
@@ -38,9 +38,9 @@ const GAME_STYLE: Record<string, { dot: string }> = {
   AoE1: { dot: '#a8763e' },
 };
 
-function formatDate(dateStr?: string): string {
+function formatDate(dateStr: string | undefined, locale: string): string {
   if (!dateStr) return '';
-  return new Date(dateStr).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  return new Date(dateStr).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 // ── Tier crest — shield emblem with the tier letter engraved ──────────────────
@@ -132,7 +132,8 @@ function TournamentCard({ tournament, featured = false }: { tournament: Tourname
   const [expanded, setExpanded] = useState(false);
   const [matches, setMatches]   = useState<Match[]>([]);
   const [loadingMatches, setLoadingMatches] = useState(false);
-  const { t } = useT();
+  const { t, lang } = useT();
+  const locale = localeFromLang(lang);
 
   const handleToggle = async () => {
     const willExpand = !expanded;
@@ -202,8 +203,8 @@ function TournamentCard({ tournament, featured = false }: { tournament: Tourname
               <span className="flex items-center gap-1.5 text-aoe-parchment-dim">
                 <Calendar size={featured ? 13 : 11} />
                 <span className="tabular-nums">
-                  {formatDate(tournament.startDate)}
-                  {tournament.endDate && ` → ${formatDate(tournament.endDate)}`}
+                  {formatDate(tournament.startDate, locale)}
+                  {tournament.endDate && ` → ${formatDate(tournament.endDate, locale)}`}
                 </span>
               </span>
               {matchCount > 0 && (

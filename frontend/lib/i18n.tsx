@@ -91,3 +91,15 @@ export const LANGUAGES: { code: Lang; label: string; flag: string }[] = [
   { code: 'en', label: 'English',  flag: '🇬🇧' },
   { code: 'es', label: 'Español',  flag: '🇪🇸' },
 ];
+
+// Explicit Intl locale for `toLocaleDateString`/`toLocaleTimeString` calls.
+// Never pass `undefined` as the locale arg to those — it resolves to the
+// RUNTIME's ambient locale (OS/ICU default on the server, navigator.language
+// in the browser), which differ between the prod server (en-US-ish
+// container) and a non-English visitor's browser → React hydration mismatch
+// (#418/#423/#425) on first paint. Tying it to `lang` keeps server and
+// client in agreement (LanguageProvider's SSR-safe default is always 'en'
+// on both sides until the post-mount effect runs).
+export function localeFromLang(lang: Lang): string {
+  return lang === 'fr' ? 'fr-FR' : lang === 'es' ? 'es-ES' : 'en-US';
+}

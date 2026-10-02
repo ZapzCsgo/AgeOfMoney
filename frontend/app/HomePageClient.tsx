@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, memo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { useT, type TKey } from '@/lib/i18n';
+import { useT, localeFromLang, type TKey } from '@/lib/i18n';
 import { Match, Tournament } from '@/types';
 import { getMatches, placeBet, getTournaments, setAuthToken } from '@/lib/api';
 import nextDynamic from 'next/dynamic';
@@ -249,7 +249,8 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
   activeMatchId: string | null;
   onSelect: (matchId: string | null, player: 0 | 1 | 2 | null) => void;
 }) {
-  const { t } = useT();
+  const { t, lang } = useT();
+  const locale = localeFromLang(lang);
   const router = useRouter();
   const [selected, _setSelected] = useState<0 | 1 | 2 | null>(null);
   // Clear local selection when another match becomes active
@@ -338,7 +339,7 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
               {/* Finished-at date — short locale-aware ("24 avr.", "Apr 24",
                   "24 abr."). Tooltip shows the full timestamp on hover. */}
               <span className="text-[11px] text-aoe-parchment-dim tabular-nums" title={new Date(match.updatedAt).toLocaleString()}>
-                {new Date(match.updatedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
+                {new Date(match.updatedAt).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}
               </span>
               <span className="badge-tag badge-tag-muted">
                 {t('matches_finished')}
