@@ -233,6 +233,25 @@ export function initCronJobs(): void {
         .then(() => enrichAllUpcomingMatches())
         .catch(err => logger.error('[Startup] aoe4world tourn + enrichOdds:', err))
         .finally(() => { enrichmentRunning = false; });
+
+      // Catch-up for weeklyOddsEngineBacktest: this service has
+      // sleepApplication:true, so a process asleep at Monday 3am UTC
+      // (the cron's only trigger) means node-cron's in-process timer
+      // never fires — no traffic then to wake it, and node-cron has no
+      // "missed run" recovery. Confirmed via OddsBacktestSnapshot going
+      // silent for 3+ months despite the cron.schedule call never
+      // erroring. Run it on startup too if the last snapshot is stale.
+      const lastSnapshot = await prisma.oddsBacktestSnapshot.findFirst({
+        orderBy: { runAt: 'desc' },
+        select: { runAt: true },
+      });
+      const staleMs = 7 * 24 * 60 * 60 * 1000;
+      if (!lastSnapshot || Date.now() - lastSnapshot.runAt.getTime() > staleMs) {
+        logger.info(
+          `[Startup] weeklyOddsEngineBacktest snapshot is ${lastSnapshot ? 'stale' : 'missing'} — running catch-up`
+        );
+        runWeeklyOddsEngineBacktest().catch(err => logger.error('[Startup] weeklyOddsEngineBacktest catch-up failed:', err));
+      }
     } catch (err) {
       logger.error('[Startup] Immediate sync failed:', err);
     }
