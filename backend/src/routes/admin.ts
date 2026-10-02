@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { requireAdmin } from '../middleware/auth';
 import { prisma } from '../index';
-import { distributePayout, refundBets } from '../services/betService';
+import { distributePayout, refundBets, correctMatchResult } from '../services/betService';
 import { recordLedger } from '../services/ledger';
 import { getIo } from '../socket';
 import { z } from 'zod';
@@ -87,6 +87,7 @@ const resultSchema = z.object({
   winnerId: z.string().min(1),
   resultScore: z.string().min(1),
   clearFlag: z.boolean().default(true),
+  confirmCorrection: z.boolean().default(false),
 });
 
 router.post('/matches/:id/result', async (req: Request, res: Response): Promise<void> => {
@@ -97,7 +98,7 @@ router.post('/matches/:id/result', async (req: Request, res: Response): Promise<
       return;
     }
 
-    const { winnerId, resultScore, clearFlag } = parsed.data;
+    const { winnerId, resultScore, clearFlag, confirmCorrection } = parsed.data;
     const matchId = req.params.id;
 
     const match = await prisma.match.findUnique({
@@ -115,6 +116,20 @@ router.post('/matches/:id/result', async (req: Request, res: Response): Promise<
       return;
     }
 
+    // Already COMPLETED = this call is a CORRECTION of a prior result, not
+    // an initial settlement — bets may already be WON/LOST and paid out.
+    // Require explicit confirmation so this never happens by accident, and
+    // route through correctMatchResult() which reverses/re-pays the delta
+    // instead of the silent no-op distributePayout() would otherwise do.
+    const isCorrection = match.status === 'COMPLETED';
+    if (isCorrection && !confirmCorrection) {
+      res.status(409).json({
+        error: 'This match already has a result. Resubmitting will reverse already-paid bets and settle the new outcome — pass confirmCorrection: true to proceed.',
+        code: 'RESULT_ALREADY_SET',
+      });
+      return;
+    }
+
     await prisma.match.update({
       where: { id: matchId },
       data: {
@@ -126,7 +141,14 @@ router.post('/matches/:id/result', async (req: Request, res: Response): Promise<
       },
     });
 
-    // Distribute payouts
+    if (isCorrection) {
+      const summary = await correctMatchResult(matchId, winnerId, req.user!.id);
+      logger.warn(`Admin correction: match ${matchId} result corrected to winner ${winnerId} by ${req.user!.id} — ${JSON.stringify(summary)}`);
+      res.json({ message: 'Match result corrected and bets re-settled', correction: summary });
+      return;
+    }
+
+    // Distribute payouts (first-time settlement)
     await distributePayout(matchId, winnerId);
 
     // Store result in player match history for future odds calculation

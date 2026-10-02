@@ -357,6 +357,143 @@ export async function distributePayout(matchId: string, winnerId: string): Promi
 }
 
 /**
+ * Re-settle a match whose result is being corrected after bets were already
+ * resolved (WON/LOST, possibly already paid out). Unlike `distributePayout`
+ * — which only ever touches PENDING bets and silently no-ops otherwise —
+ * this walks every non-cancelled/non-refunded bet, recomputes the outcome
+ * under the new winnerId/resultScore, and reverses or pays the delta:
+ *   WON  → LOST : claw back the coins already credited.
+ *   LOST → WON  : credit the payout now actually due.
+ *   PENDING     : settle normally (covers the rare case a correction lands
+ *                 before the original pass finished).
+ *   unchanged   : left untouched, no ledger row.
+ * Atomic (single $transaction) so a crash mid-correction can't leave some
+ * users reversed and others not. Every row this touches is logged.
+ */
+export async function correctMatchResult(
+  matchId: string,
+  newWinnerId: string,
+  adminUserId: string,
+): Promise<{ reversed: number; newlyPaid: number; unchanged: number; coinsClawedBack: number; coinsNewlyPaid: number }> {
+  const match = await prisma.match.findUnique({
+    where: { id: matchId },
+    select: {
+      player1Id: true, player2Id: true, resultScore: true,
+      player1: { select: { name: true } },
+      player2: { select: { name: true } },
+      tournament: { select: { name: true } },
+    },
+  });
+  if (!match) throw new Error(`correctMatchResult: match ${matchId} not found`);
+
+  const newWinnerPosition = match.player1Id === newWinnerId ? 1 : match.player2Id === newWinnerId ? 2 : null;
+  if (newWinnerPosition === null) {
+    throw new Error(`correctMatchResult: winnerId ${newWinnerId} is not a player in match ${matchId}`);
+  }
+
+  const newActualLoserGames = (() => {
+    if (!match.resultScore) return null;
+    const parts = match.resultScore.split('-').map(Number);
+    if (parts.length !== 2) return null;
+    const [s1, s2] = parts;
+    return newWinnerPosition === 1 ? s2 : s1;
+  })();
+
+  const bets = await prisma.bet.findMany({
+    where: { matchId, status: { in: [BetStatus.PENDING, BetStatus.WON, BetStatus.LOST] } },
+    select: { id: true, userId: true, amount: true, oddsAtBet: true, selectedPlayer: true, betType: true, boNumber: true, status: true, payout: true },
+  });
+
+  type Op =
+    | { kind: 'reverse'; betId: string; userId: string; clawback: Prisma.Decimal }
+    | { kind: 'pay'; betId: string; userId: string; payout: Prisma.Decimal }
+    | { kind: 'mark-lost'; betId: string };
+
+  const ops: Op[] = [];
+  for (const bet of bets) {
+    const newWon = bet.betType === 'EXACT_SCORE'
+      ? bet.selectedPlayer === newWinnerPosition && newActualLoserGames !== null && bet.boNumber === newActualLoserGames
+      : bet.selectedPlayer === newWinnerPosition;
+
+    if (bet.status === BetStatus.WON && !newWon) {
+      ops.push({ kind: 'reverse', betId: bet.id, userId: bet.userId, clawback: D(bet.payout ?? 0) });
+    } else if (bet.status !== BetStatus.WON && newWon) {
+      const payout = D(bet.amount).mul(bet.oddsAtBet);
+      ops.push({ kind: 'pay', betId: bet.id, userId: bet.userId, payout });
+    } else if (bet.status === BetStatus.PENDING && !newWon) {
+      ops.push({ kind: 'mark-lost', betId: bet.id });
+    }
+    // else: WON staying WON or LOST staying LOST — untouched.
+  }
+
+  if (ops.length === 0) {
+    logger.info(`correctMatchResult: match=${matchId}, no bet outcomes changed under new winner=${newWinnerId}`);
+    return { reversed: 0, newlyPaid: 0, unchanged: bets.length, coinsClawedBack: 0, coinsNewlyPaid: 0 };
+  }
+
+  const reverses = ops.filter((o): o is Extract<Op, { kind: 'reverse' }> => o.kind === 'reverse');
+  const pays = ops.filter((o): o is Extract<Op, { kind: 'pay' }> => o.kind === 'pay');
+  const markLost = ops.filter((o): o is Extract<Op, { kind: 'mark-lost' }> => o.kind === 'mark-lost');
+
+  const coinsClawedBack = reverses.reduce((sum, o) => sum + N(o.clawback), 0);
+  const coinsNewlyPaid = pays.reduce((sum, o) => sum + N(o.payout), 0);
+
+  await prisma.$transaction([
+    ...reverses.map(o => prisma.bet.update({ where: { id: o.betId }, data: { status: BetStatus.LOST, payout: new Prisma.Decimal(0) } })),
+    ...reverses.map(o => prisma.user.update({ where: { id: o.userId }, data: { coins: { decrement: o.clawback } } })),
+    ...reverses.map(o => prisma.transaction.create({
+      data: { userId: o.userId, type: 'bet_correction_reversal', coins: o.clawback.neg(), amount: 0, status: 'completed' },
+    })),
+    ...pays.map(o => prisma.bet.update({ where: { id: o.betId }, data: { status: BetStatus.WON, payout: o.payout } })),
+    ...pays.map(o => prisma.user.update({ where: { id: o.userId }, data: { coins: { increment: o.payout } } })),
+    ...pays.map(o => prisma.transaction.create({
+      data: { userId: o.userId, type: 'bet_correction_payout', coins: o.payout, amount: 0, status: 'completed' },
+    })),
+    ...markLost.map(o => prisma.bet.update({ where: { id: o.betId }, data: { status: BetStatus.LOST, payout: new Prisma.Decimal(0) } })),
+  ]);
+
+  // Live-notify affected users (best-effort, outside the atomic DB write).
+  const io = getIo();
+  if (io) {
+    const affectedUserIds = [...new Set([...reverses.map(o => o.userId), ...pays.map(o => o.userId)])];
+    const updatedUsers = await prisma.user.findMany({ where: { id: { in: affectedUserIds } }, select: { id: true, coins: true } });
+    const userMap = new Map(updatedUsers.map(u => [u.id, u]));
+    for (const o of reverses) {
+      const u = userMap.get(o.userId);
+      if (u) io.to(`user:${o.userId}`).emit('coinsUpdate', { coins: N(u.coins), direction: 'down' });
+      io.to(`user:${o.userId}`).emit('betResult', {
+        matchId, betId: o.betId, status: 'CORRECTED_LOST', won: false,
+        reason: 'Résultat du match corrigé par un admin', payout: 0,
+      });
+    }
+    for (const o of pays) {
+      const u = userMap.get(o.userId);
+      if (u) io.to(`user:${o.userId}`).emit('coinsUpdate', { coins: N(u.coins), direction: 'up' });
+      io.to(`user:${o.userId}`).emit('betResult', {
+        matchId, betId: o.betId, status: 'CORRECTED_WON', won: true,
+        reason: 'Résultat du match corrigé par un admin', payout: N(o.payout),
+      });
+    }
+  }
+
+  logger.warn(
+    `[ADMIN CORRECTION] match=${matchId} ("${match.player1?.name} vs ${match.player2?.name}", ` +
+    `${match.tournament?.name ?? 'Tournament'}) corrected by admin=${adminUserId} to winner=${newWinnerId}. ` +
+    `${reverses.length} bet(s) reversed (clawed back ${coinsClawedBack.toFixed(2)} coins), ` +
+    `${pays.length} bet(s) newly paid (${coinsNewlyPaid.toFixed(2)} coins), ` +
+    `${markLost.length} pending bet(s) settled as lost, ${bets.length - ops.length} unchanged.`
+  );
+
+  return {
+    reversed: reverses.length,
+    newlyPaid: pays.length,
+    unchanged: bets.length - ops.length,
+    coinsClawedBack,
+    coinsNewlyPaid,
+  };
+}
+
+/**
  * Distribute payouts for a draw outcome (even BO formats like BO2/BO4).
  * selectedPlayer=0 bets win, selectedPlayer=1/2 bets lose.
  */
