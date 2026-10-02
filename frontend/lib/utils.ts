@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { formatDistanceToNow, format, differenceInSeconds, differenceInMinutes, differenceInHours } from 'date-fns';
+import { formatDistanceToNow, differenceInSeconds, differenceInMinutes, differenceInHours } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
 export function cn(...inputs: ClassValue[]): string {
@@ -77,12 +77,23 @@ export function formatRelativeTime(dateStr: string): string {
   return formatDistanceToNow(new Date(dateStr), { addSuffix: true, locale: fr });
 }
 
+function pad2(n: number): string {
+  return String(n).padStart(2, '0');
+}
+
+// Hydration-safe: date-fns' `format()` resolves the runtime's ambient
+// timezone (server TZ vs browser TZ), producing different text on SSR vs
+// client hydration and crashing the match-detail page (React error
+// #418/#423/#425 -> error boundary). Formatting from the UTC getters
+// directly is deterministic on both sides, no ambient state involved.
 export function formatDateTime(dateStr: string): string {
-  return format(new Date(dateStr), 'dd/MM/yyyy HH:mm');
+  const d = new Date(dateStr);
+  return `${pad2(d.getUTCDate())}/${pad2(d.getUTCMonth() + 1)}/${d.getUTCFullYear()} ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`;
 }
 
 export function formatDate(dateStr: string): string {
-  return format(new Date(dateStr), 'dd/MM/yyyy');
+  const d = new Date(dateStr);
+  return `${pad2(d.getUTCDate())}/${pad2(d.getUTCMonth() + 1)}/${d.getUTCFullYear()}`;
 }
 
 export function getTierColor(tier: string): string {
