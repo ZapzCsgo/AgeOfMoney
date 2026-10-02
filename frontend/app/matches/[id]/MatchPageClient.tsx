@@ -18,6 +18,11 @@ import {
 import Link from 'next/link';
 import { cn, getAvatarSrc } from '@/lib/utils';
 
+// NODE_ENV is inlined at build time, so this is the same value during SSR
+// and during client hydration — see the Twitch iframe usage below for why
+// that matters.
+const TWITCH_EMBED_HOSTNAME = process.env.NODE_ENV === 'production' ? 'ageof.money' : 'localhost';
+
 // ── My bets on this match ─────────────────────────────────────────────────────
 function MyMatchBets({ matchId, match, refreshKey }: { matchId: string; match: Match; refreshKey: number }) {
   const { t } = useT();
@@ -681,7 +686,19 @@ export function MatchPageClient({ matchId, initialMatch }: { matchId: string; in
                 </div>
                 <div style={{ aspectRatio: '16/9', background: '#000' }}>
                   <iframe
-                    src={`https://player.twitch.tv/?channel=${twitchChannel}&parent=${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}&autoplay=false&muted=true`}
+                    // Twitch requires the exact embedding hostname via `parent`
+                    // (it's what their own CSP frame-ancestors is built from —
+                    // get it wrong and the player 404s/blocks itself). This used
+                    // to branch on `typeof window`, which is `undefined` during
+                    // SSR and defined during hydration, so the server baked in
+                    // "localhost" and hydration never corrected it (React does
+                    // not reliably re-diff plain attribute mismatches like it
+                    // does text content, confirmed live: window.location.hostname
+                    // resolves correctly but the rendered iframe src kept
+                    // `parent=localhost` from the SSR pass). Fix: a value that's
+                    // identical on both passes — NODE_ENV is inlined at build
+                    // time, so it doesn't vary between server and client.
+                    src={`https://player.twitch.tv/?channel=${twitchChannel}&parent=${TWITCH_EMBED_HOSTNAME}&autoplay=false&muted=true`}
                     allowFullScreen
                     style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
                   />
