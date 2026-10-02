@@ -293,12 +293,28 @@ export async function verifyMatch(matchId: string): Promise<void> {
 }
 
 let verifierInterval: ReturnType<typeof setInterval> | null = null;
+let tickRunning = false;
+
+const BATCH_SIZE = 5; // concurrent verifyMatch() calls per batch
+const BATCH_PAUSE_MS = 500; // gap between batches, gentle on aoe4world's API
 
 export function startMatchVerifier(): void {
   if (verifierInterval) return;
   logger.info('[Verifier] Starting real-time match verifier (15s interval)');
 
   verifierInterval = setInterval(async () => {
+    // 2026-10-02 incident: the old serial loop (1 match at a time + 1s sleep
+    // each) took up to ~20-26s for 20 live matches, longer than this 15s
+    // interval — ticks stacked without bound, each holding its own Prisma
+    // connections + aoe4world HTTP calls, and that unbounded pileup is the
+    // likely real cause of connection_limit needing to go 5->15->25. Skip
+    // this tick entirely if the previous one is still running, and process
+    // matches in small concurrent batches instead of one by one.
+    if (tickRunning) {
+      logger.debug('[Verifier] Previous tick still running — skipping this one');
+      return;
+    }
+    tickRunning = true;
     try {
       const liveMatches = await prisma.match.findMany({
         where: { status: 'LIVE', winnerId: null },
@@ -306,12 +322,19 @@ export function startMatchVerifier(): void {
         take: 20,
       });
 
-      for (const m of liveMatches) {
-        await verifyMatch(m.id);
-        await new Promise(r => setTimeout(r, 1000));
+      for (let i = 0; i < liveMatches.length; i += BATCH_SIZE) {
+        const batch = liveMatches.slice(i, i + BATCH_SIZE);
+        await Promise.all(batch.map(m => verifyMatch(m.id).catch(err =>
+          logger.error(`[Verifier] verifyMatch(${m.id}) failed:`, err)
+        )));
+        if (i + BATCH_SIZE < liveMatches.length) {
+          await new Promise(r => setTimeout(r, BATCH_PAUSE_MS));
+        }
       }
     } catch (err) {
       logger.error('[Verifier] Interval error:', err);
+    } finally {
+      tickRunning = false;
     }
   }, 15_000);
 }

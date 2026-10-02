@@ -154,11 +154,24 @@ export function initCronJobs(): void {
   // The endsAt deadline isn't enforced at bet-place-time (joinRain rechecks),
   // so we need a sweeper to flip ACTIVE → COMPLETED shortly after timeout.
   // node-cron supports 6-field expressions, so "*/10 * * * * *" = every 10s.
+  //
+  // Guarded against overlap (2026-10-02 incident, same class of bug as
+  // matchVerifier): node-cron doesn't wait for a tick's promise before
+  // scheduling the next one. Normally this query returns instantly (empty
+  // result most ticks), but under DB pressure a slow query here can outlast
+  // the 10s interval, and ticks stacking on an already-struggling DB is
+  // exactly the kind of runaway feedback loop that made the instance
+  // unresponsive. Skip the tick rather than pile on.
+  let rainSweepRunning = false;
   cron.schedule('*/10 * * * * *', async () => {
+    if (rainSweepRunning) return;
+    rainSweepRunning = true;
     try {
       await sweepExpiredRains();
     } catch (err) {
       logger.error('[CRON] sweepExpiredRains failed:', err);
+    } finally {
+      rainSweepRunning = false;
     }
   });
 
