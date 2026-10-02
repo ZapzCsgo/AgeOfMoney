@@ -77,3 +77,4 @@ const nextConfig = {
 };
 
 module.exports = nextConfig;
+// no-op touch (2026-10-02T22:16:29Z) — forces a fresh Railway frontend build after a cancelled deploy
