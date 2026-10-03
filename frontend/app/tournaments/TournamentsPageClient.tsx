@@ -262,7 +262,7 @@ function TournamentCard({ tournament, featured = false }: { tournament: Tourname
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
-export function TournamentsPageClient({ initialTournaments }: { initialTournaments: TournamentWithCount[] }) {
+export function TournamentsPageClient({ initialTournaments, serverNow }: { initialTournaments: TournamentWithCount[]; serverNow: string }) {
   const { t } = useT();
   const [tournaments, setTournaments] = useState<TournamentWithCount[]>(initialTournaments);
   const [loading, setLoading] = useState(initialTournaments.length === 0);
@@ -270,6 +270,13 @@ export function TournamentsPageClient({ initialTournaments }: { initialTournamen
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'upcoming' | 'finished'>('all');
   const [gameFilter, setGameFilter] = useState<string>('all');
   const [search, setSearch]   = useState('');
+  // Seeded from the server's own render-time instant so the client's
+  // pre-hydration render reorders/filters identically to the server —
+  // calling `new Date()` fresh here would read a different instant and
+  // reshuffle/hide cards, a structural hydration mismatch. Ticks forward
+  // to the real client clock right after mount.
+  const [now, setNow] = useState(() => new Date(serverNow));
+  useEffect(() => { setNow(new Date()); }, []);
 
   const fetchTournaments = useCallback(async () => {
     try {
@@ -302,18 +309,17 @@ export function TournamentsPageClient({ initialTournaments }: { initialTournamen
       );
     });
     return deduped.sort((a, b) =>
-      Math.abs(Date.now() - new Date(a.startDate).getTime()) -
-      Math.abs(Date.now() - new Date(b.startDate).getTime())
+      Math.abs(now.getTime() - new Date(a.startDate).getTime()) -
+      Math.abs(now.getTime() - new Date(b.startDate).getTime())
     );
   })();
 
   // Apply filters + sort: ongoing first, then upcoming, then finished
-  const now = new Date();
   const isEnded = (t: Tournament) => !!(t.endDate && new Date(t.endDate) < now);
   const isReallyActive = (t: Tournament) => t.isActive && !isEnded(t);
 
-  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
-  const oneWeekAgo  = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+  const oneWeekAgo  = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const isRecentlyFinished = (t: Tournament) => isEnded(t) && t.endDate && new Date(t.endDate) >= twoHoursAgo;
 
   // "Finished" predicate aligned with the rendering logic (see line ~462) :

@@ -42,5 +42,14 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function TournamentsPage() {
   const tournaments = await fetchTournaments();
-  return <TournamentsPageClient initialTournaments={tournaments} />;
+  // Sorting/filtering below is "now"-relative (ongoing/ended/recently-finished).
+  // Passing the server's own render-time instant down means the client's
+  // pre-hydration render computes the exact same now-dependent output the
+  // server did — calling `new Date()` fresh on the client instead would
+  // read a different instant and produce a different list/order, a much
+  // worse hydration mismatch than a text-only one (whole cards appearing/
+  // disappearing/reordering). The client picks up its own live clock via
+  // an effect right after mount.
+  const serverNow = new Date().toISOString();
+  return <TournamentsPageClient initialTournaments={tournaments} serverNow={serverNow} />;
 }

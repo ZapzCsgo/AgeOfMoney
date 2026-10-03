@@ -252,6 +252,12 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
   const { t, lang } = useT();
   const locale = localeFromLang(lang);
   const router = useRouter();
+  // The homepage is server-rendered — formatCountdown() below reads
+  // Date.now(), which differs between the server's render instant and the
+  // client's hydration instant, tripping a hydration mismatch. Gate it
+  // behind `mounted` so the first client render matches the server exactly.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
   const [selected, _setSelected] = useState<0 | 1 | 2 | null>(null);
   // Clear local selection when another match becomes active
   useEffect(() => {
@@ -338,7 +344,7 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
             <div className="flex items-center gap-1.5">
               {/* Finished-at date — short locale-aware ("24 avr.", "Apr 24",
                   "24 abr."). Tooltip shows the full timestamp on hover. */}
-              <span className="text-[11px] text-aoe-parchment-dim tabular-nums" title={new Date(match.updatedAt).toLocaleString()}>
+              <span className="text-[11px] text-aoe-parchment-dim tabular-nums" title={new Date(match.updatedAt).toLocaleString(locale)}>
                 {new Date(match.updatedAt).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}
               </span>
               <span className="badge-tag badge-tag-muted">
@@ -348,7 +354,7 @@ const MatchCard = memo(function MatchCard({ match, activeMatchId, onSelect }: {
           ) : (
             <span className="flex items-center gap-1 text-[11px] text-aoe-parchment-dim">
               <Clock size={11} />
-              {formatCountdown(match.scheduledAt, t)}
+              {mounted ? formatCountdown(match.scheduledAt, t) : ' '}
             </span>
           )}
         </div>

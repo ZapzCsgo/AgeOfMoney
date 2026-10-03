@@ -60,7 +60,17 @@ function MatchRow({ match }: { match: Match }) {
   const router = useRouter();
   const isLive = match.status === 'LIVE';
   const isCompleted = match.status === 'COMPLETED';
-  const betClosed = !!(match.betsClosedAt && new Date() > new Date(match.betsClosedAt));
+  // `betClosed` and the countdown text below both read the current clock
+  // time — now that this page is server-rendered (SEO conversion), that
+  // reads differently on the server (render time) vs the client (hydration
+  // time), which trips a React hydration mismatch whenever the gap crosses
+  // a relevant boundary. Gate both behind `mounted` so the very first
+  // client render matches the server's deterministic output exactly, then
+  // pick up the real values a tick after hydration — same pattern already
+  // used for the countdown on the match-detail page.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  const betClosed = mounted && !!(match.betsClosedAt && new Date() > new Date(match.betsClosedAt));
   const p1Won = isCompleted && match.winnerId === match.player1.id;
   const p2Won = isCompleted && match.winnerId === match.player2.id;
 
@@ -147,7 +157,7 @@ function MatchRow({ match }: { match: Match }) {
               <span className="text-[10px] font-bold text-aoe-parchment-dim tracking-wider mt-0.5">{t('common_end_abbr')}</span>
               {/* Finished-at date : short locale-aware ("24 avr.") so users
                   can tell how old the result is at a glance. */}
-              <span className="text-[10px] text-aoe-parchment-dim tabular-nums whitespace-nowrap" title={new Date(match.updatedAt).toLocaleString()}>
+              <span className="text-[10px] text-aoe-parchment-dim tabular-nums whitespace-nowrap" title={new Date(match.updatedAt).toLocaleString(locale)}>
                 {new Date(match.updatedAt).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}
               </span>
             </>
@@ -158,7 +168,7 @@ function MatchRow({ match }: { match: Match }) {
                 {betClosed ? (
                   <span>{t('matches_bets_closed')}</span>
                 ) : (
-                  <><Clock size={7} /><span>{formatCountdown(match.scheduledAt, t)}</span></>
+                  <><Clock size={7} /><span>{mounted ? formatCountdown(match.scheduledAt, t) : ' '}</span></>
                 )}
               </div>
             </>
