@@ -81,21 +81,6 @@ function GameBanner({ game, muted }: { game?: string; muted?: boolean }) {
         className="absolute inset-0"
         style={{ background: `radial-gradient(ellipse at 15% 50%, ${dot}22 0%, transparent 65%)` }}
       />
-      {/* Game-code watermark — fills the otherwise-empty strip without using
-          any real game artwork (just the existing per-game accent color as
-          large faded type, same restriction as the line pattern above). */}
-      <span
-        className="absolute -right-1 top-1/2 -translate-y-1/2 font-black select-none pointer-events-none"
-        style={{
-          fontFamily: 'var(--font-cinzel), Georgia, serif',
-          fontSize: 44,
-          color: dot,
-          opacity: muted ? 0.05 : 0.12,
-          letterSpacing: '0.02em',
-        }}
-      >
-        {game ?? 'AoE4'}
-      </span>
       <div className="absolute bottom-0 left-0 right-0 h-px" style={{ background: `linear-gradient(90deg, transparent, ${dot}55 50%, transparent)` }} />
     </div>
   );
