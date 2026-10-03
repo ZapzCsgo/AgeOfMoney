@@ -7,7 +7,7 @@ import { Match } from '@/types';
 import { getMatches } from '@/lib/api';
 import { cn, getAvatarSrc } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Clock, RefreshCw, AlertTriangle, Swords, Search, Crown, ChevronRight } from 'lucide-react';
+import { Clock, RefreshCw, AlertTriangle, Swords, Search, Crown, ChevronRight, Info } from 'lucide-react';
 import { useT, localeFromLang, type TKey } from '@/lib/i18n';
 import { EmptyState } from '@/components/ui/empty-state';
 
@@ -113,6 +113,11 @@ function MatchRow({ match }: { match: Match }) {
 
         {/* Center — score or status */}
         <div className="flex flex-col items-center gap-0.5 shrink-0 w-12">
+          {!isCompleted && match.lowDataFlag && (
+            <span className="shrink-0" title={t('matches_low_data_tooltip')}>
+              <Info size={11} className="text-aoe-parchment-muted" strokeWidth={2} />
+            </span>
+          )}
           {isLive ? (
             <>
               {/* Score in-match : toujours caché si 0-0 (pas d'info utile, et
