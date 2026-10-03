@@ -260,25 +260,38 @@ const redeemIpLimiter = rateLimit({
   message: { error: 'Too many redeem attempts from this IP. Try again later.' },
 });
 
+// Data-read endpoints: SECURITY_AUDIT_2026-05-02.md H1 — these 5 had no
+// endpoint-specific limiter, only the 500/15min global one, so a single bot
+// could scrape the whole match/player/tournament catalog at 33 req/min
+// indefinitely. 100 req/min/IP covers legit polling (home page polls every
+// 30s) while capping scrapers.
+const dataReadLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many data requests.' },
+});
+
 app.use(globalLimiter);
 
 // Routes
-app.use('/api/v1/matches', matchesRouter);
+app.use('/api/v1/matches', dataReadLimiter, matchesRouter);
 app.use('/api/v1/bets', betLimiter, betsRouter);
-app.use('/api/v1/players', playersRouter);
-app.use('/api/v1/tournaments', tournamentsRouter);
+app.use('/api/v1/players', dataReadLimiter, playersRouter);
+app.use('/api/v1/tournaments', dataReadLimiter, tournamentsRouter);
 app.use('/api/v1/users', userLookupLimiter, usersRouter);
 app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/admin/finance', adminFinanceRouter);
 app.use('/api/v1/admin/events', adminEventsRouter);
 app.use('/api/v1/admin/rain', adminRainRouter);
-app.use('/api/v1/rain', rainRouter);
+app.use('/api/v1/rain', dataReadLimiter, rainRouter);
 app.use('/api/v1/payments', paymentLimiter, paymentsRouter);
 app.use('/api/v1/roulette', rouletteLimiter, rouletteRouter);
 app.use('/api/v1/coinflip', coinflipLimiter, coinflipRouter);
 app.use('/api/v1/jackpot', jackpotLimiter, jackpotRouter);
 app.use('/api/v1/affiliate', affiliateLimiter, affiliateRouter);
-app.use('/api/v1/support', supportRouter);
+app.use('/api/v1/support', dataReadLimiter, supportRouter);
 app.use('/api/v1/redeem', redeemIpLimiter, redeemRouter);
 app.use('/api/v1/admin/redeem-codes', adminRedeemRouter);
 
