@@ -86,7 +86,7 @@
 - Notre IP peut se faire bloquer si trop de requêtes
 - Pour débloquer : `curl https://liquipedia.net/token/generate` depuis le serveur, puis visiter l'URL dans un navigateur
 - Délai entre requêtes : 3s entre wikis, 200ms entre matchs, 1500ms entre pages joueurs
-- Solution long terme : API officielle Liquipedia v3 avec clé `LIQUIPEDIA_API_KEY`
+- L'API officielle Liquipedia v3 (clé requise) a été évaluée et écartée — pas accessible pour ce projet. On reste sur le scraping public + proxy résidentiel (2Captcha) + déblocage manuel via token.
 
 ### Déclencher les scrapers manuellement
 - Depuis le backend local : `POST http://localhost:4000/api/v1/dev/scrape-liquipedia`

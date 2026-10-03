@@ -25,7 +25,6 @@ const gunzip = promisify(zlib.gunzip);
 // Wiki path is determined per-match from the tournament's Liquipedia URL.
 // All AoE wikis share the same MediaWiki API at /{wiki}/api.php.
 const LP_API_FOR = (wikiPath: string) => `https://liquipedia.net/${wikiPath}/api.php`;
-const LP_API_KEY = process.env.LIQUIPEDIA_API_KEY;
 
 // ── Residential proxy (2Captcha) ────────────────────────────────────────────
 // Primary transport for actual scraping traffic (fetchWikitext, fetchRendered-
@@ -92,7 +91,6 @@ function buildHeaders(): Record<string, string> {
     'User-Agent': 'AgeOfMoney/1.0 (contact@ageofmoney.com)',
     'Accept-Encoding': 'gzip', // Liquipedia REQUIRES gzip (406 otherwise)
   };
-  if (LP_API_KEY) h.Authorization = `Apikey ${LP_API_KEY}`;
   if (LP_WORKER_URL && LP_WORKER_AUTH) h['X-Proxy-Auth'] = LP_WORKER_AUTH;
   return h;
 }
