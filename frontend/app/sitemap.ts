@@ -42,6 +42,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_BASE}/coinflip`,    lastModified: now, changeFrequency: 'daily',  priority: 0.7 },
     { url: `${SITE_BASE}/leaderboard`, lastModified: now, changeFrequency: 'daily',  priority: 0.6 },
     { url: `${SITE_BASE}/faq`,         lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
+    { url: `${SITE_BASE}/how-it-works`, lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
     { url: `${SITE_BASE}/support`,     lastModified: now, changeFrequency: 'monthly', priority: 0.3 },
     { url: `${SITE_BASE}/privacy`,     lastModified: now, changeFrequency: 'yearly', priority: 0.2 },
   ];
@@ -70,5 +71,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: t.isActive ? 0.7 : 0.4,
   }));
 
-  return [...staticPages, ...matchPages, ...tournamentPages];
+  // Players — only ones with a tracked match history (lastMatchAt set) are
+  // worth a page; brand-new/empty profiles would be thin content.
+  const players = await safeFetch<{ data?: Array<{ id: string; lastMatchAt?: string | null }> }>(
+    '/players?limit=100'
+  );
+  const playerPages: MetadataRoute.Sitemap = (players?.data ?? [])
+    .filter(p => p.lastMatchAt)
+    .map(p => ({
+      url: `${SITE_BASE}/players/${p.id}`,
+      lastModified: p.lastMatchAt ? new Date(p.lastMatchAt) : now,
+      changeFrequency: 'weekly',
+      priority: 0.5,
+    }));
+
+  return [...staticPages, ...matchPages, ...tournamentPages, ...playerPages];
 }

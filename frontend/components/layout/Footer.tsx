@@ -22,6 +22,7 @@ export function Footer() {
   ];
 
   const PLATFORM_LINKS = [
+    { href: '/how-it-works', label: t('how_works_title') },
     { href: '/support', label: t('footer_support') },
     { href: '/affiliate', label: t('footer_partners') },
   ];
