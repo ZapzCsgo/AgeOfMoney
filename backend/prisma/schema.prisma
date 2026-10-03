@@ -412,6 +412,13 @@ model RouletteRound {
   completedAt DateTime?
   bets        RouletteBet[]
   createdAt   DateTime      @default(now())
+
+  // GET /roulette/history filters status=COMPLETED and orders by completedAt
+  // desc, take 50. 358k+ rows and climbing (rounds complete every ~10-20s),
+  // no index meant this was a full table scan + sort — timed out after 20s
+  // in prod and 500'd, which is why the frontend's small "last 50 rolls"
+  // strip never actually showed any history.
+  @@index([status, completedAt])
 }
 
 model RouletteBet {
