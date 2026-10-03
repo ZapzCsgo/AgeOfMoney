@@ -116,16 +116,23 @@ export async function creditPaidDeposit(transactionId: string): Promise<{ credit
   const transaction = await prisma.transaction.findUnique({ where: { id: transactionId } });
   if (!transaction || transaction.status === 'completed') return { credited: false };
 
-  await prisma.$transaction([
-    prisma.user.update({
-      where: { id: transaction.userId },
-      data:  { coins: { increment: transaction.coins } },
-    }),
-    prisma.transaction.update({
-      where: { id: transaction.id },
-      data:  { status: 'completed' },
-    }),
-  ]);
+  // Atomic claim: SECURITY_AUDIT_2026-05-02.md H2 flagged double-credit risk
+  // from duplicate webhook deliveries (OxaPay retries). The findUnique above
+  // is just a cheap pre-check — the real guard is this single UPDATE ...
+  // WHERE status='pending' statement, which the DB serializes. Two
+  // near-simultaneous calls for the same transactionId can't both match:
+  // the loser gets count=0 and bails before ever touching the wallet,
+  // closing the TOCTOU window a separate read-then-write would leave open.
+  const claimed = await prisma.transaction.updateMany({
+    where: { id: transaction.id, status: 'pending' },
+    data:  { status: 'completed' },
+  });
+  if (claimed.count === 0) return { credited: false };
+
+  await prisma.user.update({
+    where: { id: transaction.userId },
+    data:  { coins: { increment: transaction.coins } },
+  });
 
   const updatedUser = await prisma.user.findUnique({ where: { id: transaction.userId }, select: { coins: true } });
   const io = getIo();
