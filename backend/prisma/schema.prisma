@@ -353,6 +353,11 @@ model ScraperLog {
   error        String?
   duration     Int?
   createdAt    DateTime @default(now())
+
+  // GET /admin/scrapers/logs always orders by createdAt desc, optionally
+  // filtered by source — this composite index serves both.
+  @@index([createdAt])
+  @@index([source, createdAt])
 }
 
 // ── Affiliate ─────────────────────────────────────────────────────────────────

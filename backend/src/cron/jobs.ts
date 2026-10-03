@@ -216,6 +216,22 @@ export function initCronJobs(): void {
     }
   });
 
+  // ── Daily 4h UTC : prune ScraperLog older than 30 days ──────────────────
+  // Pure run telemetry (one row per scraper invocation, every 15 min across
+  // ~4 sources), not data anyone needs long-term — 30 days is enough to
+  // debug "did this break last week" without the table growing forever.
+  // Low-stakes housekeeping, unlike the odds backtest — no startup catch-up
+  // needed if a sleepApplication cycle skips a day, it just runs next time.
+  cron.schedule('0 4 * * *', async () => {
+    try {
+      const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const { count } = await prisma.scraperLog.deleteMany({ where: { createdAt: { lt: cutoff } } });
+      if (count > 0) logger.info(`[CRON] ScraperLog retention — pruned ${count} rows older than 30d`);
+    } catch (err) {
+      logger.error('[CRON] ScraperLog retention failed:', err);
+    }
+  });
+
   logger.info('All cron jobs initialized');
 
   // ── Run critical checks immediately on startup ────────────────────────────
