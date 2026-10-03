@@ -133,14 +133,13 @@ export async function generateMetadata(): Promise<Metadata> {
     creator: 'AgeOfMoney',
     publisher: 'AgeOfMoney',
     metadataBase: new URL('https://ageof.money'),
+    // No `languages` alternates here: fr/en/es are served at this same URL
+    // via a cookie, not distinct paths, so there's no second URL to point
+    // hreflang at. Declaring fr/en/es/x-default all pointing at the same
+    // URL is an invalid signal Google ignores — only add it back once each
+    // locale gets its own URL (e.g. /fr/...).
     alternates: {
       canonical: 'https://ageof.money',
-      languages: {
-        'fr': 'https://ageof.money',
-        'en': 'https://ageof.money',
-        'es': 'https://ageof.money',
-        'x-default': 'https://ageof.money',
-      },
     },
     robots: {
       index: true,
