@@ -110,6 +110,8 @@ export interface Match {
     player1: RecentMatchResult[];
     player2: RecentMatchResult[];
   };
+  /** True when either player has fewer than 5 tournament match records — odds are measurably less reliable (see audit/ODDS_FAIRNESS_AUDIT_2026-10-02.md). */
+  lowDataFlag?: boolean;
 }
 
 export interface BetVolume {

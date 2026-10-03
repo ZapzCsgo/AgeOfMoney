@@ -13,7 +13,7 @@ import { MatchChat } from '@/components/matches/MatchChat';
 import { connectSocket, getSocket } from '@/lib/socket';
 import { formatDateTime, formatCountdown, getTierBadgeClass, getCountryFlag, parseCoinAmount, round2 } from '@/lib/utils';
 import {
-  ArrowLeft, Calendar, Zap, Lock, Tv, Shield, Swords, Receipt, TrendingUp, Clock,
+  ArrowLeft, Calendar, Zap, Lock, Tv, Shield, Swords, Receipt, TrendingUp, Clock, Info,
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn, getAvatarSrc } from '@/lib/utils';
@@ -715,6 +715,15 @@ export function MatchPageClient({ matchId, initialMatch }: { matchId: string; in
 
           {/* Right column */}
           <div className="space-y-4">
+            {match.lowDataFlag && match.status !== 'COMPLETED' && (
+              <div
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-[11px]"
+                style={{ background: 'rgba(255,197,66,0.06)', border: '1px solid rgba(255,197,66,0.15)', color: '#9990b8' }}
+              >
+                <Info size={13} className="text-aoe-gold shrink-0" />
+                {t('matches_low_data_tooltip')}
+              </div>
+            )}
             <BetForm match={match} onBetPlaced={() => { refreshMatch(); setBetRefreshKey(k => k + 1); }} initialPlayer={initialPlayer} />
             {match.status === 'UPCOMING' && match.betsOpen && match.format !== 'BO1' && (
               <ExactScoreBets match={match} onBetPlaced={() => { refreshMatch(); setBetRefreshKey(k => k + 1); }} />

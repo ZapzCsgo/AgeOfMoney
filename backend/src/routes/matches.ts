@@ -21,6 +21,27 @@ const MATCH_BY_ID_TTL = 30_000; // 30 s for UPCOMING/LIVE
 const h2hCache = new Map<string, { data: unknown; ts: number }>();
 const H2H_TTL = 5 * 60_000; // 5 min
 
+// "Limited tournament history" UI flag — see audit/ODDS_FAIRNESS_AUDIT_2026-10-02.md
+// priority 4: matches where a player has <5 PlayerMatchRecord rows scored
+// Brier 0.2843/52.9% accuracy (near coin-flip) vs 0.2128/66.2% for players
+// with ≥5 (n=17, small but a clear direction). Flag is purely informational
+// (transparency signal) — no stake cap: the sample validating this is small,
+// and a hard cap on a marginal-confidence signal (not a known exploit) would
+// be paternalistic for what the flag already lets users self-select around.
+const LOW_DATA_THRESHOLD = 5;
+
+/** Batch-counts PlayerMatchRecord rows for a set of player IDs — one query, no N+1. */
+async function getLowDataFlags(playerIds: string[]): Promise<Map<string, boolean>> {
+  const unique = [...new Set(playerIds)];
+  const counts = await prisma.playerMatchRecord.groupBy({
+    by: ['playerId'],
+    where: { playerId: { in: unique } },
+    _count: { _all: true },
+  });
+  const countByPlayer = new Map(counts.map((c) => [c.playerId, c._count._all]));
+  return new Map(unique.map((id) => [id, (countByPlayer.get(id) ?? 0) < LOW_DATA_THRESHOLD]));
+}
+
 const matchQuerySchema = z.object({
   status: z.enum(['UPCOMING', 'LIVE', 'COMPLETED', 'CANCELLED', 'POSTPONED']).optional(),
   tournamentId: z.string().optional(),
@@ -131,6 +152,8 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
       betsByMatch.set(bet.matchId, list);
     }
 
+    const lowDataById = await getLowDataFlags(matches.flatMap((m) => [m.player1Id, m.player2Id]));
+
     // Compute volume stats and adjusted odds per match
     const matchesWithVolume = matches.map((match) => {
       const bets = betsByMatch.get(match.id) ?? [];
@@ -143,6 +166,7 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
         ...match,
         odds1: liveOdds.odds1,
         odds2: liveOdds.odds2,
+        lowDataFlag: (lowDataById.get(match.player1Id) ?? false) || (lowDataById.get(match.player2Id) ?? false),
         betVolume: {
           player1: vol1,
           player2: vol2,
@@ -227,6 +251,8 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
     const totalVol = vol1 + vol2;
 
     const liveOdds = adjustOddsAdvanced(match.odds1, match.odds2, betRecords);
+    const lowDataById = await getLowDataFlags([match.player1Id, match.player2Id]);
+    const lowDataFlag = (lowDataById.get(match.player1Id) ?? false) || (lowDataById.get(match.player2Id) ?? false);
 
     // Get recent matches for each player (form)
     const [recentP1, recentP2] = await Promise.all([
@@ -281,6 +307,7 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
         ...match,
         odds1: liveOdds.odds1,
         odds2: liveOdds.odds2,
+        lowDataFlag,
         betVolume: {
           player1: vol1,
           player2: vol2,

@@ -115,6 +115,7 @@ const t_fr = {
   matches_imminent:   'Imminent',
   matches_finished:   'Terminé',
   matches_bets_closed:'Paris fermés',
+  matches_low_data_tooltip: 'Historique tournoi limité pour un des deux joueurs — cotes moins fiables.',
   matches_no_tournament: 'Sans tournoi',
 
   // Home
@@ -938,6 +939,7 @@ const t_en: Record<keyof typeof t_fr, string> = {
   matches_imminent:   'Imminent',
   matches_finished:   'Finished',
   matches_bets_closed:'Bets closed',
+  matches_low_data_tooltip: 'Limited tournament history for one player — odds are less reliable.',
   matches_no_tournament: 'No tournament',
 
   home_hero_title:    'AoE4 Esports Betting',
@@ -1736,6 +1738,7 @@ const t_es: Record<keyof typeof t_fr, string> = {
   matches_imminent:   'Inminente',
   matches_finished:   'Terminada',
   matches_bets_closed:'Apuestas cerradas',
+  matches_low_data_tooltip: 'Historial de torneos limitado para uno de los jugadores — cuotas menos fiables.',
   matches_no_tournament: 'Sin torneo',
 
   home_hero_title:    'Apuestas Esports AoE4',
